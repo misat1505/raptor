@@ -14,10 +14,16 @@ use crate::{
     value::Value,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct StdFunction {
     pub params: Vec<Type>,
     pub execute: fn(&Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, StdFunctionError>,
+}
+
+impl PartialEq for StdFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.params == other.params
+    }
 }
 
 fn format_types(types: &[Type]) -> String {
@@ -171,7 +177,7 @@ impl StdFunction {
                     match &*filepath {
                         Value::String(path) => match &*content {
                             Value::String(con) => match fs::write(path, con) {
-                                Ok(content) => Ok(None),
+                                Ok(_) => Ok(None),
                                 Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to write file."))),
                             },
                             _ => Err(build_usage_error(fn_name, expected_types, actual_types)),

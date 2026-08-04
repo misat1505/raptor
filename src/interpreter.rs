@@ -360,7 +360,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
 
 impl<'a> Interpreter<'a> {
     #[allow(dead_code)]
-    pub fn stack(&mut self) -> Stack {
+    pub fn stack(&mut self) -> Stack<'_> {
         // only for accept tests
         self.stack.clone()
     }

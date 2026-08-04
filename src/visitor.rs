@@ -7,6 +7,7 @@ pub trait Visitor<'a> {
     fn visit_program(&mut self, program: &'a Program) -> Result<(), Box<dyn IError>>;
     fn visit_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>>;
     fn visit_expression(&mut self, expression: &'a Node<Expression>) -> Result<(), Box<dyn IError>>;
+    #[allow(dead_code)]
     fn visit_parameter(&mut self, parameter: &'a Node<Parameter>) -> Result<(), Box<dyn IError>>;
     fn visit_argument(&mut self, argument: &'a Node<Argument>) -> Result<(), Box<dyn IError>>;
     fn visit_type(&mut self, node_type: &'a Node<Type>) -> Result<(), Box<dyn IError>>;

@@ -1,15 +1,6 @@
 str filepath = "foo.txt";
 
-str text = "yes";
-if (!exists_file(filepath)) {
-  text = "no";
-}
-println(filepath + " exists: " + text);
-
+println(filepath + " exists: " + exists_file(filepath) as str);
 write_file(filepath, "Hello world\n");
-
-text = "yes";
-if (!exists_file(filepath)) {
-  text = "no";
-}
-println(filepath + " exists: " + text);
+println(filepath + " exists: " + exists_file(filepath) as str);
+println((exists_file(filepath) as i64) as str);

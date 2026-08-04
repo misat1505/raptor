@@ -84,6 +84,9 @@ impl ALU {
                 )),
             },
             (Value::String(string), Type::Bool) => Ok(Value::Bool(string.as_str() != "")),
+            (Value::Bool(bool), Type::Str) => return Ok(Value::String(String::from(if bool { "true" } else { "false" }))),
+            (Value::Bool(bool), Type::I64) => return Ok(Value::I64(if bool { 1 } else { 0 })),
+            (Value::Bool(bool), Type::F64) => return Ok(Value::F64(if bool { 1.0 } else { 0.0 })),
             (value, target_type) => Err(ComputationError::new(
                 ErrorSeverity::HIGH,
                 format!("Cannot cast '{:?}' to '{:?}'.", value, target_type),

@@ -16,7 +16,7 @@ pub struct StackFrame<'a> {
 
 impl<'a> Debug for StackFrame<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.scope_manager)
+        Ok(write!(f, "{:?}", self.scope_manager)?)
     }
 }
 
@@ -58,10 +58,10 @@ impl<'a> Stack<'a> {
     }
 
     pub fn get_variable(&mut self, name: &'a str) -> Result<&Rc<RefCell<Value>>, ScopeManagerError> {
-        if let Some(last_frame) = self.0.last_mut() {
-            return last_frame.scope_manager.get_variable(name);
+        match self.0.last_mut() {
+            Some(last_frame) => last_frame.scope_manager.get_variable(name),
+            None => unreachable!("Scope stack is empty"),
         }
-        unreachable!();
     }
 
     pub fn assign_variable(&mut self, name: &'a str, value: Rc<RefCell<Value>>) -> Result<(), ScopeManagerError> {

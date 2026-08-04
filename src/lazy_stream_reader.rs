@@ -20,7 +20,7 @@ pub struct Position {
 
 impl Debug for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "line: {}, column: {}", self.line, self.column)
+        Ok(write!(f, "line: {}, column: {}", self.line, self.column)?)
     }
 }
 
@@ -142,6 +142,6 @@ impl<R: BufRead> LazyStreamReader<R> {
         let spaces = " ".repeat((self.position().column - 1) as usize);
         let caret_string = format!("{}^", spaces);
 
-        format!("\nAt line:\n{}{}{}{}", self.current_line, self.current_char, buffer, caret_string)
+        return format!("\nAt line:\n{}{}{}{}", self.current_line, self.current_char, buffer, caret_string);
     }
 }

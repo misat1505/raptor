@@ -116,7 +116,7 @@ impl Debug for TokenCategory {
             F64Value => "f64 value",
         };
 
-        write!(f, "{}", text)
+        Ok(write!(f, "{}", text)?)
     }
 }
 

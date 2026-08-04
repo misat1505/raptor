@@ -331,7 +331,7 @@ impl<T: BufRead> Lexer<T> {
 
     fn prepare_warning_message(&self, text: String) -> String {
         let position = self.src.position();
-        format!("\nWarning:\n{}\nAt {:?}\n", text, position)
+        return format!("\nWarning:\n{}\nAt {:?}\n", text, position);
     }
 }
 

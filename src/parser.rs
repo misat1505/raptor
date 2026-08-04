@@ -910,7 +910,7 @@ mod tests {
     }
 
     fn create_error_message(text: String) -> String {
-        format!("{}\nAt {:?}.", text, default_position())
+        return format!("{}\nAt {:?}.", text, default_position());
     }
 
     #[test]

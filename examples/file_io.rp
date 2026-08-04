@@ -1,4 +1,15 @@
-str text = read_file("fib_speed.rp");
-println(text);
+str filepath = "foo.txt";
 
-write_file("foo.txt", "Hello world");
+str text = "yes";
+if (!exists_file(filepath)) {
+  text = "no";
+}
+println(filepath + " exists: " + text);
+
+write_file(filepath, "Hello world\n");
+
+text = "yes";
+if (!exists_file(filepath)) {
+  text = "no";
+}
+println(filepath + " exists: " + text);

@@ -5,7 +5,7 @@ use std::{
     io::{self, Write},
     path::Path,
     rc::Rc,
-    writeln,
+    vec,
 };
 
 use crate::{
@@ -20,31 +20,41 @@ pub struct StdFunction {
     pub execute: fn(&Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, StdFunctionError>,
 }
 
+fn format_types(types: &[Type]) -> String {
+    types.iter().map(|t| format!("{:?}", t)).collect::<Vec<String>>().join(", ")
+}
+
+fn build_usage_error(fn_name: &str, expected_types: Vec<Type>, actual_types: Vec<Type>) -> StdFunctionError {
+    let message = format!(
+        "\nInvalid usage of built-in function '{}'.\nExpected signature: {}({})\nProvided types: {}({})",
+        fn_name,
+        fn_name,
+        format_types(&expected_types),
+        fn_name,
+        format_types(&actual_types)
+    );
+    StdFunctionError::new(ErrorSeverity::HIGH, message)
+}
+
 impl StdFunction {
     fn print() -> Self {
         let params = vec![Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "write_file";
+            let expected_types = vec![Type::Str];
+            let mut actual_types: Vec<Type> = vec![];
             if let Some(value) = params.get(0) {
+                actual_types.push(value.borrow().to_type());
                 let value = value.borrow();
                 match &*value {
                     Value::String(text) => {
                         print!("{}", text);
                         Ok(None)
                     }
-                    _ => Err(StdFunctionError::new(
-                        ErrorSeverity::HIGH,
-                        format!(
-                            "Std function 'print' expected '{:?}' as the only argument, but was given '{:?}'.",
-                            Type::Str,
-                            value.to_type()
-                        ),
-                    )),
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                 }
             } else {
-                Err(StdFunctionError::new(
-                    ErrorSeverity::HIGH,
-                    String::from("Missing argument for 'print' function."),
-                ))
+                Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
         StdFunction { params, execute }
@@ -53,27 +63,21 @@ impl StdFunction {
     fn println() -> Self {
         let params = vec![Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "println";
+            let expected_types = vec![Type::Str];
+            let mut actual_types: Vec<Type> = vec![];
             if let Some(value) = params.get(0) {
+                actual_types.push(value.borrow().to_type());
                 let value = value.borrow();
                 match &*value {
                     Value::String(text) => {
                         println!("{}", text);
                         Ok(None)
                     }
-                    _ => Err(StdFunctionError::new(
-                        ErrorSeverity::HIGH,
-                        format!(
-                            "Std function 'println' expected '{:?}' as the only argument, but was given '{:?}'.",
-                            Type::Str,
-                            value.to_type()
-                        ),
-                    )),
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                 }
             } else {
-                Err(StdFunctionError::new(
-                    ErrorSeverity::HIGH,
-                    String::from("Missing argument for 'println' function."),
-                ))
+                Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
         StdFunction { params, execute }
@@ -82,7 +86,11 @@ impl StdFunction {
     fn input() -> Self {
         let params = vec![Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "input";
+            let expected_types = vec![Type::Str];
+            let mut actual_types: Vec<Type> = vec![];
             if let Some(value) = params.get(0) {
+                actual_types.push(value.borrow().to_type());
                 let value = value.borrow();
                 match &*value {
                     Value::String(prompt) => {
@@ -94,20 +102,10 @@ impl StdFunction {
                             Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to read input."))),
                         }
                     }
-                    _ => Err(StdFunctionError::new(
-                        ErrorSeverity::HIGH,
-                        format!(
-                            "Std function 'input' expected '{:?}' as the only argument, but was given '{:?}'.",
-                            Type::Str,
-                            value.to_type()
-                        ),
-                    )),
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                 }
             } else {
-                Err(StdFunctionError::new(
-                    ErrorSeverity::HIGH,
-                    String::from("Missing argument for 'input' function."),
-                ))
+                Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
         StdFunction { params, execute }
@@ -116,25 +114,20 @@ impl StdFunction {
     fn modulo() -> Self {
         let params = vec![Type::I64, Type::I64];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "modulo";
+            let expected_types = vec![Type::I64, Type::I64];
+            let mut actual_types: Vec<Type> = vec![];
             if let (Some(val1), Some(val2)) = (params.get(0), params.get(1)) {
+                actual_types.push(val1.borrow().to_type());
+                actual_types.push(val2.borrow().to_type());
                 let val1 = val1.borrow();
                 let val2 = val2.borrow();
                 match (&*val1, &*val2) {
                     (Value::I64(val1), Value::I64(val2)) => Ok(Some(Value::I64(*val1 % *val2))),
-                    _ => Err(StdFunctionError::new(
-                        ErrorSeverity::HIGH,
-                        format!(
-                            "Cannot perform modulo operation between values of types '{:?}' and '{:?}'.",
-                            val1.to_type(),
-                            val2.to_type()
-                        ),
-                    )),
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                 }
             } else {
-                Err(StdFunctionError::new(
-                    ErrorSeverity::HIGH,
-                    String::from("Missing arguments for 'mod' function."),
-                ))
+                Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
         StdFunction { params, execute }
@@ -143,27 +136,21 @@ impl StdFunction {
     fn read_file() -> Self {
         let params = vec![Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "read_file";
+            let expected_types = vec![Type::Str];
+            let mut actual_types: Vec<Type> = vec![];
             if let Some(filepath) = params.get(0) {
+                actual_types.push(filepath.borrow().to_type());
                 let filepath = filepath.borrow();
                 match &*filepath {
                     Value::String(path) => match fs::read_to_string(path) {
                         Ok(content) => Ok(Some(Value::String(content))),
                         Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to read file."))),
                     },
-                    _ => Err(StdFunctionError::new(
-                        ErrorSeverity::HIGH,
-                        format!(
-                            "Std function 'read_file' expected '{:?}' as the only argument, but was given '{:?}'.",
-                            Type::Str,
-                            filepath.to_type()
-                        ),
-                    )),
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                 }
             } else {
-                Err(StdFunctionError::new(
-                    ErrorSeverity::HIGH,
-                    String::from("Missing argument for 'read_file' function."),
-                ))
+                Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
         StdFunction { params, execute }
@@ -172,8 +159,13 @@ impl StdFunction {
     fn write_file() -> Self {
         let params = vec![Type::Str, Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "write_file";
+            let expected_types = vec![Type::Str, Type::Str];
+            let mut actual_types: Vec<Type> = vec![];
             if let Some(filepath) = params.get(0) {
+                actual_types.push(filepath.borrow().to_type());
                 if let Some(content) = params.get(1) {
+                    actual_types.push(content.borrow().to_type());
                     let filepath = filepath.borrow();
                     let content = content.borrow();
                     match &*filepath {
@@ -182,35 +174,15 @@ impl StdFunction {
                                 Ok(content) => Ok(None),
                                 Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to write file."))),
                             },
-                            _ => Err(StdFunctionError::new(
-                                ErrorSeverity::HIGH,
-                                format!(
-                                    "Std function 'write_file' expected '{:?}' as the only argument, but was given '{:?}'.",
-                                    Type::Str,
-                                    filepath.to_type()
-                                ),
-                            )),
+                            _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                         },
-                        _ => Err(StdFunctionError::new(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Std function 'write_file' expected '{:?}' as the only argument, but was given '{:?}'.",
-                                Type::Str,
-                                filepath.to_type()
-                            ),
-                        )),
+                        _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                     }
                 } else {
-                    Err(StdFunctionError::new(
-                        ErrorSeverity::HIGH,
-                        String::from("Missing argument for 'write_file' function."),
-                    ))
+                    Err(build_usage_error(fn_name, expected_types, actual_types))
                 }
             } else {
-                Err(StdFunctionError::new(
-                    ErrorSeverity::HIGH,
-                    String::from("Missing argument for 'write_file' function."),
-                ))
+                Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
         StdFunction { params, execute }
@@ -219,8 +191,13 @@ impl StdFunction {
     fn append_file() -> Self {
         let params = vec![Type::Str, Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "append_file";
+            let expected_types = vec![Type::Str, Type::Str];
+            let mut actual_types: Vec<Type> = vec![];
             if let Some(filepath) = params.get(0) {
+                actual_types.push(filepath.borrow().to_type());
                 if let Some(content) = params.get(1) {
+                    actual_types.push(content.borrow().to_type());
                     let filepath = filepath.borrow();
                     let content = content.borrow();
                     match &*filepath {
@@ -232,35 +209,15 @@ impl StdFunction {
                                 },
                                 Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to append to file."))),
                             },
-                            _ => Err(StdFunctionError::new(
-                                ErrorSeverity::HIGH,
-                                format!(
-                                    "Std function 'write_file' expected '{:?}' as the only argument, but was given '{:?}'.",
-                                    Type::Str,
-                                    filepath.to_type()
-                                ),
-                            )),
+                            _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                         },
-                        _ => Err(StdFunctionError::new(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Std function 'write_file' expected '{:?}' as the only argument, but was given '{:?}'.",
-                                Type::Str,
-                                filepath.to_type()
-                            ),
-                        )),
+                        _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                     }
                 } else {
-                    Err(StdFunctionError::new(
-                        ErrorSeverity::HIGH,
-                        String::from("Missing argument for 'write_file' function."),
-                    ))
+                    Err(build_usage_error(fn_name, expected_types, actual_types))
                 }
             } else {
-                Err(StdFunctionError::new(
-                    ErrorSeverity::HIGH,
-                    String::from("Missing argument for 'write_file' function."),
-                ))
+                Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
         StdFunction { params, execute }
@@ -269,27 +226,21 @@ impl StdFunction {
     fn delete_file() -> Self {
         let params = vec![Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "delete_file";
+            let expected_types = vec![Type::Str];
+            let mut actual_types: Vec<Type> = vec![];
             if let Some(filepath) = params.get(0) {
+                actual_types.push(filepath.borrow().to_type());
                 let filepath = filepath.borrow();
                 match &*filepath {
                     Value::String(path) => match fs::remove_file(path) {
                         Ok(_) => Ok(None),
                         Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to delete file."))),
                     },
-                    _ => Err(StdFunctionError::new(
-                        ErrorSeverity::HIGH,
-                        format!(
-                            "Std function 'delete_file' expected '{:?}' as the only argument, but was given '{:?}'.",
-                            Type::Str,
-                            filepath.to_type()
-                        ),
-                    )),
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                 }
             } else {
-                Err(StdFunctionError::new(
-                    ErrorSeverity::HIGH,
-                    String::from("Missing argument for 'delete_file' function."),
-                ))
+                Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
         StdFunction { params, execute }
@@ -298,27 +249,21 @@ impl StdFunction {
     fn exists_file() -> Self {
         let params = vec![Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "exists_file";
+            let expected_types = vec![Type::Str];
+            let mut actual_types: Vec<Type> = vec![];
             if let Some(filepath) = params.get(0) {
+                actual_types.push(filepath.borrow().to_type());
                 let filepath = filepath.borrow();
                 match &*filepath {
                     Value::String(path) => {
                         let exists = Path::new(path).exists();
                         return Ok(Some(Value::Bool(exists)));
                     }
-                    _ => Err(StdFunctionError::new(
-                        ErrorSeverity::HIGH,
-                        format!(
-                            "Std function 'exists_file' expected '{:?}' as the only argument, but was given '{:?}'.",
-                            Type::Str,
-                            filepath.to_type()
-                        ),
-                    )),
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
                 }
             } else {
-                Err(StdFunctionError::new(
-                    ErrorSeverity::HIGH,
-                    String::from("Missing argument for 'exists_file' function."),
-                ))
+                Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
         StdFunction { params, execute }

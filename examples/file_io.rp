@@ -1,0 +1,4 @@
+str text = read_file("fib_speed.rp");
+println(text);
+
+write_file("foo.txt", "Hello world");

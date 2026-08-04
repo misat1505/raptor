@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     collections::HashMap,
+    fs,
     io::{self, Write},
     rc::Rc,
 };
@@ -25,7 +26,7 @@ impl StdFunction {
                 let value = value.borrow();
                 match &*value {
                     Value::String(text) => {
-                        println!("{}", text);
+                        print!("{}", text);
                         Ok(None)
                     }
                     _ => Err(StdFunctionError::new(
@@ -41,6 +42,35 @@ impl StdFunction {
                 Err(StdFunctionError::new(
                     ErrorSeverity::HIGH,
                     String::from("Missing argument for 'print' function."),
+                ))
+            }
+        };
+        StdFunction { params, execute }
+    }
+
+    fn println() -> Self {
+        let params = vec![Type::Str];
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            if let Some(value) = params.get(0) {
+                let value = value.borrow();
+                match &*value {
+                    Value::String(text) => {
+                        println!("{}", text);
+                        Ok(None)
+                    }
+                    _ => Err(StdFunctionError::new(
+                        ErrorSeverity::HIGH,
+                        format!(
+                            "Std function 'println' expected '{:?}' as the only argument, but was given '{:?}'.",
+                            Type::Str,
+                            value.to_type()
+                        ),
+                    )),
+                }
+            } else {
+                Err(StdFunctionError::new(
+                    ErrorSeverity::HIGH,
+                    String::from("Missing argument for 'println' function."),
                 ))
             }
         };
@@ -107,12 +137,91 @@ impl StdFunction {
         };
         StdFunction { params, execute }
     }
+
+    fn read_file() -> Self {
+        let params = vec![Type::Str];
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            if let Some(filepath) = params.get(0) {
+                let filepath = filepath.borrow();
+                match &*filepath {
+                    Value::String(path) => match fs::read_to_string(path) {
+                        Ok(content) => Ok(Some(Value::String(content))),
+                        Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to read file."))),
+                    },
+                    _ => Err(StdFunctionError::new(
+                        ErrorSeverity::HIGH,
+                        format!(
+                            "Std function 'read_file' expected '{:?}' as the only argument, but was given '{:?}'.",
+                            Type::Str,
+                            filepath.to_type()
+                        ),
+                    )),
+                }
+            } else {
+                Err(StdFunctionError::new(
+                    ErrorSeverity::HIGH,
+                    String::from("Missing argument for 'read_file' function."),
+                ))
+            }
+        };
+        StdFunction { params, execute }
+    }
+
+    fn write_file() -> Self {
+        let params = vec![Type::Str, Type::Str];
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            if let Some(filepath) = params.get(0) {
+                if let Some(content) = params.get(1) {
+                    let filepath = filepath.borrow();
+                    let content = content.borrow();
+                    match &*filepath {
+                        Value::String(path) => match &*content {
+                            Value::String(con) => match fs::write(path, con) {
+                                Ok(content) => Ok(None),
+                                Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to write file."))),
+                            },
+                            _ => Err(StdFunctionError::new(
+                                ErrorSeverity::HIGH,
+                                format!(
+                                    "Std function 'write_file' expected '{:?}' as the only argument, but was given '{:?}'.",
+                                    Type::Str,
+                                    filepath.to_type()
+                                ),
+                            )),
+                        },
+                        _ => Err(StdFunctionError::new(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Std function 'write_file' expected '{:?}' as the only argument, but was given '{:?}'.",
+                                Type::Str,
+                                filepath.to_type()
+                            ),
+                        )),
+                    }
+                } else {
+                    Err(StdFunctionError::new(
+                        ErrorSeverity::HIGH,
+                        String::from("Missing argument for 'write_file' function."),
+                    ))
+                }
+            } else {
+                Err(StdFunctionError::new(
+                    ErrorSeverity::HIGH,
+                    String::from("Missing argument for 'write_file' function."),
+                ))
+            }
+        };
+        StdFunction { params, execute }
+    }
 }
 
 pub fn get_std_functions() -> HashMap<String, StdFunction> {
     let mut std_functions: HashMap<String, StdFunction> = HashMap::new();
     std_functions.insert("print".to_owned(), StdFunction::print());
+    std_functions.insert("println".to_owned(), StdFunction::println());
     std_functions.insert("input".to_owned(), StdFunction::input());
     std_functions.insert("mod".to_owned(), StdFunction::modulo());
+    std_functions.insert("read_file".to_owned(), StdFunction::read_file());
+    std_functions.insert("write_file".to_owned(), StdFunction::write_file());
     std_functions
 }

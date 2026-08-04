@@ -61,7 +61,7 @@ impl ALU {
 }
 
 impl ALU {
-    pub fn cast_to_type(val: Value, to_type: Type) -> Result<Value, ComputationError> {
+    pub fn cast_to_type(val: Value, to_type: &Type) -> Result<Value, ComputationError> {
         match (val, to_type) {
             (Value::I64(i64), Type::Str) => Ok(Value::String(i64.to_string())),
             (Value::F64(f64), Type::Str) => Ok(Value::String(f64.to_string())),
@@ -332,7 +332,7 @@ mod tests {
         for idx in 0..data.len() {
             let (init, to_type) = &data[idx];
             let exp = &expected[idx];
-            assert_eq!(ALU::cast_to_type(init.clone(), *to_type).unwrap(), *exp);
+            assert_eq!(ALU::cast_to_type(init.clone(), to_type).unwrap(), *exp);
         }
     }
 
@@ -345,7 +345,7 @@ mod tests {
 
         for (val, to_type) in data {
             assert_eq!(
-                ALU::cast_to_type(val, to_type).err().unwrap().message(),
+                ALU::cast_to_type(val, &to_type).err().unwrap().message(),
                 format!("Cannot cast String 'abc' to '{:?}'.", to_type)
             );
         }

@@ -53,13 +53,14 @@ pub enum Literal {
     F64(f64),
 }
 
-#[derive(Clone, PartialEq, Copy)]
+#[derive(Clone, PartialEq)]
 pub enum Type {
     Bool,
     Str,
     I64,
     F64,
     Void,
+    Vector(Box<Type>),
 }
 
 impl Debug for Type {
@@ -70,6 +71,7 @@ impl Debug for Type {
             Type::I64 => Ok(write!(f, "i64")?),
             Type::Str => Ok(write!(f, "str")?),
             Type::Void => Ok(write!(f, "void")?),
+            Type::Vector(inner) => write!(f, "{:?}[]", inner),
         }
     }
 }

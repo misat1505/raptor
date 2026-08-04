@@ -110,7 +110,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                 self.visit_expression(&value)?;
                 let computed_value = self.read_last_result()?;
                 let value =
-                    ALU::cast_to_type(computed_value, to_type.value).map_err(|err| ErrorsManager::append_position(Box::new(err), self.position))?;
+                    ALU::cast_to_type(computed_value, &to_type.value).map_err(|err| ErrorsManager::append_position(Box::new(err), self.position))?;
                 self.last_result = Some(value);
             }
             Expression::BooleanNegation(value) => self.evaluate_unary_op(value, ALU::boolean_negate)?,
@@ -152,10 +152,10 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                             ErrorsManager::append_position(error, self.position)
                         })?
                     }
-                    None => Value::default_value(var_type.value).map_err(|err| Box::new(err) as Box<dyn IError>)?,
+                    None => Value::default_value(&var_type.value).map_err(|err| Box::new(err) as Box<dyn IError>)?,
                 };
 
-                match (var_type.value, &computed_value) {
+                match (&var_type.value, &computed_value) {
                     (Type::I64, Value::I64(_)) | (Type::F64, Value::F64(_)) | (Type::Str, Value::String(_)) | (Type::Bool, Value::Bool(_)) => {}
                     (declared_type, computed_type) => {
                         let error = Box::new(InterpreterError::new(
@@ -433,7 +433,7 @@ impl<'a> Interpreter<'a> {
 
         // args
         for idx in 0..self.last_arguments.len() {
-            let desired_type = function_declaration.parameters.get(idx).unwrap().value.parameter_type.value;
+            let desired_type = &function_declaration.parameters.get(idx).unwrap().value.parameter_type.value;
             let param_name = &function_declaration.parameters.get(idx).unwrap().value.identifier.value;
             let value = self.last_arguments.get(idx).unwrap();
             match (desired_type, &*value.borrow()) {
@@ -470,7 +470,7 @@ impl<'a> Interpreter<'a> {
         }
 
         // check return type
-        match (&self.last_result, function_declaration.return_type.value) {
+        match (&self.last_result, &function_declaration.return_type.value) {
             (None, Type::Void)
             | (Some(Value::I64(_)), Type::I64)
             | (Some(Value::F64(_)), Type::F64)
@@ -1282,7 +1282,7 @@ mod tests {
         let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(12))));
         let _ = interpreter
             .stack
-            .declare_variable("result", Rc::new(RefCell::new(Value::default_value(Type::I64).unwrap())));
+            .declare_variable("result", Rc::new(RefCell::new(Value::default_value(&Type::I64).unwrap())));
 
         let switch_case = &create_test_switch_case();
         let _ = interpreter.visit_statement(switch_case);
@@ -1301,7 +1301,7 @@ mod tests {
         let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(3))));
         let _ = interpreter
             .stack
-            .declare_variable("result", Rc::new(RefCell::new(Value::default_value(Type::I64).unwrap())));
+            .declare_variable("result", Rc::new(RefCell::new(Value::default_value(&Type::I64).unwrap())));
 
         let switch_case = &create_test_switch_case();
         let _ = interpreter.visit_statement(switch_case);
@@ -1320,7 +1320,7 @@ mod tests {
         let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(2137))));
         let _ = interpreter
             .stack
-            .declare_variable("result", Rc::new(RefCell::new(Value::default_value(Type::I64).unwrap())));
+            .declare_variable("result", Rc::new(RefCell::new(Value::default_value(&Type::I64).unwrap())));
 
         let switch_case = &create_test_switch_case();
         let _ = interpreter.visit_statement(switch_case);

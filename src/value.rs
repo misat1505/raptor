@@ -12,7 +12,7 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn default_value(var_type: Type) -> Result<Value, ComputationError> {
+    pub fn default_value(var_type: &Type) -> Result<Value, ComputationError> {
         match var_type {
             Type::Bool => Ok(Value::Bool(false)),
             Type::I64 => Ok(Value::I64(0)),
@@ -55,14 +55,14 @@ mod tests {
         let expected = [Value::Bool(false), Value::I64(0), Value::F64(0.0), Value::String(String::from(""))];
 
         for idx in 0..data.len() {
-            assert_eq!(Value::default_value(data[idx]).unwrap(), expected[idx]);
+            assert_eq!(Value::default_value(&data[idx]).unwrap(), expected[idx]);
         }
     }
 
     #[test]
     fn default_values_fail() {
         assert_eq!(
-            Value::default_value(Type::Void).err().unwrap().message(),
+            Value::default_value(&Type::Void).err().unwrap().message(),
             String::from("Cannot create default value for type 'void'.")
         );
     }

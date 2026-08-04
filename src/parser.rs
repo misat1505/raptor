@@ -789,7 +789,7 @@ impl<L: ILexer> Parser<L> {
     fn parse_type(&mut self) -> Result<Option<Node<Type>>, Box<dyn IError>> {
         let token = self.current_token();
 
-        let result = match token.category {
+        let mut result = match token.category {
             TokenCategory::Bool => Type::Bool,
             TokenCategory::String => Type::Str,
             TokenCategory::I64 => Type::I64,
@@ -798,6 +798,12 @@ impl<L: ILexer> Parser<L> {
         };
 
         let _ = self.next_token()?;
+        while self.current_token().category == TokenCategory::BracketOpen {
+            self.consume_must_be(TokenCategory::BracketOpen)?;
+            self.consume_must_be(TokenCategory::BracketClose)?;
+
+            result = Type::Vector(Box::new(result));
+        }
 
         Ok(Some(Node {
             value: result,

@@ -9,6 +9,7 @@ pub enum Value {
     F64(f64),
     String(String),
     Bool(bool),
+    Vector(Box<Value>),
 }
 
 impl Value {
@@ -31,6 +32,7 @@ impl Value {
             Value::F64(_) => Type::F64,
             Value::I64(_) => Type::I64,
             Value::String(_) => Type::Str,
+            Value::Vector(v) => Type::Vector(Box::new(v.to_type())),
         }
     }
 

@@ -308,7 +308,7 @@ switch (x: temp1, y: temp2) {
 
 **letter** = "a" - "z" | "A" - "Z";
 
-**type** = “i64“| “f64” | “bool” | “str”;
+**type** = (“i64“| “f64” | “bool” | “str”), { "[]" };
 
 **relation_operands** = "==" | "<" | "<=" | ">" | ">=" | "!=";
 

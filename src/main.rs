@@ -1,4 +1,4 @@
-use std::{env::args, fs::File, io::BufReader, time::Instant};
+use std::{env::args, fs::File, io::BufReader, println, time::Instant};
 
 use errors::IError;
 use lexer::Lexer;

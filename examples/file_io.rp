@@ -1,3 +1,7 @@
+fn foo(i64 arg): void {
+
+}
+
 str filepath = "foo.txt";
 
 println(filepath + " exists: " + exists_file(filepath) as str);

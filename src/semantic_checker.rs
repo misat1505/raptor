@@ -183,6 +183,9 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     self.visit_argument(&arg);
                 }
             }
+            Expression::Vector(vector) => {
+                self.visit_vector_literal(vector)?;
+            }
         }
         Ok(())
     }
@@ -291,6 +294,14 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
     }
 
     fn visit_variable(&mut self, _variable: &'a String) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_vector_literal(&mut self, vector: &'a Vec<Box<Node<Expression>>>) -> Result<(), Box<dyn IError>> {
+        for expression in vector {
+            self.visit_expression(expression)?;
+        }
+
         Ok(())
     }
 }

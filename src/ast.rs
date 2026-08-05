@@ -37,6 +37,7 @@ pub enum Expression {
     },
     // Values
     Literal(Literal),
+    Vector(Vec<BNode<Expression>>),
     Variable(String),
     FunctionCall {
         identifier: Node<String>,

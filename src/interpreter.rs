@@ -128,6 +128,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
             Expression::Equal(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::equal)?,
             Expression::NotEqual(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::not_equal)?,
             Expression::Literal(literal) => self.visit_literal(literal)?,
+            Expression::Vector(vector) => self.visit_vector_literal(vector)?,
             Expression::Variable(variable) => self.visit_variable(variable)?,
             Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments)?,
         }
@@ -360,6 +361,25 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
         };
 
         self.last_result = Some(value);
+        Ok(())
+    }
+
+    fn visit_vector_literal(&mut self, expressions: &'a Vec<Box<Node<Expression>>>) -> Result<(), Box<dyn IError>> {
+        let mut values = Vec::new();
+
+        for expression in expressions {
+            self.visit_expression(expression)?;
+            values.push(self.read_last_result()?);
+        }
+
+        let kind = if let Some(first) = values.first() {
+            Box::new(first.to_type())
+        } else {
+            Box::new(Type::Void) // TODO: void for now
+        };
+
+        self.last_result = Some(Value::Vector { kind, values });
+
         Ok(())
     }
 

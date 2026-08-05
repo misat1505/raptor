@@ -260,13 +260,22 @@ x == y
 !true
 ```
 
-**factor** = literal | ( "(", expression, ")" ) | identifier_or_call;
+**factor** = literal | ( "(", expression, ")" ) | identifier_or_call | vector_literal;
 
 ```
 5
 (2.2 + 3 as f64)
 x
 fun(5)
+```
+
+**vector_literal** = "[", [ expression, { ",", expression } ], "]";
+
+```
+[]
+[1, 2, 3]
+["hello", "world"]
+[[1,2], [3,4]]
 ```
 
 **identifier_or_call** = identifier, [ "(", arguments, ")" ];

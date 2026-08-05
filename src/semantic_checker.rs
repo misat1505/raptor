@@ -52,18 +52,32 @@ impl<'a> SemanticChecker<'a> {
                         ));
                     }
 
-                    for argument in arguments {
-                        if argument.value.passed_by == PassedBy::Reference {
-                            self.errors.push(SemanticCheckerError::new(
-                                ErrorSeverity::HIGH,
-                                format!(
-                                    "Parameter in function '{}' passed by {:?} - should be passed by {:?}.\nAt {:?}.\n",
-                                    identifier.value,
-                                    argument.value.passed_by,
-                                    PassedBy::Value,
-                                    argument.position
-                                ),
-                            ))
+                    for idx in 0..std_function.params.len() {
+                        if let Some(argument) = arguments.get(idx) {
+                            let expected = std_function.passed_by.get(idx).unwrap_or(&PassedBy::Value);
+
+                            if &argument.value.passed_by != expected {
+                                self.errors.push(SemanticCheckerError::new(
+                                    ErrorSeverity::HIGH,
+                                    format!(
+                                        "Parameter {} in function '{}' passed by {:?} - should be passed by {:?}.\nAt {:?}.\n",
+                                        idx, identifier.value, argument.value.passed_by, expected, argument.position
+                                    ),
+                                ));
+                            }
+
+                            if *expected == PassedBy::Reference {
+                                if let Expression::Variable(_) = argument.value.value.value {
+                                } else {
+                                    self.errors.push(SemanticCheckerError::new(
+                                        ErrorSeverity::HIGH,
+                                        format!(
+                                            "Parameter {} in function '{}' is passed by reference, but complex expression was found.\nAt {:?}.\n",
+                                            idx, identifier.value, argument.position
+                                        ),
+                                    ));
+                                }
+                            }
                         }
                     }
 

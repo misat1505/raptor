@@ -4,12 +4,13 @@ use std::{
     fs::{self, OpenOptions},
     io::{self, Write},
     path::Path,
+    println,
     rc::Rc,
     vec,
 };
 
 use crate::{
-    ast::Type,
+    ast::{PassedBy, Type},
     errors::{ErrorSeverity, StdFunctionError},
     value::Value,
 };
@@ -17,6 +18,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct StdFunction {
     pub params: Vec<Type>,
+    pub passed_by: Vec<PassedBy>,
     pub execute: fn(&Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, StdFunctionError>,
 }
 
@@ -77,7 +79,11 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value],
+        }
     }
 
     fn println() -> Self {
@@ -100,7 +106,11 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value],
+        }
     }
 
     fn input() -> Self {
@@ -128,7 +138,11 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value],
+        }
     }
 
     fn modulo() -> Self {
@@ -150,7 +164,11 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value, PassedBy::Value],
+        }
     }
 
     fn read_file() -> Self {
@@ -173,7 +191,11 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value],
+        }
     }
 
     fn write_file() -> Self {
@@ -205,7 +227,11 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value, PassedBy::Value],
+        }
     }
 
     fn append_file() -> Self {
@@ -240,7 +266,11 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value, PassedBy::Value],
+        }
     }
 
     fn delete_file() -> Self {
@@ -263,7 +293,11 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value],
+        }
     }
 
     fn exists_file() -> Self {
@@ -286,7 +320,11 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value],
+        }
     }
 
     fn vector_stringify() -> Self {
@@ -312,7 +350,52 @@ impl StdFunction {
             }
         };
 
-        StdFunction { params, execute }
+        StdFunction {
+            params,
+            execute,
+            passed_by: vec![PassedBy::Value],
+        }
+    }
+
+    fn vector_push() -> Self {
+        let params = vec![Type::Vector(Box::new(Type::Void)), Type::Void];
+
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "vector_push";
+            let expected_types = vec![Type::Vector(Box::new(Type::Void)), Type::Void];
+
+            let mut actual_types: Vec<Type> = vec![];
+
+            if let (Some(vector), Some(value)) = (params.get(0), params.get(1)) {
+                actual_types.push(vector.borrow().to_type());
+                actual_types.push(value.borrow().to_type());
+
+                let mut vector = vector.borrow_mut();
+                let value = value.borrow();
+
+                match &mut *vector {
+                    Value::Vector { kind, values } => {
+                        if !kind.accepts(&value) {
+                            return Err(build_usage_error(fn_name, expected_types, actual_types));
+                        }
+
+                        values.push(value.clone());
+
+                        Ok(None)
+                    }
+
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction {
+            params,
+            passed_by: vec![PassedBy::Reference, PassedBy::Value],
+            execute,
+        }
     }
 }
 
@@ -328,5 +411,6 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
     std_functions.insert("delete_file".to_owned(), StdFunction::delete_file());
     std_functions.insert("exists_file".to_owned(), StdFunction::exists_file());
     std_functions.insert("vector_stringify".to_owned(), StdFunction::vector_stringify());
+    std_functions.insert("vector_push".to_owned(), StdFunction::vector_push());
     std_functions
 }

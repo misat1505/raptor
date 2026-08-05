@@ -95,28 +95,24 @@ impl<'a> Scope<'a> {
         let current_value_option = self.get_variable(name);
         match current_value_option {
             None => Err(ScopeManagerError::new(ErrorSeverity::HIGH, format!("Variable '{}' not declared.", name))),
+
             Some(prev_val) => {
                 let mut prev_val_borrow = prev_val.borrow_mut();
                 let new_val_borrow = value.borrow();
-                match (&*prev_val_borrow, &*new_val_borrow) {
-                    (Value::I64(_), Value::I64(_))
-                    | (Value::F64(_), Value::F64(_))
-                    | (Value::String(_), Value::String(_))
-                    | (Value::Bool(_), Value::Bool(_)) => {
-                        *prev_val_borrow = new_val_borrow.clone();
-                        drop(prev_val_borrow);
-                        drop(new_val_borrow);
-                        Ok(())
-                    }
-                    (a, b) => Err(ScopeManagerError::new(
+
+                if prev_val_borrow.to_type().accepts(&new_val_borrow) {
+                    *prev_val_borrow = new_val_borrow.clone();
+                    Ok(())
+                } else {
+                    Err(ScopeManagerError::new(
                         ErrorSeverity::HIGH,
                         format!(
                             "Cannot assign '{:?}' to variable '{}' which was previously declared as '{:?}'.",
-                            b.to_type(),
+                            new_val_borrow.to_type(),
                             name,
-                            a.to_type()
+                            prev_val_borrow.to_type()
                         ),
-                    )),
+                    ))
                 }
             }
         }

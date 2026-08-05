@@ -10,3 +10,15 @@ println(vector_stringify(vec));
 
 str[] names = ["Aboba", "foo"];
 println(vector_stringify(names));
+
+vector_push(&names, "Elon");
+println(vector_stringify(names));
+
+# TODO: this doesn't work
+# i64[] numbers = [];
+
+i64[] numbers = [0];
+for (i64 i = 1; i < 10; i = i + 1) {
+  vector_push(&numbers, i);
+}
+println(vector_stringify(numbers));

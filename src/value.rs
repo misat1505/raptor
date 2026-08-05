@@ -1,3 +1,5 @@
+use std::vec;
+
 use crate::{
     ast::Type,
     errors::{ComputationError, ErrorSeverity},
@@ -9,7 +11,7 @@ pub enum Value {
     F64(f64),
     String(String),
     Bool(bool),
-    Vector(Box<Value>),
+    Vector { kind: Box<Type>, values: Vec<Value> },
 }
 
 impl Value {
@@ -19,6 +21,10 @@ impl Value {
             Type::I64 => Ok(Value::I64(0)),
             Type::F64 => Ok(Value::F64(0.0)),
             Type::Str => Ok(Value::String("".to_owned())),
+            Type::Vector(inner) => Ok(Value::Vector {
+                kind: Box::new((**inner).clone()),
+                values: vec![],
+            }),
             a => Err(ComputationError::new(
                 ErrorSeverity::HIGH,
                 format!("Cannot create default value for type '{:?}'.", a),
@@ -32,7 +38,7 @@ impl Value {
             Value::F64(_) => Type::F64,
             Value::I64(_) => Type::I64,
             Value::String(_) => Type::Str,
-            Value::Vector(v) => Type::Vector(Box::new(v.to_type())),
+            Value::Vector { kind, .. } => Type::Vector(kind.clone()),
         }
     }
 

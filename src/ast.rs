@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, rc::Rc};
 
-use crate::{lazy_stream_reader::Position, std_functions::StdFunction};
+use crate::{lazy_stream_reader::Position, std_functions::StdFunction, value::Value};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node<T> {
@@ -72,6 +72,27 @@ impl Debug for Type {
             Type::Str => Ok(write!(f, "str")?),
             Type::Void => Ok(write!(f, "void")?),
             Type::Vector(inner) => write!(f, "{:?}[]", inner),
+        }
+    }
+}
+
+impl Type {
+    pub fn accepts(&self, value: &Value) -> bool {
+        match (self, value) {
+            (Type::Bool, Value::Bool(_)) => true,
+            (Type::F64, Value::F64(_)) => true,
+            (Type::I64, Value::I64(_)) => true,
+            (Type::Str, Value::String(_)) => true,
+
+            (Type::Vector(expected), Value::Vector { kind, values }) => {
+                if expected != kind {
+                    return false;
+                }
+
+                values.iter().all(|v| expected.accepts(v))
+            }
+
+            _ => false,
         }
     }
 }

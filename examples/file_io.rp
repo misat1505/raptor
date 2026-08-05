@@ -1,6 +1,7 @@
-fn foo(i64 arg): void {
+fn do_sth(i64[] a): void {}
 
-}
+i64[] arr;
+do_sth(arr);
 
 str filepath = "foo.txt";
 

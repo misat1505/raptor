@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, vec};
 
 use crate::{
     alu::ALU,
@@ -157,6 +157,22 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
 
                 match (&var_type.value, &computed_value) {
                     (Type::I64, Value::I64(_)) | (Type::F64, Value::F64(_)) | (Type::Str, Value::String(_)) | (Type::Bool, Value::Bool(_)) => {}
+                    (Type::Vector(declared_inner), Value::Vector { values, .. }) => {
+                        for value in values {
+                            if &value.to_type() != declared_inner.as_ref() {
+                                let error = Box::new(InterpreterError::new(
+                                    ErrorSeverity::HIGH,
+                                    format!(
+                                        "Cannot assign value of type '{:?}' to vector of type '{:?}'.",
+                                        value.to_type(),
+                                        declared_inner
+                                    ),
+                                ));
+
+                                return Err(ErrorsManager::append_position(error, self.position));
+                            }
+                        }
+                    }
                     (declared_type, computed_type) => {
                         let error = Box::new(InterpreterError::new(
                             ErrorSeverity::HIGH,
@@ -436,15 +452,18 @@ impl<'a> Interpreter<'a> {
             let desired_type = &function_declaration.parameters.get(idx).unwrap().value.parameter_type.value;
             let param_name = &function_declaration.parameters.get(idx).unwrap().value.identifier.value;
             let value = self.last_arguments.get(idx).unwrap();
-            match (desired_type, &*value.borrow()) {
-                (Type::Bool, Value::Bool(_)) | (Type::F64, Value::F64(_)) | (Type::I64, Value::I64(_)) | (Type::Str, Value::String(_)) => {}
-                (des, got) => {
-                    let error = Box::new(InterpreterError::new(
-                        ErrorSeverity::HIGH,
-                        format!("Function '{}' expected '{:?}', but got '{:?}'.", name, des, got.to_type()),
-                    ));
-                    return Err(ErrorsManager::append_position(error, self.position));
-                }
+            if !desired_type.accepts(&value.borrow()) {
+                let error = Box::new(InterpreterError::new(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Function '{}' expected '{:?}', but got '{:?}'.",
+                        name,
+                        desired_type,
+                        value.borrow().to_type()
+                    ),
+                ));
+
+                return Err(ErrorsManager::append_position(error, self.position));
             }
             self.stack
                 .declare_variable(param_name.as_str(), Rc::clone(value))

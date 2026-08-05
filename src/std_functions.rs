@@ -42,6 +42,20 @@ fn build_usage_error(fn_name: &str, expected_types: Vec<Type>, actual_types: Vec
     StdFunctionError::new(ErrorSeverity::HIGH, message)
 }
 
+fn stringify_value(value: &Value) -> String {
+    match value {
+        Value::I64(v) => v.to_string(),
+        Value::F64(v) => v.to_string(),
+        Value::String(v) => format!("\"{}\"", v),
+        Value::Bool(v) => v.to_string(),
+        Value::Vector { values, .. } => {
+            let values = values.iter().map(|v| stringify_value(v)).collect::<Vec<String>>();
+
+            return format!("[{}]", values.join(", "));
+        }
+    }
+}
+
 impl StdFunction {
     fn print() -> Self {
         let params = vec![Type::Str];
@@ -274,6 +288,32 @@ impl StdFunction {
         };
         StdFunction { params, execute }
     }
+
+    fn vector_stringify() -> Self {
+        let params = vec![Type::Vector(Box::new(Type::Void))];
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "vector_stringify";
+            let expected_types = vec![Type::Vector(Box::new(Type::Void))];
+            let mut actual_types: Vec<Type> = vec![];
+
+            if let Some(vector) = params.get(0) {
+                actual_types.push(vector.borrow().to_type());
+
+                let vector = vector.borrow();
+
+                match &*vector {
+                    Value::Vector { .. } => {
+                        return Ok(Some(Value::String(stringify_value(&vector))));
+                    }
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction { params, execute }
+    }
 }
 
 pub fn get_std_functions() -> HashMap<String, StdFunction> {
@@ -287,5 +327,6 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
     std_functions.insert("append_file".to_owned(), StdFunction::append_file());
     std_functions.insert("delete_file".to_owned(), StdFunction::delete_file());
     std_functions.insert("exists_file".to_owned(), StdFunction::exists_file());
+    std_functions.insert("vector_stringify".to_owned(), StdFunction::vector_stringify());
     std_functions
 }

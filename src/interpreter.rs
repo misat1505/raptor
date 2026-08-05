@@ -509,24 +509,23 @@ impl<'a> Interpreter<'a> {
         }
 
         // check return type
-        match (&self.last_result, &function_declaration.return_type.value) {
-            (None, Type::Void)
-            | (Some(Value::I64(_)), Type::I64)
-            | (Some(Value::F64(_)), Type::F64)
-            | (Some(Value::String(_)), Type::Str)
-            | (Some(Value::Bool(_)), Type::Bool) => {}
-            (res, exp) => {
+        match &self.last_result {
+            None if function_declaration.return_type.value == Type::Void => {}
+            Some(value) if function_declaration.return_type.value.accepts(value) => {}
+            res => {
                 let res_type = match res {
                     None => Type::Void,
-                    Some(t) => t.to_type(),
+                    Some(value) => value.to_type(),
                 };
+
                 let error = Box::new(InterpreterError::new(
                     ErrorSeverity::HIGH,
                     format!(
                         "Bad return type from function '{}'. Expected '{:?}', but got '{:?}'.",
-                        name, exp, res_type
+                        name, function_declaration.return_type.value, res_type
                     ),
                 ));
+
                 return Err(ErrorsManager::append_position(error, self.position));
             }
         }

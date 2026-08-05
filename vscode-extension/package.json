@@ -8,7 +8,7 @@
     "vscode": "^1.80.0"
   },
   "scripts": {
-    "build": "vsce package",
+    "build": "vsce package --allow-missing-repository",
     "install:package": "code --install-extension ./rp-language-0.0.1.vsix"
   },
   "categories": [
@@ -25,7 +25,11 @@
         "extensions": [
           ".rp"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/rp-light.svg",
+          "dark": "./icons/rp-dark.svg"
+        }
       }
     ],
     "grammars": [

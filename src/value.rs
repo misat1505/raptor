@@ -1,4 +1,4 @@
-use std::vec;
+use std::{cell::RefCell, rc::Rc, vec};
 
 use crate::{
     ast::Type,
@@ -11,7 +11,7 @@ pub enum Value {
     F64(f64),
     String(String),
     Bool(bool),
-    Vector { kind: Box<Type>, values: Vec<Value> },
+    Vector { kind: Box<Type>, values: Vec<Rc<RefCell<Value>>> },
 }
 
 impl Value {

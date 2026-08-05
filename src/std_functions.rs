@@ -51,7 +51,7 @@ fn stringify_value(value: &Value) -> String {
         Value::String(v) => format!("\"{}\"", v),
         Value::Bool(v) => v.to_string(),
         Value::Vector { values, .. } => {
-            let values = values.iter().map(|v| stringify_value(v)).collect::<Vec<String>>();
+            let values = values.iter().map(|v| stringify_value(&v.borrow())).collect::<Vec<String>>();
 
             return format!("[{}]", values.join(", "));
         }
@@ -371,16 +371,19 @@ impl StdFunction {
                 actual_types.push(value.borrow().to_type());
 
                 let mut vector = vector.borrow_mut();
-                let value = value.borrow();
 
                 match &mut *vector {
                     Value::Vector { kind, values } => {
                         if let Type::Vector(inner) = kind.as_ref() {
-                            if !inner.accepts(&value) {
-                                return Err(build_usage_error(fn_name, expected_types, actual_types));
+                            {
+                                let value_ref = value.borrow();
+
+                                if !inner.accepts(&value_ref) {
+                                    return Err(build_usage_error(fn_name, expected_types, actual_types));
+                                }
                             }
 
-                            values.push(value.clone());
+                            values.push(Rc::clone(value));
 
                             return Ok(None);
                         }

@@ -160,12 +160,12 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                     (Type::I64, Value::I64(_)) | (Type::F64, Value::F64(_)) | (Type::Str, Value::String(_)) | (Type::Bool, Value::Bool(_)) => {}
                     (Type::Vector(declared_inner), Value::Vector { values, .. }) => {
                         for value in values {
-                            if &value.to_type() != declared_inner.as_ref() {
+                            if value.borrow().to_type() != *declared_inner.as_ref() {
                                 let error = Box::new(InterpreterError::new(
                                     ErrorSeverity::HIGH,
                                     format!(
                                         "Cannot assign value of type '{:?}' to vector of type '{:?}'.",
-                                        value.to_type(),
+                                        value.borrow().to_type(),
                                         declared_inner
                                     ),
                                 ));
@@ -377,11 +377,11 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
 
         for expression in expressions {
             self.visit_expression(expression)?;
-            values.push(self.read_last_result()?);
+            values.push(Rc::new(RefCell::new(self.read_last_result()?)));
         }
 
         let kind = if let Some(first) = values.first() {
-            Box::new(Type::Vector(Box::new(first.to_type())))
+            Box::new(Type::Vector(Box::new(first.borrow().to_type())))
         } else {
             Box::new(Type::Void) // TODO: void for now
         };

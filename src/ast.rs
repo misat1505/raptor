@@ -85,13 +85,7 @@ impl Type {
             (Type::I64, Value::I64(_)) => true,
             (Type::Str, Value::String(_)) => true,
 
-            (Type::Vector(expected), Value::Vector { kind, values }) => {
-                if expected != kind {
-                    return false;
-                }
-
-                values.iter().all(|v| expected.accepts(v))
-            }
+            (Type::Vector(_), Value::Vector { kind, .. }) => *self == **kind,
 
             _ => false,
         }

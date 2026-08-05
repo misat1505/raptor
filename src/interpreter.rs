@@ -142,7 +142,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
             Statement::Declaration { var_type, identifier, value } => {
                 self.visit_type(&var_type)?;
 
-                let computed_value = match value {
+                let mut computed_value = match value {
                     Some(val) => {
                         self.visit_expression(&val)?;
                         self.read_last_result().map_err(|_| {
@@ -171,6 +171,14 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                                 ));
 
                                 return Err(ErrorsManager::append_position(error, self.position));
+                            }
+                        }
+                        if let Value::Vector { kind: _, ref values } = computed_value {
+                            if values.is_empty() {
+                                computed_value = Value::Vector {
+                                    kind: Box::new(var_type.value.clone()),
+                                    values: values.to_vec(),
+                                }
                             }
                         }
                     }
@@ -373,7 +381,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
         }
 
         let kind = if let Some(first) = values.first() {
-            Box::new(first.to_type())
+            Box::new(Type::Vector(Box::new(first.to_type())))
         } else {
             Box::new(Type::Void) // TODO: void for now
         };

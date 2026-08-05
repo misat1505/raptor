@@ -25,9 +25,9 @@ impl Value {
                 kind: Box::new((**inner).clone()),
                 values: vec![],
             }),
-            a => Err(ComputationError::new(
+            other => Err(ComputationError::new(
                 ErrorSeverity::HIGH,
-                format!("Cannot create default value for type '{:?}'.", a),
+                format!("Cannot create default value for type '{:?}'.", other),
             )),
         }
     }
@@ -38,7 +38,7 @@ impl Value {
             Value::F64(_) => Type::F64,
             Value::I64(_) => Type::I64,
             Value::String(_) => Type::Str,
-            Value::Vector { kind, .. } => Type::Vector(kind.clone()),
+            Value::Vector { kind, .. } => kind.as_ref().clone(),
         }
     }
 

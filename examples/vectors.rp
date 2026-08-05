@@ -14,11 +14,15 @@ println(vector_stringify(names));
 vector_push(&names, "Elon");
 println(vector_stringify(names));
 
-# TODO: this doesn't work
-# i64[] numbers = [];
-
-i64[] numbers = [0];
-for (i64 i = 1; i < 10; i = i + 1) {
+i64[] numbers = [];
+for (i64 i = 0; i < 10; i = i + 1) {
   vector_push(&numbers, i);
 }
+println(vector_stringify(numbers));
+
+fn append(&i64[] arr, i64 value): void {
+  vector_push(&arr, value);
+}
+
+append(&numbers, 420);
 println(vector_stringify(numbers));

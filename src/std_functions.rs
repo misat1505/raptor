@@ -375,13 +375,16 @@ impl StdFunction {
 
                 match &mut *vector {
                     Value::Vector { kind, values } => {
-                        if !kind.accepts(&value) {
-                            return Err(build_usage_error(fn_name, expected_types, actual_types));
+                        if let Type::Vector(inner) = kind.as_ref() {
+                            if !inner.accepts(&value) {
+                                return Err(build_usage_error(fn_name, expected_types, actual_types));
+                            }
+
+                            values.push(value.clone());
+
+                            return Ok(None);
                         }
-
-                        values.push(value.clone());
-
-                        Ok(None)
+                        Err(build_usage_error(fn_name, expected_types, actual_types))
                     }
 
                     _ => Err(build_usage_error(fn_name, expected_types, actual_types)),

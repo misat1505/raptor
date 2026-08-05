@@ -1,0 +1,63 @@
+{
+  "scopeName": "source.rp",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.rp",
+          "match": "\\b(fn|if|else|for|switch|return|break)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.rp",
+          "match": "\\b(i64|f64|bool|str|void)\\b"
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.rp",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.rp",
+          "begin": "\"",
+          "end": "\""
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.rp",
+          "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+        }
+      ]
+    }
+  }
+}

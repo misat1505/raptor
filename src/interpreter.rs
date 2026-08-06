@@ -201,19 +201,23 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                     .declare_variable(identifier.value.as_str(), Rc::new(RefCell::new(computed_value)))
                     .map_err(|err| ErrorsManager::append_position(Box::new(err), self.position))?;
             }
-            Statement::Assignment { identifier, value } => {
-                self.visit_expression(&value)?;
-                let value = self.read_last_result().map_err(|_| {
-                    let error = Box::new(InterpreterError::new(
-                        ErrorSeverity::HIGH,
-                        format!("Cannot assign no value to variable '{}'.", identifier.value),
-                    ));
-                    ErrorsManager::append_position(error, self.position)
-                })?;
+            Statement::Assignment { identifier, value, indices } => {
+                if indices.is_empty() {
+                    self.visit_expression(&value)?;
+                    let value = self.read_last_result().map_err(|_| {
+                        let error = Box::new(InterpreterError::new(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot assign no value to variable '{}'.", identifier.value),
+                        ));
+                        ErrorsManager::append_position(error, self.position)
+                    })?;
 
-                self.stack
-                    .assign_variable(identifier.value.as_str(), Rc::new(RefCell::new(value)))
-                    .map_err(|err| ErrorsManager::append_position(Box::new(err), self.position))?;
+                    self.stack
+                        .assign_variable(identifier.value.as_str(), Rc::new(RefCell::new(value)))
+                        .map_err(|err| ErrorsManager::append_position(Box::new(err), self.position))?;
+                } else {
+                    self.visit_index_assignment(identifier, indices, value)?;
+                }
             }
             Statement::Conditional {
                 condition,
@@ -579,6 +583,85 @@ impl<'a> Interpreter<'a> {
 
         self.last_result = Some(element_cell.borrow().clone());
         Ok(())
+    }
+
+    fn visit_index_assignment(
+        &mut self,
+        identifier: &'a Node<String>,
+        indices: &'a Vec<Node<Expression>>,
+        value: &'a Node<Expression>,
+    ) -> Result<(), Box<dyn IError>> {
+        let var_ref = self
+            .stack
+            .get_variable(identifier.value.as_str())
+            .map_err(|err| Box::new(err) as Box<dyn IError>)?;
+
+        let (last_index_expr, earlier_indices) = indices.split_last().expect("parser guarantees at least one index in IndexAssignment");
+
+        // Zaczynamy od kontenera zmiennej najwyższego poziomu.
+        let mut current_values = match &*var_ref.borrow() {
+            Value::Vector { values, .. } => values.clone(),
+            other => {
+                let error = Box::new(InterpreterError::new(
+                    ErrorSeverity::HIGH,
+                    format!("Cannot index into variable '{}' of type '{:?}'.", identifier.value, other.to_type()),
+                ));
+                return Err(ErrorsManager::append_position(error, self.position));
+            }
+        };
+
+        // Schodzimy w głąb dla wszystkich indeksów OPRÓCZ ostatniego.
+        for index_expr in earlier_indices {
+            self.visit_expression(index_expr)?;
+            let idx = self.expect_index()?;
+
+            let next_cell = current_values.get(idx).ok_or_else(|| {
+                let error = Box::new(InterpreterError::new(ErrorSeverity::HIGH, format!("Index {} out of bounds.", idx)));
+                ErrorsManager::append_position(error, self.position)
+            })?;
+
+            let next_values = match &*next_cell.borrow() {
+                Value::Vector { values, .. } => values.clone(),
+                other => {
+                    let error = Box::new(InterpreterError::new(
+                        ErrorSeverity::HIGH,
+                        format!("Cannot index into value of type '{:?}'.", other.to_type()),
+                    ));
+                    return Err(ErrorsManager::append_position(error, self.position));
+                }
+            };
+
+            current_values = next_values;
+        }
+
+        // Ostatni indeks: tu robimy właściwe przypisanie.
+        self.visit_expression(last_index_expr)?;
+        let idx = self.expect_index()?;
+
+        self.visit_expression(value)?;
+        let new_value = self.read_last_result()?;
+
+        let target_cell = current_values.get(idx).ok_or_else(|| {
+            let error = Box::new(InterpreterError::new(ErrorSeverity::HIGH, format!("Index {} out of bounds.", idx)));
+            ErrorsManager::append_position(error, self.position)
+        })?;
+
+        *target_cell.borrow_mut() = new_value;
+
+        Ok(())
+    }
+
+    fn expect_index(&mut self) -> Result<usize, Box<dyn IError>> {
+        match self.read_last_result()? {
+            Value::I64(i) if i >= 0 => Ok(i as usize),
+            other => {
+                let error = Box::new(InterpreterError::new(
+                    ErrorSeverity::HIGH,
+                    format!("Array index must be a non-negative i64, got '{:?}'.", other.to_type()),
+                ));
+                Err(ErrorsManager::append_position(error, self.position))
+            }
+        }
     }
 }
 
@@ -1000,6 +1083,7 @@ mod tests {
         let ast = test_node!(Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(1))),
+            indices: vec![]
         });
 
         let program = setup_program();
@@ -1017,6 +1101,7 @@ mod tests {
         let ast = test_node!(Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::False)),
+            indices: vec![]
         });
 
         let program = setup_program();
@@ -1043,6 +1128,7 @@ mod tests {
                     passed_by: PassedBy::Value,
                 })),],
             }),
+            indices: vec![]
         });
 
         let program = setup_program();
@@ -1064,10 +1150,12 @@ mod tests {
             if_block: test_node!(Block(vec![test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(1))),
+                indices: vec![]
             }),])),
             else_block: Some(test_node!(Block(vec![test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(2))),
+                indices: vec![]
             }),]))),
         });
 
@@ -1088,10 +1176,12 @@ mod tests {
             if_block: test_node!(Block(vec![test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(1))),
+                indices: vec![]
             }),])),
             else_block: Some(test_node!(Block(vec![test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(2))),
+                indices: vec![]
             }),]))),
         });
 
@@ -1143,6 +1233,7 @@ mod tests {
                     Box::new(test_node!(Expression::Variable(String::from("i")))),
                     Box::new(test_node!(Expression::Literal(Literal::I64(1))))
                 )),
+                indices: vec![]
             }))),
             block: test_node!(Block(vec![test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("total")),
@@ -1150,6 +1241,7 @@ mod tests {
                     Box::new(test_node!(Expression::Variable(String::from("total")))),
                     Box::new(test_node!(Expression::Variable(String::from("i"))))
                 )),
+                indices: vec![]
             }),])),
         });
 
@@ -1183,6 +1275,7 @@ mod tests {
                         Box::new(test_node!(Expression::Variable(String::from("total")))),
                         Box::new(test_node!(Expression::Variable(String::from("i"))))
                     )),
+                    indices: vec![]
                 }),
                 test_node!(Statement::Assignment {
                     identifier: test_node!(String::from("i")),
@@ -1190,6 +1283,7 @@ mod tests {
                         Box::new(test_node!(Expression::Variable(String::from("i")))),
                         Box::new(test_node!(Expression::Literal(Literal::I64(1))))
                     )),
+                    indices: vec![]
                 }),
             ])),
         });
@@ -1238,6 +1332,7 @@ mod tests {
                     Box::new(test_node!(Expression::Variable(String::from("i")))),
                     Box::new(test_node!(Expression::Literal(Literal::I64(1))))
                 )),
+                indices: vec![]
             }))),
             block: test_node!(Block(vec![test_node!(Statement::Conditional {
                 condition: test_node!(Expression::Equal(
@@ -1327,6 +1422,7 @@ mod tests {
             test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("result")),
                 value: test_node!(Expression::Literal(Literal::I64(val))),
+                indices: vec![]
             })
         }
 

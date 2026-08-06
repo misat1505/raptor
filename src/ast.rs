@@ -121,6 +121,7 @@ pub enum Statement {
     },
     Assignment {
         identifier: Node<String>,
+        indices: Vec<Node<Expression>>,
         value: Node<Expression>,
     },
     Conditional {

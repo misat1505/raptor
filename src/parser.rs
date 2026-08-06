@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc, vec};
 
 use crate::{
     ast::{
@@ -261,7 +261,11 @@ impl<L: ILexer> Parser<L> {
                 .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing for statement.")))?;
 
             let assign = Box::new(Node {
-                value: Statement::Assignment { identifier, value: expr },
+                value: Statement::Assignment {
+                    identifier,
+                    value: expr,
+                    indices: vec![],
+                },
                 position,
             });
             assignment = Some(assign);
@@ -361,10 +365,18 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_assign_or_call(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // assign_or_call = identifier, ("=", expression | "(", arguments, ")"), ";";
+        // assign_or_call = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")"), ";";
         let identifier = try_consume!(self, parse_identifier);
-
         let position = identifier.position;
+
+        let mut indices: Vec<Node<Expression>> = vec![];
+        while self.consume_if_matches(TokenCategory::BracketOpen)?.is_some() {
+            let index_expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression inside '[]' index.")))?;
+            self.consume_must_be(TokenCategory::BracketClose)?;
+            indices.push(index_expr);
+        }
 
         if self.consume_if_matches(TokenCategory::Assign)?.is_some() {
             let expr = self
@@ -372,7 +384,11 @@ impl<L: ILexer> Parser<L> {
                 .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
 
             let node = Node {
-                value: Statement::Assignment { identifier, value: expr },
+                value: Statement::Assignment {
+                    identifier,
+                    value: expr,
+                    indices,
+                },
                 position,
             };
             self.consume_must_be(TokenCategory::Semicolon)?;
@@ -1017,15 +1033,18 @@ mod tests {
             Block(vec![test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(5))),
+                indices: vec![]
             })]),
             Block(vec![
                 test_node!(Statement::Assignment {
                     identifier: test_node!(String::from("x")),
                     value: test_node!(Expression::Literal(Literal::I64(5))),
+                    indices: vec![]
                 }),
                 test_node!(Statement::Assignment {
                     identifier: test_node!(String::from("x")),
                     value: test_node!(Expression::Literal(Literal::I64(5))),
+                    indices: vec![]
                 }),
             ]),
         ];
@@ -1145,6 +1164,7 @@ mod tests {
             Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(5))),
+                indices: vec![],
             },
             Statement::FunctionCall {
                 identifier: test_node!(String::from("print")),
@@ -1490,6 +1510,7 @@ mod tests {
                         Box::new(test_node!(Expression::Variable(String::from("x")))),
                         Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
                     )),
+                    indices: vec![]
                 }))),
                 block: test_node!(Block(vec![])),
             },
@@ -1680,6 +1701,7 @@ mod tests {
             Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(5))),
+                indices: vec![],
             },
         ];
 

@@ -1,5 +1,6 @@
 fn get_first(str[] arr): str {
   str name = arr[0];
+  arr[0] = "Elon";
   return name;
 }
 
@@ -16,4 +17,7 @@ for (i64 i = 0; i < 3; i = i + 1) {
   println(names[i][0]);
 }
 
+println(vector_stringify(names));
+
+names[0][0] = "Elon";
 println(vector_stringify(names));

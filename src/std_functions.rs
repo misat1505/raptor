@@ -403,6 +403,40 @@ impl StdFunction {
             execute,
         }
     }
+
+    fn vector_size() -> Self {
+        let params = vec![Type::Vector(Box::new(Type::Void))];
+
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "vector_size";
+            let expected_types = vec![Type::Vector(Box::new(Type::Void))];
+
+            let mut actual_types: Vec<Type> = vec![];
+
+            if let Some(vector) = params.get(0) {
+                actual_types.push(vector.borrow().to_type());
+
+                let vector = vector.borrow();
+
+                match &*vector {
+                    Value::Vector { values, .. } => {
+                        let borrowed = values.borrow().clone();
+                        Ok(Some(Value::I64(borrowed.len() as i64)))
+                    }
+
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction {
+            params,
+            passed_by: vec![PassedBy::Reference],
+            execute,
+        }
+    }
 }
 
 pub fn get_std_functions() -> HashMap<String, StdFunction> {
@@ -418,5 +452,6 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
     std_functions.insert("exists_file".to_owned(), StdFunction::exists_file());
     std_functions.insert("vector_stringify".to_owned(), StdFunction::vector_stringify());
     std_functions.insert("vector_push".to_owned(), StdFunction::vector_push());
+    std_functions.insert("vector_size".to_owned(), StdFunction::vector_size());
     std_functions
 }

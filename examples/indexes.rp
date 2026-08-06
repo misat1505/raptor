@@ -13,7 +13,7 @@ for (i64 i = 0; i < 3; i = i + 1) {
 str[] a = names[0];
 vector_push(&a, "2");
 
-for (i64 i = 0; i < 3; i = i + 1) {
+for (i64 i = 0; i < vector_size(&names); i = i + 1) {
   println(names[i][0]);
 }
 

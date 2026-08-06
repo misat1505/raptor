@@ -374,4 +374,6 @@ static ESCAPES: phf::Map<char, char> = phf_map! {
     't'  => '\t',
     '"'  => '"',
     '\\' => '\\',
+    'e'  => '\x1b',
+    '0'  => '\0',
 };

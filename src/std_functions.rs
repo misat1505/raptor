@@ -6,7 +6,7 @@ use std::{
     path::Path,
     println,
     rc::Rc,
-    vec,
+    thread, time, vec,
 };
 
 use crate::{
@@ -437,6 +437,41 @@ impl StdFunction {
             execute,
         }
     }
+
+    fn sleep_ms() -> Self {
+        let params = vec![Type::I64];
+
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "vector_size";
+            let expected_types = vec![Type::I64];
+
+            let mut actual_types: Vec<Type> = vec![];
+
+            if let Some(millis) = params.get(0) {
+                actual_types.push(millis.borrow().to_type());
+
+                let millis = millis.borrow();
+
+                match &*millis {
+                    Value::I64(ms) => {
+                        let duration = time::Duration::from_millis(*ms as u64);
+                        thread::sleep(duration);
+                        Ok(None)
+                    }
+
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction {
+            params,
+            passed_by: vec![PassedBy::Value],
+            execute,
+        }
+    }
 }
 
 pub fn get_std_functions() -> HashMap<String, StdFunction> {
@@ -453,5 +488,6 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
     std_functions.insert("vector_stringify".to_owned(), StdFunction::vector_stringify());
     std_functions.insert("vector_push".to_owned(), StdFunction::vector_push());
     std_functions.insert("vector_size".to_owned(), StdFunction::vector_size());
+    std_functions.insert("sleep_ms".to_owned(), StdFunction::sleep_ms());
     std_functions
 }

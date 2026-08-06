@@ -2,10 +2,12 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     fs::{self, OpenOptions},
-    io::{self, Write},
+    io::{self, Read, Write},
+    net::{TcpListener, TcpStream},
     path::Path,
     println,
     rc::Rc,
+    sync::Mutex,
     thread, time, vec,
 };
 
@@ -56,6 +58,16 @@ fn stringify_value(value: &Value) -> String {
             return format!("[{}]", values.join(", "));
         }
     }
+}
+
+static LISTENERS: Mutex<Option<HashMap<i64, TcpListener>>> = Mutex::new(None);
+static STREAMS: Mutex<Option<HashMap<i64, TcpStream>>> = Mutex::new(None);
+static NEXT_HANDLE: Mutex<i64> = Mutex::new(0);
+
+fn next_handle() -> i64 {
+    let mut h = NEXT_HANDLE.lock().unwrap();
+    *h += 1;
+    *h
 }
 
 impl StdFunction {
@@ -472,6 +484,245 @@ impl StdFunction {
             execute,
         }
     }
+
+    fn tcp_listen() -> Self {
+        let params = vec![Type::I64];
+
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "tcp_listen";
+            let expected_types = vec![Type::I64];
+
+            let mut actual_types: Vec<Type> = vec![];
+
+            if let Some(port) = params.get(0) {
+                actual_types.push(port.borrow().to_type());
+
+                let port = port.borrow();
+
+                match &*port {
+                    Value::I64(p) => {
+                        let listener = TcpListener::bind(format!("0.0.0.0:{}", p))
+                            .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Cannot bind to port {}: {}", p, e)))?;
+
+                        let handle = next_handle();
+                        LISTENERS.lock().unwrap().get_or_insert_with(HashMap::new).insert(handle, listener);
+
+                        Ok(Some(Value::I64(handle)))
+                    }
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction {
+            params,
+            passed_by: vec![PassedBy::Value],
+            execute,
+        }
+    }
+
+    fn tcp_accept() -> Self {
+        let params = vec![Type::I64];
+
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "tcp_accept";
+            let expected_types = vec![Type::I64];
+
+            let mut actual_types: Vec<Type> = vec![];
+
+            if let Some(handle) = params.get(0) {
+                actual_types.push(handle.borrow().to_type());
+
+                let handle = handle.borrow();
+
+                match &*handle {
+                    Value::I64(listener_handle) => {
+                        let listeners = LISTENERS.lock().unwrap();
+                        let listener = listeners
+                            .as_ref()
+                            .and_then(|m| m.get(listener_handle))
+                            .ok_or_else(|| StdFunctionError::new(ErrorSeverity::HIGH, format!("Invalid listener handle {}", listener_handle)))?;
+
+                        let (stream, _addr) = listener
+                            .accept()
+                            .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Accept failed: {}", e)))?;
+
+                        drop(listeners);
+
+                        let new_handle = next_handle();
+                        STREAMS.lock().unwrap().get_or_insert_with(HashMap::new).insert(new_handle, stream);
+
+                        Ok(Some(Value::I64(new_handle)))
+                    }
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction {
+            params,
+            passed_by: vec![PassedBy::Value],
+            execute,
+        }
+    }
+
+    fn tcp_read() -> Self {
+        let params = vec![Type::I64];
+
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "tcp_read";
+            let expected_types = vec![Type::I64];
+
+            let mut actual_types: Vec<Type> = vec![];
+
+            if let Some(handle) = params.get(0) {
+                actual_types.push(handle.borrow().to_type());
+
+                let handle = handle.borrow();
+
+                match &*handle {
+                    Value::I64(stream_handle) => {
+                        let mut streams = STREAMS.lock().unwrap();
+                        let stream = streams
+                            .as_mut()
+                            .and_then(|m| m.get_mut(stream_handle))
+                            .ok_or_else(|| StdFunctionError::new(ErrorSeverity::HIGH, format!("Invalid stream handle {}", stream_handle)))?;
+
+                        let mut buffer = [0u8; 4096];
+                        let n = stream
+                            .read(&mut buffer)
+                            .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Read failed: {}", e)))?;
+
+                        Ok(Some(Value::String(String::from_utf8_lossy(&buffer[..n]).to_string())))
+                    }
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction {
+            params,
+            passed_by: vec![PassedBy::Value],
+            execute,
+        }
+    }
+
+    fn tcp_write() -> Self {
+        let params = vec![Type::I64, Type::Str];
+
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "tcp_write";
+            let expected_types = vec![Type::I64, Type::Str];
+
+            let mut actual_types: Vec<Type> = vec![];
+
+            let handle_param = params.get(0);
+            let data_param = params.get(1);
+
+            if let (Some(handle), Some(data)) = (handle_param, data_param) {
+                actual_types.push(handle.borrow().to_type());
+                actual_types.push(data.borrow().to_type());
+
+                let handle = handle.borrow();
+                let data = data.borrow();
+
+                match (&*handle, &*data) {
+                    (Value::I64(stream_handle), Value::String(payload)) => {
+                        let mut streams = STREAMS.lock().unwrap();
+                        let stream = streams
+                            .as_mut()
+                            .and_then(|m| m.get_mut(stream_handle))
+                            .ok_or_else(|| StdFunctionError::new(ErrorSeverity::HIGH, format!("Invalid stream handle {}", stream_handle)))?;
+
+                        stream
+                            .write_all(payload.as_bytes())
+                            .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Write failed: {}", e)))?;
+
+                        Ok(None)
+                    }
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction {
+            params,
+            passed_by: vec![PassedBy::Value, PassedBy::Value],
+            execute,
+        }
+    }
+
+    fn tcp_close() -> Self {
+        let params = vec![Type::I64];
+
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "tcp_close";
+            let expected_types = vec![Type::I64];
+
+            let mut actual_types: Vec<Type> = vec![];
+
+            if let Some(handle) = params.get(0) {
+                actual_types.push(handle.borrow().to_type());
+
+                let handle = handle.borrow();
+
+                match &*handle {
+                    Value::I64(h) => {
+                        STREAMS.lock().unwrap().as_mut().map(|m| m.remove(h));
+                        LISTENERS.lock().unwrap().as_mut().map(|m| m.remove(h));
+                        Ok(None)
+                    }
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction {
+            params,
+            passed_by: vec![PassedBy::Value],
+            execute,
+        }
+    }
+
+    fn str_len() -> Self {
+        let params = vec![Type::Str];
+
+        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+            let fn_name = "str_len";
+            let expected_types = vec![Type::Str];
+
+            let mut actual_types: Vec<Type> = vec![];
+
+            if let Some(text) = params.get(0) {
+                actual_types.push(text.borrow().to_type());
+
+                let text = text.borrow();
+
+                match &*text {
+                    Value::String(s) => Ok(Some(Value::I64(s.chars().count() as i64))),
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                }
+            } else {
+                Err(build_usage_error(fn_name, expected_types, actual_types))
+            }
+        };
+
+        StdFunction {
+            params,
+            passed_by: vec![PassedBy::Value],
+            execute,
+        }
+    }
 }
 
 pub fn get_std_functions() -> HashMap<String, StdFunction> {
@@ -489,5 +740,11 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
     std_functions.insert("vector_push".to_owned(), StdFunction::vector_push());
     std_functions.insert("vector_size".to_owned(), StdFunction::vector_size());
     std_functions.insert("sleep_ms".to_owned(), StdFunction::sleep_ms());
+    std_functions.insert("tcp_accept".to_owned(), StdFunction::tcp_accept());
+    std_functions.insert("tcp_close".to_owned(), StdFunction::tcp_close());
+    std_functions.insert("tcp_listen".to_owned(), StdFunction::tcp_listen());
+    std_functions.insert("tcp_read".to_owned(), StdFunction::tcp_read());
+    std_functions.insert("tcp_write".to_owned(), StdFunction::tcp_write());
+    std_functions.insert("str_len".to_owned(), StdFunction::str_len());
     std_functions
 }

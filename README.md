@@ -154,11 +154,12 @@ fn is_prime(i64 x, &i64 total_iters): bool {
 
 **statement** = assign_or_call | if_statement | for_statement | switch_statement | declaration, ";" | return_statement | break_statement;
 
-**assign_or_call** = identifier, ("=", expression | "(", arguments, ")"), ";";
+**assign_or_call** = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")"), ";";
 
 ```
 x = 5;
 my_fun(5, 2);
+x[0][0] = 10;
 ```
 
 **declaration** = type, identifier, [ "=", expression ];
@@ -278,11 +279,13 @@ fun(5)
 [[1,2], [3,4]]
 ```
 
-**identifier_or_call** = identifier, [ "(", arguments, ")" ];
+**identifier_or_call** = identifier, [ "(", arguments, ")" ], { "[", expression, "]" };
 
 ```
 x
 fun(5)
+x[0][0]
+fun(5)[0][0]
 ```
 
 **literal** = integer_literal | float_literal | boolean_literal | string_literal;

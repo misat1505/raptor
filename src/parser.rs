@@ -716,12 +716,12 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_identifier_or_call(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
-        // identifier_or_call = identifier, [ "(", arguments, ")" ];
+        // identifier_or_call = identifier, [ "(", arguments, ")" ], { "[", expression, "]" }
         let identifier = try_consume!(self, parse_identifier);
 
         let position = identifier.position;
 
-        let result = match self.consume_if_matches(TokenCategory::ParenOpen)? {
+        let mut result = match self.consume_if_matches(TokenCategory::ParenOpen)? {
             Some(_) => {
                 let args = self.parse_arguments()?.into_iter().map(Box::new).collect();
                 let _ = self.consume_must_be(TokenCategory::ParenClose)?;
@@ -729,6 +729,20 @@ impl<L: ILexer> Parser<L> {
             }
             None => Expression::Variable(identifier.value),
         };
+
+        while self.current_token().category == TokenCategory::BracketOpen {
+            let _ = self.consume_must_be(TokenCategory::BracketOpen);
+            let index_expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Expected an expression inside '[]' index.")))?;
+            let _ = self.consume_must_be(TokenCategory::BracketClose)?;
+
+            result = Expression::Index {
+                collection: Box::new(Node { value: result, position }),
+                index: Box::new(index_expr),
+            };
+        }
+
         Ok(Some(Node { value: result, position }))
     }
 

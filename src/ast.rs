@@ -38,6 +38,10 @@ pub enum Expression {
     // Values
     Literal(Literal),
     Vector(Vec<BNode<Expression>>),
+    Index {
+        collection: BNode<Expression>,
+        index: BNode<Expression>,
+    },
     Variable(String),
     FunctionCall {
         identifier: Node<String>,

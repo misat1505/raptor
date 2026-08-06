@@ -1,0 +1,19 @@
+fn get_first(str[] arr): str {
+  str name = arr[0];
+  return name;
+}
+
+str[][] names = [["Bob"], ["Fred"], ["George"]];
+
+for (i64 i = 0; i < 3; i = i + 1) {
+  vector_push(&names, ["1"]);
+}
+
+str[] a = names[0];
+vector_push(&a, "2");
+
+for (i64 i = 0; i < 3; i = i + 1) {
+  println(names[i][0]);
+}
+
+println(vector_stringify(names));

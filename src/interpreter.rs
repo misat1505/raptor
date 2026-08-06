@@ -131,6 +131,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
             Expression::Vector(vector) => self.visit_vector_literal(vector)?,
             Expression::Variable(variable) => self.visit_variable(variable)?,
             Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments)?,
+            Expression::Index { collection, index } => self.visit_index(collection, index)?,
         }
         Ok(())
     }
@@ -540,6 +541,43 @@ impl<'a> Interpreter<'a> {
 
         self.stack.pop_stack_frame();
 
+        Ok(())
+    }
+
+    fn visit_index(&mut self, collection: &'a Node<Expression>, index: &'a Node<Expression>) -> Result<(), Box<dyn IError>> {
+        self.visit_expression(collection)?;
+        let collection_value = self.read_last_result()?;
+
+        let values = match collection_value {
+            Value::Vector { values, .. } => values,
+            other => {
+                let error = Box::new(InterpreterError::new(
+                    ErrorSeverity::HIGH,
+                    format!("Cannot index into value of type '{:?}'.", other.to_type()),
+                ));
+                return Err(ErrorsManager::append_position(error, self.position));
+            }
+        };
+
+        self.visit_expression(index)?;
+        let index_value = self.read_last_result()?;
+        let idx = match index_value {
+            Value::I64(i) if i >= 0 => i as usize,
+            other => {
+                let error = Box::new(InterpreterError::new(
+                    ErrorSeverity::HIGH,
+                    format!("Array index must be a non-negative i64, got '{:?}'.", other.to_type()),
+                ));
+                return Err(ErrorsManager::append_position(error, self.position));
+            }
+        };
+
+        let element_cell = values.get(idx).ok_or_else(|| {
+            let error = Box::new(InterpreterError::new(ErrorSeverity::HIGH, format!("Index {} out of bounds.", idx)));
+            ErrorsManager::append_position(error, self.position)
+        })?;
+
+        self.last_result = Some(element_cell.borrow().clone());
         Ok(())
     }
 }

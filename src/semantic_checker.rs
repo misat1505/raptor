@@ -200,6 +200,10 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             Expression::Vector(vector) => {
                 self.visit_vector_literal(vector)?;
             }
+            Expression::Index { collection, index } => {
+                self.visit_expression(collection);
+                self.visit_expression(index);
+            }
         }
         Ok(())
     }

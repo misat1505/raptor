@@ -16,8 +16,8 @@ fn is_prime(i64 x, &i64 total_iters): bool {
 i64 iters;
 for (i64 x = 0; x < 1000; x = x + 1) {
   if (is_prime(x, &iters)) {
-    print(x as str + " is a prime.");
+    println(x as str + " is a prime.");
   }
 }
 
-print(iters as str + " total iterations.");
+println(iters as str + " total iterations.");

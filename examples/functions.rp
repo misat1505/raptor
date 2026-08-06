@@ -14,4 +14,4 @@ fn sum(i64 x): i64 {
 }
 
 i64 x = max(8, 6);
-print("The sum of " + x as str + " first integers is " + sum(x) as str + ".");
+println("The sum of " + x as str + " first integers is " + sum(x) as str + ".");

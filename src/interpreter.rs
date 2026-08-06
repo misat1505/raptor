@@ -160,7 +160,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                 match (&var_type.value, &computed_value) {
                     (Type::I64, Value::I64(_)) | (Type::F64, Value::F64(_)) | (Type::Str, Value::String(_)) | (Type::Bool, Value::Bool(_)) => {}
                     (Type::Vector(declared_inner), Value::Vector { values, .. }) => {
-                        for value in values {
+                        for value in values.borrow().iter() {
                             if value.borrow().to_type() != *declared_inner.as_ref() {
                                 let error = Box::new(InterpreterError::new(
                                     ErrorSeverity::HIGH,
@@ -175,10 +175,10 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                             }
                         }
                         if let Value::Vector { kind: _, ref values } = computed_value {
-                            if values.is_empty() {
+                            if values.borrow().is_empty() {
                                 computed_value = Value::Vector {
                                     kind: Box::new(var_type.value.clone()),
-                                    values: values.to_vec(),
+                                    values: values.clone(),
                                 }
                             }
                         }
@@ -378,14 +378,14 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
     }
 
     fn visit_vector_literal(&mut self, expressions: &'a Vec<Box<Node<Expression>>>) -> Result<(), Box<dyn IError>> {
-        let mut values = Vec::new();
+        let values = Rc::new(RefCell::new(Vec::new()));
 
         for expression in expressions {
             self.visit_expression(expression)?;
-            values.push(Rc::new(RefCell::new(self.read_last_result()?)));
+            values.borrow_mut().push(Rc::new(RefCell::new(self.read_last_result()?)));
         }
 
-        let kind = if let Some(first) = values.first() {
+        let kind = if let Some(first) = values.borrow().first() {
             Box::new(Type::Vector(Box::new(first.borrow().to_type())))
         } else {
             Box::new(Type::Void) // TODO: void for now
@@ -576,7 +576,8 @@ impl<'a> Interpreter<'a> {
             }
         };
 
-        let element_cell = values.get(idx).ok_or_else(|| {
+        let borrowed = values.borrow();
+        let element_cell = borrowed.get(idx).ok_or_else(|| {
             let error = Box::new(InterpreterError::new(ErrorSeverity::HIGH, format!("Index {} out of bounds.", idx)));
             ErrorsManager::append_position(error, self.position)
         })?;
@@ -598,7 +599,6 @@ impl<'a> Interpreter<'a> {
 
         let (last_index_expr, earlier_indices) = indices.split_last().expect("parser guarantees at least one index in IndexAssignment");
 
-        // Zaczynamy od kontenera zmiennej najwyższego poziomu.
         let mut current_values = match &*var_ref.borrow() {
             Value::Vector { values, .. } => values.clone(),
             other => {
@@ -610,12 +610,12 @@ impl<'a> Interpreter<'a> {
             }
         };
 
-        // Schodzimy w głąb dla wszystkich indeksów OPRÓCZ ostatniego.
         for index_expr in earlier_indices {
             self.visit_expression(index_expr)?;
             let idx = self.expect_index()?;
 
-            let next_cell = current_values.get(idx).ok_or_else(|| {
+            let borrowed = current_values.borrow();
+            let next_cell = borrowed.get(idx).ok_or_else(|| {
                 let error = Box::new(InterpreterError::new(ErrorSeverity::HIGH, format!("Index {} out of bounds.", idx)));
                 ErrorsManager::append_position(error, self.position)
             })?;
@@ -631,17 +631,18 @@ impl<'a> Interpreter<'a> {
                 }
             };
 
+            drop(borrowed);
             current_values = next_values;
         }
 
-        // Ostatni indeks: tu robimy właściwe przypisanie.
         self.visit_expression(last_index_expr)?;
         let idx = self.expect_index()?;
 
         self.visit_expression(value)?;
         let new_value = self.read_last_result()?;
 
-        let target_cell = current_values.get(idx).ok_or_else(|| {
+        let borrowed = current_values.borrow();
+        let target_cell = borrowed.get(idx).ok_or_else(|| {
             let error = Box::new(InterpreterError::new(ErrorSeverity::HIGH, format!("Index {} out of bounds.", idx)));
             ErrorsManager::append_position(error, self.position)
         })?;

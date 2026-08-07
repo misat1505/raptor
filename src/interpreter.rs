@@ -436,18 +436,15 @@ impl<'a> Interpreter<'a> {
 
         let mut args: Vec<Rc<RefCell<Value>>> = vec![];
         for arg in arguments {
-            self.visit_expression(&arg.value.value)?;
-            let value = self.read_last_result()?;
             match arg.value.passed_by {
-                PassedBy::Value => args.push(Rc::new(RefCell::new(value))),
+                PassedBy::Value => {
+                    self.visit_expression(&arg.value.value)?;
+                    let value = self.read_last_result()?;
+                    args.push(Rc::new(RefCell::new(value)));
+                }
                 PassedBy::Reference => {
-                    if let Expression::Variable(var_name) = &arg.value.value.value {
-                        let var_ref = self
-                            .stack
-                            .get_variable(var_name.as_str())
-                            .map_err(|err| Box::new(err) as Box<dyn IError>)?;
-                        args.push(Rc::clone(var_ref));
-                    }
+                    let reference = self.resolve_reference(&arg.value.value)?;
+                    args.push(reference);
                 }
             };
         }
@@ -660,6 +657,51 @@ impl<'a> Interpreter<'a> {
                     ErrorSeverity::HIGH,
                     format!("Array index must be a non-negative i64, got '{:?}'.", other.to_type()),
                 ));
+                Err(ErrorsManager::append_position(error, self.position))
+            }
+        }
+    }
+
+    fn resolve_reference(&mut self, expression: &'a Node<Expression>) -> Result<Rc<RefCell<Value>>, Box<dyn IError>> {
+        match &expression.value {
+            Expression::Variable(var_name) => self
+                .stack
+                .get_variable(var_name.as_str())
+                .map(Rc::clone)
+                .map_err(|err| Box::new(err) as Box<dyn IError>),
+
+            Expression::Index { collection, index } => {
+                let collection_ref = self.resolve_reference(collection)?;
+
+                self.visit_expression(index)?;
+                let idx = self.expect_index()?;
+
+                let values = match &*collection_ref.borrow() {
+                    Value::Vector { values, .. } => values.clone(),
+                    other => {
+                        let error = Box::new(InterpreterError::new(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot index into value of type '{:?}'.", other.to_type()),
+                        ));
+                        return Err(ErrorsManager::append_position(error, self.position));
+                    }
+                };
+
+                let borrowed = values.borrow();
+                let element_cell = borrowed.get(idx).ok_or_else(|| {
+                    let error = Box::new(InterpreterError::new(ErrorSeverity::HIGH, format!("Index {} out of bounds.", idx)));
+                    ErrorsManager::append_position(error, self.position)
+                })?;
+
+                Ok(Rc::clone(element_cell))
+            }
+
+            other => {
+                let error = Box::new(InterpreterError::new(
+                    ErrorSeverity::HIGH,
+                    String::from("Cannot pass this kind of expression by reference — expected a variable or indexed value."),
+                ));
+                let _ = other;
                 Err(ErrorsManager::append_position(error, self.position))
             }
         }

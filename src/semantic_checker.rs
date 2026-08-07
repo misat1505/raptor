@@ -390,6 +390,20 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 else_block,
             } => {
                 self.visit_expression(&condition);
+                if let Ok(resolved_condition) = self.read_last_result() {
+                    if resolved_condition != Type::Bool {
+                        let error = SemanticCheckerError::new(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Condition in 'if statement' has to evaluate to type '{:?}' - got '{:?}'.\nAt {:?}.\n",
+                                Type::Bool,
+                                resolved_condition,
+                                condition.position
+                            ),
+                        );
+                        self.errors.push(Box::new(error));
+                    }
+                }
                 self.visit_block(&if_block);
                 if let Some(else_blk) = else_block {
                     self.visit_block(&else_blk);
@@ -401,14 +415,30 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 assignment,
                 block,
             } => {
+                self.stack.push_scope();
                 if let Some(decl) = declaration {
                     self.visit_statement(&decl);
                 }
                 self.visit_expression(&condition);
+                if let Ok(resolved_condition) = self.read_last_result() {
+                    if resolved_condition != Type::Bool {
+                        let error = SemanticCheckerError::new(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Condition in 'for loop' has to evaluate to type '{:?}' - got '{:?}'.\nAt {:?}.\n",
+                                Type::Bool,
+                                resolved_condition,
+                                condition.position
+                            ),
+                        );
+                        self.errors.push(Box::new(error));
+                    }
+                }
                 if let Some(assign) = assignment {
                     self.visit_statement(&assign);
                 }
                 self.visit_block(&block);
+                self.stack.pop_scope();
             }
             Statement::Switch { expressions, cases } => {
                 for expr in expressions {
@@ -434,9 +464,11 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
     }
 
     fn visit_block(&mut self, block: &'a Node<Block>) -> Result<(), Box<dyn IError>> {
+        self.stack.push_scope();
         for statement in &block.value.0 {
             self.visit_statement(statement);
         }
+        self.stack.pop_scope();
         Ok(())
     }
 

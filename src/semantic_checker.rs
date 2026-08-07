@@ -5,6 +5,7 @@ use crate::{
     errors::{ErrorSeverity, IError, SemanticCheckerError},
     lazy_stream_reader::Position,
     static_checker_stack::StaticCheckerStack,
+    tokens::TokenCategory::Identifier,
     type_alu::TypeALU,
     visitor::Visitor,
 };
@@ -479,12 +480,39 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
     fn visit_switch_case(&mut self, switch_case: &'a Node<SwitchCase>) -> Result<(), Box<dyn IError>> {
         self.visit_expression(&switch_case.value.condition);
+        if let Ok(resolved_condition) = self.read_last_result() {
+            if resolved_condition != Type::Bool {
+                let error = SemanticCheckerError::new(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Condition in 'switch case' has to evaluate to type '{:?}' - got '{:?}'.\nAt {:?}.\n",
+                        Type::Bool,
+                        resolved_condition,
+                        switch_case.position
+                    ),
+                );
+                self.errors.push(Box::new(error));
+            }
+        }
         self.visit_block(&switch_case.value.block);
         Ok(())
     }
 
     fn visit_switch_expression(&mut self, switch_expression: &'a Node<SwitchExpression>) -> Result<(), Box<dyn IError>> {
         self.visit_expression(&switch_expression.value.expression);
+
+        match self.read_last_result() {
+            Ok(resolved_type) => match &switch_expression.value.alias {
+                None => unimplemented!("empty identifier is not implemented"),
+                Some(id) => {
+                    if let Err(err) = self.stack.declare_variable(id.value.as_str(), resolved_type) {
+                        self.errors.push(Box::new(err));
+                    }
+                }
+            },
+            Err(_) => {}
+        }
+
         Ok(())
     }
 

@@ -1,4 +1,4 @@
-use std::unimplemented;
+use std::{unimplemented, unreachable};
 
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
@@ -9,9 +9,9 @@ use crate::{
     visitor::Visitor,
 };
 
-enum FunctionCallType {
-    Statement(Node<Statement>),
-    Expression(Node<Expression>),
+enum FunctionCallType<'a> {
+    Statement(&'a Node<Statement>),
+    Expression(&'a Node<Expression>),
 }
 
 pub struct SemanticChecker<'a> {
@@ -98,7 +98,7 @@ impl<'a> SemanticChecker<'a> {
         Ok(())
     }
 
-    fn check_function_call(&mut self, function: FunctionCallType) {
+    fn check_function_call(&mut self, function: FunctionCallType<'a>) {
         match function {
             FunctionCallType::Statement(Node {
                 value: Statement::FunctionCall { identifier, arguments },
@@ -125,40 +125,54 @@ impl<'a> SemanticChecker<'a> {
                         )));
                     }
 
-                    for idx in 0..std_function.params.len() {
-                        if let Some(argument) = arguments.get(idx) {
-                            let expected = std_function.passed_by.get(idx).unwrap_or(&PassedBy::Value);
+                    for idx in 0..arguments.len() {
+                        let argument = &arguments[idx];
 
-                            if &argument.value.passed_by != expected {
+                        self.visit_expression(&argument.value.value);
+                        let actual_type = self.read_last_result().ok();
+
+                        let expected_passed_by = std_function.passed_by.get(idx).unwrap_or(&PassedBy::Value);
+                        let expected_type = std_function.params.get(idx);
+
+                        if &argument.value.passed_by != expected_passed_by {
+                            self.errors.push(Box::new(SemanticCheckerError::new(
+                                ErrorSeverity::HIGH,
+                                format!(
+                                    "Parameter {} in function '{}' passed by {:?} - should be passed by {:?}.\nAt {:?}.\n",
+                                    idx, name, argument.value.passed_by, expected_passed_by, argument.position
+                                ),
+                            )));
+                        }
+
+                        if *expected_passed_by == PassedBy::Reference && !Self::is_valid_reference_expression(&argument.value.value.value) {
+                            self.errors.push(Box::new(SemanticCheckerError::new(
+                                ErrorSeverity::HIGH,
+                                format!(
+                                    "Parameter {} in function '{}' is passed by reference, but complex expression was found.\nAt {:?}.\n",
+                                    idx, name, argument.position
+                                ),
+                            )));
+                        }
+
+                        if let (Some(expected), Some(actual)) = (expected_type, &actual_type) {
+                            if expected != actual {
                                 self.errors.push(Box::new(SemanticCheckerError::new(
                                     ErrorSeverity::HIGH,
                                     format!(
-                                        "Parameter {} in function '{}' passed by {:?} - should be passed by {:?}.\nAt {:?}.\n",
-                                        idx, identifier.value, argument.value.passed_by, expected, argument.position
+                                        "Parameter {} in function '{}' expected type '{:?}', but got '{:?}'.\nAt {:?}.\n",
+                                        idx, name, expected, actual, argument.position
                                     ),
                                 )));
-                            }
-
-                            if *expected == PassedBy::Reference {
-                                if let Expression::Variable(_) = argument.value.value.value {
-                                } else {
-                                    self.errors.push(Box::new(SemanticCheckerError::new(
-                                        ErrorSeverity::HIGH,
-                                        format!(
-                                            "Parameter {} in function '{}' is passed by reference, but complex expression was found.\nAt {:?}.\n",
-                                            idx, identifier.value, argument.position
-                                        ),
-                                    )));
-                                }
                             }
                         }
                     }
 
+                    self.last_result = Some(std_function.return_type.clone());
                     return;
                 }
 
                 // user function
-                if let Some(function_declaration) = self.program.functions.get(&String::from(name)) {
+                if let Some(function_declaration) = self.program.functions.get(name) {
                     let parameters = &function_declaration.value.parameters;
                     if arguments.len() != parameters.len() {
                         self.errors.push(Box::new(SemanticCheckerError::new(
@@ -170,19 +184,23 @@ impl<'a> SemanticChecker<'a> {
                                 arguments.len(),
                                 position
                             ),
-                        )))
+                        )));
                     }
 
-                    for idx in 0..parameters.len() {
-                        let parameter = parameters.get(idx).unwrap();
-                        if let Some(argument) = arguments.get(idx) {
+                    for idx in 0..arguments.len() {
+                        let argument = &arguments[idx];
+
+                        self.visit_expression(&argument.value.value);
+                        let actual_type = self.read_last_result().ok();
+
+                        if let Some(parameter) = parameters.get(idx) {
                             if argument.value.passed_by != parameter.value.passed_by {
                                 self.errors.push(Box::new(SemanticCheckerError::new(
                                     ErrorSeverity::HIGH,
                                     format!(
                                         "Parameter '{}' in function '{}' passed by {:?} - should be passed by {:?}.\nAt {:?}.\n",
                                         parameter.value.identifier.value,
-                                        identifier.value,
+                                        name,
                                         argument.value.passed_by,
                                         parameter.value.passed_by,
                                         argument.position
@@ -190,15 +208,23 @@ impl<'a> SemanticChecker<'a> {
                                 )));
                             }
 
-                            if argument.value.passed_by == PassedBy::Reference {
-                                if let Expression::Variable(_) = argument.value.value.value {
-                                } else {
-                                    self.errors.push(Box::new(SemanticCheckerError::new(ErrorSeverity::HIGH, format!(
-                                            "Parameter '{}' in function '{}' is passed by {:?}. Thus it needs to an identifier, but a complex expression was found.\nAt {:?}.\n",
-                                            parameter.value.identifier.value,
-                                            identifier.value,
-                                            PassedBy::Reference,
-                                            argument.position
+                            if parameter.value.passed_by == PassedBy::Reference && !Self::is_valid_reference_expression(&argument.value.value.value) {
+                                self.errors.push(Box::new(SemanticCheckerError::new(
+                        ErrorSeverity::HIGH,
+                        format!(
+                            "Parameter '{}' in function '{}' is passed by {:?}. Thus it needs to be an identifier or indexed value, but a complex expression was found.\nAt {:?}.\n",
+                            parameter.value.identifier.value, name, PassedBy::Reference, argument.position
+                        ),
+                    )));
+                            }
+
+                            if let Some(actual) = &actual_type {
+                                if parameter.value.parameter_type.value != *actual {
+                                    self.errors.push(Box::new(SemanticCheckerError::new(
+                                        ErrorSeverity::HIGH,
+                                        format!(
+                                            "Parameter '{}' in function '{}' expected type '{:?}', but got '{:?}'.\nAt {:?}.\n",
+                                            parameter.value.identifier.value, name, parameter.value.parameter_type.value, actual, argument.position
                                         ),
                                     )));
                                 }
@@ -206,6 +232,7 @@ impl<'a> SemanticChecker<'a> {
                         }
                     }
 
+                    self.last_result = Some(function_declaration.value.return_type.value.clone());
                     return;
                 }
 
@@ -215,6 +242,14 @@ impl<'a> SemanticChecker<'a> {
                 )))
             }
             _ => {}
+        }
+    }
+
+    fn is_valid_reference_expression(expression: &Expression) -> bool {
+        match expression {
+            Expression::Variable(_) => true,
+            Expression::Index { collection, .. } => Self::is_valid_reference_expression(&collection.value),
+            _ => false,
         }
     }
 }
@@ -259,7 +294,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
     fn visit_expression(&mut self, expression: &'a Node<Expression>) -> Result<(), Box<dyn IError>> {
         match &expression.value {
             Expression::FunctionCall { .. } => {
-                self.check_function_call(FunctionCallType::Expression(expression.clone()));
+                self.check_function_call(FunctionCallType::Expression(expression));
+                return Ok(());
             }
             _ => {}
         }
@@ -303,12 +339,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             Expression::Variable(variable) => {
                 self.visit_variable(variable)?;
             }
-            Expression::FunctionCall { arguments, .. } => {
-                for arg in arguments {
-                    self.visit_argument(arg)?;
-                }
-                // TODO: last_result should be set by the called function
-                self.last_result = None;
+            Expression::FunctionCall { .. } => {
+                unreachable!("Function call is handled seperately.");
             }
             Expression::Vector(vector) => {
                 self.visit_vector_literal(vector)?;
@@ -348,7 +380,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
     fn visit_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
         match &statement.value {
             &Statement::FunctionCall { .. } => {
-                self.check_function_call(FunctionCallType::Statement(statement.clone()));
+                self.check_function_call(FunctionCallType::Statement(statement));
             }
             _ => {}
         }

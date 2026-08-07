@@ -30,3 +30,9 @@
 fn print_user(str name, i64 age): str {
   return name + " " + age as str + " years old.";
 }
+
+str in = input("Input sth: ");
+println("Hello world" + in);
+
+str text = print_user(in, 420);
+println(text);

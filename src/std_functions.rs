@@ -22,6 +22,7 @@ pub struct StdFunction {
     pub params: Vec<Type>,
     pub passed_by: Vec<PassedBy>,
     pub execute: fn(&Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, StdFunctionError>,
+    pub return_type: Type,
 }
 
 impl PartialEq for StdFunction {
@@ -95,6 +96,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
+            return_type: Type::Void,
         }
     }
 
@@ -122,6 +124,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
+            return_type: Type::Void,
         }
     }
 
@@ -154,6 +157,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
+            return_type: Type::Str,
         }
     }
 
@@ -180,6 +184,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
+            return_type: Type::I64,
         }
     }
 
@@ -207,6 +212,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
+            return_type: Type::Str,
         }
     }
 
@@ -243,6 +249,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
+            return_type: Type::Void,
         }
     }
 
@@ -282,6 +289,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
+            return_type: Type::Void,
         }
     }
 
@@ -309,6 +317,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
+            return_type: Type::Void,
         }
     }
 
@@ -336,6 +345,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
+            return_type: Type::Bool,
         }
     }
 
@@ -366,6 +376,7 @@ impl StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
+            return_type: Type::Str,
         }
     }
 
@@ -413,6 +424,7 @@ impl StdFunction {
             params,
             passed_by: vec![PassedBy::Reference, PassedBy::Value],
             execute,
+            return_type: Type::Void,
         }
     }
 
@@ -447,6 +459,7 @@ impl StdFunction {
             params,
             passed_by: vec![PassedBy::Reference],
             execute,
+            return_type: Type::I64,
         }
     }
 
@@ -482,6 +495,7 @@ impl StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
+            return_type: Type::Void,
         }
     }
 
@@ -520,6 +534,7 @@ impl StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
+            return_type: Type::I64,
         }
     }
 
@@ -567,6 +582,7 @@ impl StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
+            return_type: Type::I64,
         }
     }
 
@@ -610,6 +626,7 @@ impl StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
+            return_type: Type::Str,
         }
     }
 
@@ -657,6 +674,7 @@ impl StdFunction {
             params,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             execute,
+            return_type: Type::Void,
         }
     }
 
@@ -691,6 +709,7 @@ impl StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
+            return_type: Type::Void,
         }
     }
 
@@ -721,6 +740,7 @@ impl StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
+            return_type: Type::I64,
         }
     }
 }

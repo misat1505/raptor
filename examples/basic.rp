@@ -2,23 +2,31 @@
 # foo = "Elon";
 # str a = foo;
 # str b = doesnt_exists;
-i64 a = 1;
 
-if (true) {
-  i64 x = 5;
-} else {
-  i64 a = 5;
-}
 
-for (i64 i = 0; a < 1; i = i + 1) {
 
-}
 
-switch (5: x) {
-  (x < 0) -> {
-  }
-  (x == 0) -> {
-  }
-  (x > 0) -> {
-  }
+# i64 a = 1;
+
+# if (true) {
+#   i64 x = 5;
+# } else {
+#   i64 a = 5;
+# }
+
+# for (i64 i = 0; a < 1; i = i + 1) {
+
+# }
+
+# switch (5: x) {
+#   (x < 0) -> {
+#   }
+#   (x == 0) -> {
+#   }
+#   (x > 0) -> {
+#   }
+# }
+
+fn print_user(str name, i64 age): str {
+  return name + " " + age as str + " years old.";
 }

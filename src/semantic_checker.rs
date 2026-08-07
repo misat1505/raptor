@@ -1,11 +1,10 @@
-use std::{println, unimplemented};
+use std::unimplemented;
 
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
     errors::{ErrorSeverity, IError, SemanticCheckerError},
     lazy_stream_reader::Position,
     static_checker_stack::StaticCheckerStack,
-    tokens::TokenCategory::Identifier,
     type_alu::TypeALU,
     visitor::Visitor,
 };
@@ -50,8 +49,6 @@ impl<'a> SemanticChecker<'a> {
             Some(t) => Ok(t),
             None => {
                 let error = SemanticCheckerError::new(ErrorSeverity::HIGH, String::from("No type produced where it is needed."));
-                let error_clone = error.clone();
-                // self.errors.push(Box::new(error_clone));
                 Err(Box::new(error))
             }
         }
@@ -229,8 +226,32 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             self.visit_statement(&statement);
         }
 
-        for (_, function) in &program.functions {
+        for (name, function) in &program.functions {
+            self.stack.push_stack_frame();
+            for param in &function.value.parameters {
+                let param_name = &param.value.identifier.value;
+                let param_type = &param.value.parameter_type.value;
+                if let Err(err) = self.stack.declare_variable(param_name, param_type.clone()) {
+                    self.errors.push(Box::new(err));
+                }
+            }
             self.visit_block(&function.value.block);
+            let expected_return_type = function.value.return_type.value.clone();
+
+            if let Ok(resolved_type) = self.read_last_result() {
+                if resolved_type != expected_return_type {
+                    let error = SemanticCheckerError::new(
+                        ErrorSeverity::HIGH,
+                        format!(
+                            "Bad return type from function '{}'. Expected '{:?}', but got '{:?}'.\nAt {:?}.\n",
+                            name, expected_return_type, resolved_type, function.position
+                        ),
+                    );
+                    self.errors.push(Box::new(error));
+                }
+            }
+
+            self.stack.pop_stack_frame();
         }
         Ok(())
     }
@@ -524,7 +545,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         let t = match literal {
             Literal::F64(_) => Type::F64,
             Literal::I64(_) => Type::I64,
-            Literal::String(str) => Type::Str,
+            Literal::String(_) => Type::Str,
             Literal::False => Type::Bool,
             Literal::True => Type::Bool,
         };

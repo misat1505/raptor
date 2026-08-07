@@ -1,3 +1,5 @@
+use std::unimplemented;
+
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
     errors::{ErrorSeverity, IError, SemanticCheckerError},
@@ -344,8 +346,23 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     self.errors.push(Box::new(err));
                 }
             }
-            Statement::Assignment { value, .. } => {
-                self.visit_expression(&value);
+            Statement::Assignment { identifier, value, indices } => {
+                if indices.is_empty() {
+                    self.visit_expression(&value)?;
+                    let value = self.read_last_result().map_err(|_| {
+                        let error =
+                            SemanticCheckerError::new(ErrorSeverity::HIGH, format!("Cannot assign no value to variable '{}'.", identifier.value));
+                        self.errors.push(Box::new(error.clone()));
+                        Box::new(error) as Box<dyn IError>
+                    })?;
+
+                    if let Err(err) = self.stack.assign_variable(identifier.value.as_str(), value) {
+                        self.errors.push(Box::new(err));
+                    }
+                } else {
+                    unimplemented!("self.visit_index_assignment is not implemented yet");
+                    // self.visit_index_assignment(identifier, indices, value)?;
+                }
             }
             Statement::Conditional {
                 condition,

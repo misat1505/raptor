@@ -1,1 +1,3 @@
 i64 foo = 2 + 2;
+i64 foo = 5;
+# str a = foo;

@@ -17,13 +17,13 @@ pub struct SemanticChecker<'a> {
     stack: StaticCheckerStack<'a>,
     last_result: Option<Type>,
     position: Position,
-    pub errors: Vec<SemanticCheckerError>,
+    pub errors: Vec<Box<dyn IError>>,
 }
 
 impl<'a> SemanticChecker<'a> {
     #![allow(unused_must_use)]
     pub fn new(program: &'a Program) -> Result<Self, Box<dyn IError>> {
-        let errors: Vec<SemanticCheckerError> = vec![];
+        let errors: Vec<Box<dyn IError>> = vec![];
         let stack = StaticCheckerStack::new();
         Ok(Self {
             program,
@@ -42,12 +42,16 @@ impl<'a> SemanticChecker<'a> {
         self.visit_program(self.program);
     }
 
-    fn read_last_result(&mut self) -> Result<Type, SemanticCheckerError> {
-        self.last_result.take().ok_or_else(|| {
-            let error = SemanticCheckerError::new(ErrorSeverity::HIGH, String::from("No type produced where it is needed."));
-            self.errors.push(error.clone());
-            error
-        })
+    fn read_last_result(&mut self) -> Result<Type, Box<dyn IError>> {
+        match self.last_result.take() {
+            Some(t) => Ok(t),
+            None => {
+                let error = SemanticCheckerError::new(ErrorSeverity::HIGH, String::from("No type produced where it is needed."));
+                let error_clone = error.clone();
+                self.errors.push(Box::new(error_clone));
+                Err(Box::new(error))
+            }
+        }
     }
 
     fn evaluate_binary_op<F>(&mut self, lhs: &'a Box<Node<Expression>>, rhs: &'a Box<Node<Expression>>, op: F) -> Result<(), Box<dyn IError>>
@@ -63,7 +67,7 @@ impl<'a> SemanticChecker<'a> {
             (Ok(l), Ok(r)) => match op(l, r) {
                 Ok(result_type) => self.last_result = Some(result_type),
                 Err(err) => {
-                    self.errors.push(err);
+                    self.errors.push(Box::new(err));
                     self.last_result = None;
                 }
             },
@@ -84,7 +88,7 @@ impl<'a> SemanticChecker<'a> {
             Ok(t) => match op(t) {
                 Ok(result_type) => self.last_result = Some(result_type),
                 Err(err) => {
-                    self.errors.push(err);
+                    self.errors.push(Box::new(err));
                     self.last_result = None;
                 }
             },
@@ -109,7 +113,7 @@ impl<'a> SemanticChecker<'a> {
                 // std function
                 if let Some(std_function) = self.program.std_functions.get(&String::from(name)) {
                     if arguments.len() != std_function.params.len() {
-                        self.errors.push(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::new(
                             ErrorSeverity::HIGH,
                             format!(
                                 "Invalid number of arguments for function '{}'. Expected {}, given {}.\nAt {:?}.\n",
@@ -118,7 +122,7 @@ impl<'a> SemanticChecker<'a> {
                                 arguments.len(),
                                 position
                             ),
-                        ));
+                        )));
                     }
 
                     for idx in 0..std_function.params.len() {
@@ -126,25 +130,25 @@ impl<'a> SemanticChecker<'a> {
                             let expected = std_function.passed_by.get(idx).unwrap_or(&PassedBy::Value);
 
                             if &argument.value.passed_by != expected {
-                                self.errors.push(SemanticCheckerError::new(
+                                self.errors.push(Box::new(SemanticCheckerError::new(
                                     ErrorSeverity::HIGH,
                                     format!(
                                         "Parameter {} in function '{}' passed by {:?} - should be passed by {:?}.\nAt {:?}.\n",
                                         idx, identifier.value, argument.value.passed_by, expected, argument.position
                                     ),
-                                ));
+                                )));
                             }
 
                             if *expected == PassedBy::Reference {
                                 if let Expression::Variable(_) = argument.value.value.value {
                                 } else {
-                                    self.errors.push(SemanticCheckerError::new(
+                                    self.errors.push(Box::new(SemanticCheckerError::new(
                                         ErrorSeverity::HIGH,
                                         format!(
                                             "Parameter {} in function '{}' is passed by reference, but complex expression was found.\nAt {:?}.\n",
                                             idx, identifier.value, argument.position
                                         ),
-                                    ));
+                                    )));
                                 }
                             }
                         }
@@ -157,7 +161,7 @@ impl<'a> SemanticChecker<'a> {
                 if let Some(function_declaration) = self.program.functions.get(&String::from(name)) {
                     let parameters = &function_declaration.value.parameters;
                     if arguments.len() != parameters.len() {
-                        self.errors.push(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::new(
                             ErrorSeverity::HIGH,
                             format!(
                                 "Invalid number of arguments for function '{}'. Expected {}, given {}.\nAt {:?}.\n",
@@ -166,14 +170,14 @@ impl<'a> SemanticChecker<'a> {
                                 arguments.len(),
                                 position
                             ),
-                        ))
+                        )))
                     }
 
                     for idx in 0..parameters.len() {
                         let parameter = parameters.get(idx).unwrap();
                         if let Some(argument) = arguments.get(idx) {
                             if argument.value.passed_by != parameter.value.passed_by {
-                                self.errors.push(SemanticCheckerError::new(
+                                self.errors.push(Box::new(SemanticCheckerError::new(
                                     ErrorSeverity::HIGH,
                                     format!(
                                         "Parameter '{}' in function '{}' passed by {:?} - should be passed by {:?}.\nAt {:?}.\n",
@@ -183,20 +187,20 @@ impl<'a> SemanticChecker<'a> {
                                         parameter.value.passed_by,
                                         argument.position
                                     ),
-                                ));
+                                )));
                             }
 
                             if argument.value.passed_by == PassedBy::Reference {
                                 if let Expression::Variable(_) = argument.value.value.value {
                                 } else {
-                                    self.errors.push(SemanticCheckerError::new(ErrorSeverity::HIGH, format!(
+                                    self.errors.push(Box::new(SemanticCheckerError::new(ErrorSeverity::HIGH, format!(
                                             "Parameter '{}' in function '{}' is passed by {:?}. Thus it needs to an identifier, but a complex expression was found.\nAt {:?}.\n",
                                             parameter.value.identifier.value,
                                             identifier.value,
                                             PassedBy::Reference,
                                             argument.position
                                         ),
-                                    ));
+                                    )));
                                 }
                             }
                         }
@@ -205,10 +209,10 @@ impl<'a> SemanticChecker<'a> {
                     return;
                 }
 
-                self.errors.push(SemanticCheckerError::new(
+                self.errors.push(Box::new(SemanticCheckerError::new(
                     ErrorSeverity::HIGH,
                     format!("Use of undeclared function '{}'.\nAt {:?}.\n", name, position),
-                ))
+                )))
             }
             _ => {}
         }
@@ -261,7 +265,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     Ok(t) => match TypeALU::cast_to_type(t, &to_type.value) {
                         Ok(result_type) => self.last_result = Some(result_type),
                         Err(err) => {
-                            self.errors.push(err);
+                            self.errors.push(Box::new(err));
                             self.last_result = None;
                         }
                     },
@@ -297,17 +301,17 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                         self.last_result = Some(*inner);
                     }
                     (Ok(other), Ok(Type::I64)) => {
-                        self.errors.push(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::new(
                             ErrorSeverity::HIGH,
                             format!("Cannot index into value of type '{:?}'.\nAt {:?}.\n", other, expression.position),
-                        ));
+                        )));
                         self.last_result = None;
                     }
                     (Ok(_), Ok(other)) => {
-                        self.errors.push(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::new(
                             ErrorSeverity::HIGH,
                             format!("Array index must be of type 'i64', got '{:?}'.\nAt {:?}.\n", other, expression.position),
-                        ));
+                        )));
                         self.last_result = None;
                     }
                     _ => self.last_result = None,
@@ -331,10 +335,13 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     self.visit_argument(&arg);
                 }
             }
-            Statement::Declaration { var_type, value, .. } => {
+            Statement::Declaration { var_type, value, identifier } => {
                 self.visit_type(&var_type);
                 if let Some(val) = value {
                     self.visit_expression(&val);
+                }
+                if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), var_type.value.clone()) {
+                    self.errors.push(Box::new(err));
                 }
             }
             Statement::Assignment { value, .. } => {

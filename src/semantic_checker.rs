@@ -1,4 +1,4 @@
-use std::unimplemented;
+use std::{println, unimplemented};
 
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
@@ -50,7 +50,7 @@ impl<'a> SemanticChecker<'a> {
             None => {
                 let error = SemanticCheckerError::new(ErrorSeverity::HIGH, String::from("No type produced where it is needed."));
                 let error_clone = error.clone();
-                self.errors.push(Box::new(error_clone));
+                // self.errors.push(Box::new(error_clone));
                 Err(Box::new(error))
             }
         }
@@ -339,11 +339,31 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             }
             Statement::Declaration { var_type, value, identifier } => {
                 self.visit_type(&var_type);
-                if let Some(val) = value {
-                    self.visit_expression(&val);
-                }
-                if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), var_type.value.clone()) {
-                    self.errors.push(Box::new(err));
+
+                let resolved_type = match value {
+                    Some(val) => {
+                        self.visit_expression(val);
+                        match self.read_last_result() {
+                            Ok(t) => Some(t),
+                            Err(_) => None,
+                        }
+                    }
+                    None => Some(var_type.value.clone()),
+                };
+
+                if let Some(actual_type) = resolved_type {
+                    if var_type.value != actual_type {
+                        let error = SemanticCheckerError::new(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot assign value of type '{:?}' to variable '{}' of type '{:?}'.\nAt {:?}.\n",
+                                actual_type, identifier.value, var_type.value, statement.position
+                            ),
+                        );
+                        self.errors.push(Box::new(error));
+                    } else if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), var_type.value.clone()) {
+                        self.errors.push(Box::new(err));
+                    }
                 }
             }
             Statement::Assignment { identifier, value, indices } => {
@@ -453,7 +473,12 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         Ok(())
     }
 
-    fn visit_variable(&mut self, _variable: &'a String) -> Result<(), Box<dyn IError>> {
+    fn visit_variable(&mut self, variable: &'a String) -> Result<(), Box<dyn IError>> {
+        let value = self.stack.get_variable(variable.as_str()).map_err(|err| {
+            self.errors.push(Box::new(err.clone()));
+            Box::new(err) as Box<dyn IError>
+        })?;
+        self.last_result = Some(value.clone());
         Ok(())
     }
 

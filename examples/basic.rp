@@ -1,3 +1,4 @@
 i64 foo = 2 + 2;
 foo = "Elon";
-# str a = foo;
+str a = foo;
+str b = doesnt_exists;

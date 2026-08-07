@@ -21,6 +21,7 @@ mod parser;
 mod scope_manager;
 mod semantic_checker;
 mod stack;
+mod static_checker_stack;
 mod std_functions;
 mod tokens;
 mod value;
@@ -78,10 +79,10 @@ fn main() {
         return;
     }
 
-    let mut interpreter = Interpreter::new(&program);
-    if let Err(err) = interpreter.interpret() {
-        eprintln!("{}", err.message());
-    };
+    // let mut interpreter = Interpreter::new(&program);
+    // if let Err(err) = interpreter.interpret() {
+    //     eprintln!("{}", err.message());
+    // };
 
     println!("\nExecution time: {:?}", Instant::now() - start);
 }

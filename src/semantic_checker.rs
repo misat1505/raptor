@@ -1,6 +1,7 @@
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
     errors::{ErrorSeverity, IError, SemanticCheckerError},
+    static_checker_stack::StaticCheckerStack,
     visitor::Visitor,
 };
 
@@ -11,6 +12,7 @@ enum FunctionCallType {
 
 pub struct SemanticChecker<'a> {
     program: &'a Program,
+    stack: StaticCheckerStack<'a>,
     pub errors: Vec<SemanticCheckerError>,
 }
 
@@ -18,7 +20,8 @@ impl<'a> SemanticChecker<'a> {
     #![allow(unused_must_use)]
     pub fn new(program: &'a Program) -> Result<Self, Box<dyn IError>> {
         let errors: Vec<SemanticCheckerError> = vec![];
-        Ok(Self { program, errors })
+        let stack = StaticCheckerStack::new();
+        Ok(Self { program, errors, stack })
     }
 
     pub fn check(&mut self) {

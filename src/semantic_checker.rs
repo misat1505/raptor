@@ -1,7 +1,9 @@
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
     errors::{ErrorSeverity, IError, SemanticCheckerError},
+    lazy_stream_reader::Position,
     static_checker_stack::StaticCheckerStack,
+    type_alu::TypeALU,
     visitor::Visitor,
 };
 
@@ -13,6 +15,8 @@ enum FunctionCallType {
 pub struct SemanticChecker<'a> {
     program: &'a Program,
     stack: StaticCheckerStack<'a>,
+    last_result: Option<Type>,
+    position: Position,
     pub errors: Vec<SemanticCheckerError>,
 }
 
@@ -21,11 +25,73 @@ impl<'a> SemanticChecker<'a> {
     pub fn new(program: &'a Program) -> Result<Self, Box<dyn IError>> {
         let errors: Vec<SemanticCheckerError> = vec![];
         let stack = StaticCheckerStack::new();
-        Ok(Self { program, errors, stack })
+        Ok(Self {
+            program,
+            errors,
+            stack,
+            last_result: None,
+            position: Position {
+                line: 0,
+                column: 0,
+                offset: 0,
+            },
+        })
     }
 
     pub fn check(&mut self) {
         self.visit_program(self.program);
+    }
+
+    fn read_last_result(&mut self) -> Result<Type, SemanticCheckerError> {
+        self.last_result.take().ok_or_else(|| {
+            let error = SemanticCheckerError::new(ErrorSeverity::HIGH, String::from("No type produced where it is needed."));
+            self.errors.push(error.clone());
+            error
+        })
+    }
+
+    fn evaluate_binary_op<F>(&mut self, lhs: &'a Box<Node<Expression>>, rhs: &'a Box<Node<Expression>>, op: F) -> Result<(), Box<dyn IError>>
+    where
+        F: Fn(Type, Type) -> Result<Type, SemanticCheckerError>,
+    {
+        self.visit_expression(lhs)?;
+        let left_value = self.read_last_result();
+        self.visit_expression(rhs)?;
+        let right_value = self.read_last_result();
+
+        match (left_value, right_value) {
+            (Ok(l), Ok(r)) => match op(l, r) {
+                Ok(result_type) => self.last_result = Some(result_type),
+                Err(err) => {
+                    self.errors.push(err);
+                    self.last_result = None;
+                }
+            },
+            _ => self.last_result = None,
+        }
+
+        Ok(())
+    }
+
+    fn evaluate_unary_op<F>(&mut self, value: &'a Box<Node<Expression>>, op: F) -> Result<(), Box<dyn IError>>
+    where
+        F: Fn(Type) -> Result<Type, SemanticCheckerError>,
+    {
+        self.visit_expression(value)?;
+        let computed_type = self.read_last_result();
+
+        match computed_type {
+            Ok(t) => match op(t) {
+                Ok(result_type) => self.last_result = Some(result_type),
+                Err(err) => {
+                    self.errors.push(err);
+                    self.last_result = None;
+                }
+            },
+            Err(_) => self.last_result = None,
+        }
+
+        Ok(())
     }
 
     fn check_function_call(&mut self, function: FunctionCallType) {
@@ -171,41 +237,81 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         }
 
         match &expression.value {
-            Expression::Alternative(lhs, rhs)
-            | Expression::Concatenation(lhs, rhs)
-            | Expression::Greater(lhs, rhs)
-            | Expression::GreaterEqual(lhs, rhs)
-            | Expression::Less(lhs, rhs)
-            | Expression::LessEqual(lhs, rhs)
-            | Expression::Equal(lhs, rhs)
-            | Expression::NotEqual(lhs, rhs)
-            | Expression::Addition(lhs, rhs)
-            | Expression::Subtraction(lhs, rhs)
-            | Expression::Multiplication(lhs, rhs)
-            | Expression::Division(lhs, rhs) => {
-                self.visit_expression(&lhs);
-                self.visit_expression(&rhs);
+            Expression::Alternative(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::alternative)?,
+            Expression::Concatenation(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::concatenation)?,
+            Expression::Greater(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::greater)?,
+            Expression::GreaterEqual(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::greater_or_equal)?,
+            Expression::Less(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::less)?,
+            Expression::LessEqual(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::less_or_equal)?,
+            Expression::Equal(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::equal)?,
+            Expression::NotEqual(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::not_equal)?,
+            Expression::Addition(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::add)?,
+            Expression::Subtraction(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::subtract)?,
+            Expression::Multiplication(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::multiplication)?,
+            Expression::Division(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::division)?,
+
+            Expression::BooleanNegation(value) => self.evaluate_unary_op(value, TypeALU::boolean_negate)?,
+            Expression::ArithmeticNegation(value) => self.evaluate_unary_op(value, TypeALU::arithmetic_negate)?,
+
+            Expression::Casting { value, to_type } => {
+                self.visit_expression(value)?;
+                let from_type = self.read_last_result();
+
+                match from_type {
+                    Ok(t) => match TypeALU::cast_to_type(t, &to_type.value) {
+                        Ok(result_type) => self.last_result = Some(result_type),
+                        Err(err) => {
+                            self.errors.push(err);
+                            self.last_result = None;
+                        }
+                    },
+                    Err(_) => self.last_result = None,
+                }
             }
-            Expression::BooleanNegation(value) | Expression::ArithmeticNegation(value) | Expression::Casting { value, .. } => {
-                self.visit_expression(&value);
-            }
+
             Expression::Literal(literal) => {
-                self.visit_literal(&literal);
+                self.visit_literal(literal)?;
             }
             Expression::Variable(variable) => {
-                self.visit_variable(&variable);
+                self.visit_variable(variable)?;
             }
             Expression::FunctionCall { arguments, .. } => {
                 for arg in arguments {
-                    self.visit_argument(&arg);
+                    self.visit_argument(arg)?;
                 }
+                // TODO: last_result should be set by the called function
+                self.last_result = None;
             }
             Expression::Vector(vector) => {
                 self.visit_vector_literal(vector)?;
             }
             Expression::Index { collection, index } => {
-                self.visit_expression(collection);
-                self.visit_expression(index);
+                self.visit_expression(collection)?;
+                let collection_type = self.read_last_result();
+
+                self.visit_expression(index)?;
+                let index_type = self.read_last_result();
+
+                match (collection_type, index_type) {
+                    (Ok(Type::Vector(inner)), Ok(Type::I64)) => {
+                        self.last_result = Some(*inner);
+                    }
+                    (Ok(other), Ok(Type::I64)) => {
+                        self.errors.push(SemanticCheckerError::new(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot index into value of type '{:?}'.\nAt {:?}.\n", other, expression.position),
+                        ));
+                        self.last_result = None;
+                    }
+                    (Ok(_), Ok(other)) => {
+                        self.errors.push(SemanticCheckerError::new(
+                            ErrorSeverity::HIGH,
+                            format!("Array index must be of type 'i64', got '{:?}'.\nAt {:?}.\n", other, expression.position),
+                        ));
+                        self.last_result = None;
+                    }
+                    _ => self.last_result = None,
+                }
             }
         }
         Ok(())
@@ -310,7 +416,16 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         Ok(())
     }
 
-    fn visit_literal(&mut self, _literal: &'a Literal) -> Result<(), Box<dyn IError>> {
+    fn visit_literal(&mut self, literal: &'a Literal) -> Result<(), Box<dyn IError>> {
+        let t = match literal {
+            Literal::F64(_) => Type::F64,
+            Literal::I64(_) => Type::I64,
+            Literal::String(str) => Type::Str,
+            Literal::False => Type::Bool,
+            Literal::True => Type::Bool,
+        };
+
+        self.last_result = Some(t);
         Ok(())
     }
 

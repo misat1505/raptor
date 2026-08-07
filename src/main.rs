@@ -24,6 +24,7 @@ mod stack;
 mod static_checker_stack;
 mod std_functions;
 mod tokens;
+mod type_alu;
 mod value;
 mod visitor;
 

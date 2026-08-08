@@ -157,6 +157,7 @@ impl<R: BufRead> LazyStreamReader<R> {
         };
     }
 
+    #[allow(dead_code)]
     pub fn error_code_snippet(&mut self) -> String {
         let mut buffer = String::new();
         let _ = self.src.read_line(&mut buffer);

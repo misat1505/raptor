@@ -324,14 +324,13 @@ impl<T: BufRead> Lexer<T> {
 
     fn create_lexer_error(&mut self, text: String) -> Box<dyn IError> {
         let position = self.src.position();
-        let code_snippet = self.src.error_code_snippet();
-        let message = format!("\n{}\nAt {:?}\n{}\n", text, position, code_snippet);
-        Box::new(LexerError::new(ErrorSeverity::HIGH, message))
+        Box::new(LexerError::at(ErrorSeverity::HIGH, text, position))
     }
 
     fn prepare_warning_message(&self, text: String) -> String {
         let position = self.src.position();
-        return format!("\nWarning:\n{}\nAt {:?}\n", text, position);
+        let error = LexerError::at(ErrorSeverity::LOW, text, position);
+        return error.message();
     }
 }
 

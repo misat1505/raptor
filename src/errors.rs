@@ -5,6 +5,12 @@ pub trait IError: Debug {
     fn message(&self) -> String;
     fn set_message(&mut self, text: String);
     fn get_severity(&self) -> ErrorSeverity;
+    fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, position: Position) -> Self
+    where
+        Self: Sized;
+    fn at(level: ErrorSeverity, summary: String, position: Position) -> Self
+    where
+        Self: Sized;
 }
 
 #[derive(Debug, Clone)]
@@ -42,6 +48,24 @@ macro_rules! define_error {
             fn get_severity(&self) -> ErrorSeverity {
                 self._level.clone()
             }
+
+            fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, position: Position) -> Self {
+                let message = format!(
+                    "{}: {}\n  --> {}\n  expected: {}\n  found:    {}",
+                    severity_to_string(&level),
+                    summary,
+                    position.location(),
+                    expected,
+                    found
+                );
+                $name::new(level, message)
+            }
+
+            fn at(level: ErrorSeverity, summary: String, position: Position) -> Self {
+                let message = format!("{}: {}\n  --> {}", severity_to_string(&level), summary, position.location());
+
+                $name::new(level, message)
+            }
         }
     };
 }
@@ -68,7 +92,7 @@ const RED: &str = "\x1b[1;31m";
 const YELLOW: &str = "\x1b[1;33m";
 const RESET: &str = "\x1b[0m";
 
-fn severity_to_string(severity: &ErrorSeverity) -> String {
+pub fn severity_to_string(severity: &ErrorSeverity) -> String {
     match severity {
         ErrorSeverity::HIGH => format!("{}error{}", RED, RESET),
         ErrorSeverity::LOW => format!("{}warning{}", YELLOW, RESET),
@@ -78,18 +102,6 @@ fn severity_to_string(severity: &ErrorSeverity) -> String {
 impl SemanticCheckerError {
     pub fn new_at(level: ErrorSeverity, summary: String, position: Position) -> Self {
         let message = format!("error: {}\n  --> {}", summary, position.location());
-        SemanticCheckerError::new(level, message)
-    }
-
-    pub fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, position: Position) -> Self {
-        let message = format!(
-            "{}: {}\n  --> {}\n  expected: {}\n  found:    {}",
-            severity_to_string(&level),
-            summary,
-            position.location(),
-            expected,
-            found
-        );
         SemanticCheckerError::new(level, message)
     }
 

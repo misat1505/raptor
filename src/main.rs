@@ -30,19 +30,53 @@ mod visitor;
 
 mod tests;
 
-fn parse_filename() -> Option<String> {
-    let args: Vec<String> = args().collect();
-    args.get(1).cloned()
-}
-
 fn on_warning(warning: Box<dyn IError>) {
     eprintln!("{}", warning.message());
 }
 
+fn usage() {
+    println!(
+        "\
+Usage:
+    program [OPTIONS] <FILE>
+
+Options:
+    -h, --help      Show this help message
+    --unsafe        Skip semantic checking
+
+Arguments:
+    <FILE>          Path to the source file
+"
+    );
+}
+
 fn main() {
-    let path = match parse_filename() {
-        Some(p) => p,
-        None => return eprintln!("Path to file not given."),
+    let mut is_unsafe = false;
+    let args: Vec<String> = args().collect();
+
+    let mut path = match args.get(1).cloned() {
+        Some(arg) if arg == "-h" || arg == "--help" => {
+            usage();
+            return;
+        }
+        Some(arg) if arg == "--unsafe" => {
+            is_unsafe = true;
+
+            match args.get(2).cloned() {
+                Some(path) => path,
+                None => {
+                    eprintln!("Error: path to file not given.\n");
+                    usage();
+                    return;
+                }
+            }
+        }
+        Some(path) => path,
+        None => {
+            eprintln!("Error: path to file not given.\n");
+            usage();
+            return;
+        }
     };
 
     let file = match File::open(path.as_str()) {
@@ -67,17 +101,19 @@ fn main() {
         Err(err) => return eprintln!("{}", err.message()),
     };
 
-    let mut semantic_checker = match SemanticChecker::new(&program) {
-        Ok(checker) => checker,
-        Err(err) => return eprintln!("{}", err.message()),
-    };
-    semantic_checker.check();
+    if !is_unsafe {
+        let mut semantic_checker = match SemanticChecker::new(&program) {
+            Ok(checker) => checker,
+            Err(err) => return eprintln!("{}", err.message()),
+        };
+        semantic_checker.check();
 
-    if semantic_checker.errors.len() > 0 {
-        for error in &semantic_checker.errors {
-            eprintln!("{}", error.message());
+        if semantic_checker.errors.len() > 0 {
+            for error in &semantic_checker.errors {
+                eprintln!("{}", error.message());
+            }
+            return;
         }
-        return;
     }
 
     let mut interpreter = Interpreter::new(&program);

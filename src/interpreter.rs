@@ -130,7 +130,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
             Expression::NotEqual(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::not_equal)?,
             Expression::Literal(literal) => self.visit_literal(literal)?,
             Expression::Vector(vector) => self.visit_vector_literal(vector)?,
-            Expression::Variable(variable) => self.visit_variable(variable)?,
+            Expression::Variable(variable) => self.visit_variable(variable, expression.position)?,
             Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments)?,
             Expression::Index { collection, index } => self.visit_index(collection, index)?,
         }
@@ -397,7 +397,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
         Ok(())
     }
 
-    fn visit_variable(&mut self, variable: &'a String) -> Result<(), Box<dyn IError>> {
+    fn visit_variable(&mut self, variable: &'a String, _position: Position) -> Result<(), Box<dyn IError>> {
         // read value of variable
         let value = self
             .stack

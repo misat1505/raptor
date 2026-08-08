@@ -281,7 +281,8 @@ impl<'a> SemanticChecker<'a> {
         let mut current_type = match self.stack.get_variable(identifier.value.as_str()) {
             Ok(t) => t.clone(),
             Err(err) => {
-                self.errors.push(Box::new(err));
+                self.errors
+                    .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), position)));
                 return;
             }
         };
@@ -401,7 +402,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 self.visit_literal(literal)?;
             }
             Expression::Variable(variable) => {
-                self.visit_variable(variable)?;
+                self.visit_variable(variable, expression.position)?;
             }
             Expression::FunctionCall { .. } => {
                 unreachable!("Function call is handled seperately.");
@@ -447,18 +448,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
     fn visit_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
         match &statement.value {
-            &Statement::FunctionCall { .. } => {
-                self.check_function_call(FunctionCallType::Statement(statement));
-            }
-            _ => {}
-        }
-
-        match &statement.value {
-            Statement::FunctionCall { arguments, .. } => {
-                for arg in arguments {
-                    self.visit_argument(&arg);
-                }
-            }
+            Statement::FunctionCall { .. } => self.check_function_call(FunctionCallType::Statement(statement)),
             Statement::Declaration { var_type, value, identifier } => {
                 self.visit_type(&var_type);
 
@@ -489,7 +479,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                             statement.position,
                         );
                         self.errors.push(Box::new(error));
-                    } else if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), var_type.value.clone()) {
+                    }
+                    if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), var_type.value.clone()) {
                         self.errors.push(Box::new(err));
                     }
                 }
@@ -700,10 +691,11 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         Ok(())
     }
 
-    fn visit_variable(&mut self, variable: &'a String) -> Result<(), Box<dyn IError>> {
+    fn visit_variable(&mut self, variable: &'a String, position: Position) -> Result<(), Box<dyn IError>> {
         let value = self.stack.get_variable(variable.as_str()).map_err(|err| {
-            self.errors.push(Box::new(err.clone()));
-            Box::new(err) as Box<dyn IError>
+            let error = SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), position);
+            self.errors.push(Box::new(error.clone()));
+            Box::new(error.clone()) as Box<dyn IError>
         })?;
         self.last_result = Some(value.clone());
         Ok(())

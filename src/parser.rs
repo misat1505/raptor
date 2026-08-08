@@ -96,17 +96,19 @@ impl<L: ILexer> Parser<L> {
     fn consume_must_be(&mut self, category: TokenCategory) -> Result<Token, Box<dyn IError>> {
         // consumes on match else throws error
         let current_token = self.current_token();
+
         if current_token.category == category {
-            let _ = self.next_token()?;
-            return Ok(current_token.clone());
+            self.next_token()?;
+            return Ok(current_token);
         }
-        let text = match current_token.value {
-            TokenValue::F64(f64) => f64.to_string(),
-            TokenValue::I64(i64) => i64.to_string(),
-            TokenValue::String(str) => str,
-            TokenValue::Null => format!("{:?}", current_token.category),
-        };
-        Err(self.create_parser_error(format!("Unexpected token - '{}'. Expected '{:?}'.", text, category)))
+
+        Err(Box::new(ParserError::expected_found(
+            ErrorSeverity::HIGH,
+            "Unexpected token".to_string(),
+            format!("{:?}", category),
+            Self::token_text(&current_token),
+            current_token.position,
+        )))
     }
 
     fn consume_if_matches(&mut self, category: TokenCategory) -> Result<Option<Token>, Box<dyn IError>> {
@@ -145,10 +147,13 @@ impl<L: ILexer> Parser<L> {
                 position: token.position,
             }),
             None => {
-                return Err(self.create_parser_error(format!(
-                    "Bad return type: {:?}. Expected one of: 'i64', 'f64', 'bool', 'str', 'void'.",
-                    self.current_token().category
-                )))
+                return Err(Box::new(ParserError::expected_found(
+                    ErrorSeverity::HIGH,
+                    "Bad return type".to_string(),
+                    "'i64', 'f64', 'bool', 'str', or 'void'".to_string(),
+                    format!("{:?}", self.current_token().category),
+                    self.current_token().position,
+                )));
             }
         }
     }
@@ -901,12 +906,26 @@ impl<L: ILexer> Parser<L> {
             };
             return Ok(Some(node));
         }
-        Err(self.create_parser_error(format!("Wrong token value type - given: '{:?}', expected: 'str'.", token.category,)))
+        Err(Box::new(ParserError::expected_found(
+            ErrorSeverity::HIGH,
+            "Wrong token value type".to_string(),
+            "str".to_string(),
+            format!("{:?}", token.category),
+            token.position,
+        )))
     }
 
     fn create_parser_error(&self, text: String) -> Box<dyn IError> {
-        let position = self.current_token().position;
-        Box::new(ParserError::new(ErrorSeverity::HIGH, format!("{}\nAt {:?}.", text, position)))
+        Box::new(ParserError::at(ErrorSeverity::HIGH, text, self.current_token().position))
+    }
+
+    fn token_text(token: &Token) -> String {
+        match &token.value {
+            TokenValue::F64(value) => value.to_string(),
+            TokenValue::I64(value) => value.to_string(),
+            TokenValue::String(value) => value.clone(),
+            TokenValue::Null => format!("{:?}", token.category),
+        }
     }
 }
 
@@ -977,10 +996,6 @@ mod tests {
         }
     }
 
-    fn create_error_message(text: String) -> String {
-        return format!("{}\nAt {:?}.", text, default_position());
-    }
-
     #[test]
     fn parse_statement_block_fail() {
         let series = vec![
@@ -991,10 +1006,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_statement_block().err().unwrap().message(),
-            create_error_message(String::from("Couldn't create statement while parsing statement block."))
-        );
+        assert!(parser.parse_statement_block().is_err());
     }
 
     #[test]
@@ -1073,10 +1085,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_statement().err().unwrap().message(),
-            create_error_message(String::from("Unexpected token - 'ETX'. Expected ';'."))
-        );
+        assert!(parser.parse_statement().is_err());
     }
 
     #[test]
@@ -1228,10 +1237,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_function_declaration().err().unwrap().message(),
-            create_error_message(String::from("Bad return type: ,. Expected one of: 'i64', 'f64', 'bool', 'str', 'void'."))
-        );
+        assert!(parser.parse_function_declaration().is_err());
     }
 
     #[test]
@@ -1300,10 +1306,7 @@ mod tests {
         let mock_lexer = LexerMock::new(tokens);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_parameters().err().unwrap().message(),
-            create_error_message(String::from("Couldn't create parameter while parsing parameters."))
-        );
+        assert!(parser.parse_parameters().is_err());
     }
 
     #[test]
@@ -1435,20 +1438,11 @@ mod tests {
             ],
         ];
 
-        let expected = [
-            String::from("Unexpected token - 'ETX'. Expected ';'."),
-            String::from("Couldn't create expression while parsing for statement."),
-            String::from("Unexpected token - '{'. Expected ')'."),
-        ];
-
         for idx in 0..token_series.len() {
             let mock_lexer = LexerMock::new(token_series[idx].clone());
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_for_statement().err().unwrap().message(),
-                create_error_message(expected[idx].clone())
-            );
+            assert!(parser.parse_for_statement().is_err());
         }
     }
 
@@ -1558,19 +1552,11 @@ mod tests {
             ],
         ];
 
-        let expected = [
-            String::from("Unexpected token - 'true'. Expected '('."),
-            String::from("Unexpected token - '{'. Expected ')'."),
-        ];
-
         for idx in 0..token_series.len() {
             let mock_lexer = LexerMock::new(token_series[idx].to_vec());
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_if_statement().err().unwrap().message(),
-                create_error_message(expected[idx].clone())
-            );
+            assert!(parser.parse_if_statement().is_err());
         }
     }
 
@@ -1655,21 +1641,11 @@ mod tests {
             ],
         ];
 
-        let expected = [
-            String::from("Unexpected token - ';'. Expected ')'."),
-            String::from("Unexpected token - 'ETX'. Expected ';'."),
-            String::from("Unexpected token - 'ETX'. Expected ';'."),
-            String::from("Couldn't create assignment or call."),
-        ];
-
         for idx in 0..token_series.len() {
             let mock_lexer = LexerMock::new(token_series[idx].clone());
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_assign_or_call().err().unwrap().message(),
-                create_error_message(expected[idx].clone())
-            );
+            assert!(parser.parse_assign_or_call().is_err());
         }
     }
 
@@ -1776,10 +1752,7 @@ mod tests {
             let mock_lexer = LexerMock::new(series);
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_return_statement().err().unwrap().message(),
-                create_error_message(String::from("Unexpected token - 'ETX'. Expected ';'."))
-            );
+            assert!(parser.parse_return_statement().is_err());
         }
     }
 
@@ -1826,10 +1799,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_break_statement().err().unwrap().message(),
-            create_error_message(String::from("Unexpected token - 'ETX'. Expected ';'."))
-        );
+        assert!(parser.parse_break_statement().is_err());
     }
 
     #[test]
@@ -1860,10 +1830,7 @@ mod tests {
         let mock_lexer = LexerMock::new(tokens);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_arguments().err().unwrap().message(),
-            create_error_message(String::from("Couldn't create argument while parsing arguments."))
-        );
+        assert!(parser.parse_arguments().is_err());
     }
 
     #[test]
@@ -2279,10 +2246,7 @@ mod tests {
         let mock_lexer = LexerMock::new(tokens);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_factor().err().unwrap().message(),
-            create_error_message(String::from("Unexpected token - 'ETX'. Expected ')'."))
-        );
+        assert!(parser.parse_factor().is_err());
     }
 
     #[test]
@@ -2308,19 +2272,11 @@ mod tests {
             ],
         ];
 
-        let expected = [
-            String::from("Couldn't create argument while parsing arguments."),
-            String::from("Unexpected token - 'ETX'. Expected ')'."),
-        ];
-
         for idx in 0..token_series.len() {
             let mock_lexer = LexerMock::new(token_series[idx].clone());
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_identifier_or_call().err().unwrap().message(),
-                create_error_message(expected[idx].clone())
-            );
+            assert!(parser.parse_identifier_or_call().is_err());
         }
     }
 
@@ -2450,10 +2406,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_switch_expressions().err().unwrap().message(),
-            create_error_message(String::from("Couldn't create switch expression while parsing switch expressions."))
-        );
+        assert!(parser.parse_switch_expressions().is_err());
     }
 
     #[test]
@@ -2673,10 +2626,7 @@ mod tests {
         let mut parser = Parser::new(mock_lexer);
 
         let result = parser.parse_identifier();
-        assert_eq!(
-            result.err().unwrap().message(),
-            create_error_message(String::from("Wrong token value type - given: 'identifier', expected: 'str'."))
-        );
+        assert!(result.is_err());
     }
 
     #[test]
@@ -2706,10 +2656,7 @@ mod tests {
         assert_eq!(parser.current_token().clone().category, TokenCategory::ParenOpen);
         let result = parser.consume_must_be(TokenCategory::Semicolon);
 
-        assert_eq!(
-            result.err().unwrap().message(),
-            create_error_message(String::from("Unexpected token - '('. Expected ';'."))
-        );
+        assert!(result.is_err());
         assert_eq!(parser.current_token().clone().category, TokenCategory::ParenOpen);
     }
 

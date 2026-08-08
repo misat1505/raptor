@@ -1,6 +1,6 @@
 use crate::{
     ast::Type,
-    errors::{ErrorSeverity, IError, SemanticCheckerError},
+    errors::{ErrorSeverity, SemanticCheckerError},
 };
 
 pub struct TypeALU;
@@ -153,6 +153,8 @@ impl TypeALU {
 
 #[cfg(test)]
 mod tests {
+    use crate::errors::IError;
+
     use super::*;
 
     #[test]

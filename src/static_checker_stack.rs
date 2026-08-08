@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use crate::{
     ast::Type,
-    errors::{ErrorSeverity, IError, ScopeManagerError, StackOverflowError},
+    errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
 };
 
 #[derive(Debug, Clone)]
@@ -227,6 +227,8 @@ impl<'a> StaticCheckerStack<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::errors::IError;
 
     #[test]
     fn scope_manager_declare_and_get() {

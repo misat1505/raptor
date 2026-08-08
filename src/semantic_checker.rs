@@ -1,9 +1,7 @@
-use std::{rc::Rc, unreachable, vec};
+use std::{unreachable, vec};
 
 use crate::{
-    ast::{
-        Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type,
-    },
+    ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
     errors::{ErrorSeverity, IError, SemanticCheckerError},
     lazy_stream_reader::Position,
     static_checker_stack::StaticCheckerStack,
@@ -741,9 +739,9 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, rc::Rc};
 
-    use crate::lazy_stream_reader::Position;
+    use crate::{ast::FunctionDeclaration, lazy_stream_reader::Position};
 
     use super::*;
 

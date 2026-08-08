@@ -32,6 +32,7 @@ impl<'a> Interpreter<'a> {
             is_breaking: false,
             is_returning: false,
             position: Position {
+                filename: None,
                 line: 0,
                 column: 0,
                 offset: 0,
@@ -718,6 +719,7 @@ mod tests {
 
     fn default_position() -> Position {
         Position {
+            filename: None,
             line: 0,
             column: 0,
             offset: 0,

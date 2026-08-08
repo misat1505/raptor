@@ -15,7 +15,7 @@ mod tests {
 
     fn create_lexer(text: &str) -> Lexer<BufReader<&[u8]>> {
         let code = BufReader::new(text.as_bytes());
-        let reader = LazyStreamReader::new(code);
+        let reader = LazyStreamReader::new(code, None);
 
         let lexer_options = LexerOptions {
             max_comment_length: 100,
@@ -219,7 +219,7 @@ mod edge_case_tests {
 
     fn create_lexer(text: &str) -> Lexer<BufReader<&[u8]>> {
         let code = BufReader::new(text.as_bytes());
-        let reader = LazyStreamReader::new(code);
+        let reader = LazyStreamReader::new(code, None);
 
         let lexer_options = LexerOptions {
             max_comment_length: 100,

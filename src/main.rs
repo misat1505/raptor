@@ -85,7 +85,8 @@ fn main() {
     };
 
     let code = BufReader::new(file);
-    let reader = LazyStreamReader::new(code);
+    let filename: &'static str = Box::leak(path.clone().into_boxed_str());
+    let reader = LazyStreamReader::new(code, Some(filename));
 
     let lexer_options = LexerOptions {
         max_comment_length: 100,

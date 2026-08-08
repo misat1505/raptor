@@ -20,7 +20,7 @@ mod tests {
             max_comment_length: 100,
             max_identifier_length: 100,
         };
-        let reader = LazyStreamReader::new(text);
+        let reader = LazyStreamReader::new(text, None);
         let lexer = Lexer::new(reader, options, on_warning);
         let mut parser = Parser::new(lexer);
         let program = parser.parse().unwrap();

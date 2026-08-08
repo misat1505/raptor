@@ -962,6 +962,7 @@ mod tests {
 
     fn default_position() -> Position {
         Position {
+            filename: None,
             line: 0,
             column: 0,
             offset: 0,

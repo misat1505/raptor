@@ -1,4 +1,4 @@
-use std::{unimplemented, unreachable};
+use std::{unimplemented, unreachable, vec};
 
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
@@ -252,6 +252,62 @@ impl<'a> SemanticChecker<'a> {
             _ => false,
         }
     }
+
+    fn check_index_assignment(
+        &mut self,
+        identifier: &'a Node<String>,
+        indices: &'a Vec<Node<Expression>>,
+        value: &'a Node<Expression>,
+        position: Position,
+    ) {
+        let mut current_type = match self.stack.get_variable(identifier.value.as_str()) {
+            Ok(t) => t.clone(),
+            Err(err) => {
+                self.errors.push(Box::new(err));
+                return;
+            }
+        };
+
+        for index_expr in indices {
+            self.visit_expression(index_expr);
+            if let Ok(idx_type) = self.read_last_result() {
+                if idx_type != Type::I64 {
+                    self.errors.push(Box::new(SemanticCheckerError::new(
+                        ErrorSeverity::HIGH,
+                        format!(
+                            "Array index must be of type 'i64', got '{:?}'.\nAt {:?}.\n",
+                            idx_type, index_expr.position
+                        ),
+                    )));
+                    return;
+                }
+            }
+
+            match current_type {
+                Type::Vector(inner) => current_type = *inner,
+                other => {
+                    self.errors.push(Box::new(SemanticCheckerError::new(
+                        ErrorSeverity::HIGH,
+                        format!("Cannot index into value of type '{:?}'.\nAt {:?}.\n", other, position),
+                    )));
+                    return;
+                }
+            }
+        }
+
+        self.visit_expression(value);
+        if let Ok(actual_type) = self.read_last_result() {
+            if actual_type != current_type {
+                self.errors.push(Box::new(SemanticCheckerError::new(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Cannot assign value of type '{:?}' to element of type '{:?}'.\nAt {:?}.\n",
+                        actual_type, current_type, position
+                    ),
+                )));
+            }
+        }
+    }
 }
 
 impl<'a> Visitor<'a> for SemanticChecker<'a> {
@@ -406,7 +462,13 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 };
 
                 if let Some(actual_type) = resolved_type {
-                    if var_type.value != actual_type {
+                    let types_compatible = var_type.value == actual_type
+                        || matches!(
+                            (&var_type.value, &actual_type),
+                            (Type::Vector(_), Type::Vector(inner)) if **inner == Type::Void
+                        );
+
+                    if !types_compatible {
                         let error = SemanticCheckerError::new(
                             ErrorSeverity::HIGH,
                             format!(
@@ -434,8 +496,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                         self.errors.push(Box::new(err));
                     }
                 } else {
-                    unimplemented!("self.visit_index_assignment is not implemented yet");
-                    // self.visit_index_assignment(identifier, indices, value)?;
+                    self.check_index_assignment(identifier, indices, value, statement.position);
                 }
             }
             Statement::Conditional {
@@ -596,10 +657,28 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
     }
 
     fn visit_vector_literal(&mut self, vector: &'a Vec<Box<Node<Expression>>>) -> Result<(), Box<dyn IError>> {
+        let mut element_type: Option<Type> = None;
+
         for expression in vector {
             self.visit_expression(expression)?;
+            if let Ok(t) = self.read_last_result() {
+                match &element_type {
+                    None => element_type = Some(t),
+                    Some(expected) if *expected != t => {
+                        self.errors.push(Box::new(SemanticCheckerError::new(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Vector elements must have the same type: expected '{:?}', got '{:?}'.\nAt {:?}.\n",
+                                expected, t, expression.position
+                            ),
+                        )));
+                    }
+                    _ => {}
+                }
+            }
         }
 
+        self.last_result = Some(Type::Vector(Box::new(element_type.unwrap_or(Type::Void))));
         Ok(())
     }
 }

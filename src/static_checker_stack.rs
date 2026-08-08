@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use crate::{
     ast::Type,
-    errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
+    errors::{ErrorSeverity, IError, ScopeManagerError, StackOverflowError},
 };
 
 #[derive(Debug, Clone)]
@@ -196,5 +196,132 @@ impl<'a> StaticCheckerStack<'a> {
             last_frame.scope_manager.declare_variable(name, value)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scope_manager_declare_and_get() {
+        let mut manager = StaticCheckerScopeManager::new();
+        assert!(manager.declare_variable("x", Type::I64).is_ok());
+        assert_eq!(manager.get_variable("x").unwrap(), &Type::I64);
+    }
+
+    #[test]
+    fn scope_manager_redeclare_fails() {
+        let mut manager = StaticCheckerScopeManager::new();
+        let _ = manager.declare_variable("x", Type::I64);
+        assert_eq!(
+            manager.declare_variable("x", Type::F64).err().unwrap().message(),
+            "Cannot redeclare variable 'x'."
+        );
+    }
+
+    #[test]
+    fn scope_manager_get_undeclared_fails() {
+        let manager = StaticCheckerScopeManager::new();
+        assert_eq!(
+            manager.get_variable("x").err().unwrap().message(),
+            "Variable 'x' not declared in this scope."
+        );
+    }
+
+    #[test]
+    fn scope_manager_assign_same_type_ok() {
+        let mut manager = StaticCheckerScopeManager::new();
+        let _ = manager.declare_variable("x", Type::I64);
+        assert!(manager.assign_variable("x", Type::I64).is_ok());
+    }
+
+    #[test]
+    fn scope_manager_assign_different_type_fails() {
+        let mut manager = StaticCheckerScopeManager::new();
+        let _ = manager.declare_variable("x", Type::I64);
+        assert_eq!(
+            manager.assign_variable("x", Type::Str).err().unwrap().message(),
+            "Cannot assign 'str' to variable 'x' which was previously declared as 'i64'."
+        );
+    }
+
+    #[test]
+    fn scope_manager_assign_undeclared_fails() {
+        let mut manager = StaticCheckerScopeManager::new();
+        assert_eq!(
+            manager.assign_variable("x", Type::I64).err().unwrap().message(),
+            "Variable 'x' not declared in this scope."
+        );
+    }
+
+    #[test]
+    fn scope_manager_nested_scope_sees_parent_variable() {
+        let mut manager = StaticCheckerScopeManager::new();
+        let _ = manager.declare_variable("x", Type::I64);
+        manager.push_scope();
+        assert_eq!(manager.get_variable("x").unwrap(), &Type::I64);
+    }
+
+    #[test]
+    fn scope_manager_pop_scope_removes_inner_variable() {
+        let mut manager = StaticCheckerScopeManager::new();
+        manager.push_scope();
+        let _ = manager.declare_variable("y", Type::I64);
+        assert!(manager.get_variable("y").is_ok());
+        manager.pop_scope();
+        assert!(manager.get_variable("y").is_err());
+    }
+
+    #[test]
+    fn scope_manager_shadowing_in_nested_scope() {
+        let mut manager = StaticCheckerScopeManager::new();
+        let _ = manager.declare_variable("x", Type::I64);
+        manager.push_scope();
+        assert!(manager.declare_variable("x", Type::Str).is_err());
+    }
+
+    #[test]
+    fn stack_push_and_pop_stack_frame() {
+        let mut stack = StaticCheckerStack::new();
+        assert_eq!(stack.0.len(), 1);
+        assert!(stack.push_stack_frame().is_ok());
+        assert_eq!(stack.0.len(), 2);
+        stack.pop_stack_frame();
+        assert_eq!(stack.0.len(), 1);
+    }
+
+    #[test]
+    fn stack_declare_and_get_variable() {
+        let mut stack = StaticCheckerStack::new();
+        assert!(stack.declare_variable("x", Type::Bool).is_ok());
+        assert_eq!(stack.get_variable("x").unwrap(), &Type::Bool);
+    }
+
+    #[test]
+    fn stack_variables_isolated_between_frames() {
+        let mut stack = StaticCheckerStack::new();
+        let _ = stack.declare_variable("x", Type::I64);
+        let _ = stack.push_stack_frame();
+        assert!(stack.get_variable("x").is_err());
+    }
+
+    #[test]
+    fn stack_push_scope_and_pop_scope() {
+        let mut stack = StaticCheckerStack::new();
+        stack.push_scope();
+        let _ = stack.declare_variable("x", Type::I64);
+        assert!(stack.get_variable("x").is_ok());
+        stack.pop_scope();
+        assert!(stack.get_variable("x").is_err());
+    }
+
+    #[test]
+    fn stack_overflow_after_500_frames() {
+        let mut stack = StaticCheckerStack::new();
+        for _ in 0..499 {
+            assert!(stack.push_stack_frame().is_ok());
+        }
+        assert_eq!(stack.push_stack_frame().err().unwrap().message(), "Stack overflow.");
     }
 }

@@ -1,7 +1,9 @@
-use std::{unreachable, vec};
+use std::{rc::Rc, unreachable, vec};
 
 use crate::{
-    ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
+    ast::{
+        Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type,
+    },
     errors::{ErrorSeverity, IError, SemanticCheckerError},
     lazy_stream_reader::Position,
     static_checker_stack::StaticCheckerStack,
@@ -713,5 +715,695 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
         self.last_result = Some(Type::Vector(Box::new(element_type.unwrap_or(Type::Void))));
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::lazy_stream_reader::Position;
+
+    use super::*;
+
+    fn pos() -> Position {
+        Position {
+            line: 0,
+            column: 0,
+            offset: 0,
+        }
+    }
+
+    macro_rules! node {
+        ($value:expr) => {
+            Node {
+                value: $value,
+                position: pos(),
+            }
+        };
+    }
+
+    fn empty_program() -> Program {
+        Program {
+            statements: vec![],
+            functions: HashMap::new(),
+            std_functions: HashMap::new(),
+        }
+    }
+
+    fn run_check(program: &Program) -> Vec<String> {
+        let mut checker = SemanticChecker::new(program).unwrap();
+        checker.check();
+        checker.errors.iter().map(|e| e.message()).collect()
+    }
+
+    #[test]
+    fn empty_program_has_no_errors() {
+        let program = empty_program();
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn valid_declaration_has_no_errors() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Literal(Literal::I64(5)))),
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn declaration_type_mismatch_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Literal(Literal::True))),
+        }));
+
+        let errors = run_check(&program);
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("Cannot assign value of type 'bool' to variable 'x' of type 'i64'"));
+    }
+
+    #[test]
+    fn declaration_without_value_uses_default_type() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("x")),
+            value: None,
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn empty_vector_literal_matches_any_vector_type() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Vector(vec![]))),
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn vector_literal_with_mixed_types_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Vector(vec![
+                Box::new(node!(Expression::Literal(Literal::I64(1)))),
+                Box::new(node!(Expression::Literal(Literal::True))),
+            ]))),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Vector elements must have the same type")));
+    }
+
+    #[test]
+    fn assignment_to_undeclared_variable_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Assignment {
+            identifier: node!(String::from("x")),
+            indices: vec![],
+            value: node!(Expression::Literal(Literal::I64(5))),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("not declared")));
+    }
+
+    #[test]
+    fn assignment_type_mismatch_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Literal(Literal::I64(0)))),
+        }));
+        program.statements.push(node!(Statement::Assignment {
+            identifier: node!(String::from("x")),
+            indices: vec![],
+            value: node!(Expression::Literal(Literal::True)),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Cannot assign")));
+    }
+
+    #[test]
+    fn valid_binary_addition_has_no_errors() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Addition(
+                Box::new(node!(Expression::Literal(Literal::I64(1)))),
+                Box::new(node!(Expression::Literal(Literal::I64(2)))),
+            ))),
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn invalid_binary_addition_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Addition(
+                Box::new(node!(Expression::Literal(Literal::I64(1)))),
+                Box::new(node!(Expression::Literal(Literal::True))),
+            ))),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Cannot perform addition")));
+    }
+
+    #[test]
+    fn condition_must_be_bool_in_if() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Conditional {
+            condition: node!(Expression::Literal(Literal::I64(1))),
+            if_block: node!(Block(vec![])),
+            else_block: None,
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Condition in 'if statement'")));
+    }
+
+    #[test]
+    fn condition_must_be_bool_in_for_loop() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::ForLoop {
+            declaration: None,
+            condition: node!(Expression::Literal(Literal::I64(1))),
+            assignment: None,
+            block: node!(Block(vec![])),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Condition in 'for loop'")));
+    }
+
+    // #[test]
+    // fn break_outside_loop_reports_error() {
+    //     let mut program = empty_program();
+    //     program.statements.push(node!(Statement::Break));
+
+    //     let errors = run_check(&program);
+    //     assert!(errors.iter().any(|e| e.contains("Break called outside")));
+    // }
+
+    #[test]
+    fn break_inside_for_loop_is_ok() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::ForLoop {
+            declaration: None,
+            condition: node!(Expression::Literal(Literal::True)),
+            assignment: None,
+            block: node!(Block(vec![node!(Statement::Break)])),
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn undeclared_variable_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("y")),
+            value: Some(node!(Expression::Variable(String::from("x")))),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("not declared")));
+    }
+
+    #[test]
+    fn index_expression_on_vector_returns_element_type() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            identifier: node!(String::from("arr")),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        }));
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Index {
+                collection: Box::new(node!(Expression::Variable(String::from("arr")))),
+                index: Box::new(node!(Expression::Literal(Literal::I64(0)))),
+            })),
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn index_expression_on_non_vector_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Literal(Literal::I64(1)))),
+        }));
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("y")),
+            value: Some(node!(Expression::Index {
+                collection: Box::new(node!(Expression::Variable(String::from("x")))),
+                index: Box::new(node!(Expression::Literal(Literal::I64(0)))),
+            })),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Cannot index into value")));
+    }
+
+    #[test]
+    fn index_with_non_i64_index_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            identifier: node!(String::from("arr")),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        }));
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("y")),
+            value: Some(node!(Expression::Index {
+                collection: Box::new(node!(Expression::Variable(String::from("arr")))),
+                index: Box::new(node!(Expression::Literal(Literal::True))),
+            })),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Array index must be of type 'i64'")));
+    }
+
+    #[test]
+    fn index_assignment_updates_element() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            identifier: node!(String::from("arr")),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        }));
+        program.statements.push(node!(Statement::Assignment {
+            identifier: node!(String::from("arr")),
+            indices: vec![node!(Expression::Literal(Literal::I64(0)))],
+            value: node!(Expression::Literal(Literal::I64(99))),
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn index_assignment_type_mismatch_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            identifier: node!(String::from("arr")),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        }));
+        program.statements.push(node!(Statement::Assignment {
+            identifier: node!(String::from("arr")),
+            indices: vec![node!(Expression::Literal(Literal::I64(0)))],
+            value: node!(Expression::Literal(Literal::True)),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Cannot assign value of type 'bool' to element")));
+    }
+
+    fn make_function(name: &str, parameters: Vec<Node<Parameter>>, return_type: Type, block: Block) -> (String, Rc<Node<FunctionDeclaration>>) {
+        (
+            name.to_string(),
+            Rc::new(node!(FunctionDeclaration {
+                identifier: node!(String::from(name)),
+                parameters,
+                return_type: node!(return_type),
+                block: node!(block),
+            })),
+        )
+    }
+
+    #[test]
+    fn function_call_with_correct_arg_types_has_no_errors() {
+        let mut functions = HashMap::new();
+        let (name, func) = make_function(
+            "add",
+            vec![
+                node!(Parameter {
+                    passed_by: PassedBy::Value,
+                    parameter_type: node!(Type::I64),
+                    identifier: node!(String::from("a")),
+                }),
+                node!(Parameter {
+                    passed_by: PassedBy::Value,
+                    parameter_type: node!(Type::I64),
+                    identifier: node!(String::from("b")),
+                }),
+            ],
+            Type::I64,
+            Block(vec![node!(Statement::Return(Some(node!(Expression::Addition(
+                Box::new(node!(Expression::Variable(String::from("a")))),
+                Box::new(node!(Expression::Variable(String::from("b")))),
+            )))))]),
+        );
+        functions.insert(name, func);
+
+        let mut program = Program {
+            statements: vec![],
+            functions,
+            std_functions: HashMap::new(),
+        };
+
+        program.statements.push(node!(Statement::FunctionCall {
+            identifier: node!(String::from("add")),
+            arguments: vec![
+                Box::new(node!(Argument {
+                    value: node!(Expression::Literal(Literal::I64(1))),
+                    passed_by: PassedBy::Value,
+                })),
+                Box::new(node!(Argument {
+                    value: node!(Expression::Literal(Literal::I64(2))),
+                    passed_by: PassedBy::Value,
+                })),
+            ],
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn function_call_wrong_arg_count_reports_error() {
+        let mut functions = HashMap::new();
+        let (name, func) = make_function(
+            "add",
+            vec![node!(Parameter {
+                passed_by: PassedBy::Value,
+                parameter_type: node!(Type::I64),
+                identifier: node!(String::from("a")),
+            })],
+            Type::I64,
+            Block(vec![node!(Statement::Return(Some(node!(Expression::Variable(String::from("a"))))))]),
+        );
+        functions.insert(name, func);
+
+        let mut program = Program {
+            statements: vec![],
+            functions,
+            std_functions: HashMap::new(),
+        };
+
+        program.statements.push(node!(Statement::FunctionCall {
+            identifier: node!(String::from("add")),
+            arguments: vec![],
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Invalid number of arguments")));
+    }
+
+    #[test]
+    fn function_call_wrong_arg_type_reports_error() {
+        let mut functions = HashMap::new();
+        let (name, func) = make_function(
+            "takes_i64",
+            vec![node!(Parameter {
+                passed_by: PassedBy::Value,
+                parameter_type: node!(Type::I64),
+                identifier: node!(String::from("a")),
+            })],
+            Type::Void,
+            Block(vec![]),
+        );
+        functions.insert(name, func);
+
+        let mut program = Program {
+            statements: vec![],
+            functions,
+            std_functions: HashMap::new(),
+        };
+
+        program.statements.push(node!(Statement::FunctionCall {
+            identifier: node!(String::from("takes_i64")),
+            arguments: vec![Box::new(node!(Argument {
+                value: node!(Expression::Literal(Literal::True)),
+                passed_by: PassedBy::Value,
+            }))],
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("expected type")));
+    }
+
+    #[test]
+    fn function_call_reference_with_non_variable_reports_error() {
+        let mut functions = HashMap::new();
+        let (name, func) = make_function(
+            "takes_ref",
+            vec![node!(Parameter {
+                passed_by: PassedBy::Reference,
+                parameter_type: node!(Type::I64),
+                identifier: node!(String::from("a")),
+            })],
+            Type::Void,
+            Block(vec![]),
+        );
+        functions.insert(name, func);
+
+        let mut program = Program {
+            statements: vec![],
+            functions,
+            std_functions: HashMap::new(),
+        };
+
+        program.statements.push(node!(Statement::FunctionCall {
+            identifier: node!(String::from("takes_ref")),
+            arguments: vec![Box::new(node!(Argument {
+                value: node!(Expression::Addition(
+                    Box::new(node!(Expression::Literal(Literal::I64(1)))),
+                    Box::new(node!(Expression::Literal(Literal::I64(2)))),
+                )),
+                passed_by: PassedBy::Reference,
+            }))],
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("complex expression was found")));
+    }
+
+    #[test]
+    fn function_call_reference_with_index_expression_is_valid() {
+        let mut functions = HashMap::new();
+        let (name, func) = make_function(
+            "takes_ref",
+            vec![node!(Parameter {
+                passed_by: PassedBy::Reference,
+                parameter_type: node!(Type::I64),
+                identifier: node!(String::from("a")),
+            })],
+            Type::Void,
+            Block(vec![]),
+        );
+        functions.insert(name, func);
+
+        let mut program = Program {
+            statements: vec![],
+            functions,
+            std_functions: HashMap::new(),
+        };
+
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            identifier: node!(String::from("arr")),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        }));
+        program.statements.push(node!(Statement::FunctionCall {
+            identifier: node!(String::from("takes_ref")),
+            arguments: vec![Box::new(node!(Argument {
+                value: node!(Expression::Index {
+                    collection: Box::new(node!(Expression::Variable(String::from("arr")))),
+                    index: Box::new(node!(Expression::Literal(Literal::I64(0)))),
+                }),
+                passed_by: PassedBy::Reference,
+            }))],
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn undeclared_function_call_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::FunctionCall {
+            identifier: node!(String::from("nonexistent")),
+            arguments: vec![],
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Use of undeclared function 'nonexistent'")));
+    }
+
+    #[test]
+    fn function_with_correct_return_type_has_no_errors() {
+        let mut functions = HashMap::new();
+        let (name, func) = make_function(
+            "get_five",
+            vec![],
+            Type::I64,
+            Block(vec![node!(Statement::Return(Some(node!(Expression::Literal(Literal::I64(5))))))]),
+        );
+        functions.insert(name, func);
+
+        let program = Program {
+            statements: vec![],
+            functions,
+            std_functions: HashMap::new(),
+        };
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn function_with_bad_return_type_reports_error() {
+        let mut functions = HashMap::new();
+        let (name, func) = make_function(
+            "should_return_void",
+            vec![],
+            Type::Void,
+            Block(vec![node!(Statement::Return(Some(node!(Expression::Literal(Literal::I64(5))))))]),
+        );
+        functions.insert(name, func);
+
+        let program = Program {
+            statements: vec![],
+            functions,
+            std_functions: HashMap::new(),
+        };
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Bad return type")));
+    }
+
+    #[test]
+    fn void_function_without_return_has_no_errors() {
+        let mut functions = HashMap::new();
+        let (name, func) = make_function("do_nothing", vec![], Type::Void, Block(vec![]));
+        functions.insert(name, func);
+
+        let program = Program {
+            statements: vec![],
+            functions,
+            std_functions: HashMap::new(),
+        };
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn function_parameters_are_declared_in_scope() {
+        let mut functions = HashMap::new();
+        let (name, func) = make_function(
+            "identity",
+            vec![node!(Parameter {
+                passed_by: PassedBy::Value,
+                parameter_type: node!(Type::I64),
+                identifier: node!(String::from("x")),
+            })],
+            Type::I64,
+            Block(vec![node!(Statement::Return(Some(node!(Expression::Variable(String::from("x"))))))]),
+        );
+        functions.insert(name, func);
+
+        let program = Program {
+            statements: vec![],
+            functions,
+            std_functions: HashMap::new(),
+        };
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn switch_case_condition_must_be_bool() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Switch {
+            expressions: vec![],
+            cases: vec![node!(SwitchCase {
+                condition: node!(Expression::Literal(Literal::I64(1))),
+                block: node!(Block(vec![])),
+            })],
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Condition in 'switch case'")));
+    }
+
+    #[test]
+    fn switch_expression_alias_is_declared_in_scope() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Switch {
+            expressions: vec![node!(SwitchExpression {
+                expression: node!(Expression::Literal(Literal::I64(5))),
+                alias: Some(node!(String::from("x"))),
+            })],
+            cases: vec![node!(SwitchCase {
+                condition: node!(Expression::Equal(
+                    Box::new(node!(Expression::Variable(String::from("x")))),
+                    Box::new(node!(Expression::Literal(Literal::I64(5)))),
+                )),
+                block: node!(Block(vec![])),
+            })],
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn casting_valid_types_has_no_errors() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::F64),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Casting {
+                value: Box::new(node!(Expression::Literal(Literal::I64(5)))),
+                to_type: node!(Type::F64),
+            })),
+        }));
+
+        assert!(run_check(&program).is_empty());
+    }
+
+    #[test]
+    fn casting_invalid_types_reports_error() {
+        let mut program = empty_program();
+        program.statements.push(node!(Statement::Declaration {
+            var_type: node!(Type::I64),
+            identifier: node!(String::from("x")),
+            value: Some(node!(Expression::Casting {
+                value: Box::new(node!(Expression::Vector(vec![]))),
+                to_type: node!(Type::I64),
+            })),
+        }));
+
+        let errors = run_check(&program);
+        assert!(errors.iter().any(|e| e.contains("Cannot cast")));
     }
 }

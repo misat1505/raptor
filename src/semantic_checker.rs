@@ -63,7 +63,8 @@ impl<'a> SemanticChecker<'a> {
             (Ok(l), Ok(r)) => match op(l, r) {
                 Ok(result_type) => self.last_result = Some(result_type),
                 Err(err) => {
-                    self.errors.push(Box::new(err));
+                    self.errors
+                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), lhs.position)));
                     self.last_result = None;
                 }
             },
@@ -84,7 +85,8 @@ impl<'a> SemanticChecker<'a> {
             Ok(t) => match op(t) {
                 Ok(result_type) => self.last_result = Some(result_type),
                 Err(err) => {
-                    self.errors.push(Box::new(err));
+                    self.errors
+                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), value.position)));
                     self.last_result = None;
                 }
             },
@@ -307,7 +309,7 @@ impl<'a> SemanticChecker<'a> {
                 other => {
                     self.errors.push(Box::new(SemanticCheckerError::new_at(
                         ErrorSeverity::HIGH,
-                        format!("cannot index into value of type `{:?}`", other),
+                        format!("Cannot index into value of type `{:?}`", other),
                         position,
                     )));
                     return;
@@ -320,7 +322,7 @@ impl<'a> SemanticChecker<'a> {
             if actual_type != current_type {
                 self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                     ErrorSeverity::HIGH,
-                    format!("cannot assign `{:?}` to array element", actual_type),
+                    format!("Cannot assign `{:?}` to array element", actual_type),
                     &current_type,
                     &actual_type,
                     position,
@@ -345,7 +347,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 let param_name = &param.value.identifier.value;
                 let param_type = &param.value.parameter_type.value;
                 if let Err(err) = self.stack.declare_variable(param_name, param_type.clone()) {
-                    self.errors.push(Box::new(err));
+                    self.errors
+                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), function.position)));
                 }
             }
             self.visit_block(&function.value.block);
@@ -473,7 +476,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     if !types_compatible {
                         let error = SemanticCheckerError::type_mismatch(
                             ErrorSeverity::HIGH,
-                            format!("cannot assign `{:?}` to `{}`", actual_type, identifier.value),
+                            format!("Cannot assign `{:?}` to `{}`", actual_type, identifier.value),
                             &var_type.value,
                             &actual_type,
                             statement.position,
@@ -481,7 +484,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                         self.errors.push(Box::new(error));
                     }
                     if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), var_type.value.clone()) {
-                        self.errors.push(Box::new(err));
+                        self.errors
+                            .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.position)));
                     }
                 }
             }
@@ -492,7 +496,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     let value = self.read_last_result().map_err(|_| {
                         let error = SemanticCheckerError::new_at(
                             ErrorSeverity::HIGH,
-                            format!("cannot assign no value to variable `{}`", identifier.value),
+                            format!("Cannot assign no value to variable `{}`", identifier.value),
                             position,
                         );
                         self.errors.push(Box::new(error.clone()));
@@ -500,7 +504,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     })?;
 
                     if let Err(err) = self.stack.assign_variable(identifier.value.as_str(), value) {
-                        self.errors.push(Box::new(err));
+                        self.errors
+                            .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), position)));
                     }
                 } else {
                     self.check_index_assignment(identifier, indices, value, statement.position);
@@ -664,7 +669,11 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 None => {}
                 Some(id) => {
                     if let Err(err) = self.stack.declare_variable(id.value.as_str(), resolved_type) {
-                        self.errors.push(Box::new(err));
+                        self.errors.push(Box::new(SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            err.message(),
+                            switch_expression.position,
+                        )));
                     }
                 }
             },
@@ -797,7 +806,7 @@ mod tests {
 
         let errors = run_check(&program);
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].contains("cannot assign `bool` to `x`"));
+        assert!(errors[0].contains("Cannot assign `bool` to `x`"));
         assert!(errors[0].contains("expected: i64"));
         assert!(errors[0].contains("found:    bool"));
     }
@@ -1062,7 +1071,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("cannot assign `bool` to array element")));
+        assert!(errors.iter().any(|e| e.contains("Cannot assign `bool` to array element")));
     }
 
     fn make_function(name: &str, parameters: Vec<Node<Parameter>>, return_type: Type, block: Block) -> (String, Rc<Node<FunctionDeclaration>>) {

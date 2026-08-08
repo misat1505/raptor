@@ -4,7 +4,7 @@ str a = foo;
 str b = doesnt_exists;
 
 
-
+i64 x = 5 as f64;
 
 i64 a = 1;
 

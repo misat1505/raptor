@@ -1,4 +1,4 @@
-use std::{env::args, fs::File, io::BufReader, println, time::Instant};
+use std::{env::args, eprintln, fs::File, io::BufReader, println, time::Instant};
 
 use errors::IError;
 use lexer::Lexer;
@@ -110,9 +110,16 @@ fn main() {
         semantic_checker.check();
 
         if semantic_checker.errors.len() > 0 {
+            let mut warnings = 0;
+            let mut errors = 0;
             for error in &semantic_checker.errors {
-                eprintln!("{}", error.message());
+                match error.get_severity() {
+                    errors::ErrorSeverity::HIGH => errors += 1,
+                    errors::ErrorSeverity::LOW => warnings += 1,
+                }
+                eprintln!("{}\n", error.message());
             }
+            eprintln!("Static analysis finished with {} errors, {} warnings.", errors, warnings);
             return;
         }
     }

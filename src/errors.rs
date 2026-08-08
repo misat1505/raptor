@@ -1,9 +1,10 @@
-use crate::lazy_stream_reader::Position;
+use crate::{ast::Type, lazy_stream_reader::Position};
 use std::fmt::Debug;
 
 pub trait IError: Debug {
     fn message(&self) -> String;
     fn set_message(&mut self, text: String);
+    fn get_severity(&self) -> ErrorSeverity;
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +38,10 @@ macro_rules! define_error {
             fn set_message(&mut self, text: String) {
                 self._message = text;
             }
+
+            fn get_severity(&self) -> ErrorSeverity {
+                self._level.clone()
+            }
         }
     };
 }
@@ -56,5 +61,39 @@ impl ErrorsManager {
     pub fn append_position(mut error: Box<dyn IError>, position: Position) -> Box<dyn IError> {
         error.set_message(format!("{}\nAt {:?}.", error.message(), position));
         error
+    }
+}
+
+const RED: &str = "\x1b[1;31m";
+const YELLOW: &str = "\x1b[1;33m";
+const RESET: &str = "\x1b[0m";
+
+fn severity_to_string(severity: &ErrorSeverity) -> String {
+    match severity {
+        ErrorSeverity::HIGH => format!("{}error{}", RED, RESET),
+        ErrorSeverity::LOW => format!("{}warning{}", YELLOW, RESET),
+    }
+}
+
+impl SemanticCheckerError {
+    pub fn new_at(level: ErrorSeverity, summary: String, position: Position) -> Self {
+        let message = format!("error: {}\n  --> {}", summary, position.location());
+        SemanticCheckerError::new(level, message)
+    }
+
+    pub fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, position: Position) -> Self {
+        let message = format!(
+            "{}: {}\n  --> {}\n  expected: {}\n  found:    {}",
+            severity_to_string(&level),
+            summary,
+            position.location(),
+            expected,
+            found
+        );
+        SemanticCheckerError::new(level, message)
+    }
+
+    pub fn type_mismatch(level: ErrorSeverity, summary: String, expected: &Type, found: &Type, position: Position) -> Self {
+        Self::expected_found(level, summary, format!("{:?}", expected), format!("{:?}", found), position)
     }
 }

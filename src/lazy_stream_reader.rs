@@ -43,6 +43,11 @@ impl Position {
             filename,
         }
     }
+
+    pub fn location(&self) -> String {
+        let file = self.filename.unwrap_or("<input>");
+        return format!("{}:{}:{}", file, self.line, self.column);
+    }
 }
 
 pub struct LazyStreamReader<R: BufRead> {

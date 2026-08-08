@@ -109,15 +109,12 @@ impl<'a> SemanticChecker<'a> {
                 // std function
                 if let Some(std_function) = self.program.std_functions.get(name) {
                     if arguments.len() != std_function.params.len() {
-                        self.errors.push(Box::new(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::expected_found(
                             ErrorSeverity::HIGH,
-                            format!(
-                                "Invalid number of arguments for function '{}'. Expected {}, given {}.\nAt {:?}.\n",
-                                name,
-                                std_function.params.len(),
-                                arguments.len(),
-                                position
-                            ),
+                            format!("invalid number of arguments for function `{}`", name),
+                            std_function.params.len().to_string(),
+                            arguments.len().to_string(),
+                            *position,
                         )));
                     }
 
@@ -132,22 +129,23 @@ impl<'a> SemanticChecker<'a> {
                         let expected_passed_by = std_function.passed_by.get(idx).unwrap_or(&PassedBy::Value);
 
                         if &argument.value.passed_by != expected_passed_by {
-                            self.errors.push(Box::new(SemanticCheckerError::new(
+                            self.errors.push(Box::new(SemanticCheckerError::expected_found(
                                 ErrorSeverity::HIGH,
-                                format!(
-                                    "Parameter {} in function '{}' passed by {:?} - should be passed by {:?}.\nAt {:?}.\n",
-                                    idx, name, argument.value.passed_by, expected_passed_by, argument.position
-                                ),
+                                format!("parameter {} in function `{}` passed by the wrong mode", idx, name),
+                                format!("{:?}", expected_passed_by),
+                                format!("{:?}", argument.value.passed_by),
+                                argument.position,
                             )));
                         }
 
                         if *expected_passed_by == PassedBy::Reference && !Self::is_valid_reference_expression(&argument.value.value.value) {
-                            self.errors.push(Box::new(SemanticCheckerError::new(
+                            self.errors.push(Box::new(SemanticCheckerError::new_at(
                                 ErrorSeverity::HIGH,
                                 format!(
-                                    "Parameter {} in function '{}' is passed by reference, but complex expression was found.\nAt {:?}.\n",
-                                    idx, name, argument.position
+                                    "parameter {} in function `{}` must be a variable or index expression when passed by reference",
+                                    idx, name
                                 ),
+                                argument.position,
                             )));
                         }
 
@@ -160,10 +158,8 @@ impl<'a> SemanticChecker<'a> {
                         Some(check_fn) if collected_types.len() == arguments.len() => match check_fn(&collected_types) {
                             Ok(return_type) => self.last_result = Some(return_type),
                             Err(msg) => {
-                                self.errors.push(Box::new(SemanticCheckerError::new(
-                                    ErrorSeverity::HIGH,
-                                    format!("{}\nAt {:?}.\n", msg, position),
-                                )));
+                                self.errors
+                                    .push(Box::new(SemanticCheckerError::new_at(ErrorSeverity::HIGH, msg, *position)));
                                 self.last_result = None;
                             }
                         },
@@ -175,12 +171,12 @@ impl<'a> SemanticChecker<'a> {
                                 if let Some(expected) = std_function.params.get(idx) {
                                     let actual = &collected_types[idx];
                                     if !expected.is_compatible(actual) {
-                                        self.errors.push(Box::new(SemanticCheckerError::new(
+                                        self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                                             ErrorSeverity::HIGH,
-                                            format!(
-                                                "Parameter {} in function '{}' expected type '{:?}', but got '{:?}'.\nAt {:?}.\n",
-                                                idx, name, expected, actual, arguments[idx].position
-                                            ),
+                                            format!("parameter {} in function `{}` has the wrong type", idx, name),
+                                            expected,
+                                            actual,
+                                            arguments[idx].position,
                                         )));
                                     }
                                 }
@@ -196,15 +192,12 @@ impl<'a> SemanticChecker<'a> {
                 if let Some(function_declaration) = self.program.functions.get(name) {
                     let parameters = &function_declaration.value.parameters;
                     if arguments.len() != parameters.len() {
-                        self.errors.push(Box::new(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::expected_found(
                             ErrorSeverity::HIGH,
-                            format!(
-                                "Invalid number of arguments for function '{}'. Expected {}, given {}.\nAt {:?}.\n",
-                                name,
-                                parameters.len(),
-                                arguments.len(),
-                                position
-                            ),
+                            format!("invalid number of arguments for function `{}`", name),
+                            parameters.len().to_string(),
+                            arguments.len().to_string(),
+                            *position,
                         )));
                     }
 
@@ -216,37 +209,40 @@ impl<'a> SemanticChecker<'a> {
 
                         if let Some(parameter) = parameters.get(idx) {
                             if argument.value.passed_by != parameter.value.passed_by {
-                                self.errors.push(Box::new(SemanticCheckerError::new(
+                                self.errors.push(Box::new(SemanticCheckerError::expected_found(
                                     ErrorSeverity::HIGH,
                                     format!(
-                                        "Parameter '{}' in function '{}' passed by {:?} - should be passed by {:?}.\nAt {:?}.\n",
-                                        parameter.value.identifier.value,
-                                        name,
-                                        argument.value.passed_by,
-                                        parameter.value.passed_by,
-                                        argument.position
+                                        "parameter `{}` in function `{}` passed by the wrong mode",
+                                        parameter.value.identifier.value, name
                                     ),
+                                    format!("{:?}", parameter.value.passed_by),
+                                    format!("{:?}", argument.value.passed_by),
+                                    argument.position,
                                 )));
                             }
 
                             if parameter.value.passed_by == PassedBy::Reference && !Self::is_valid_reference_expression(&argument.value.value.value) {
-                                self.errors.push(Box::new(SemanticCheckerError::new(
-                        ErrorSeverity::HIGH,
-                        format!(
-                            "Parameter '{}' in function '{}' is passed by {:?}. Thus it needs to be an identifier or indexed value, but a complex expression was found.\nAt {:?}.\n",
-                            parameter.value.identifier.value, name, PassedBy::Reference, argument.position
-                        ),
-                    )));
+                                self.errors.push(Box::new(SemanticCheckerError::new_at(
+                                    ErrorSeverity::HIGH,
+                                    format!(
+                                        "parameter `{}` in function `{}` must be a variable or index expression when passed by reference",
+                                        parameter.value.identifier.value, name
+                                    ),
+                                    argument.position,
+                                )));
                             }
 
                             if let Some(actual) = &actual_type {
                                 if parameter.value.parameter_type.value != *actual {
-                                    self.errors.push(Box::new(SemanticCheckerError::new(
+                                    self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                                         ErrorSeverity::HIGH,
                                         format!(
-                                            "Parameter '{}' in function '{}' expected type '{:?}', but got '{:?}'.\nAt {:?}.\n",
-                                            parameter.value.identifier.value, name, parameter.value.parameter_type.value, actual, argument.position
+                                            "parameter `{}` in function `{}` has the wrong type",
+                                            parameter.value.identifier.value, name
                                         ),
+                                        &parameter.value.parameter_type.value,
+                                        actual,
+                                        argument.position,
                                     )));
                                 }
                             }
@@ -257,9 +253,10 @@ impl<'a> SemanticChecker<'a> {
                     return;
                 }
 
-                self.errors.push(Box::new(SemanticCheckerError::new(
+                self.errors.push(Box::new(SemanticCheckerError::new_at(
                     ErrorSeverity::HIGH,
-                    format!("Use of undeclared function '{}'.\nAt {:?}.\n", name, position),
+                    format!("use of undeclared function `{}`", name),
+                    *position,
                 )))
             }
             _ => {}
@@ -293,12 +290,12 @@ impl<'a> SemanticChecker<'a> {
             self.visit_expression(index_expr);
             if let Ok(idx_type) = self.read_last_result() {
                 if idx_type != Type::I64 {
-                    self.errors.push(Box::new(SemanticCheckerError::new(
+                    self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                         ErrorSeverity::HIGH,
-                        format!(
-                            "Array index must be of type 'i64', got '{:?}'.\nAt {:?}.\n",
-                            idx_type, index_expr.position
-                        ),
+                        String::from("array index must be `i64`"),
+                        &Type::I64,
+                        &idx_type,
+                        index_expr.position,
                     )));
                     return;
                 }
@@ -307,9 +304,10 @@ impl<'a> SemanticChecker<'a> {
             match current_type {
                 Type::Vector(inner) => current_type = *inner,
                 other => {
-                    self.errors.push(Box::new(SemanticCheckerError::new(
+                    self.errors.push(Box::new(SemanticCheckerError::new_at(
                         ErrorSeverity::HIGH,
-                        format!("Cannot index into value of type '{:?}'.\nAt {:?}.\n", other, position),
+                        format!("cannot index into value of type `{:?}`", other),
+                        position,
                     )));
                     return;
                 }
@@ -319,12 +317,12 @@ impl<'a> SemanticChecker<'a> {
         self.visit_expression(value);
         if let Ok(actual_type) = self.read_last_result() {
             if actual_type != current_type {
-                self.errors.push(Box::new(SemanticCheckerError::new(
+                self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                     ErrorSeverity::HIGH,
-                    format!(
-                        "Cannot assign value of type '{:?}' to element of type '{:?}'.\nAt {:?}.\n",
-                        actual_type, current_type, position
-                    ),
+                    format!("cannot assign `{:?}` to array element", actual_type),
+                    &current_type,
+                    &actual_type,
+                    position,
                 )));
             }
         }
@@ -423,16 +421,20 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                         self.last_result = Some(*inner);
                     }
                     (Ok(other), Ok(Type::I64)) => {
-                        self.errors.push(Box::new(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::new_at(
                             ErrorSeverity::HIGH,
-                            format!("Cannot index into value of type '{:?}'.\nAt {:?}.\n", other, expression.position),
+                            format!("cannot index into value of type `{:?}`", other),
+                            expression.position,
                         )));
                         self.last_result = None;
                     }
                     (Ok(_), Ok(other)) => {
-                        self.errors.push(Box::new(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                             ErrorSeverity::HIGH,
-                            format!("Array index must be of type 'i64', got '{:?}'.\nAt {:?}.\n", other, expression.position),
+                            String::from("array index must be `i64`"),
+                            &Type::I64,
+                            &other,
+                            expression.position,
                         )));
                         self.last_result = None;
                     }
@@ -479,12 +481,12 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                         );
 
                     if !types_compatible {
-                        let error = SemanticCheckerError::new(
+                        let error = SemanticCheckerError::type_mismatch(
                             ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot assign value of type '{:?}' to variable '{}' of type '{:?}'.\nAt {:?}.\n",
-                                actual_type, identifier.value, var_type.value, statement.position
-                            ),
+                            format!("cannot assign `{:?}` to `{}`", actual_type, identifier.value),
+                            &var_type.value,
+                            &actual_type,
+                            statement.position,
                         );
                         self.errors.push(Box::new(error));
                     } else if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), var_type.value.clone()) {
@@ -495,9 +497,13 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             Statement::Assignment { identifier, value, indices } => {
                 if indices.is_empty() {
                     self.visit_expression(&value)?;
+                    let position = statement.position;
                     let value = self.read_last_result().map_err(|_| {
-                        let error =
-                            SemanticCheckerError::new(ErrorSeverity::HIGH, format!("Cannot assign no value to variable '{}'.", identifier.value));
+                        let error = SemanticCheckerError::new_at(
+                            ErrorSeverity::HIGH,
+                            format!("cannot assign no value to variable `{}`", identifier.value),
+                            position,
+                        );
                         self.errors.push(Box::new(error.clone()));
                         Box::new(error) as Box<dyn IError>
                     })?;
@@ -517,14 +523,12 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 self.visit_expression(&condition);
                 if let Ok(resolved_condition) = self.read_last_result() {
                     if resolved_condition != Type::Bool {
-                        let error = SemanticCheckerError::new(
+                        let error = SemanticCheckerError::type_mismatch(
                             ErrorSeverity::HIGH,
-                            format!(
-                                "Condition in 'if statement' has to evaluate to type '{:?}' - got '{:?}'.\nAt {:?}.\n",
-                                Type::Bool,
-                                resolved_condition,
-                                condition.position
-                            ),
+                            String::from("if condition must be `bool`"),
+                            &Type::Bool,
+                            &resolved_condition,
+                            condition.position,
                         );
                         self.errors.push(Box::new(error));
                     }
@@ -547,14 +551,12 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 self.visit_expression(&condition);
                 if let Ok(resolved_condition) = self.read_last_result() {
                     if resolved_condition != Type::Bool {
-                        let error = SemanticCheckerError::new(
+                        let error = SemanticCheckerError::type_mismatch(
                             ErrorSeverity::HIGH,
-                            format!(
-                                "Condition in 'for loop' has to evaluate to type '{:?}' - got '{:?}'.\nAt {:?}.\n",
-                                Type::Bool,
-                                resolved_condition,
-                                condition.position
-                            ),
+                            String::from("for loop condition must be `bool`"),
+                            &Type::Bool,
+                            &resolved_condition,
+                            condition.position,
                         );
                         self.errors.push(Box::new(error));
                     }
@@ -577,9 +579,10 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             }
             Statement::Return(value) => {
                 if self.stack.size() <= 1 {
-                    self.errors.push(Box::new(SemanticCheckerError::new(
+                    self.errors.push(Box::new(SemanticCheckerError::new_at(
                         ErrorSeverity::HIGH,
-                        format!("Return statement is not inside a function.\nAt {:?}.\n", statement.position),
+                        String::from("return statement is not inside a function"),
+                        statement.position,
                     )));
                 }
 
@@ -600,24 +603,22 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
                     if !is_ok {
                         let got = actual_type.unwrap_or(Type::Void);
-                        self.errors.push(Box::new(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                             ErrorSeverity::HIGH,
-                            format!(
-                                "Bad return type from function. Expected '{:?}', but got '{:?}'.\nAt {:?}.\n",
-                                expected, got, statement.position
-                            ),
+                            String::from("wrong return type"),
+                            &expected,
+                            &got,
+                            statement.position,
                         )));
                     }
                 }
             }
             Statement::Break => {
                 if !self.stack.is_in_breakable() {
-                    self.errors.push(Box::new(SemanticCheckerError::new(
+                    self.errors.push(Box::new(SemanticCheckerError::new_at(
                         ErrorSeverity::HIGH,
-                        format!(
-                            "Break statement is not inside a loop nor inside a switch case.\nAt {:?}.\n",
-                            statement.position
-                        ),
+                        String::from("break statement is not inside a loop nor inside a switch case"),
+                        statement.position,
                     )));
                 }
             }
@@ -648,14 +649,12 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         self.visit_expression(&switch_case.value.condition);
         if let Ok(resolved_condition) = self.read_last_result() {
             if resolved_condition != Type::Bool {
-                let error = SemanticCheckerError::new(
+                let error = SemanticCheckerError::type_mismatch(
                     ErrorSeverity::HIGH,
-                    format!(
-                        "Condition in 'switch case' has to evaluate to type '{:?}' - got '{:?}'.\nAt {:?}.\n",
-                        Type::Bool,
-                        resolved_condition,
-                        switch_case.position
-                    ),
+                    String::from("switch case condition must be `bool`"),
+                    &Type::Bool,
+                    &resolved_condition,
+                    switch_case.position,
                 );
                 self.errors.push(Box::new(error));
             }
@@ -719,12 +718,12 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 match &element_type {
                     None => element_type = Some(t),
                     Some(expected) if *expected != t => {
-                        self.errors.push(Box::new(SemanticCheckerError::new(
+                        self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                             ErrorSeverity::HIGH,
-                            format!(
-                                "Vector elements must have the same type: expected '{:?}', got '{:?}'.\nAt {:?}.\n",
-                                expected, t, expression.position
-                            ),
+                            String::from("vector elements have mismatched types"),
+                            expected,
+                            &t,
+                            expression.position,
                         )));
                     }
                     _ => {}
@@ -806,7 +805,9 @@ mod tests {
 
         let errors = run_check(&program);
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].contains("Cannot assign value of type 'bool' to variable 'x' of type 'i64'"));
+        assert!(errors[0].contains("cannot assign `bool` to `x`"));
+        assert!(errors[0].contains("expected: i64"));
+        assert!(errors[0].contains("found:    bool"));
     }
 
     #[test]
@@ -846,7 +847,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Vector elements must have the same type")));
+        assert!(errors.iter().any(|e| e.contains("vector elements have mismatched types")));
     }
 
     #[test]
@@ -921,7 +922,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Condition in 'if statement'")));
+        assert!(errors.iter().any(|e| e.contains("if condition must be `bool`")));
     }
 
     #[test]
@@ -935,7 +936,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Condition in 'for loop'")));
+        assert!(errors.iter().any(|e| e.contains("for loop condition must be `bool`")));
     }
 
     #[test]
@@ -946,7 +947,7 @@ mod tests {
         let errors = run_check(&program);
         assert!(errors
             .iter()
-            .any(|e| e.contains("Break statement is not inside a loop nor inside a switch case")));
+            .any(|e| e.contains("break statement is not inside a loop nor inside a switch case")));
     }
 
     #[test]
@@ -1013,7 +1014,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Cannot index into value")));
+        assert!(errors.iter().any(|e| e.contains("cannot index into value")));
     }
 
     #[test]
@@ -1034,7 +1035,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Array index must be of type 'i64'")));
+        assert!(errors.iter().any(|e| e.contains("array index must be `i64`")));
     }
 
     #[test]
@@ -1069,7 +1070,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Cannot assign value of type 'bool' to element")));
+        assert!(errors.iter().any(|e| e.contains("cannot assign `bool` to array element")));
     }
 
     fn make_function(name: &str, parameters: Vec<Node<Parameter>>, return_type: Type, block: Block) -> (String, Rc<Node<FunctionDeclaration>>) {
@@ -1159,7 +1160,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Invalid number of arguments")));
+        assert!(errors.iter().any(|e| e.contains("invalid number of arguments")));
     }
 
     #[test]
@@ -1192,7 +1193,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("expected type")));
+        assert!(errors.iter().any(|e| e.contains("has the wrong type")));
     }
 
     #[test]
@@ -1228,7 +1229,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("complex expression was found")));
+        assert!(errors.iter().any(|e| e.contains("must be a variable or index expression")));
     }
 
     #[test]
@@ -1280,7 +1281,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Use of undeclared function 'nonexistent'")));
+        assert!(errors.iter().any(|e| e.contains("use of undeclared function `nonexistent`")));
     }
 
     #[test]
@@ -1321,7 +1322,7 @@ mod tests {
         };
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Bad return type")));
+        assert!(errors.iter().any(|e| e.contains("wrong return type")));
     }
 
     #[test]
@@ -1345,7 +1346,7 @@ mod tests {
         program.statements.push(node!(Statement::Return(None)));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Return statement is not inside a function")));
+        assert!(errors.iter().any(|e| e.contains("return statement is not inside a function")));
     }
 
     #[test]
@@ -1356,7 +1357,7 @@ mod tests {
             .push(node!(Statement::Return(Some(node!(Expression::Literal(Literal::I64(5)))))));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Return statement is not inside a function")));
+        assert!(errors.iter().any(|e| e.contains("return statement is not inside a function")));
     }
 
     #[test]
@@ -1377,7 +1378,7 @@ mod tests {
         };
 
         let errors = run_check(&program);
-        assert!(!errors.iter().any(|e| e.contains("Return statement is not inside a function")));
+        assert!(!errors.iter().any(|e| e.contains("return statement is not inside a function")));
     }
 
     #[test]
@@ -1402,7 +1403,7 @@ mod tests {
         };
 
         let errors = run_check(&program);
-        assert!(!errors.iter().any(|e| e.contains("Return statement is not inside a function")));
+        assert!(!errors.iter().any(|e| e.contains("return statement is not inside a function")));
     }
 
     #[test]
@@ -1441,7 +1442,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Condition in 'switch case'")));
+        assert!(errors.iter().any(|e| e.contains("switch case condition must be `bool`")));
     }
 
     #[test]

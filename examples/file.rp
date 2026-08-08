@@ -1,5 +1,1 @@
 for (i64 i = 0; i < 1500000; i = i + 1) {}
-
-if (true) {
-  break;
-}

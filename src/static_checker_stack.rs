@@ -132,6 +132,7 @@ pub struct StaticCheckerStack<'a>(pub Vec<StaticCheckerStackFrame<'a>>);
 #[derive(Clone)]
 pub struct StaticCheckerStackFrame<'a> {
     pub scope_manager: StaticCheckerScopeManager<'a>,
+    pub breakable_count: u64,
 }
 
 impl<'a> Debug for StaticCheckerStackFrame<'a> {
@@ -144,6 +145,7 @@ impl<'a> StaticCheckerStackFrame<'a> {
     pub fn new() -> Self {
         StaticCheckerStackFrame {
             scope_manager: StaticCheckerScopeManager::new(),
+            breakable_count: 0,
         }
     }
 }
@@ -151,6 +153,29 @@ impl<'a> StaticCheckerStackFrame<'a> {
 impl<'a> StaticCheckerStack<'a> {
     pub fn new() -> Self {
         StaticCheckerStack(vec![StaticCheckerStackFrame::new()])
+    }
+
+    pub fn size(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn enter_breakable(&mut self) {
+        if let Some(last_frame) = self.0.last_mut() {
+            last_frame.breakable_count += 1;
+        }
+    }
+
+    pub fn exit_breakable(&mut self) {
+        if let Some(last_frame) = self.0.last_mut() {
+            last_frame.breakable_count -= 1;
+        }
+    }
+
+    pub fn is_in_breakable(&self) -> bool {
+        if let Some(last_frame) = self.0.last() {
+            return last_frame.breakable_count > 0;
+        }
+        false
     }
 
     pub fn push_stack_frame(&mut self) -> Result<(), StackOverflowError> {
@@ -323,5 +348,61 @@ mod tests {
             assert!(stack.push_stack_frame().is_ok());
         }
         assert_eq!(stack.push_stack_frame().err().unwrap().message(), "Stack overflow.");
+    }
+
+    #[test]
+    fn stack_is_in_breakable_false_by_default() {
+        let stack = StaticCheckerStack::new();
+        assert!(!stack.is_in_breakable());
+    }
+
+    #[test]
+    fn stack_enter_breakable_sets_flag() {
+        let mut stack = StaticCheckerStack::new();
+        stack.enter_breakable();
+        assert!(stack.is_in_breakable());
+    }
+
+    #[test]
+    fn stack_exit_breakable_clears_flag() {
+        let mut stack = StaticCheckerStack::new();
+        stack.enter_breakable();
+        stack.exit_breakable();
+        assert!(!stack.is_in_breakable());
+    }
+
+    #[test]
+    fn stack_nested_breakable_counts_correctly() {
+        let mut stack = StaticCheckerStack::new();
+        stack.enter_breakable(); // fe. for
+        stack.enter_breakable(); // fe. switch inside for
+        assert!(stack.is_in_breakable());
+        stack.exit_breakable(); // exit switch
+        assert!(stack.is_in_breakable()); // still inside for
+        stack.exit_breakable(); // exit for
+        assert!(!stack.is_in_breakable());
+    }
+
+    #[test]
+    fn stack_breakable_is_per_frame() {
+        let mut stack = StaticCheckerStack::new();
+        stack.enter_breakable();
+        assert!(stack.is_in_breakable());
+
+        let _ = stack.push_stack_frame();
+        assert!(!stack.is_in_breakable());
+
+        stack.pop_stack_frame();
+        assert!(stack.is_in_breakable());
+    }
+
+    #[test]
+    fn stack_size_reflects_frame_count() {
+        let mut stack = StaticCheckerStack::new();
+        assert_eq!(stack.size(), 1);
+        let _ = stack.push_stack_frame();
+        assert_eq!(stack.size(), 2);
+        stack.pop_stack_frame();
+        assert_eq!(stack.size(), 1);
     }
 }

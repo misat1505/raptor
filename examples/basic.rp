@@ -39,5 +39,5 @@ fn print_user(str name, i64 age): str {
 # str text = print_user(name, age);
 # println(text);
 
-str[][] names = [];
-names[0] = ["Elon"];
+str[] names = [];
+vector_push(&names, "Elon");

@@ -66,6 +66,7 @@ pub enum Type {
     F64,
     Void,
     Vector(Box<Type>),
+    Any, // internal, not available for the user
 }
 
 impl Debug for Type {
@@ -77,6 +78,7 @@ impl Debug for Type {
             Type::Str => Ok(write!(f, "str")?),
             Type::Void => Ok(write!(f, "void")?),
             Type::Vector(inner) => write!(f, "{:?}[]", inner),
+            Type::Any => Ok(write!(f, "any")?),
         }
     }
 }
@@ -92,6 +94,14 @@ impl Type {
             (Type::Vector(_), Value::Vector { kind, .. }) => *self == **kind,
 
             _ => false,
+        }
+    }
+
+    pub fn is_compatible(&self, other: &Type) -> bool {
+        match (self, other) {
+            (Type::Any, _) | (_, Type::Any) => true,
+            (Type::Vector(a), Type::Vector(b)) => a.is_compatible(b),
+            (a, b) => a == b,
         }
     }
 }

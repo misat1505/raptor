@@ -111,7 +111,7 @@ impl<'a> SemanticChecker<'a> {
                 let name = &identifier.value;
 
                 // std function
-                if let Some(std_function) = self.program.std_functions.get(&String::from(name)) {
+                if let Some(std_function) = self.program.std_functions.get(name) {
                     if arguments.len() != std_function.params.len() {
                         self.errors.push(Box::new(SemanticCheckerError::new(
                             ErrorSeverity::HIGH,
@@ -125,6 +125,8 @@ impl<'a> SemanticChecker<'a> {
                         )));
                     }
 
+                    let mut collected_types: Vec<Type> = vec![];
+
                     for idx in 0..arguments.len() {
                         let argument = &arguments[idx];
 
@@ -132,7 +134,6 @@ impl<'a> SemanticChecker<'a> {
                         let actual_type = self.read_last_result().ok();
 
                         let expected_passed_by = std_function.passed_by.get(idx).unwrap_or(&PassedBy::Value);
-                        let expected_type = std_function.params.get(idx);
 
                         if &argument.value.passed_by != expected_passed_by {
                             self.errors.push(Box::new(SemanticCheckerError::new(
@@ -154,20 +155,44 @@ impl<'a> SemanticChecker<'a> {
                             )));
                         }
 
-                        if let (Some(expected), Some(actual)) = (expected_type, &actual_type) {
-                            if expected != actual {
-                                self.errors.push(Box::new(SemanticCheckerError::new(
-                                    ErrorSeverity::HIGH,
-                                    format!(
-                                        "Parameter {} in function '{}' expected type '{:?}', but got '{:?}'.\nAt {:?}.\n",
-                                        idx, name, expected, actual, argument.position
-                                    ),
-                                )));
-                            }
+                        if let Some(t) = actual_type {
+                            collected_types.push(t);
                         }
                     }
 
-                    self.last_result = Some(std_function.return_type.clone());
+                    match &std_function.type_check {
+                        Some(check_fn) if collected_types.len() == arguments.len() => match check_fn(&collected_types) {
+                            Ok(return_type) => self.last_result = Some(return_type),
+                            Err(msg) => {
+                                self.errors.push(Box::new(SemanticCheckerError::new(
+                                    ErrorSeverity::HIGH,
+                                    format!("{}\nAt {:?}.\n", msg, position),
+                                )));
+                                self.last_result = None;
+                            }
+                        },
+                        Some(_) => {
+                            self.last_result = None;
+                        }
+                        None => {
+                            for idx in 0..collected_types.len() {
+                                if let Some(expected) = std_function.params.get(idx) {
+                                    let actual = &collected_types[idx];
+                                    if !expected.is_compatible(actual) {
+                                        self.errors.push(Box::new(SemanticCheckerError::new(
+                                            ErrorSeverity::HIGH,
+                                            format!(
+                                                "Parameter {} in function '{}' expected type '{:?}', but got '{:?}'.\nAt {:?}.\n",
+                                                idx, name, expected, actual, arguments[idx].position
+                                            ),
+                                        )));
+                                    }
+                                }
+                            }
+                            self.last_result = Some(std_function.return_type.clone());
+                        }
+                    }
+
                     return;
                 }
 

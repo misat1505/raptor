@@ -23,6 +23,7 @@ pub struct StdFunction {
     pub passed_by: Vec<PassedBy>,
     pub execute: fn(&Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, StdFunctionError>,
     pub return_type: Type,
+    pub type_check: Option<fn(&[Type]) -> Result<Type, String>>,
 }
 
 impl PartialEq for StdFunction {
@@ -92,11 +93,13 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Void,
+            type_check: None,
         }
     }
 
@@ -120,11 +123,13 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Void,
+            type_check: None,
         }
     }
 
@@ -153,11 +158,13 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
+            type_check: None,
         }
     }
 
@@ -180,11 +187,13 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             return_type: Type::I64,
+            type_check: None,
         }
     }
 
@@ -208,11 +217,13 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
+            type_check: None,
         }
     }
 
@@ -245,11 +256,13 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             return_type: Type::Void,
+            type_check: None,
         }
     }
 
@@ -285,11 +298,13 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             return_type: Type::Void,
+            type_check: None,
         }
     }
 
@@ -313,11 +328,13 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Void,
+            type_check: None,
         }
     }
 
@@ -341,11 +358,13 @@ impl StdFunction {
                 Err(build_usage_error(fn_name, expected_types, actual_types))
             }
         };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Bool,
+            type_check: None,
         }
     }
 
@@ -372,11 +391,18 @@ impl StdFunction {
             }
         };
 
+        let type_check: fn(&[Type]) -> Result<Type, String> = |arg_types: &[Type]| match arg_types {
+            [Type::Vector(_)] => Ok(Type::Str),
+            [other] => Err(format!("vector_size expected a vector, but got '{:?}'.", other)),
+            _ => Err(String::from("vector_size expects exactly 1 argument.")),
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
+            type_check: Some(type_check),
         }
     }
 
@@ -420,11 +446,24 @@ impl StdFunction {
             }
         };
 
+        let type_check: fn(&[Type]) -> Result<Type, String> = |arg_types: &[Type]| match arg_types {
+            [Type::Vector(inner), value_type] => {
+                if inner.is_compatible(value_type) {
+                    Ok(Type::Void)
+                } else {
+                    Err(format!("vector_push expected element of type '{:?}', but got '{:?}'.", inner, value_type))
+                }
+            }
+            [other, _] => Err(format!("vector_push expected a vector as first argument, but got '{:?}'.", other)),
+            _ => Err(String::from("vector_push expects exactly 2 arguments.")),
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Reference, PassedBy::Value],
             execute,
             return_type: Type::Void,
+            type_check: Some(type_check),
         }
     }
 
@@ -455,11 +494,18 @@ impl StdFunction {
             }
         };
 
+        let type_check: fn(&[Type]) -> Result<Type, String> = |arg_types: &[Type]| match arg_types {
+            [Type::Vector(_)] => Ok(Type::I64),
+            [other] => Err(format!("vector_size expected a vector, but got '{:?}'.", other)),
+            _ => Err(String::from("vector_size expects exactly 1 argument.")),
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Reference],
             execute,
             return_type: Type::I64,
+            type_check: Some(type_check),
         }
     }
 
@@ -496,6 +542,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::Void,
+            type_check: None,
         }
     }
 
@@ -535,6 +582,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::I64,
+            type_check: None,
         }
     }
 
@@ -583,6 +631,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::I64,
+            type_check: None,
         }
     }
 
@@ -627,6 +676,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::Str,
+            type_check: None,
         }
     }
 
@@ -675,6 +725,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             execute,
             return_type: Type::Void,
+            type_check: None,
         }
     }
 
@@ -710,6 +761,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::Void,
+            type_check: None,
         }
     }
 
@@ -741,6 +793,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::I64,
+            type_check: None,
         }
     }
 }

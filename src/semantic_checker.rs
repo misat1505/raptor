@@ -20,6 +20,7 @@ pub struct SemanticChecker<'a> {
     last_result: Option<Type>,
     position: Position,
     pub errors: Vec<Box<dyn IError>>,
+    current_function_return_type: Option<Type>,
 }
 
 impl<'a> SemanticChecker<'a> {
@@ -37,6 +38,7 @@ impl<'a> SemanticChecker<'a> {
                 column: 0,
                 offset: 0,
             },
+            current_function_return_type: None,
         })
     }
 
@@ -344,6 +346,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
         for (name, function) in &program.functions {
             self.stack.push_stack_frame();
+            self.current_function_return_type = Some(function.value.return_type.value.clone());
+
             for param in &function.value.parameters {
                 let param_name = &param.value.identifier.value;
                 let param_type = &param.value.parameter_type.value;
@@ -352,21 +356,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 }
             }
             self.visit_block(&function.value.block);
-            let expected_return_type = function.value.return_type.value.clone();
 
-            if let Ok(resolved_type) = self.read_last_result() {
-                if resolved_type != expected_return_type {
-                    let error = SemanticCheckerError::new(
-                        ErrorSeverity::HIGH,
-                        format!(
-                            "Bad return type from function '{}'. Expected '{:?}', but got '{:?}'.\nAt {:?}.\n",
-                            name, expected_return_type, resolved_type, function.position
-                        ),
-                    );
-                    self.errors.push(Box::new(error));
-                }
-            }
-
+            self.current_function_return_type = None;
             self.stack.pop_stack_frame();
         }
         Ok(())
@@ -589,8 +580,31 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 }
             }
             Statement::Return(value) => {
-                if let Some(val) = value {
-                    self.visit_expression(&val);
+                let actual_type = match value {
+                    Some(val) => {
+                        self.visit_expression(val);
+                        self.read_last_result().ok()
+                    }
+                    None => None,
+                };
+
+                if let Some(expected) = self.current_function_return_type.clone() {
+                    let is_ok = match (&actual_type, &expected) {
+                        (None, Type::Void) => true,
+                        (Some(t), exp) => t == exp,
+                        (None, _) => false,
+                    };
+
+                    if !is_ok {
+                        let got = actual_type.unwrap_or(Type::Void);
+                        self.errors.push(Box::new(SemanticCheckerError::new(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Bad return type from function. Expected '{:?}', but got '{:?}'.\nAt {:?}.\n",
+                                expected, got, statement.position
+                            ),
+                        )));
+                    }
                 }
             }
             Statement::Break => {}

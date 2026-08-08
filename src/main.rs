@@ -80,10 +80,10 @@ fn main() {
         return;
     }
 
-    // let mut interpreter = Interpreter::new(&program);
-    // if let Err(err) = interpreter.interpret() {
-    //     eprintln!("{}", err.message());
-    // };
+    let mut interpreter = Interpreter::new(&program);
+    if let Err(err) = interpreter.interpret() {
+        eprintln!("{}", err.message());
+    };
 
     println!("\nExecution time: {:?}", Instant::now() - start);
 }

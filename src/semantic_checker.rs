@@ -1,4 +1,4 @@
-use std::{unimplemented, unreachable, vec};
+use std::{unreachable, vec};
 
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
@@ -18,7 +18,6 @@ pub struct SemanticChecker<'a> {
     program: &'a Program,
     stack: StaticCheckerStack<'a>,
     last_result: Option<Type>,
-    position: Position,
     pub errors: Vec<Box<dyn IError>>,
     current_function_return_type: Option<Type>,
 }
@@ -33,11 +32,6 @@ impl<'a> SemanticChecker<'a> {
             errors,
             stack,
             last_result: None,
-            position: Position {
-                line: 0,
-                column: 0,
-                offset: 0,
-            },
             current_function_return_type: None,
         })
     }
@@ -344,7 +338,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             self.visit_statement(&statement);
         }
 
-        for (name, function) in &program.functions {
+        for (_name, function) in &program.functions {
             self.stack.push_stack_frame();
             self.current_function_return_type = Some(function.value.return_type.value.clone());
 
@@ -656,7 +650,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
         match self.read_last_result() {
             Ok(resolved_type) => match &switch_expression.value.alias {
-                None => unimplemented!("empty identifier is not implemented"),
+                None => {}
                 Some(id) => {
                     if let Err(err) = self.stack.declare_variable(id.value.as_str(), resolved_type) {
                         self.errors.push(Box::new(err));

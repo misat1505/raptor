@@ -66,6 +66,7 @@ pub enum Type {
     F64,
     Void,
     Vector(Box<Type>),
+    #[allow(dead_code)]
     Any, // internal, not available for the user
 }
 

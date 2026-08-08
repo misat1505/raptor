@@ -54,7 +54,7 @@ fn main() {
     let mut is_unsafe = false;
     let args: Vec<String> = args().collect();
 
-    let mut path = match args.get(1).cloned() {
+    let path = match args.get(1).cloned() {
         Some(arg) if arg == "-h" || arg == "--help" => {
             usage();
             return;

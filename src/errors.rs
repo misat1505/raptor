@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 pub trait IError: Debug {
     fn message(&self) -> String;
+    #[allow(dead_code)]
     fn set_message(&mut self, text: String);
     fn get_severity(&self) -> ErrorSeverity;
     fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, position: Position) -> Self
@@ -79,9 +80,11 @@ define_error!(ScopeManagerError);
 define_error!(StackOverflowError);
 define_error!(StdFunctionError);
 
+#[allow(dead_code)]
 pub struct ErrorsManager;
 
 impl ErrorsManager {
+    #[allow(dead_code)]
     pub fn append_position(mut error: Box<dyn IError>, position: Position) -> Box<dyn IError> {
         error.set_message(format!("{}\nAt {:?}.", error.message(), position));
         error

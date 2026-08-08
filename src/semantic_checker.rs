@@ -322,7 +322,7 @@ impl<'a> SemanticChecker<'a> {
             if actual_type != current_type {
                 self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                     ErrorSeverity::HIGH,
-                    format!("Cannot assign `{:?}` to array element", actual_type),
+                    format!("Cannot assign `{:?}` to array element.", actual_type),
                     &current_type,
                     &actual_type,
                     position,
@@ -476,7 +476,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     if !types_compatible {
                         let error = SemanticCheckerError::type_mismatch(
                             ErrorSeverity::HIGH,
-                            format!("Cannot assign `{:?}` to `{}`", actual_type, identifier.value),
+                            format!("Cannot assign `{:?}` to `{}`.", actual_type, identifier.value),
                             &var_type.value,
                             &actual_type,
                             statement.position,
@@ -496,7 +496,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     let value = self.read_last_result().map_err(|_| {
                         let error = SemanticCheckerError::new_at(
                             ErrorSeverity::HIGH,
-                            format!("Cannot assign no value to variable `{}`", identifier.value),
+                            format!("Cannot assign no value to variable `{}`.", identifier.value),
                             position,
                         );
                         self.errors.push(Box::new(error.clone()));
@@ -806,7 +806,7 @@ mod tests {
 
         let errors = run_check(&program);
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].contains("Cannot assign `bool` to `x`"));
+        assert!(errors[0].contains("Cannot assign `bool` to `x`."));
         assert!(errors[0].contains("expected: i64"));
         assert!(errors[0].contains("found:    bool"));
     }
@@ -1071,7 +1071,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("Cannot assign `bool` to array element")));
+        assert!(errors.iter().any(|e| e.contains("Cannot assign `bool` to array element.")));
     }
 
     fn make_function(name: &str, parameters: Vec<Node<Parameter>>, return_type: Type, block: Block) -> (String, Rc<Node<FunctionDeclaration>>) {

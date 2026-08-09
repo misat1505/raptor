@@ -1,0 +1,5 @@
+println("Hello world");
+
+import "functions.rp";
+
+println("Bye world");

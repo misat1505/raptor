@@ -1,4 +1,5 @@
-use std::io::BufRead;
+use std::fs::File;
+use std::io::BufReader;
 
 use phf::phf_map;
 
@@ -16,15 +17,15 @@ pub trait ILexer {
     fn next(&mut self) -> Result<Token, Box<dyn IError>>;
 }
 
-pub struct Lexer<T: BufRead> {
-    pub src: Vec<LazyStreamReader<T>>,
+pub struct Lexer {
+    pub src: Vec<Box<dyn ILazyStreamReader>>,
     current: Option<Token>,
     position: Position,
     options: LexerOptions,
     on_warning: fn(warning: Box<dyn IError>),
 }
 
-impl<T: BufRead> ILexer for Lexer<T> {
+impl ILexer for Lexer {
     fn current(&self) -> &Option<Token> {
         &self.current
     }
@@ -34,16 +35,100 @@ impl<T: BufRead> ILexer for Lexer<T> {
     }
 }
 
-impl<T: BufRead> Lexer<T> {
-    pub fn new(src: LazyStreamReader<T>, options: LexerOptions, on_warning: fn(warning: Box<dyn IError>)) -> Self {
+impl Lexer {
+    pub fn new(
+        src: impl ILazyStreamReader + 'static,
+        options: LexerOptions,
+        on_warning: fn(warning: Box<dyn IError>),
+    ) -> Result<Self, Box<dyn IError>> {
         let position = src.position().clone();
-        Lexer {
-            src: vec![src],
+        let mut lexer = Lexer {
+            src: vec![Box::new(src)],
             current: None,
             position,
             options,
             on_warning,
+        };
+
+        lexer.generate_token()?;
+        lexer.generate_token()?;
+
+        Ok(lexer)
+    }
+
+    fn token_text(token: &Token) -> String {
+        match &token.value {
+            TokenValue::F64(value) => value.to_string(),
+            TokenValue::I64(value) => value.to_string(),
+            TokenValue::String(value) => value.clone(),
+            TokenValue::Null => format!("{:?}", token.category),
         }
+    }
+
+    fn consume_must_be(&mut self, category: TokenCategory) -> Result<Token, Box<dyn IError>> {
+        let position = self.position.clone();
+        let current_token = self
+            .current
+            .take()
+            .ok_or_else(|| Box::new(LexerError::at(ErrorSeverity::HIGH, "Expected a token".to_string(), position)) as Box<dyn IError>)?;
+
+        if current_token.category == category {
+            self.generate_token()?;
+            return Ok(current_token);
+        }
+
+        Err(Box::new(LexerError::expected_found(
+            ErrorSeverity::HIGH,
+            "Unexpected token".to_string(),
+            format!("{:?}", category),
+            Self::token_text(&current_token),
+            current_token.position,
+        )))
+    }
+
+    fn import_file(&mut self) -> Result<Token, Box<dyn IError>> {
+        let _ = self.consume_must_be(TokenCategory::Import)?;
+        let path_token = self.consume_must_be(TokenCategory::StringValue)?;
+
+        let path = match path_token.value {
+            TokenValue::String(p) => p,
+            v => {
+                return Err(Box::new(LexerError::expected_found(
+                    ErrorSeverity::HIGH,
+                    "Unexpected token value".to_string(),
+                    format!("string"),
+                    format!("{:?}", v),
+                    path_token.position,
+                )))
+            }
+        };
+
+        let file = match File::open(path.as_str()) {
+            Ok(f) => f,
+            Err(_) => {
+                return Err(Box::new(LexerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("File '{}' not found.", path),
+                    path_token.position,
+                )));
+            }
+        };
+
+        let code = BufReader::new(file);
+        let filename: &'static str = Box::leak(path.clone().into_boxed_str());
+        self.src.push(Box::new(LazyStreamReader::new(code, Some(filename))));
+
+        let _ = self.src.last_mut().unwrap().next();
+
+        self.consume_must_be(TokenCategory::Semicolon)
+    }
+
+    fn handle_etx(&mut self) -> Result<Token, Box<dyn IError>> {
+        if self.src.len() > 1 {
+            self.src.pop();
+            return self.generate_token();
+        }
+        return Ok(self.current.clone().unwrap());
     }
 
     #[allow(irrefutable_let_patterns)]
@@ -62,8 +147,21 @@ impl<T: BufRead> Lexer<T> {
 
         for generator in &result_methods {
             if let Some(token) = generator(self)? {
-                self.current = Some(token.clone());
-                return Ok(token);
+                match token.category {
+                    TokenCategory::Import => {
+                        self.current = Some(token);
+                        return self.import_file();
+                    }
+                    TokenCategory::ETX => {
+                        self.current = Some(token);
+                        return self.handle_etx();
+                    }
+                    TokenCategory::Comment => return self.generate_token(),
+                    _ => {
+                        self.current = Some(token.clone());
+                        return Ok(token);
+                    }
+                }
             }
         }
 
@@ -364,7 +462,8 @@ static KEYWORDS: phf::Map<&'static str, TokenCategory> = phf_map! {
     "false" => TokenCategory::False,
     "as" => TokenCategory::As,
     "switch" => TokenCategory::Switch,
-    "break" => TokenCategory::Break
+    "break" => TokenCategory::Break,
+    "import" => TokenCategory::Import
 };
 
 static ESCAPES: phf::Map<char, char> = phf_map! {

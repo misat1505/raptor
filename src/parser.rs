@@ -44,8 +44,8 @@ impl<L: ILexer> IParser<L> for Parser<L> {
 
     fn parse(&mut self) -> Result<Program, Box<dyn IError>> {
         // program = { function_declaration | assign_or_call | if_statement | for_statement | switch_statement | declaration, ";" };
-        let _ = self.next_token()?; // initialize
-        let _ = self.next_token()?; // skip STX
+        // let _ = self.next_token()?; // initialize
+        // let _ = self.next_token()?; // skip STX
 
         let mut statements: Vec<Node<Statement>> = vec![];
         let mut functions: HashMap<String, Rc<Node<FunctionDeclaration>>> = HashMap::new();

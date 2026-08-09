@@ -93,7 +93,8 @@ fn main() {
         max_identifier_length: 20,
     };
 
-    let lexer = Lexer::new(reader, lexer_options, on_warning);
+    // TODO: change unwrap to log the error
+    let lexer = Lexer::new(reader, lexer_options, on_warning).unwrap();
     let mut parser = Parser::new(lexer);
 
     let start = Instant::now();

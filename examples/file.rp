@@ -1,1 +1,13 @@
-for (i64 i = 0; i < 1500000; i = i + 1) {}
+for (i64 i = 0; i < 1500000; i += 1) {}
+
+i64 a = 420;
+println(a as str);
+
+a -= 1;
+println(a as str);
+
+a *= 2;
+println(a as str);
+
+a /= 3;
+println(a as str);

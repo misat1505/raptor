@@ -44,8 +44,6 @@ impl<L: ILexer> IParser<L> for Parser<L> {
 
     fn parse(&mut self) -> Result<Program, Box<dyn IError>> {
         // program = { function_declaration | assign_or_call | if_statement | for_statement | switch_statement | declaration, ";" };
-        // let _ = self.next_token()?; // initialize
-        // let _ = self.next_token()?; // skip STX
 
         let mut statements: Vec<Node<Statement>> = vec![];
         let mut functions: HashMap<String, Rc<Node<FunctionDeclaration>>> = HashMap::new();
@@ -255,25 +253,28 @@ impl<L: ILexer> Parser<L> {
         self.consume_must_be(TokenCategory::Semicolon)?;
         let mut assignment: Option<Box<Node<Statement>>> = None;
         if self.current_token().category == TokenCategory::Identifier {
-            let identifier = self
-                .parse_identifier()?
-                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create identifier while parsing for statement.")))?;
+            // let identifier = self
+            //     .parse_identifier()?
+            //     .ok_or_else(|| self.create_parser_error(String::from("Couldn't create identifier while parsing for statement.")))?;
 
-            let position = identifier.position;
-            let _ = self.consume_must_be(TokenCategory::Assign)?;
-            let expr = self
-                .parse_expression()?
-                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing for statement.")))?;
+            // let position = identifier.position;
+            // let _ = self.consume_must_be(TokenCategory::Assign)?;
+            // let expr = self
+            //     .parse_expression()?
+            //     .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing for statement.")))?;
 
-            let assign = Box::new(Node {
-                value: Statement::Assignment {
-                    identifier,
-                    value: expr,
-                    indices: vec![],
-                },
-                position,
-            });
-            assignment = Some(assign);
+            // let assign = Box::new(Node {
+            //     value: Statement::Assignment {
+            //         identifier,
+            //         value: expr,
+            //         indices: vec![],
+            //     },
+            //     position,
+            // });
+            // assignment = Some(assign);
+            assignment = Some(Box::new(self.parse_assign_or_call_without_semicolon()?.ok_or_else(|| {
+                self.create_parser_error(String::from("Couldn't create assignment or call while parsing for statement."))
+            })?));
         };
 
         self.consume_must_be(TokenCategory::ParenClose)?;
@@ -371,6 +372,17 @@ impl<L: ILexer> Parser<L> {
 
     fn parse_assign_or_call(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         // assign_or_call = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")"), ";";
+        let node = self.parse_assign_or_call_without_semicolon()?;
+        if node.is_none() {
+            return Ok(None);
+        }
+
+        self.consume_must_be(TokenCategory::Semicolon)?;
+        Ok(node)
+    }
+
+    fn parse_assign_or_call_without_semicolon(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // assign_or_call = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")");
         let identifier = try_consume!(self, parse_identifier);
         let position = identifier.position;
 
@@ -396,7 +408,142 @@ impl<L: ILexer> Parser<L> {
                 },
                 position,
             };
-            self.consume_must_be(TokenCategory::Semicolon)?;
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::PlusEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Addition(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::MinusEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Subtraction(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::TimesEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Multiplication(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::DivideEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Division(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
             return Ok(Some(node));
         }
 
@@ -407,7 +554,6 @@ impl<L: ILexer> Parser<L> {
                 position,
             };
             self.consume_must_be(TokenCategory::ParenClose)?;
-            self.consume_must_be(TokenCategory::Semicolon)?;
             return Ok(Some(node));
         }
 

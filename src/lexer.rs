@@ -258,9 +258,9 @@ impl Lexer {
     fn try_generating_operator(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
         let current_char = self.src.last().unwrap().current();
         let token = match current_char {
-            '+' => Some(self.single_char(TokenCategory::Plus)),
-            '*' => Some(self.single_char(TokenCategory::Multiply)),
-            '/' => Some(self.single_char(TokenCategory::Divide)),
+            '+' => Some(self.extend_to_next('=', TokenCategory::Plus, TokenCategory::PlusEquals)),
+            '*' => Some(self.extend_to_next('=', TokenCategory::Multiply, TokenCategory::TimesEquals)),
+            '/' => Some(self.extend_to_next('=', TokenCategory::Divide, TokenCategory::DivideEquals)),
             '-' => Some(self.extend_to_next('>', TokenCategory::Minus, TokenCategory::Arrow)),
             '<' => Some(self.extend_to_next('=', TokenCategory::Less, TokenCategory::LessOrEqual)),
             '>' => Some(self.extend_to_next('=', TokenCategory::Greater, TokenCategory::GreaterOrEqual)),

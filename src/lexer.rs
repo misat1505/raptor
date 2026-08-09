@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::BufReader;
+use std::vec;
 
 use phf::phf_map;
 
@@ -19,6 +20,7 @@ pub trait ILexer {
 
 pub struct Lexer {
     pub src: Vec<Box<dyn ILazyStreamReader>>,
+    all_files: Vec<String>,
     current: Option<Token>,
     position: Position,
     options: LexerOptions,
@@ -44,6 +46,7 @@ impl Lexer {
         let position = src.position().clone();
         let mut lexer = Lexer {
             src: vec![Box::new(src)],
+            all_files: vec![String::from(position.filename.unwrap_or("<input>"))],
             current: None,
             position,
             options,
@@ -103,23 +106,28 @@ impl Lexer {
             }
         };
 
-        let file = match File::open(path.as_str()) {
-            Ok(f) => f,
-            Err(_) => {
-                return Err(Box::new(LexerError::at(
-                    ErrorSeverity::HIGH,
-                    format!("File '{}' not found.", path),
-                    path_token.position,
-                )));
-            }
-        };
+        let is_alread_imported = self.all_files.iter().find(|v| **v == path).is_some();
 
-        let code = BufReader::new(file);
-        let filename: &'static str = Box::leak(path.clone().into_boxed_str());
-        self.src.push(Box::new(LazyStreamReader::new(code, Some(filename))));
+        if !is_alread_imported {
+            let file = match File::open(path.as_str()) {
+                Ok(f) => f,
+                Err(_) => {
+                    return Err(Box::new(LexerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("File '{}' not found.", path),
+                        path_token.position,
+                    )));
+                }
+            };
+
+            let code = BufReader::new(file);
+            let filename: &'static str = Box::leak(path.clone().into_boxed_str());
+            self.src.push(Box::new(LazyStreamReader::new(code, Some(filename))));
+
+            self.all_files.push(path);
+        }
 
         let _ = self.src.last_mut().unwrap().next();
-
         self.consume_must_be(TokenCategory::Semicolon)
     }
 

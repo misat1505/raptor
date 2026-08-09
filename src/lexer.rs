@@ -17,7 +17,7 @@ pub trait ILexer {
 }
 
 pub struct Lexer<T: BufRead> {
-    pub src: LazyStreamReader<T>,
+    pub src: Vec<LazyStreamReader<T>>,
     current: Option<Token>,
     position: Position,
     options: LexerOptions,
@@ -38,7 +38,7 @@ impl<T: BufRead> Lexer<T> {
     pub fn new(src: LazyStreamReader<T>, options: LexerOptions, on_warning: fn(warning: Box<dyn IError>)) -> Self {
         let position = src.position().clone();
         Lexer {
-            src,
+            src: vec![src],
             current: None,
             position,
             options,
@@ -49,7 +49,7 @@ impl<T: BufRead> Lexer<T> {
     #[allow(irrefutable_let_patterns)]
     pub fn generate_token(&mut self) -> Result<Token, Box<dyn IError>> {
         self.skip_whitespaces();
-        self.position = self.src.position().clone();
+        self.position = self.src.last().unwrap().position().clone();
 
         let result_methods = [
             Self::try_generating_sign,
@@ -71,19 +71,19 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn skip_whitespaces(&mut self) {
-        while self.src.current().is_whitespace() {
-            let _ = self.src.next();
+        while self.src.last().unwrap().current().is_whitespace() {
+            let _ = self.src.last_mut().unwrap().next();
         }
     }
 
     fn try_generating_comment(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
-        let current_char = self.src.current();
+        let current_char = self.src.last().unwrap().current();
         if *current_char != '#' {
             return Ok(None);
         }
 
         let mut comment = String::new();
-        while let Ok(current) = self.src.next() {
+        while let Ok(current) = self.src.last_mut().unwrap().next() {
             if *current == '\n' || *current == ETX {
                 break;
             }
@@ -101,7 +101,7 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn try_generating_sign(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
-        let current_char = self.src.current();
+        let current_char = self.src.last().unwrap().current();
         match SIGNS.get(current_char) {
             None => Ok(None),
             Some(token_category) => {
@@ -110,14 +110,14 @@ impl<T: BufRead> Lexer<T> {
                     value: TokenValue::Null,
                     position: self.position,
                 };
-                let _ = self.src.next();
+                let _ = self.src.last_mut().unwrap().next();
                 Ok(Some(token))
             }
         }
     }
 
     fn try_generating_operator(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
-        let current_char = self.src.current();
+        let current_char = self.src.last().unwrap().current();
         let token = match current_char {
             '+' => Some(self.single_char(TokenCategory::Plus)),
             '*' => Some(self.single_char(TokenCategory::Multiply)),
@@ -135,7 +135,7 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn single_char(&mut self, category: TokenCategory) -> Token {
-        let _ = self.src.next();
+        let _ = self.src.last_mut().unwrap().next();
         Token {
             category,
             value: TokenValue::Null,
@@ -144,9 +144,9 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn extend_to_next(&mut self, char_to_search: char, not_found: TokenCategory, found: TokenCategory) -> Token {
-        let next_char = self.src.next().unwrap();
+        let next_char = self.src.last_mut().unwrap().next().unwrap();
         if *next_char == char_to_search {
-            let _ = self.src.next();
+            let _ = self.src.last_mut().unwrap().next();
             return Token {
                 category: found,
                 value: TokenValue::Null,
@@ -161,9 +161,9 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn extend_to_next_or_warning(&mut self, char_to_search: char, found: TokenCategory) -> Token {
-        let next_char = self.src.next().unwrap();
+        let next_char = self.src.last_mut().unwrap().next().unwrap();
         if *next_char == char_to_search {
-            let _ = self.src.next();
+            let _ = self.src.last_mut().unwrap().next();
         } else {
             (self.on_warning)(Box::new(LexerError::new(
                 ErrorSeverity::LOW,
@@ -178,20 +178,20 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn try_generating_string(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
-        let mut current_char = self.src.current().clone();
+        let mut current_char = self.src.last().unwrap().current().clone();
         if current_char != '"' {
             return Ok(None);
         }
         let mut created_string = String::new();
-        current_char = self.src.next().unwrap().clone();
+        current_char = self.src.last_mut().unwrap().next().unwrap().clone();
         while current_char != '"' {
             // escaping
             if current_char == '\\' {
-                let next_char = self.src.next().unwrap().clone();
+                let next_char = self.src.last_mut().unwrap().next().unwrap().clone();
                 match ESCAPES.get(&next_char) {
                     Some(char) => {
                         created_string.push(*char);
-                        current_char = *self.src.next().unwrap();
+                        current_char = *self.src.last_mut().unwrap().next().unwrap();
                         continue;
                     }
                     None => {
@@ -221,10 +221,10 @@ impl<T: BufRead> Lexer<T> {
                 }));
             }
             created_string.push(current_char);
-            current_char = self.src.next().unwrap().clone();
+            current_char = self.src.last_mut().unwrap().next().unwrap().clone();
         }
         // consume next "
-        let _ = self.src.next();
+        let _ = self.src.last_mut().unwrap().next();
         Ok(Some(Token {
             category: TokenCategory::StringValue,
             value: TokenValue::String(created_string),
@@ -233,7 +233,7 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn try_generating_number(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
-        let mut current_char = self.src.current().clone();
+        let mut current_char = self.src.last().unwrap().current().clone();
         if !current_char.is_ascii_digit() {
             return Ok(None);
         }
@@ -242,13 +242,13 @@ impl<T: BufRead> Lexer<T> {
         if current_char != '0' {
             (decimal, _) = self.parse_integer()?;
         } else {
-            let next_char = self.src.next().unwrap();
+            let next_char = self.src.last_mut().unwrap().next().unwrap();
             if next_char.is_ascii_digit() {
                 return Err(self.create_lexer_error(String::from("Cannot prefix number with 0's.")));
             }
         }
 
-        current_char = self.src.current().clone();
+        current_char = self.src.last().unwrap().current().clone();
         if current_char != '.' {
             return Ok(Some(Token {
                 category: TokenCategory::I64Value,
@@ -257,7 +257,7 @@ impl<T: BufRead> Lexer<T> {
             }));
         }
 
-        let _ = self.src.next();
+        let _ = self.src.last_mut().unwrap().next();
         let (fraction, fraction_length) = self.parse_integer()?;
         let float_value = Self::merge_to_float(decimal, fraction, fraction_length);
         Ok(Some(Token {
@@ -268,7 +268,7 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn parse_integer(&mut self) -> Result<(i64, i64), Box<dyn IError>> {
-        let mut current_char = self.src.current();
+        let mut current_char = self.src.last().unwrap().current();
         let mut length = 0;
         let mut total: i64 = 0;
         while current_char.is_ascii_digit() {
@@ -281,7 +281,7 @@ impl<T: BufRead> Lexer<T> {
                 .checked_add(digit)
                 .ok_or_else(|| self.create_lexer_error(String::from("Overflow occurred while parsing integer")))?;
             length += 1;
-            current_char = self.src.next().unwrap();
+            current_char = self.src.last_mut().unwrap().next().unwrap();
         }
         Ok((total, length))
     }
@@ -293,7 +293,7 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn try_creating_identifier_or_keyword(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
-        let mut current_char = self.src.current().clone();
+        let mut current_char = self.src.last().unwrap().current().clone();
         if !current_char.is_ascii_alphabetic() {
             return Ok(None);
         }
@@ -306,7 +306,7 @@ impl<T: BufRead> Lexer<T> {
                 )));
             }
             created_string.push(current_char);
-            current_char = self.src.next().unwrap().clone();
+            current_char = self.src.last_mut().unwrap().next().unwrap().clone();
         }
         match KEYWORDS.get(created_string.as_str()) {
             Some(category) => Ok(Some(Token {
@@ -323,12 +323,12 @@ impl<T: BufRead> Lexer<T> {
     }
 
     fn create_lexer_error(&mut self, text: String) -> Box<dyn IError> {
-        let position = self.src.position();
+        let position = self.src.last().unwrap().position();
         Box::new(LexerError::at(ErrorSeverity::HIGH, text, position))
     }
 
     fn prepare_warning_message(&self, text: String) -> String {
-        let position = self.src.position();
+        let position = self.src.last().unwrap().position();
         let error = LexerError::at(ErrorSeverity::LOW, text, position);
         return error.message();
     }

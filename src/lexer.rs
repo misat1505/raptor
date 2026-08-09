@@ -61,6 +61,25 @@ impl Lexer {
         Ok(lexer)
     }
 
+    pub fn new_unsafe(
+        src: impl ILazyStreamReader + 'static,
+        options: LexerOptions,
+        on_warning: fn(warning: Box<dyn IError>),
+    ) -> Result<Self, Box<dyn IError>> {
+        let position = src.position().clone();
+        let lexer = Lexer {
+            src: vec![Box::new(src)],
+            imported_paths: vec![String::from(position.filename.unwrap_or("<input>"))],
+            import_stack: vec![String::from(position.filename.unwrap_or("<input>"))],
+            current: None,
+            position,
+            options,
+            on_warning,
+        };
+
+        Ok(lexer)
+    }
+
     fn token_text(token: &Token) -> String {
         match &token.value {
             TokenValue::F64(value) => value.to_string(),

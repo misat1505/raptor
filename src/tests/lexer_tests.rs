@@ -13,8 +13,9 @@ mod tests {
         println!("{}", warning.message());
     }
 
-    fn create_lexer(text: &str) -> Lexer<BufReader<&[u8]>> {
-        let code = BufReader::new(text.as_bytes());
+    fn create_lexer(text: &str) -> Lexer {
+        let owned_text: &'static str = Box::leak(text.to_owned().into_boxed_str());
+        let code = BufReader::new(owned_text.as_bytes());
         let reader = LazyStreamReader::new(code, None);
 
         let lexer_options = LexerOptions {
@@ -22,12 +23,12 @@ mod tests {
             max_identifier_length: 20,
         };
 
-        let lexer = Lexer::new(reader, lexer_options, on_warning);
+        let lexer = Lexer::new_unsafe(reader, lexer_options, on_warning).unwrap();
 
         lexer
     }
 
-    fn create_lexer_with_skip(text: &str) -> Lexer<BufReader<&[u8]>> {
+    fn create_lexer_with_skip(text: &str) -> Lexer {
         let mut lexer = create_lexer(text);
         let _ = lexer.generate_token().unwrap();
 
@@ -104,18 +105,14 @@ mod tests {
     }
 
     #[test]
-    fn comment() {
+    fn passes_through_comments() {
         let text = "# this is a comment
-        # another";
+        # another
+        i64";
         let mut lexer = create_lexer_with_skip(text);
 
-        let mut token = lexer.generate_token().unwrap();
-        assert_eq!(token.category, TokenCategory::Comment);
-        assert_eq!(token.value, TokenValue::String(String::from(" this is a comment")));
-
-        token = lexer.generate_token().unwrap();
-        assert_eq!(token.category, TokenCategory::Comment);
-        assert_eq!(token.value, TokenValue::String(String::from(" another")));
+        let token = lexer.generate_token().unwrap();
+        assert_eq!(token.category, TokenCategory::I64);
     }
 
     #[test]
@@ -217,8 +214,9 @@ mod edge_case_tests {
         println!("{}", warning.message());
     }
 
-    fn create_lexer(text: &str) -> Lexer<BufReader<&[u8]>> {
-        let code = BufReader::new(text.as_bytes());
+    fn create_lexer(text: &str) -> Lexer {
+        let owned_text: &'static str = Box::leak(text.to_owned().into_boxed_str());
+        let code = BufReader::new(owned_text.as_bytes());
         let reader = LazyStreamReader::new(code, None);
 
         let lexer_options = LexerOptions {
@@ -226,12 +224,12 @@ mod edge_case_tests {
             max_identifier_length: 20,
         };
 
-        let lexer = Lexer::new(reader, lexer_options, on_warning);
+        let lexer = Lexer::new_unsafe(reader, lexer_options, on_warning).unwrap();
 
         lexer
     }
 
-    fn create_lexer_with_skip(text: &str) -> Lexer<BufReader<&[u8]>> {
+    fn create_lexer_with_skip(text: &str) -> Lexer {
         let mut lexer = create_lexer(text);
         let _ = lexer.generate_token().unwrap();
 

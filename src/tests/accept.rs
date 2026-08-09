@@ -1,6 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, io::BufReader, rc::Rc};
+    use std::{
+        cell::RefCell,
+        io::{BufReader, Read},
+        rc::Rc,
+    };
 
     use crate::{
         ast::Program,
@@ -16,12 +20,19 @@ mod tests {
     fn on_warning(_err: Box<dyn IError>) {}
 
     fn setup_program(text: BufReader<&[u8]>) -> Program {
-        let options = LexerOptions {
+        let mut text = text;
+        let mut content = String::new();
+        text.read_to_string(&mut content).unwrap();
+
+        let owned_text: &'static str = Box::leak(content.into_boxed_str());
+        let code = BufReader::new(owned_text.as_bytes());
+        let reader = LazyStreamReader::new(code, None);
+
+        let lexer_options = LexerOptions {
             max_comment_length: 100,
-            max_identifier_length: 100,
+            max_identifier_length: 20,
         };
-        let reader = LazyStreamReader::new(text, None);
-        let lexer = Lexer::new(reader, options, on_warning);
+        let lexer = Lexer::new(reader, lexer_options, on_warning).unwrap();
         let mut parser = Parser::new(lexer);
         let program = parser.parse().unwrap();
         let mut checker = SemanticChecker::new(&program).unwrap();

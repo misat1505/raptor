@@ -328,7 +328,14 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_statement_block(&mut self) -> Result<Option<Node<Block>>, Box<dyn IError>> {
-        // statement_block = "{", {statement}, "}";
+        // statement_block = ("{", {statement}, "}") | statement;
+        if let Some(stmt) = self.parse_statement()? {
+            return Ok(Some(Node {
+                value: Block(vec![stmt.clone()]),
+                position: stmt.position,
+            }));
+        }
+
         let token = try_consume_token!(self, TokenCategory::BraceOpen);
 
         let mut statements: Vec<Node<Statement>> = vec![];

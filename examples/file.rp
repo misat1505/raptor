@@ -3,6 +3,4 @@ i64 iters = 1000000;
 for (i64 i = 0; i < iters; i += 1) {}
 
 i64 x = 0;
-while (x < iters) {
-  x += 1;
-}
+while (x < iters) x += 1;

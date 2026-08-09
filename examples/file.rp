@@ -6,6 +6,9 @@ println(a as str);
 a -= 1;
 println(a as str);
 
+a += 1;
+println(a as str);
+
 a *= 2;
 println(a as str);
 

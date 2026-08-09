@@ -259,9 +259,9 @@ impl Lexer {
         let current_char = self.src.last().unwrap().current();
         let token = match current_char {
             '+' => Some(self.extend_to_next('=', TokenCategory::Plus, TokenCategory::PlusEquals)),
+            '-' => Some(self.extend_minus()),
             '*' => Some(self.extend_to_next('=', TokenCategory::Multiply, TokenCategory::TimesEquals)),
             '/' => Some(self.extend_to_next('=', TokenCategory::Divide, TokenCategory::DivideEquals)),
-            '-' => Some(self.extend_to_next('>', TokenCategory::Minus, TokenCategory::Arrow)),
             '<' => Some(self.extend_to_next('=', TokenCategory::Less, TokenCategory::LessOrEqual)),
             '>' => Some(self.extend_to_next('=', TokenCategory::Greater, TokenCategory::GreaterOrEqual)),
             '!' => Some(self.extend_to_next('=', TokenCategory::Negate, TokenCategory::NotEqual)),
@@ -314,6 +314,31 @@ impl Lexer {
             value: TokenValue::Null,
             position: self.position,
         };
+    }
+
+    fn extend_minus(&mut self) -> Token {
+        let next_char = self.src.last_mut().unwrap().next().unwrap();
+        if *next_char == '>' {
+            let _ = self.src.last_mut().unwrap().next();
+            return Token {
+                category: TokenCategory::Arrow,
+                value: TokenValue::Null,
+                position: self.position,
+            };
+        }
+        if *next_char == '=' {
+            let _ = self.src.last_mut().unwrap().next();
+            return Token {
+                category: TokenCategory::MinusEquals,
+                value: TokenValue::Null,
+                position: self.position,
+            };
+        }
+        Token {
+            category: TokenCategory::Minus,
+            value: TokenValue::Null,
+            position: self.position,
+        }
     }
 
     fn try_generating_string(&mut self) -> Result<Option<Token>, Box<dyn IError>> {

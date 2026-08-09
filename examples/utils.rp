@@ -1,6 +1,8 @@
 import "functions.rp";
 import "a.rp";
 
+i64 x = true;
+
 fn add(i64 x, i64 y): i64 {
   return x + y;
 }

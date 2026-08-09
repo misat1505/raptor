@@ -17,6 +17,9 @@
       "include": "#numbers"
     },
     {
+      "include": "#constants"
+    },
+    {
       "include": "#operators"
     },
     {
@@ -54,14 +57,22 @@
       "patterns": [
         {
           "name": "keyword.control.rp",
-          "match": "\\b(fn|if|else|for|while|switch|return|break|continue)\\b"
+          "match": "\\b(fn|if|else|for|while|switch|return|break|continue|import|as)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.rp",
+          "match": "\\b(true|false)\\b"
         }
       ]
     },
     "types": {
       "patterns": [
         {
-          "name": "storage.type.rp",
+          "name": "entity.name.type.rp",
           "match": "\\b(i64|f64|bool|str|void)\\b"
         }
       ]

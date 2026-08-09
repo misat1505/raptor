@@ -1,4 +1,4 @@
-use std::{env::args, eprintln, fs::File, io::BufReader, println, time::Instant};
+use std::{env::args, eprintln, fs::File, io::BufReader, println};
 
 use errors::IError;
 use lexer::Lexer;
@@ -93,11 +93,15 @@ fn main() {
         max_identifier_length: 20,
     };
 
-    // TODO: change unwrap to log the error
-    let lexer = Lexer::new(reader, lexer_options, on_warning).unwrap();
+    let lexer = match Lexer::new(reader, lexer_options, on_warning) {
+        Ok(lexer) => lexer,
+        Err(err) => {
+            eprintln!("{}", err.message());
+            std::process::exit(1);
+        }
+    };
     let mut parser = Parser::new(lexer);
 
-    let start = Instant::now();
     let program = match parser.parse() {
         Ok(p) => p,
         Err(err) => return eprintln!("{}", err.message()),
@@ -129,6 +133,4 @@ fn main() {
     if let Err(err) = interpreter.interpret() {
         eprintln!("{}", err.message());
     };
-
-    println!("\nExecution time: {:?}", Instant::now() - start);
 }

@@ -141,7 +141,7 @@ impl<'a> SemanticChecker<'a> {
                         }
 
                         if *expected_passed_by == PassedBy::Reference && !Self::is_valid_reference_expression(&argument.value.value.value) {
-                            self.errors.push(Box::new(SemanticCheckerError::new_at(
+                            self.errors.push(Box::new(SemanticCheckerError::at(
                                 ErrorSeverity::HIGH,
                                 format!(
                                     "parameter {} in function `{}` must be a variable or index expression when passed by reference",
@@ -160,8 +160,7 @@ impl<'a> SemanticChecker<'a> {
                         Some(check_fn) if collected_types.len() == arguments.len() => match check_fn(&collected_types) {
                             Ok(return_type) => self.last_result = Some(return_type),
                             Err(msg) => {
-                                self.errors
-                                    .push(Box::new(SemanticCheckerError::new_at(ErrorSeverity::HIGH, msg, *position)));
+                                self.errors.push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, msg, *position)));
                                 self.last_result = None;
                             }
                         },
@@ -224,7 +223,7 @@ impl<'a> SemanticChecker<'a> {
                             }
 
                             if parameter.value.passed_by == PassedBy::Reference && !Self::is_valid_reference_expression(&argument.value.value.value) {
-                                self.errors.push(Box::new(SemanticCheckerError::new_at(
+                                self.errors.push(Box::new(SemanticCheckerError::at(
                                     ErrorSeverity::HIGH,
                                     format!(
                                         "parameter `{}` in function `{}` must be a variable or index expression when passed by reference",
@@ -255,9 +254,9 @@ impl<'a> SemanticChecker<'a> {
                     return;
                 }
 
-                self.errors.push(Box::new(SemanticCheckerError::new_at(
+                self.errors.push(Box::new(SemanticCheckerError::at(
                     ErrorSeverity::HIGH,
-                    format!("use of undeclared function `{}`", name),
+                    format!("Use of undeclared function `{}`", name),
                     *position,
                 )))
             }
@@ -307,7 +306,7 @@ impl<'a> SemanticChecker<'a> {
             match current_type {
                 Type::Vector(inner) => current_type = *inner,
                 other => {
-                    self.errors.push(Box::new(SemanticCheckerError::new_at(
+                    self.errors.push(Box::new(SemanticCheckerError::at(
                         ErrorSeverity::HIGH,
                         format!("Cannot index into value of type `{:?}`", other),
                         position,
@@ -393,7 +392,11 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     Ok(t) => match TypeALU::cast_to_type(t, &to_type.value) {
                         Ok(result_type) => self.last_result = Some(result_type),
                         Err(err) => {
-                            self.errors.push(Box::new(err));
+                            self.errors.push(Box::new(SemanticCheckerError::at(
+                                ErrorSeverity::HIGH,
+                                err.message(),
+                                expression.position,
+                            )));
                             self.last_result = None;
                         }
                     },
@@ -425,7 +428,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                         self.last_result = Some(*inner);
                     }
                     (Ok(other), Ok(Type::I64)) => {
-                        self.errors.push(Box::new(SemanticCheckerError::new_at(
+                        self.errors.push(Box::new(SemanticCheckerError::at(
                             ErrorSeverity::HIGH,
                             format!("cannot index into value of type `{:?}`", other),
                             expression.position,
@@ -494,7 +497,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     self.visit_expression(&value)?;
                     let position = statement.position;
                     let value = self.read_last_result().map_err(|_| {
-                        let error = SemanticCheckerError::new_at(
+                        let error = SemanticCheckerError::at(
                             ErrorSeverity::HIGH,
                             format!("Cannot assign no value to variable `{}`.", identifier.value),
                             position,
@@ -575,7 +578,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             }
             Statement::Return(value) => {
                 if self.stack.size() <= 1 {
-                    self.errors.push(Box::new(SemanticCheckerError::new_at(
+                    self.errors.push(Box::new(SemanticCheckerError::at(
                         ErrorSeverity::HIGH,
                         String::from("return statement is not inside a function"),
                         statement.position,
@@ -611,7 +614,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             }
             Statement::Break => {
                 if !self.stack.is_in_breakable() {
-                    self.errors.push(Box::new(SemanticCheckerError::new_at(
+                    self.errors.push(Box::new(SemanticCheckerError::at(
                         ErrorSeverity::HIGH,
                         String::from("break statement is not inside a loop nor inside a switch case"),
                         statement.position,

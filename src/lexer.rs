@@ -61,6 +61,7 @@ impl Lexer {
         Ok(lexer)
     }
 
+    #[allow(dead_code)]
     pub fn new_unsafe(
         src: impl ILazyStreamReader + 'static,
         options: LexerOptions,

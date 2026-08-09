@@ -103,11 +103,6 @@ pub fn severity_to_string(severity: &ErrorSeverity) -> String {
 }
 
 impl SemanticCheckerError {
-    pub fn new_at(level: ErrorSeverity, summary: String, position: Position) -> Self {
-        let message = format!("error: {}\n  --> {}", summary, position.location());
-        SemanticCheckerError::new(level, message)
-    }
-
     pub fn type_mismatch(level: ErrorSeverity, summary: String, expected: &Type, found: &Type, position: Position) -> Self {
         Self::expected_found(level, summary, format!("{:?}", expected), format!("{:?}", found), position)
     }

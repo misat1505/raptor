@@ -437,17 +437,31 @@ impl Lexer {
         let mut current_char = self.src.last().unwrap().current();
         let mut length = 0;
         let mut total: i64 = 0;
-        while current_char.is_ascii_digit() {
-            let digit = *current_char as i64 - '0' as i64;
-            total = total
-                .checked_mul(10)
-                .ok_or_else(|| self.create_lexer_error(String::from("Overflow occurred while parsing integer")))?;
 
-            total = total
-                .checked_add(digit)
-                .ok_or_else(|| self.create_lexer_error(String::from("Overflow occurred while parsing integer")))?;
-            length += 1;
-            current_char = self.src.last_mut().unwrap().next().unwrap();
+        loop {
+            if current_char.is_ascii_digit() {
+                let digit = *current_char as i64 - '0' as i64;
+                total = total
+                    .checked_mul(10)
+                    .ok_or_else(|| self.create_lexer_error(String::from("Overflow occurred while parsing integer")))?;
+                total = total
+                    .checked_add(digit)
+                    .ok_or_else(|| self.create_lexer_error(String::from("Overflow occurred while parsing integer")))?;
+                length += 1;
+                current_char = self.src.last_mut().unwrap().next().unwrap();
+                continue;
+            }
+
+            if *current_char == '\'' {
+                let next_char = self.src.last_mut().unwrap().next().unwrap();
+                if !next_char.is_ascii_digit() {
+                    return Err(self.create_lexer_error(String::from("Digit separator ' must be placed between two digits")));
+                }
+                current_char = next_char;
+                continue;
+            }
+
+            break;
         }
         Ok((total, length))
     }

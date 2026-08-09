@@ -1303,7 +1303,7 @@ mod tests {
         }));
 
         let errors = run_check(&program);
-        assert!(errors.iter().any(|e| e.contains("use of undeclared function `nonexistent`")));
+        assert!(errors.iter().any(|e| e.contains("Use of undeclared function `nonexistent`")));
     }
 
     #[test]

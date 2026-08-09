@@ -20,7 +20,8 @@ pub trait ILexer {
 
 pub struct Lexer {
     pub src: Vec<Box<dyn ILazyStreamReader>>,
-    all_files: Vec<String>,
+    imported_paths: Vec<String>,
+    import_stack: Vec<String>,
     current: Option<Token>,
     position: Position,
     options: LexerOptions,
@@ -46,7 +47,8 @@ impl Lexer {
         let position = src.position().clone();
         let mut lexer = Lexer {
             src: vec![Box::new(src)],
-            all_files: vec![String::from(position.filename.unwrap_or("<input>"))],
+            imported_paths: vec![String::from(position.filename.unwrap_or("<input>"))],
+            import_stack: vec![String::from(position.filename.unwrap_or("<input>"))],
             current: None,
             position,
             options,
@@ -106,9 +108,18 @@ impl Lexer {
             }
         };
 
-        let is_alread_imported = self.all_files.iter().find(|v| **v == path).is_some();
+        let is_in_import_stack = self.import_stack.iter().find(|v| **v == path).is_some();
+        if is_in_import_stack {
+            let import_stack = self.import_stack.join("\n    ↓\n    ");
+            return Err(Box::new(LexerError::at(
+                ErrorSeverity::HIGH,
+                format!("Cyclic import detected:\n    {}\n    ↓\n    {}\n\n", import_stack, path),
+                path_token.position,
+            )));
+        }
 
-        if !is_alread_imported {
+        let is_already_imported = self.imported_paths.iter().find(|v| **v == path).is_some();
+        if !is_already_imported {
             let file = match File::open(path.as_str()) {
                 Ok(f) => f,
                 Err(_) => {
@@ -124,7 +135,8 @@ impl Lexer {
             let filename: &'static str = Box::leak(path.clone().into_boxed_str());
             self.src.push(Box::new(LazyStreamReader::new(code, Some(filename))));
 
-            self.all_files.push(path);
+            self.import_stack.push(path.clone());
+            self.imported_paths.push(path);
         }
 
         let _ = self.src.last_mut().unwrap().next();
@@ -134,6 +146,7 @@ impl Lexer {
     fn handle_etx(&mut self) -> Result<Token, Box<dyn IError>> {
         if self.src.len() > 1 {
             self.src.pop();
+            self.import_stack.pop();
             return self.generate_token();
         }
         return Ok(self.current.clone().unwrap());

@@ -537,6 +537,24 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     self.visit_block(&else_blk);
                 }
             }
+            Statement::WhileLoop { condition, block } => {
+                self.visit_expression(&condition);
+                if let Ok(resolved_condition) = self.read_last_result() {
+                    if resolved_condition != Type::Bool {
+                        let error = SemanticCheckerError::type_mismatch(
+                            ErrorSeverity::HIGH,
+                            String::from("while condition must be `bool`"),
+                            &Type::Bool,
+                            &resolved_condition,
+                            condition.position,
+                        );
+                        self.errors.push(Box::new(error));
+                    }
+                }
+                self.stack.enter_breakable();
+                self.visit_block(&block);
+                self.stack.exit_breakable();
+            }
             Statement::ForLoop {
                 declaration,
                 condition,

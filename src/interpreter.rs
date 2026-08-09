@@ -327,6 +327,37 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                 }
             }
 
+            Statement::WhileLoop { condition, block } => {
+                self.visit_expression(condition)?;
+
+                let mut computed_condition = self.read_last_result()?;
+
+                let mut boolean_value = computed_condition
+                    .try_into_bool()
+                    .map_err(|_| self.condition_error(computed_condition, "while statement"))?;
+
+                while boolean_value {
+                    self.visit_block(block)?;
+
+                    if self.is_returning {
+                        break;
+                    }
+
+                    if self.is_breaking {
+                        self.is_breaking = false;
+                        break;
+                    }
+
+                    self.visit_expression(condition)?;
+
+                    computed_condition = self.read_last_result()?;
+
+                    boolean_value = computed_condition
+                        .try_into_bool()
+                        .map_err(|_| self.condition_error(computed_condition, "while statement"))?;
+                }
+            }
+
             Statement::ForLoop {
                 declaration,
                 condition,

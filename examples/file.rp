@@ -1,16 +1,8 @@
-for (i64 i = 0; i < 1500000; i += 1) {}
+i64 iters = 1000000;
 
-i64 a = 420;
-println(a as str);
+for (i64 i = 0; i < iters; i += 1) {}
 
-a -= 1;
-println(a as str);
-
-a += 1;
-println(a as str);
-
-a *= 2;
-println(a as str);
-
-a /= 3;
-println(a as str);
+i64 x = 0;
+while (x < iters) {
+  x += 1;
+}

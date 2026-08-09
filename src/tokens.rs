@@ -29,6 +29,7 @@ pub enum TokenCategory {
     BraceClose,
     // Keywords
     For,
+    While,
     If,
     Else,
     As,
@@ -92,6 +93,7 @@ impl Debug for TokenCategory {
             BraceOpen => "{",
             BraceClose => "}",
             For => "for",
+            While => "while",
             If => "if",
             Else => "else",
             As => "as",

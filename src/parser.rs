@@ -43,7 +43,7 @@ impl<L: ILexer> IParser<L> for Parser<L> {
     }
 
     fn parse(&mut self) -> Result<Program, Box<dyn IError>> {
-        // program = { function_declaration | assign_or_call | if_statement | for_statement | switch_statement | declaration, ";" };
+        // program = { function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" };
 
         let mut statements: Vec<Node<Statement>> = vec![];
         let mut functions: HashMap<String, Rc<Node<FunctionDeclaration>>> = HashMap::new();
@@ -125,6 +125,7 @@ impl<L: ILexer> Parser<L> {
             Self::parse_assign_or_call,
             Self::parse_if_statement,
             Self::parse_for_statement,
+            Self::parse_while_statement,
             Self::parse_switch_statement,
             Self::parse_variable_declaration,
         ];
@@ -253,25 +254,6 @@ impl<L: ILexer> Parser<L> {
         self.consume_must_be(TokenCategory::Semicolon)?;
         let mut assignment: Option<Box<Node<Statement>>> = None;
         if self.current_token().category == TokenCategory::Identifier {
-            // let identifier = self
-            //     .parse_identifier()?
-            //     .ok_or_else(|| self.create_parser_error(String::from("Couldn't create identifier while parsing for statement.")))?;
-
-            // let position = identifier.position;
-            // let _ = self.consume_must_be(TokenCategory::Assign)?;
-            // let expr = self
-            //     .parse_expression()?
-            //     .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing for statement.")))?;
-
-            // let assign = Box::new(Node {
-            //     value: Statement::Assignment {
-            //         identifier,
-            //         value: expr,
-            //         indices: vec![],
-            //     },
-            //     position,
-            // });
-            // assignment = Some(assign);
             assignment = Some(Box::new(self.parse_assign_or_call_without_semicolon()?.ok_or_else(|| {
                 self.create_parser_error(String::from("Couldn't create assignment or call while parsing for statement."))
             })?));
@@ -290,6 +272,27 @@ impl<L: ILexer> Parser<L> {
                 block,
             },
             position: for_token.position,
+        };
+        Ok(Some(node))
+    }
+
+    fn parse_while_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // while_statement = "while", "(", expression, ")", statement_block;
+        let if_token = try_consume_token!(self, TokenCategory::While);
+
+        let _ = self.consume_must_be(TokenCategory::ParenOpen)?;
+        let condition = self
+            .parse_expression()?
+            .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing while statement.")))?;
+
+        let _ = self.consume_must_be(TokenCategory::ParenClose)?;
+        let block = self
+            .parse_statement_block()?
+            .ok_or_else(|| self.create_parser_error(String::from("Couldn't create statement block while parsing while statement.")))?;
+
+        let node = Node {
+            value: Statement::WhileLoop { condition, block },
+            position: if_token.position,
         };
         Ok(Some(node))
     }
@@ -350,11 +353,12 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // statement = assign_or_call | if_statement | for_statement | switch_statement | declaration, ";" | return_statement | break_statement;
+        // statement = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement;
         let generators = [
             Self::parse_assign_or_call,
             Self::parse_if_statement,
             Self::parse_for_statement,
+            Self::parse_while_statement,
             Self::parse_switch_statement,
             Self::parse_return_statement,
             Self::parse_break_statement,

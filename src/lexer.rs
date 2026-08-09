@@ -273,6 +273,8 @@ impl Lexer {
         Ok(token)
     }
 
+    // this is not used but might be helpful in the future
+    #[allow(dead_code)]
     fn single_char(&mut self, category: TokenCategory) -> Token {
         let _ = self.src.last_mut().unwrap().next();
         Token {
@@ -516,6 +518,7 @@ static SIGNS: phf::Map<char, TokenCategory> = phf_map! {
 static KEYWORDS: phf::Map<&'static str, TokenCategory> = phf_map! {
     "fn" => TokenCategory::Fn,
     "for" => TokenCategory::For,
+    "while" => TokenCategory::While,
     "if" => TokenCategory::If,
     "else" => TokenCategory::Else,
     "return" => TokenCategory::Return,

@@ -134,7 +134,7 @@ switch (input("Pick a number: ") as i64: x) {
 
 ### Syntax Part
 
-**program** = { function_declaration | assign_or_call | if_statement | for_statement | switch_statement | declaration, ";" };
+**program** = { function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" };
 
 **comment** = "#" , {unicode_character - "\n"}, "\n";
 
@@ -152,15 +152,18 @@ fn is_prime(i64 x, &i64 total_iters): bool {
 
 **statement_block** = "{", {statement}, "}";
 
-**statement** = assign_or_call | if_statement | for_statement | switch_statement | declaration, ";" | return_statement | break_statement;
+**statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement;
 
-**assign_or_call** = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")"), ";";
+**assign_or_call_without_semicolon** = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")");
+
+**assign_or_call** = assign_or_call_without_semicolon, ";";
 
 ```
 x = 5;
 my_fun(5, 2);
 x[0][0] = 10;
 ```
+
 
 **declaration** = type, identifier, [ "=", expression ];
 
@@ -174,10 +177,18 @@ bool is_valid = true;
 if (x == 5) {} else {}
 ```
 
-**for_statement** = "for", "(", [ declaration ], “;”, expression, “;”, [ identifier, "=", expression ], ")", statement_block;
+**for_statement** = "for", "(", [ declaration ], “;”, expression, “;”, [ assign_or_call_without_semicolon ], ")", statement_block;
 
 ```
 for (i64 i = 0; i < 10; i = i + 1) {}
+```
+
+**while_statement** = "while", "(", expression, ")", statement_block
+
+```
+while (x < 5) {
+  x += 1;
+}
 ```
 
 ```

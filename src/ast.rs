@@ -140,6 +140,10 @@ pub enum Statement {
         if_block: Node<Block>,
         else_block: Option<Node<Block>>,
     },
+    WhileLoop {
+        condition: Node<Expression>,
+        block: Node<Block>,
+    },
     ForLoop {
         declaration: Option<Box<Node<Statement>>>,
         condition: Node<Expression>,

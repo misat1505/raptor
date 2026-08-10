@@ -39,6 +39,7 @@ pub enum TokenCategory {
     Return,
     Switch,
     Break,
+    Continue,
     Import,
     // Type keywords
     Bool,
@@ -103,6 +104,7 @@ impl Debug for TokenCategory {
             Return => "return",
             Switch => "switch",
             Break => "break",
+            Continue => "continue",
             Import => "import",
             Bool => "bool type",
             String => "str type",

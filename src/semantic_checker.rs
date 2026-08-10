@@ -552,8 +552,10 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     }
                 }
                 self.stack.enter_breakable();
+                self.stack.enter_continuable();
                 self.visit_block(&block);
                 self.stack.exit_breakable();
+                self.stack.exit_continuable();
             }
             Statement::ForLoop {
                 declaration,
@@ -582,8 +584,10 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                     self.visit_statement(&assign);
                 }
                 self.stack.enter_breakable();
+                self.stack.enter_continuable();
                 self.visit_block(&block);
                 self.stack.exit_breakable();
+                self.stack.exit_continuable();
                 self.stack.pop_scope();
             }
             Statement::Switch { expressions, cases } => {
@@ -634,7 +638,16 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
                 if !self.stack.is_in_breakable() {
                     self.errors.push(Box::new(SemanticCheckerError::at(
                         ErrorSeverity::HIGH,
-                        String::from("break statement is not inside a loop nor inside a switch case"),
+                        String::from("Break statement is not inside a loop nor inside a switch case."),
+                        statement.position,
+                    )));
+                }
+            }
+            Statement::Continue => {
+                if !self.stack.is_in_continuable() {
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        String::from("Continue statement is not inside a loop."),
                         statement.position,
                     )));
                 }

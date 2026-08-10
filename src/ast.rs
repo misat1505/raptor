@@ -156,6 +156,7 @@ pub enum Statement {
     },
     Return(Option<Node<Expression>>),
     Break,
+    Continue,
 }
 
 #[derive(Debug, Clone, PartialEq)]

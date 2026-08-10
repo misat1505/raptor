@@ -360,7 +360,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // statement = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement;
+        // statement = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement | continue_statement;
         let generators = [
             Self::parse_assign_or_call,
             Self::parse_if_statement,
@@ -369,6 +369,7 @@ impl<L: ILexer> Parser<L> {
             Self::parse_switch_statement,
             Self::parse_return_statement,
             Self::parse_break_statement,
+            Self::parse_continue_statement,
             Self::parse_variable_declaration,
         ];
 
@@ -615,6 +616,18 @@ impl<L: ILexer> Parser<L> {
         let _ = self.consume_must_be(TokenCategory::Semicolon)?;
         let node = Node {
             value: Statement::Break,
+            position: token.position,
+        };
+        Ok(Some(node))
+    }
+
+    fn parse_continue_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // continue_statement = "continue", ";";
+        let token = try_consume_token!(self, TokenCategory::Continue);
+
+        let _ = self.consume_must_be(TokenCategory::Semicolon)?;
+        let node = Node {
+            value: Statement::Continue,
             position: token.position,
         };
         Ok(Some(node))

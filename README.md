@@ -152,9 +152,9 @@ fn is_prime(i64 x, &i64 total_iters): bool {
 
 **statement_block** = "{", {statement}, "}";
 
-**statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement;
+**statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement | continue_statement;
 
-**assign_or_call_without_semicolon** = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")");
+**assign_or_call_without_semicolon** = identifier, ( { "[", expression, "]" }, ("=" | "+=" | "-=" | "*=" | "/="), expression | "(", arguments, ")");
 
 **assign_or_call** = assign_or_call_without_semicolon, ";";
 
@@ -162,6 +162,7 @@ fn is_prime(i64 x, &i64 total_iters): bool {
 x = 5;
 my_fun(5, 2);
 x[0][0] = 10;
+x[1][0] += 2;
 ```
 
 
@@ -202,6 +203,12 @@ for (; i < 10 ;) {
 
 ```
 break;
+```
+
+**continue_statement** = "continue", ";";
+
+```
+continue;
 ```
 
 **return_statement** = "return", [ expression ], ";";

@@ -133,6 +133,7 @@ pub struct StaticCheckerStack<'a>(pub Vec<StaticCheckerStackFrame<'a>>);
 pub struct StaticCheckerStackFrame<'a> {
     pub scope_manager: StaticCheckerScopeManager<'a>,
     pub breakable_count: u64,
+    pub continuable_count: u64,
 }
 
 impl<'a> Debug for StaticCheckerStackFrame<'a> {
@@ -146,6 +147,7 @@ impl<'a> StaticCheckerStackFrame<'a> {
         StaticCheckerStackFrame {
             scope_manager: StaticCheckerScopeManager::new(),
             breakable_count: 0,
+            continuable_count: 0,
         }
     }
 }
@@ -174,6 +176,25 @@ impl<'a> StaticCheckerStack<'a> {
     pub fn is_in_breakable(&self) -> bool {
         if let Some(last_frame) = self.0.last() {
             return last_frame.breakable_count > 0;
+        }
+        false
+    }
+
+    pub fn enter_continuable(&mut self) {
+        if let Some(last_frame) = self.0.last_mut() {
+            last_frame.continuable_count += 1;
+        }
+    }
+
+    pub fn exit_continuable(&mut self) {
+        if let Some(last_frame) = self.0.last_mut() {
+            last_frame.continuable_count -= 1;
+        }
+    }
+
+    pub fn is_in_continuable(&self) -> bool {
+        if let Some(last_frame) = self.0.last() {
+            return last_frame.continuable_count > 0;
         }
         false
     }

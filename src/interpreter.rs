@@ -19,6 +19,7 @@ pub struct Interpreter<'a> {
     last_result: Option<Value>,
     is_breaking: bool,
     is_returning: bool,
+    is_continuing: bool,
     position: Position,
     last_arguments: Vec<Rc<RefCell<Value>>>,
 }
@@ -31,6 +32,7 @@ impl<'a> Interpreter<'a> {
             last_result: None,
             is_breaking: false,
             is_returning: false,
+            is_continuing: false,
             position: Position {
                 filename: None,
                 line: 0,
@@ -112,6 +114,14 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                 return Err(Box::new(InterpreterError::at(
                     ErrorSeverity::HIGH,
                     String::from("Return called outside a function."),
+                    self.position,
+                )));
+            }
+
+            if self.is_continuing {
+                return Err(Box::new(InterpreterError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("Continue called outside 'for' or 'while'."),
                     self.position,
                 )));
             }
@@ -348,6 +358,10 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                         break;
                     }
 
+                    if self.is_continuing {
+                        self.is_continuing = false;
+                    }
+
                     self.visit_expression(condition)?;
 
                     computed_condition = self.read_last_result()?;
@@ -390,6 +404,10 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                         break;
                     }
 
+                    if self.is_continuing {
+                        self.is_continuing = false;
+                    }
+
                     if let Some(assign) = assignment {
                         self.visit_statement(assign)?;
                     }
@@ -416,7 +434,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                 for case in cases {
                     self.visit_switch_case(case)?;
 
-                    if self.is_returning {
+                    if self.is_returning || self.is_continuing {
                         break;
                     }
 
@@ -444,6 +462,10 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
             Statement::Break => {
                 self.is_breaking = true;
             }
+
+            Statement::Continue => {
+                self.is_continuing = true;
+            }
         }
 
         Ok(())
@@ -458,7 +480,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
         self.stack.push_scope();
 
         for statement in &block.value.0 {
-            if self.is_breaking || self.is_returning {
+            if self.is_breaking || self.is_returning || self.is_continuing {
                 break;
             }
 

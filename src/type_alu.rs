@@ -393,4 +393,206 @@ mod tests {
             "Cannot perform not equal between values of type 'bool' and 'i64'."
         );
     }
+
+    #[test]
+    fn cast_to_type_same_type_is_invalid() {
+        assert_eq!(
+            TypeALU::cast_to_type(Type::I64, &Type::I64).err().unwrap().message(),
+            "Cannot cast 'i64' to 'i64'."
+        );
+
+        assert_eq!(
+            TypeALU::cast_to_type(Type::F64, &Type::F64).err().unwrap().message(),
+            "Cannot cast 'f64' to 'f64'."
+        );
+
+        assert_eq!(
+            TypeALU::cast_to_type(Type::Bool, &Type::Bool).err().unwrap().message(),
+            "Cannot cast 'bool' to 'bool'."
+        );
+
+        assert_eq!(
+            TypeALU::cast_to_type(Type::Str, &Type::Str).err().unwrap().message(),
+            "Cannot cast 'str' to 'str'."
+        );
+    }
+
+    #[test]
+    fn cast_vector_to_supported_types_is_invalid() {
+        assert_eq!(
+            TypeALU::cast_to_type(Type::Vector(Box::new(Type::I64)), &Type::Str)
+                .err()
+                .unwrap()
+                .message(),
+            "Cannot cast 'i64[]' to 'str'."
+        );
+
+        assert_eq!(
+            TypeALU::cast_to_type(Type::Vector(Box::new(Type::I64)), &Type::Bool)
+                .err()
+                .unwrap()
+                .message(),
+            "Cannot cast 'i64[]' to 'bool'."
+        );
+    }
+
+    #[test]
+    fn boolean_negate_rejects_all_non_bool_types() {
+        for ty in [Type::I64, Type::F64, Type::Str, Type::Void] {
+            assert!(TypeALU::boolean_negate(ty).is_err());
+        }
+    }
+
+    #[test]
+    fn arithmetic_negate_rejects_all_non_numeric_types() {
+        for ty in [Type::Bool, Type::Str, Type::Void] {
+            assert!(TypeALU::arithmetic_negate(ty).is_err());
+        }
+    }
+
+    #[test]
+    fn add_supports_all_valid_type_pairs() {
+        assert_eq!(TypeALU::add(Type::I64, Type::I64).unwrap(), Type::I64);
+        assert_eq!(TypeALU::add(Type::F64, Type::F64).unwrap(), Type::F64);
+        assert_eq!(TypeALU::add(Type::Str, Type::Str).unwrap(), Type::Str);
+    }
+
+    #[test]
+    fn add_rejects_mixed_numeric_types() {
+        assert!(TypeALU::add(Type::I64, Type::F64).is_err());
+        assert!(TypeALU::add(Type::F64, Type::I64).is_err());
+    }
+
+    #[test]
+    fn subtract_rejects_all_non_matching_types() {
+        assert!(TypeALU::subtract(Type::I64, Type::F64).is_err());
+        assert!(TypeALU::subtract(Type::F64, Type::I64).is_err());
+        assert!(TypeALU::subtract(Type::Bool, Type::Bool).is_err());
+        assert!(TypeALU::subtract(Type::Str, Type::Str).is_err());
+    }
+
+    #[test]
+    fn multiplication_rejects_all_non_matching_types() {
+        assert!(TypeALU::multiplication(Type::I64, Type::F64).is_err());
+        assert!(TypeALU::multiplication(Type::F64, Type::I64).is_err());
+        assert!(TypeALU::multiplication(Type::Bool, Type::Bool).is_err());
+        assert!(TypeALU::multiplication(Type::Str, Type::Str).is_err());
+    }
+
+    #[test]
+    fn division_rejects_all_non_matching_types() {
+        assert!(TypeALU::division(Type::I64, Type::F64).is_err());
+        assert!(TypeALU::division(Type::F64, Type::I64).is_err());
+        assert!(TypeALU::division(Type::Bool, Type::Bool).is_err());
+        assert!(TypeALU::division(Type::Str, Type::Str).is_err());
+    }
+
+    #[test]
+    fn modulo_valid() {
+        assert_eq!(TypeALU::modulo(Type::I64, Type::I64).unwrap(), Type::I64);
+    }
+
+    #[test]
+    fn modulo_invalid() {
+        assert_eq!(
+            TypeALU::modulo(Type::F64, Type::F64).err().unwrap().message(),
+            "Cannot perform modulo between values of type 'f64' and 'f64'."
+        );
+
+        assert_eq!(
+            TypeALU::modulo(Type::I64, Type::F64).err().unwrap().message(),
+            "Cannot perform modulo between values of type 'i64' and 'f64'."
+        );
+
+        assert_eq!(
+            TypeALU::modulo(Type::Bool, Type::Bool).err().unwrap().message(),
+            "Cannot perform modulo between values of type 'bool' and 'bool'."
+        );
+    }
+
+    #[test]
+    fn concatenation_rejects_non_bool_pairs() {
+        assert!(TypeALU::concatenation(Type::I64, Type::I64).is_err());
+        assert!(TypeALU::concatenation(Type::F64, Type::F64).is_err());
+        assert!(TypeALU::concatenation(Type::Str, Type::Str).is_err());
+    }
+
+    #[test]
+    fn alternative_rejects_non_bool_pairs() {
+        assert!(TypeALU::alternative(Type::I64, Type::I64).is_err());
+        assert!(TypeALU::alternative(Type::F64, Type::F64).is_err());
+        assert!(TypeALU::alternative(Type::Str, Type::Str).is_err());
+    }
+
+    #[test]
+    fn greater_supports_f64() {
+        assert_eq!(TypeALU::greater(Type::F64, Type::F64).unwrap(), Type::Bool);
+    }
+
+    #[test]
+    fn greater_or_equal_supports_f64() {
+        assert_eq!(TypeALU::greater_or_equal(Type::F64, Type::F64).unwrap(), Type::Bool);
+    }
+
+    #[test]
+    fn less_supports_f64() {
+        assert_eq!(TypeALU::less(Type::F64, Type::F64).unwrap(), Type::Bool);
+    }
+
+    #[test]
+    fn less_or_equal_supports_i64() {
+        assert_eq!(TypeALU::less_or_equal(Type::I64, Type::I64).unwrap(), Type::Bool);
+    }
+
+    #[test]
+    fn comparisons_reject_mixed_numeric_types() {
+        assert!(TypeALU::greater(Type::I64, Type::F64).is_err());
+        assert!(TypeALU::greater_or_equal(Type::F64, Type::I64).is_err());
+        assert!(TypeALU::less(Type::I64, Type::F64).is_err());
+        assert!(TypeALU::less_or_equal(Type::F64, Type::I64).is_err());
+    }
+
+    #[test]
+    fn comparisons_reject_non_numeric_types() {
+        assert!(TypeALU::greater(Type::Str, Type::Str).is_err());
+        assert!(TypeALU::greater_or_equal(Type::Bool, Type::Bool).is_err());
+        assert!(TypeALU::less(Type::Str, Type::Str).is_err());
+        assert!(TypeALU::less_or_equal(Type::Bool, Type::Bool).is_err());
+    }
+
+    #[test]
+    fn equality_supports_all_matching_types() {
+        assert_eq!(TypeALU::equal(Type::I64, Type::I64).unwrap(), Type::Bool);
+        assert_eq!(TypeALU::equal(Type::F64, Type::F64).unwrap(), Type::Bool);
+        assert_eq!(TypeALU::equal(Type::Str, Type::Str).unwrap(), Type::Bool);
+        assert_eq!(TypeALU::equal(Type::Bool, Type::Bool).unwrap(), Type::Bool);
+    }
+
+    #[test]
+    fn not_equal_supports_all_matching_types() {
+        assert_eq!(TypeALU::not_equal(Type::I64, Type::I64).unwrap(), Type::Bool);
+        assert_eq!(TypeALU::not_equal(Type::F64, Type::F64).unwrap(), Type::Bool);
+        assert_eq!(TypeALU::not_equal(Type::Str, Type::Str).unwrap(), Type::Bool);
+        assert_eq!(TypeALU::not_equal(Type::Bool, Type::Bool).unwrap(), Type::Bool);
+    }
+
+    #[test]
+    fn equality_rejects_all_mixed_types() {
+        assert!(TypeALU::equal(Type::I64, Type::F64).is_err());
+        assert!(TypeALU::equal(Type::I64, Type::Str).is_err());
+        assert!(TypeALU::equal(Type::I64, Type::Bool).is_err());
+        assert!(TypeALU::equal(Type::F64, Type::Str).is_err());
+        assert!(TypeALU::equal(Type::F64, Type::Bool).is_err());
+        assert!(TypeALU::equal(Type::Str, Type::Bool).is_err());
+    }
+
+    #[test]
+    fn not_equal_rejects_all_mixed_types() {
+        assert!(TypeALU::not_equal(Type::I64, Type::F64).is_err());
+        assert!(TypeALU::not_equal(Type::I64, Type::Str).is_err());
+        assert!(TypeALU::not_equal(Type::I64, Type::Bool).is_err());
+        assert!(TypeALU::not_equal(Type::F64, Type::Str).is_err());
+        assert!(TypeALU::not_equal(Type::F64, Type::Bool).is_err());
+        assert!(TypeALU::not_equal(Type::Str, Type::Bool).is_err());
+    }
 }

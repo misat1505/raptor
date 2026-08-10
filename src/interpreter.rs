@@ -1866,4 +1866,347 @@ mod tests {
 
         assert!(interpreter.execute_function(&ast).is_err())
     }
+
+    #[test]
+    fn interpret_modulo() {
+        let ast = test_node!(Expression::Modulo(
+            Box::new(test_node!(Expression::Literal(Literal::I64(7)))),
+            Box::new(test_node!(Expression::Literal(Literal::I64(3))))
+        ));
+
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+
+        let _ = interpreter.visit_expression(&ast);
+        assert_eq!(interpreter.last_result, Some(Value::I64(1)));
+    }
+
+    #[test]
+    fn while_loop() {
+        // i64 i = 0;
+        // while (i < 5) { i = i + 1; }
+        let ast = test_node!(Statement::WhileLoop {
+            condition: test_node!(Expression::Less(
+                Box::new(test_node!(Expression::Variable(String::from("i")))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(5))))
+            )),
+            block: test_node!(Block(vec![test_node!(Statement::Assignment {
+                identifier: test_node!(String::from("i")),
+                value: test_node!(Expression::Addition(
+                    Box::new(test_node!(Expression::Variable(String::from("i")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(1))))
+                )),
+                indices: vec![]
+            }),])),
+        });
+
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+        let _ = interpreter.stack.declare_variable("i", Rc::new(RefCell::new(Value::I64(0))));
+
+        assert!(interpreter.visit_statement(&ast).is_ok());
+        assert_eq!(interpreter.stack.get_variable("i").unwrap().clone(), Rc::new(RefCell::new(Value::I64(5))));
+        assert_eq!(interpreter.abort_state, None);
+    }
+
+    #[test]
+    fn for_loop_with_continue() {
+        // i64 total = 0;
+        // for (i64 i = 0; i < 5; i = i + 1) { if (i == 2) { continue; } total = total + i; }
+        let ast = test_node!(Statement::ForLoop {
+            declaration: Some(Box::new(test_node!(Statement::Declaration {
+                var_type: test_node!(Type::I64),
+                identifier: test_node!(String::from("i")),
+                value: Some(test_node!(Expression::Literal(Literal::I64(0)))),
+            }))),
+            condition: test_node!(Expression::Less(
+                Box::new(test_node!(Expression::Variable(String::from("i")))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(5))))
+            )),
+            assignment: Some(Box::new(test_node!(Statement::Assignment {
+                identifier: test_node!(String::from("i")),
+                value: test_node!(Expression::Addition(
+                    Box::new(test_node!(Expression::Variable(String::from("i")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(1))))
+                )),
+                indices: vec![]
+            }))),
+            block: test_node!(Block(vec![
+                test_node!(Statement::Conditional {
+                    condition: test_node!(Expression::Equal(
+                        Box::new(test_node!(Expression::Variable(String::from("i")))),
+                        Box::new(test_node!(Expression::Literal(Literal::I64(2))))
+                    )),
+                    if_block: test_node!(Block(vec![test_node!(Statement::Continue)])),
+                    else_block: None,
+                }),
+                test_node!(Statement::Assignment {
+                    identifier: test_node!(String::from("total")),
+                    value: test_node!(Expression::Addition(
+                        Box::new(test_node!(Expression::Variable(String::from("total")))),
+                        Box::new(test_node!(Expression::Variable(String::from("i"))))
+                    )),
+                    indices: vec![]
+                }),
+            ])),
+        });
+
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+        let _ = interpreter.stack.declare_variable("total", Rc::new(RefCell::new(Value::I64(0))));
+
+        assert!(interpreter.visit_statement(&ast).is_ok());
+        // 0+1+3+4 = 8 (pomija i == 2)
+        assert_eq!(
+            interpreter.stack.get_variable("total").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(8)))
+        );
+        assert_eq!(interpreter.abort_state, None);
+    }
+
+    #[test]
+    fn continue_called_outside_for_or_while() {
+        let program = Program {
+            functions: HashMap::new(),
+            std_functions: HashMap::new(),
+            statements: vec![test_node!(Statement::Conditional {
+                condition: test_node!(Expression::Literal(Literal::True)),
+                if_block: test_node!(Block(vec![test_node!(Statement::Continue),])),
+                else_block: None,
+            })],
+        };
+
+        let mut interpreter = Interpreter::new(&program);
+        assert!(interpreter.interpret().is_err())
+    }
+
+    #[test]
+    fn continue_called_outside_for_or_while_in_function() {
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+
+        let ast = FunctionDeclaration {
+            identifier: test_node!(String::from("fun")),
+            parameters: vec![],
+            return_type: test_node!(Type::Void),
+            block: test_node!(Block(vec![test_node!(Statement::Continue),])),
+        };
+
+        assert!(interpreter.execute_function(&ast).is_err())
+    }
+
+    #[test]
+    fn declare_vector_variable() {
+        // i64[] x = [1, 2, 3];
+        let ast = test_node!(Statement::Declaration {
+            var_type: test_node!(Type::Vector(Box::new(Type::I64))),
+            identifier: test_node!(String::from("x")),
+            value: Some(test_node!(Expression::Vector(vec![
+                Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(3)))),
+            ]))),
+        });
+
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+
+        assert!(interpreter.visit_statement(&ast).is_ok());
+    }
+
+    #[test]
+    fn declare_vector_variable_wrong_inner_type_fails() {
+        // i64[] x = ["a"];
+        let ast = test_node!(Statement::Declaration {
+            var_type: test_node!(Type::Vector(Box::new(Type::I64))),
+            identifier: test_node!(String::from("x")),
+            value: Some(test_node!(Expression::Vector(vec![Box::new(test_node!(Expression::Literal(
+                Literal::String(String::from("a"))
+            ))),]))),
+        });
+
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+
+        assert!(interpreter.visit_statement(&ast).is_err());
+    }
+
+    #[test]
+    fn index_into_vector() {
+        // i64[] x = [10, 20, 30];
+        // x[1]
+        let ast = test_node!(Expression::Index {
+            collection: Box::new(test_node!(Expression::Variable(String::from("x")))),
+            index: Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+        });
+
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+
+        let values = Rc::new(RefCell::new(vec![
+            Rc::new(RefCell::new(Value::I64(10))),
+            Rc::new(RefCell::new(Value::I64(20))),
+            Rc::new(RefCell::new(Value::I64(30))),
+        ]));
+        let _ = interpreter.stack.declare_variable(
+            "x",
+            Rc::new(RefCell::new(Value::Vector {
+                kind: Box::new(Type::I64),
+                values,
+            })),
+        );
+
+        let _ = interpreter.visit_expression(&ast);
+        assert_eq!(interpreter.last_result, Some(Value::I64(20)));
+    }
+
+    #[test]
+    fn index_out_of_bounds_fails() {
+        let ast = test_node!(Expression::Index {
+            collection: Box::new(test_node!(Expression::Variable(String::from("x")))),
+            index: Box::new(test_node!(Expression::Literal(Literal::I64(5)))),
+        });
+
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+
+        let values = Rc::new(RefCell::new(vec![Rc::new(RefCell::new(Value::I64(10)))]));
+        let _ = interpreter.stack.declare_variable(
+            "x",
+            Rc::new(RefCell::new(Value::Vector {
+                kind: Box::new(Type::I64),
+                values,
+            })),
+        );
+
+        assert!(interpreter.visit_expression(&ast).is_err());
+    }
+
+    #[test]
+    fn assign_by_index() {
+        // x[1] = 99;
+        let ast = test_node!(Statement::Assignment {
+            identifier: test_node!(String::from("x")),
+            value: test_node!(Expression::Literal(Literal::I64(99))),
+            indices: vec![test_node!(Expression::Literal(Literal::I64(1)))]
+        });
+
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+
+        let values = Rc::new(RefCell::new(vec![
+            Rc::new(RefCell::new(Value::I64(10))),
+            Rc::new(RefCell::new(Value::I64(20))),
+        ]));
+        let _ = interpreter.stack.declare_variable(
+            "x",
+            Rc::new(RefCell::new(Value::Vector {
+                kind: Box::new(Type::I64),
+                values: values.clone(),
+            })),
+        );
+
+        assert!(interpreter.visit_statement(&ast).is_ok());
+        assert_eq!(values.borrow()[1].borrow().clone(), Value::I64(99));
+    }
+
+    #[test]
+    fn call_undeclared_function_fails() {
+        let ast = test_node!(Statement::FunctionCall {
+            identifier: test_node!(String::from("does_not_exist")),
+            arguments: vec![],
+        });
+
+        let program = setup_program();
+        let mut interpreter = create_interpreter(&program);
+
+        assert!(interpreter.visit_statement(&ast).is_err());
+    }
+
+    #[test]
+    fn call_function_wrong_arg_count_fails() {
+        let ast = test_node!(Statement::FunctionCall {
+            identifier: test_node!(String::from("add")),
+            arguments: vec![Box::new(test_node!(Argument {
+                value: test_node!(Expression::Literal(Literal::I64(1))),
+                passed_by: PassedBy::Value,
+            })),],
+        });
+
+        let mut functions: HashMap<String, Rc<Node<FunctionDeclaration>>> = HashMap::new();
+        functions.insert(
+            String::from("add"),
+            Rc::new(test_node!(FunctionDeclaration {
+                identifier: test_node!(String::from("add")),
+                parameters: vec![
+                    test_node!(Parameter {
+                        passed_by: PassedBy::Value,
+                        parameter_type: test_node!(Type::I64),
+                        identifier: test_node!(String::from("a")),
+                    }),
+                    test_node!(Parameter {
+                        passed_by: PassedBy::Value,
+                        parameter_type: test_node!(Type::I64),
+                        identifier: test_node!(String::from("b")),
+                    }),
+                ],
+                return_type: test_node!(Type::I64),
+                block: test_node!(Block(vec![])),
+            })),
+        );
+
+        let program = Program {
+            statements: vec![],
+            std_functions: HashMap::new(),
+            functions,
+        };
+        let mut interpreter = Interpreter::new(&program);
+        assert!(interpreter.visit_statement(&ast).is_err());
+    }
+
+    #[test]
+    fn call_function_by_reference() {
+        // fn increment(&i64 x): void { x = x + 1; }
+        // i64 y = 5; increment(&y);
+        let mut functions: HashMap<String, Rc<Node<FunctionDeclaration>>> = HashMap::new();
+        functions.insert(
+            String::from("increment"),
+            Rc::new(test_node!(FunctionDeclaration {
+                identifier: test_node!(String::from("increment")),
+                parameters: vec![test_node!(Parameter {
+                    passed_by: PassedBy::Reference,
+                    parameter_type: test_node!(Type::I64),
+                    identifier: test_node!(String::from("x")),
+                }),],
+                return_type: test_node!(Type::Void),
+                block: test_node!(Block(vec![test_node!(Statement::Assignment {
+                    identifier: test_node!(String::from("x")),
+                    value: test_node!(Expression::Addition(
+                        Box::new(test_node!(Expression::Variable(String::from("x")))),
+                        Box::new(test_node!(Expression::Literal(Literal::I64(1))))
+                    )),
+                    indices: vec![]
+                }),])),
+            })),
+        );
+
+        let ast = test_node!(Statement::FunctionCall {
+            identifier: test_node!(String::from("increment")),
+            arguments: vec![Box::new(test_node!(Argument {
+                value: test_node!(Expression::Variable(String::from("y"))),
+                passed_by: PassedBy::Reference,
+            })),],
+        });
+
+        let program = Program {
+            statements: vec![],
+            std_functions: HashMap::new(),
+            functions,
+        };
+        let mut interpreter = Interpreter::new(&program);
+        let _ = interpreter.stack.declare_variable("y", Rc::new(RefCell::new(Value::I64(5))));
+
+        assert!(interpreter.visit_statement(&ast).is_ok());
+        assert_eq!(interpreter.stack.get_variable("y").unwrap().clone(), Rc::new(RefCell::new(Value::I64(6))));
+    }
 }

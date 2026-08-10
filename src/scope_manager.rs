@@ -254,4 +254,85 @@ mod tests {
             String::from("Cannot redeclare variable 'x'.")
         );
     }
+
+    #[test]
+    fn scope_manager_len() {
+        let mut manager = ScopeManager::new();
+        assert_eq!(manager.len(), 1);
+
+        manager.push_scope();
+        assert_eq!(manager.len(), 2);
+
+        manager.push_scope();
+        assert_eq!(manager.len(), 3);
+
+        manager.pop_scope();
+        assert_eq!(manager.len(), 2);
+    }
+
+    #[test]
+    fn scope_manager_assign_undeclared_variable_fails() {
+        let mut manager = ScopeManager::new();
+
+        assert_eq!(
+            manager
+                .assign_variable("x", Rc::new(RefCell::new(Value::I64(1))))
+                .err()
+                .unwrap()
+                .message(),
+            String::from("Variable 'x' not declared in this scope.")
+        );
+    }
+
+    #[test]
+    fn disallows_shadowing_variable_from_outer_scope() {
+        // i64 x = 1;
+        // { i64 x = 2; } <- should fail, shadowing not allowed
+        let mut manager = ScopeManager::new();
+
+        let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))));
+
+        manager.push_scope();
+        assert_eq!(
+            manager
+                .declare_variable("x", Rc::new(RefCell::new(Value::I64(2))))
+                .err()
+                .unwrap()
+                .message(),
+            String::from("Cannot redeclare variable 'x'.")
+        );
+
+        assert_eq!(manager.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(1))));
+    }
+
+    #[test]
+    fn popping_last_remaining_scope_breaks_declare_invariant() {
+        let mut manager = ScopeManager::new();
+        assert_eq!(manager.len(), 1);
+
+        manager.pop_scope();
+        assert_eq!(manager.len(), 0);
+
+        assert_eq!(
+            manager
+                .declare_variable("x", Rc::new(RefCell::new(Value::I64(1))))
+                .err()
+                .unwrap()
+                .message(),
+            String::from("No scope available to set the variable.")
+        );
+    }
+
+    #[test]
+    fn popping_last_remaining_scope_makes_get_variable_fail() {
+        let mut manager = ScopeManager::new();
+        let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))));
+
+        manager.pop_scope();
+
+        assert_eq!(
+            manager.get_variable("x").err().unwrap().message(),
+            String::from("Variable 'x' not declared in this scope.")
+        );
+    }
 }

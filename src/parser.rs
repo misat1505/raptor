@@ -1141,7 +1141,7 @@ impl<L: ILexer> Parser<L> {
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
+    use std::{assert_eq, vec};
 
     use crate::{
         errors::{ErrorSeverity, LexerError},
@@ -2899,5 +2899,497 @@ mod tests {
 
         assert!(result.unwrap().is_none());
         assert_eq!(parser.current_token().clone().category, TokenCategory::ParenOpen);
+    }
+
+    #[test]
+    fn parse_compound_assignments() {
+        let token_series = [
+            vec![
+                // x += 1;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::PlusEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x -= 1;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::MinusEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x *= 2;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::TimesEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x /= 2;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::DivideEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x %= 2;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::ModuloEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        let expected = [
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Addition(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+                )),
+                indices: vec![],
+            },
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Subtraction(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+                )),
+                indices: vec![],
+            },
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Multiplication(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                )),
+                indices: vec![],
+            },
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Division(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                )),
+                indices: vec![],
+            },
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Modulo(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                )),
+                indices: vec![],
+            },
+        ];
+
+        for (idx, series) in token_series.iter().enumerate() {
+            let mock_lexer = LexerMock::new(series.to_vec());
+            let mut parser = Parser::new(mock_lexer);
+
+            let node = parser.parse_assign_or_call().unwrap().unwrap();
+            assert_eq!(node.value, expected[idx]);
+        }
+    }
+
+    #[test]
+    fn parse_compound_assignment_with_index() {
+        // x[0] += 1;
+        let tokens = vec![
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+            create_token(TokenCategory::BracketOpen, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(0)),
+            create_token(TokenCategory::BracketClose, TokenValue::Null),
+            create_token(TokenCategory::PlusEquals, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let expected = Statement::Assignment {
+            identifier: test_node!(String::from("x")),
+            indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+            value: test_node!(Expression::Addition(
+                Box::new(test_node!(Expression::Index {
+                    collection: Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    index: Box::new(test_node!(Expression::Literal(Literal::I64(0)))),
+                })),
+                Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+            )),
+        };
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_assign_or_call().unwrap().unwrap();
+        assert_eq!(node.value, expected);
+    }
+
+    #[test]
+    fn parse_assignment_with_index() {
+        // x[0] = 5;
+        let tokens = vec![
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+            create_token(TokenCategory::BracketOpen, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(0)),
+            create_token(TokenCategory::BracketClose, TokenValue::Null),
+            create_token(TokenCategory::Assign, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(5)),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let expected = Statement::Assignment {
+            identifier: test_node!(String::from("x")),
+            indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+            value: test_node!(Expression::Literal(Literal::I64(5))),
+        };
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_assign_or_call().unwrap().unwrap();
+        assert_eq!(node.value, expected);
+    }
+
+    #[test]
+    fn parse_continue_statement_fail() {
+        let series = vec![
+            // continue
+            create_token(TokenCategory::Continue, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(series);
+        let mut parser = Parser::new(mock_lexer);
+
+        assert!(parser.parse_continue_statement().is_err());
+    }
+
+    #[test]
+    fn parse_continue_statement() {
+        let tokens = vec![
+            // continue;
+            create_token(TokenCategory::Continue, TokenValue::Null),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_continue_statement().unwrap().unwrap();
+        assert_eq!(node.value, Statement::Continue);
+    }
+
+    #[test]
+    fn parse_while_statement_fail() {
+        let token_series = [
+            vec![
+                // while true) {}
+                create_token(TokenCategory::While, TokenValue::Null),
+                create_token(TokenCategory::True, TokenValue::Null),
+                create_token(TokenCategory::ParenClose, TokenValue::Null),
+                create_token(TokenCategory::BraceOpen, TokenValue::Null),
+                create_token(TokenCategory::BraceClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // while (true {}
+                create_token(TokenCategory::While, TokenValue::Null),
+                create_token(TokenCategory::ParenOpen, TokenValue::Null),
+                create_token(TokenCategory::True, TokenValue::Null),
+                create_token(TokenCategory::BraceOpen, TokenValue::Null),
+                create_token(TokenCategory::BraceClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        for series in token_series {
+            let mock_lexer = LexerMock::new(series);
+            let mut parser = Parser::new(mock_lexer);
+
+            assert!(parser.parse_while_statement().is_err());
+        }
+    }
+
+    #[test]
+    fn parse_while_statement() {
+        let tokens = vec![
+            // while (true) {}
+            create_token(TokenCategory::While, TokenValue::Null),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::True, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let expected = Statement::WhileLoop {
+            condition: test_node!(Expression::Literal(Literal::True)),
+            block: test_node!(Block(vec![])),
+        };
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_while_statement().unwrap().unwrap();
+        assert_eq!(node.value, expected);
+    }
+
+    #[test]
+    fn parse_vector_literal() {
+        let token_series = [
+            vec![
+                // []
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // [1, 2, 3]
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+                create_token(TokenCategory::Comma, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+                create_token(TokenCategory::Comma, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(3)),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        let expected = [
+            Expression::Vector(vec![]),
+            Expression::Vector(vec![
+                Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(3)))),
+            ]),
+        ];
+
+        for (idx, series) in token_series.iter().enumerate() {
+            let mock_lexer = LexerMock::new(series.to_vec());
+            let mut parser = Parser::new(mock_lexer);
+
+            let node = parser.parse_vector_literal().unwrap().unwrap();
+            assert_eq!(node.value, expected[idx]);
+        }
+    }
+
+    #[test]
+    fn parse_identifier_or_call_with_index() {
+        let token_series = [
+            vec![
+                // x[0]
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(0)),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x[0][1]
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(0)),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        let expected = [
+            Expression::Index {
+                collection: Box::new(test_node!(Expression::Variable(String::from("x")))),
+                index: Box::new(test_node!(Expression::Literal(Literal::I64(0)))),
+            },
+            Expression::Index {
+                collection: Box::new(test_node!(Expression::Index {
+                    collection: Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    index: Box::new(test_node!(Expression::Literal(Literal::I64(0)))),
+                })),
+                index: Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+            },
+        ];
+
+        for (idx, series) in token_series.iter().enumerate() {
+            let mock_lexer = LexerMock::new(series.to_vec());
+            let mut parser = Parser::new(mock_lexer);
+
+            let node = parser.parse_identifier_or_call().unwrap().unwrap();
+            assert_eq!(node.value, expected[idx]);
+        }
+    }
+
+    #[test]
+    fn parse_multiplicative_term_modulo() {
+        let tokens = vec![
+            // 5 % 2
+            create_token(TokenCategory::I64Value, TokenValue::I64(5)),
+            create_token(TokenCategory::Modulo, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_multiplicative_term().unwrap().unwrap();
+        assert_eq!(
+            node.value,
+            Expression::Modulo(
+                Box::new(test_node!(Expression::Literal(Literal::I64(5)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+            )
+        );
+    }
+
+    #[test]
+    fn parse_type_vector() {
+        let token_series = [
+            vec![
+                // i64[]
+                create_token(TokenCategory::I64, TokenValue::Null),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // i64[][]
+                create_token(TokenCategory::I64, TokenValue::Null),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        let expected = [
+            Type::Vector(Box::new(Type::I64)),
+            Type::Vector(Box::new(Type::Vector(Box::new(Type::I64)))),
+        ];
+
+        for (idx, series) in token_series.iter().enumerate() {
+            let mock_lexer = LexerMock::new(series.to_vec());
+            let mut parser = Parser::new(mock_lexer);
+
+            let node = parser.parse_type().unwrap().unwrap();
+            assert_eq!(node.value, expected[idx]);
+        }
+    }
+
+    #[test]
+    fn parse_full_program() {
+        let tokens = vec![
+            // fn add(): i64 { return 1; }
+            // x = 5;
+            create_token(TokenCategory::Fn, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("add"))),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::Colon, TokenValue::Null),
+            create_token(TokenCategory::I64, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::Return, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+            create_token(TokenCategory::Assign, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(5)),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(
+            program.statements[0].value,
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Literal(Literal::I64(5))),
+                indices: vec![],
+            }
+        );
+
+        let add_fn = program.functions.get("add").expect("function 'add' should be registered");
+        assert_eq!(add_fn.value.return_type.value, Type::I64);
+        assert_eq!(add_fn.value.parameters, vec![]);
+        assert_eq!(
+            add_fn.value.block.value,
+            Block(vec![test_node!(Statement::Return(Some(test_node!(Expression::Literal(Literal::I64(
+                1
+            ))))))])
+        );
+    }
+
+    #[test]
+    fn parse_program_redeclared_function_fails() {
+        let tokens = vec![
+            // fn add(): void {} fn add(): void {}
+            create_token(TokenCategory::Fn, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("add"))),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::Colon, TokenValue::Null),
+            create_token(TokenCategory::Void, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::Fn, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("add"))),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::Colon, TokenValue::Null),
+            create_token(TokenCategory::Void, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let err = parser.parse().unwrap_err();
+        assert_eq!(err.message(), format!("Redeclaration of function 'add'.\nAt: {:?}.", default_position()));
+    }
+
+    #[test]
+    fn parse_program_function_shadows_std_function_fails() {
+        let tokens = vec![
+            // fn print(): void {}
+            create_token(TokenCategory::Fn, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("print"))),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::Colon, TokenValue::Null),
+            create_token(TokenCategory::Void, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let err = parser.parse().unwrap_err();
+        assert_eq!(
+            err.message(),
+            format!("Redeclaration of function 'print'.\nAt: {:?}.", default_position())
+        );
     }
 }

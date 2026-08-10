@@ -428,4 +428,248 @@ mod tests {
         stack.pop_stack_frame();
         assert_eq!(stack.size(), 1);
     }
+
+    #[test]
+    fn stack_is_in_continuable_false_by_default() {
+        let stack = StaticCheckerStack::new();
+
+        assert!(!stack.is_in_continuable());
+    }
+
+    #[test]
+    fn stack_enter_continuable_sets_flag() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.enter_continuable();
+
+        assert!(stack.is_in_continuable());
+    }
+
+    #[test]
+    fn stack_exit_continuable_clears_flag() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.enter_continuable();
+        stack.exit_continuable();
+
+        assert!(!stack.is_in_continuable());
+    }
+
+    #[test]
+    fn stack_nested_continuable_counts_correctly() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.enter_continuable();
+        stack.enter_continuable();
+
+        assert!(stack.is_in_continuable());
+
+        stack.exit_continuable();
+
+        assert!(stack.is_in_continuable());
+
+        stack.exit_continuable();
+
+        assert!(!stack.is_in_continuable());
+    }
+
+    #[test]
+    fn stack_continuable_is_per_frame() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.enter_continuable();
+
+        assert!(stack.is_in_continuable());
+
+        stack.push_stack_frame().unwrap();
+
+        assert!(!stack.is_in_continuable());
+
+        stack.enter_continuable();
+
+        assert!(stack.is_in_continuable());
+
+        stack.pop_stack_frame();
+
+        assert!(stack.is_in_continuable());
+    }
+
+    #[test]
+    fn stack_breakable_and_continuable_are_independent() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.enter_breakable();
+
+        assert!(stack.is_in_breakable());
+        assert!(!stack.is_in_continuable());
+
+        stack.enter_continuable();
+
+        assert!(stack.is_in_breakable());
+        assert!(stack.is_in_continuable());
+
+        stack.exit_breakable();
+
+        assert!(!stack.is_in_breakable());
+        assert!(stack.is_in_continuable());
+
+        stack.exit_continuable();
+
+        assert!(!stack.is_in_breakable());
+        assert!(!stack.is_in_continuable());
+    }
+
+    #[test]
+    fn stack_new_frame_resets_breakable_and_continuable_state() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.enter_breakable();
+        stack.enter_continuable();
+
+        assert!(stack.is_in_breakable());
+        assert!(stack.is_in_continuable());
+
+        stack.push_stack_frame().unwrap();
+
+        assert!(!stack.is_in_breakable());
+        assert!(!stack.is_in_continuable());
+    }
+
+    #[test]
+    fn stack_frame_scope_and_loop_state_are_independent() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.push_scope();
+        stack.declare_variable("x", Type::I64).unwrap();
+        stack.enter_breakable();
+        stack.enter_continuable();
+
+        assert!(stack.get_variable("x").is_ok());
+        assert!(stack.is_in_breakable());
+        assert!(stack.is_in_continuable());
+
+        stack.pop_scope();
+
+        assert!(stack.get_variable("x").is_err());
+        assert!(stack.is_in_breakable());
+        assert!(stack.is_in_continuable());
+    }
+
+    #[test]
+    fn scope_manager_len_changes_with_nested_scopes() {
+        let mut manager = StaticCheckerScopeManager::new();
+
+        assert_eq!(manager.len(), 1);
+
+        manager.push_scope();
+        assert_eq!(manager.len(), 2);
+
+        manager.push_scope();
+        assert_eq!(manager.len(), 3);
+
+        manager.pop_scope();
+        assert_eq!(manager.len(), 2);
+
+        manager.pop_scope();
+        assert_eq!(manager.len(), 1);
+    }
+
+    #[test]
+    fn scope_manager_nested_scope_variable_disappears_after_pop() {
+        let mut manager = StaticCheckerScopeManager::new();
+
+        manager.push_scope();
+        manager.declare_variable("inner", Type::Bool).unwrap();
+
+        assert_eq!(manager.get_variable("inner").unwrap(), &Type::Bool);
+
+        manager.pop_scope();
+
+        assert!(manager.get_variable("inner").is_err());
+    }
+
+    #[test]
+    fn scope_manager_cannot_redeclare_variable_from_outer_scope() {
+        let mut manager = StaticCheckerScopeManager::new();
+
+        manager.declare_variable("x", Type::I64).unwrap();
+        manager.push_scope();
+
+        let result = manager.declare_variable("x", Type::F64);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().message(), "Cannot redeclare variable 'x'.");
+    }
+
+    #[test]
+    fn scope_manager_assignment_keeps_original_type() {
+        let mut manager = StaticCheckerScopeManager::new();
+
+        manager.declare_variable("x", Type::I64).unwrap();
+
+        assert!(manager.assign_variable("x", Type::I64).is_ok());
+        assert_eq!(manager.get_variable("x").unwrap(), &Type::I64);
+
+        assert!(manager.assign_variable("x", Type::F64).is_err());
+        assert_eq!(manager.get_variable("x").unwrap(), &Type::I64);
+    }
+
+    #[test]
+    fn stack_assignment_uses_current_frame_only() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.declare_variable("x", Type::I64).unwrap();
+        stack.push_stack_frame().unwrap();
+
+        assert!(stack.assign_variable("x", Type::I64).is_err());
+    }
+
+    #[test]
+    fn stack_new_frame_has_empty_scope_manager() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.push_scope();
+        stack.declare_variable("x", Type::I64).unwrap();
+
+        stack.push_stack_frame().unwrap();
+
+        assert_eq!(stack.0.last().unwrap().scope_manager.len(), 1);
+        assert!(stack.get_variable("x").is_err());
+    }
+
+    #[test]
+    fn stack_overflow_does_not_increase_size() {
+        let mut stack = StaticCheckerStack::new();
+
+        for _ in 0..499 {
+            stack.push_stack_frame().unwrap();
+        }
+
+        assert_eq!(stack.size(), 500);
+
+        let result = stack.push_stack_frame();
+
+        assert!(result.is_err());
+        assert_eq!(stack.size(), 500);
+    }
+
+    #[test]
+    fn stack_pop_frame_restores_previous_loop_state() {
+        let mut stack = StaticCheckerStack::new();
+
+        stack.enter_breakable();
+        stack.enter_continuable();
+
+        stack.push_stack_frame().unwrap();
+
+        stack.enter_breakable();
+
+        assert!(stack.is_in_breakable());
+        assert!(!stack.is_in_continuable());
+
+        stack.pop_stack_frame();
+
+        assert!(stack.is_in_breakable());
+        assert!(stack.is_in_continuable());
+    }
 }

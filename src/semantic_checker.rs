@@ -982,7 +982,7 @@ mod tests {
         let errors = run_check(&program);
         assert!(errors
             .iter()
-            .any(|e| e.contains("break statement is not inside a loop nor inside a switch case")));
+            .any(|e| e.contains("Break statement is not inside a loop nor inside a switch case")));
     }
 
     #[test]

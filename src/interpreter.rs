@@ -13,13 +13,18 @@ use crate::{
     visitor::Visitor,
 };
 
+#[derive(Debug, PartialEq)]
+enum AbortState {
+    Break,
+    Continue,
+    Return,
+}
+
 pub struct Interpreter<'a> {
     program: &'a Program,
     stack: Stack<'a>,
     last_result: Option<Value>,
-    is_breaking: bool,
-    is_returning: bool,
-    is_continuing: bool,
+    abort_state: Option<AbortState>,
     position: Position,
     last_arguments: Vec<Rc<RefCell<Value>>>,
 }
@@ -29,10 +34,8 @@ impl<'a> Interpreter<'a> {
         Interpreter {
             program,
             stack: Stack::new(),
+            abort_state: None,
             last_result: None,
-            is_breaking: false,
-            is_returning: false,
-            is_continuing: false,
             position: Position {
                 filename: None,
                 line: 0,
@@ -102,28 +105,24 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
         for statement in &program.statements {
             self.visit_statement(statement)?;
 
-            if self.is_breaking {
-                return Err(Box::new(InterpreterError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("Break called outside 'for' or 'switch'."),
-                    self.position,
-                )));
-            }
-
-            if self.is_returning {
-                return Err(Box::new(InterpreterError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("Return called outside a function."),
-                    self.position,
-                )));
-            }
-
-            if self.is_continuing {
-                return Err(Box::new(InterpreterError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("Continue called outside 'for' or 'while'."),
-                    self.position,
-                )));
+            if let Some(abort) = &self.abort_state {
+                return match abort {
+                    AbortState::Break => Err(Box::new(InterpreterError::at(
+                        ErrorSeverity::HIGH,
+                        String::from("Break called outside 'for' or 'switch'."),
+                        self.position,
+                    ))),
+                    AbortState::Continue => Err(Box::new(InterpreterError::at(
+                        ErrorSeverity::HIGH,
+                        String::from("Continue called outside 'for' or 'while'."),
+                        self.position,
+                    ))),
+                    AbortState::Return => Err(Box::new(InterpreterError::at(
+                        ErrorSeverity::HIGH,
+                        String::from("Return called outside a function."),
+                        self.position,
+                    ))),
+                };
             }
         }
 
@@ -349,17 +348,19 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                 while boolean_value {
                     self.visit_block(block)?;
 
-                    if self.is_returning {
-                        break;
-                    }
-
-                    if self.is_breaking {
-                        self.is_breaking = false;
-                        break;
-                    }
-
-                    if self.is_continuing {
-                        self.is_continuing = false;
+                    if let Some(abort) = &self.abort_state {
+                        match abort {
+                            AbortState::Break => {
+                                self.abort_state = None;
+                                break;
+                            }
+                            AbortState::Return => {
+                                break;
+                            }
+                            AbortState::Continue => {
+                                self.abort_state = None;
+                            }
+                        }
                     }
 
                     self.visit_expression(condition)?;
@@ -395,17 +396,19 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                 while boolean_value {
                     self.visit_block(block)?;
 
-                    if self.is_returning {
-                        break;
-                    }
-
-                    if self.is_breaking {
-                        self.is_breaking = false;
-                        break;
-                    }
-
-                    if self.is_continuing {
-                        self.is_continuing = false;
+                    if let Some(abort) = &self.abort_state {
+                        match abort {
+                            AbortState::Break => {
+                                self.abort_state = None;
+                                break;
+                            }
+                            AbortState::Return => {
+                                break;
+                            }
+                            AbortState::Continue => {
+                                self.abort_state = None;
+                            }
+                        }
                     }
 
                     if let Some(assign) = assignment {
@@ -434,13 +437,19 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                 for case in cases {
                     self.visit_switch_case(case)?;
 
-                    if self.is_returning || self.is_continuing {
-                        break;
-                    }
-
-                    if self.is_breaking {
-                        self.is_breaking = false;
-                        break;
+                    if let Some(abort) = &self.abort_state {
+                        match abort {
+                            AbortState::Break => {
+                                self.abort_state = None;
+                                break;
+                            }
+                            AbortState::Return => {
+                                break;
+                            }
+                            AbortState::Continue => {
+                                break;
+                            }
+                        }
                     }
                 }
 
@@ -455,16 +464,16 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                     returned_value = Some(self.read_last_result()?);
                 }
 
-                self.is_returning = true;
+                self.abort_state = Some(AbortState::Return);
                 self.last_result = returned_value;
             }
 
             Statement::Break => {
-                self.is_breaking = true;
+                self.abort_state = Some(AbortState::Break);
             }
 
             Statement::Continue => {
-                self.is_continuing = true;
+                self.abort_state = Some(AbortState::Continue);
             }
         }
 
@@ -480,7 +489,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
         self.stack.push_scope();
 
         for statement in &block.value.0 {
-            if self.is_breaking || self.is_returning || self.is_continuing {
+            if let Some(_) = self.abort_state {
                 break;
             }
 
@@ -667,8 +676,8 @@ impl<'a> Interpreter<'a> {
 
             self.execute_function(&function_declaration.value)?;
 
-            if self.is_returning {
-                self.is_returning = false;
+            if let Some(AbortState::Return) = self.abort_state {
+                self.abort_state = None;
             }
 
             self.last_arguments.clear();
@@ -729,31 +738,35 @@ impl<'a> Interpreter<'a> {
         }
 
         for statement in statements {
-            if self.is_returning {
-                self.is_returning = false;
+            if let Some(AbortState::Return) = self.abort_state {
+                self.abort_state = None;
                 break;
             }
 
             self.visit_statement(statement)?;
 
-            if self.is_breaking {
-                self.stack.pop_stack_frame();
+            if let Some(abort) = &self.abort_state {
+                match abort {
+                    AbortState::Break => {
+                        self.stack.pop_stack_frame();
 
-                return Err(Box::new(InterpreterError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("Break called outside 'for' or 'switch'."),
-                    statement.position,
-                )));
-            }
+                        return Err(Box::new(InterpreterError::at(
+                            ErrorSeverity::HIGH,
+                            String::from("Break called outside 'for' or 'switch'."),
+                            statement.position,
+                        )));
+                    }
+                    AbortState::Continue => {
+                        self.stack.pop_stack_frame();
 
-            if self.is_continuing {
-                self.stack.pop_stack_frame();
-
-                return Err(Box::new(InterpreterError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("Continue called outside 'for' or 'while'."),
-                    statement.position,
-                )));
+                        return Err(Box::new(InterpreterError::at(
+                            ErrorSeverity::HIGH,
+                            String::from("Continue called outside 'for' or 'while'."),
+                            statement.position,
+                        )));
+                    }
+                    _ => {}
+                }
             }
         }
 
@@ -1641,7 +1654,7 @@ mod tests {
         let _ = interpreter.stack.declare_variable("i", Rc::new(RefCell::new(Value::I64(0))));
 
         assert!(interpreter.visit_statement(&ast).is_ok());
-        assert_eq!(interpreter.is_breaking, false);
+        assert_eq!(interpreter.abort_state, None);
         assert_eq!(interpreter.stack.get_variable("i").unwrap().clone(), Rc::new(RefCell::new(Value::I64(5))));
     }
 
@@ -1695,7 +1708,7 @@ mod tests {
         let mut interpreter = Interpreter::new(&program);
         assert!(interpreter.visit_statement(&ast).is_ok());
         assert_eq!(interpreter.last_result, Some(Value::I64(7)));
-        assert_eq!(interpreter.is_returning, false);
+        assert_eq!(interpreter.abort_state, None);
     }
 
     fn create_test_switch_case() -> Node<Statement> {
@@ -1763,7 +1776,7 @@ mod tests {
             interpreter.stack.get_variable("result").unwrap().clone(),
             Rc::new(RefCell::new(Value::I64(15)))
         );
-        assert_eq!(interpreter.is_breaking, false);
+        assert_eq!(interpreter.abort_state, None);
     }
 
     #[test]
@@ -1782,7 +1795,7 @@ mod tests {
             interpreter.stack.get_variable("result").unwrap().clone(),
             Rc::new(RefCell::new(Value::I64(10)))
         );
-        assert_eq!(interpreter.is_breaking, false);
+        assert_eq!(interpreter.abort_state, None);
     }
 
     #[test]
@@ -1801,7 +1814,7 @@ mod tests {
             interpreter.stack.get_variable("result").unwrap().clone(),
             Rc::new(RefCell::new(Value::I64(0)))
         );
-        assert_eq!(interpreter.is_breaking, false);
+        assert_eq!(interpreter.abort_state, None);
     }
 
     #[test]

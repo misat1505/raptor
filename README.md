@@ -150,7 +150,7 @@ fn is_prime(i64 x, &i64 total_iters): bool {
 
 **parameter** = [“&”], type, identifier;
 
-**statement_block** = "{", {statement}, "}";
+**statement_block** = ("{", {statement}, "}") | statement;
 
 **statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement | continue_statement;
 

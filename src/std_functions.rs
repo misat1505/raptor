@@ -168,35 +168,6 @@ impl StdFunction {
         }
     }
 
-    fn modulo() -> Self {
-        let params = vec![Type::I64, Type::I64];
-        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
-            let fn_name = "modulo";
-            let expected_types = vec![Type::I64, Type::I64];
-            let mut actual_types: Vec<Type> = vec![];
-            if let (Some(val1), Some(val2)) = (params.get(0), params.get(1)) {
-                actual_types.push(val1.borrow().to_type());
-                actual_types.push(val2.borrow().to_type());
-                let val1 = val1.borrow();
-                let val2 = val2.borrow();
-                match (&*val1, &*val2) {
-                    (Value::I64(val1), Value::I64(val2)) => Ok(Some(Value::I64(*val1 % *val2))),
-                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
-                }
-            } else {
-                Err(build_usage_error(fn_name, expected_types, actual_types))
-            }
-        };
-
-        StdFunction {
-            params,
-            execute,
-            passed_by: vec![PassedBy::Value, PassedBy::Value],
-            return_type: Type::I64,
-            type_check: None,
-        }
-    }
-
     fn read_file() -> Self {
         let params = vec![Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
@@ -803,7 +774,6 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
     std_functions.insert("print".to_owned(), StdFunction::print());
     std_functions.insert("println".to_owned(), StdFunction::println());
     std_functions.insert("input".to_owned(), StdFunction::input());
-    std_functions.insert("mod".to_owned(), StdFunction::modulo());
     std_functions.insert("read_file".to_owned(), StdFunction::read_file());
     std_functions.insert("write_file".to_owned(), StdFunction::write_file());
     std_functions.insert("append_file".to_owned(), StdFunction::append_file());

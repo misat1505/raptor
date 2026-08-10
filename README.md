@@ -154,7 +154,7 @@ fn is_prime(i64 x, &i64 total_iters): bool {
 
 **statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement | continue_statement;
 
-**assign_or_call_without_semicolon** = identifier, ( { "[", expression, "]" }, ("=" | "+=" | "-=" | "*=" | "/="), expression | "(", arguments, ")");
+**assign_or_call_without_semicolon** = identifier, ( { "[", expression, "]" }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
 
 **assign_or_call** = assign_or_call_without_semicolon, ";";
 
@@ -249,7 +249,7 @@ x == y
 1 + (1 + 2) / (2 + 3)
 ```
 
-**multiplicative_term** = casted_term, { ("\*" | "/"), casted_term };
+**multiplicative_term** = casted_term, { ("\*" | "/" | "%"), casted_term };
 
 ```
 (1 + 2) / (2 + 3)
@@ -401,6 +401,12 @@ switch (x: temp1, y: temp2) {
   </tr>
   <tr>
    <td>/
+   </td>
+   <td>5
+   </td>
+  </tr>
+   <tr>
+   <td>%
    </td>
    <td>5
    </td>

@@ -27,6 +27,7 @@ pub enum Expression {
     Subtraction(BNode<Expression>, BNode<Expression>),
     Multiplication(BNode<Expression>, BNode<Expression>),
     Division(BNode<Expression>, BNode<Expression>),
+    Modulo(BNode<Expression>, BNode<Expression>),
     // Unary operations
     BooleanNegation(BNode<Expression>),
     ArithmeticNegation(BNode<Expression>),

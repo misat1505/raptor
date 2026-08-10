@@ -262,6 +262,7 @@ impl Lexer {
             '-' => Some(self.extend_minus()),
             '*' => Some(self.extend_to_next('=', TokenCategory::Multiply, TokenCategory::TimesEquals)),
             '/' => Some(self.extend_to_next('=', TokenCategory::Divide, TokenCategory::DivideEquals)),
+            '%' => Some(self.extend_to_next('=', TokenCategory::Modulo, TokenCategory::ModuloEquals)),
             '<' => Some(self.extend_to_next('=', TokenCategory::Less, TokenCategory::LessOrEqual)),
             '>' => Some(self.extend_to_next('=', TokenCategory::Greater, TokenCategory::GreaterOrEqual)),
             '!' => Some(self.extend_to_next('=', TokenCategory::Negate, TokenCategory::NotEqual)),

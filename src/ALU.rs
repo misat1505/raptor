@@ -176,6 +176,20 @@ impl ALU {
         }
     }
 
+    pub fn modulo(val1: Value, val2: Value) -> Result<Value, ComputationError> {
+        match (&val1, &val2) {
+            (Value::I64(_), Value::I64(_)) => Self::check_int_operation(&val1, &val2, i64::checked_rem, "modulo"),
+            (a, b) => Err(ComputationError::new(
+                ErrorSeverity::HIGH,
+                format!(
+                    "Cannot perform modulo between values of type '{:?}' and '{:?}'.",
+                    a.to_type(),
+                    b.to_type()
+                ),
+            )),
+        }
+    }
+
     pub fn concatenation(val1: Value, val2: Value) -> Result<Value, ComputationError> {
         match (val1, val2) {
             (Value::Bool(bool1), Value::Bool(bool2)) => Ok(Value::Bool(bool1 && bool2)),

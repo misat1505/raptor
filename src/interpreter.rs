@@ -144,81 +144,27 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
                 self.last_result = Some(value);
             }
 
-            Expression::BooleanNegation(value) => {
-                self.evaluate_unary_op(value, ALU::boolean_negate)?;
-            }
+            Expression::BooleanNegation(value) => self.evaluate_unary_op(value, ALU::boolean_negate)?,
+            Expression::ArithmeticNegation(value) => self.evaluate_unary_op(value, ALU::arithmetic_negate)?,
+            Expression::Addition(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::add)?,
+            Expression::Subtraction(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::subtract)?,
+            Expression::Multiplication(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::multiplication)?,
+            Expression::Division(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::division)?,
+            Expression::Modulo(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::modulo)?,
+            Expression::Alternative(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::alternative)?,
+            Expression::Concatenation(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::concatenation)?,
+            Expression::Greater(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::greater)?,
+            Expression::GreaterEqual(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::greater_or_equal)?,
+            Expression::Less(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::less)?,
+            Expression::LessEqual(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::less_or_equal)?,
+            Expression::Equal(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::equal)?,
+            Expression::NotEqual(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::not_equal)?,
+            Expression::Literal(literal) => self.visit_literal(literal)?,
+            Expression::Vector(vector) => self.visit_vector_literal(vector)?,
+            Expression::Variable(variable) => self.visit_variable(variable, expression.position)?,
+            Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments)?,
 
-            Expression::ArithmeticNegation(value) => {
-                self.evaluate_unary_op(value, ALU::arithmetic_negate)?;
-            }
-
-            Expression::Addition(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::add)?;
-            }
-
-            Expression::Subtraction(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::subtract)?;
-            }
-
-            Expression::Multiplication(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::multiplication)?;
-            }
-
-            Expression::Division(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::division)?;
-            }
-
-            Expression::Alternative(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::alternative)?;
-            }
-
-            Expression::Concatenation(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::concatenation)?;
-            }
-
-            Expression::Greater(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::greater)?;
-            }
-
-            Expression::GreaterEqual(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::greater_or_equal)?;
-            }
-
-            Expression::Less(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::less)?;
-            }
-
-            Expression::LessEqual(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::less_or_equal)?;
-            }
-
-            Expression::Equal(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::equal)?;
-            }
-
-            Expression::NotEqual(lhs, rhs) => {
-                self.evaluate_binary_op(lhs, rhs, ALU::not_equal)?;
-            }
-
-            Expression::Literal(literal) => {
-                self.visit_literal(literal)?;
-            }
-
-            Expression::Vector(vector) => {
-                self.visit_vector_literal(vector)?;
-            }
-
-            Expression::Variable(variable) => {
-                self.visit_variable(variable, expression.position)?;
-            }
-
-            Expression::FunctionCall { identifier, arguments } => {
-                self.call_function(identifier, arguments)?;
-            }
-
-            Expression::Index { collection, index } => {
-                self.visit_index(collection, index)?;
-            }
+            Expression::Index { collection, index } => self.visit_index(collection, index)?,
         }
 
         Ok(())

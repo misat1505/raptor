@@ -85,6 +85,16 @@ impl TypeALU {
         Self::check_numeric_operation(t1, t2, "division")
     }
 
+    pub fn modulo(t1: Type, t2: Type) -> Result<Type, SemanticCheckerError> {
+        match (t1, t2) {
+            (Type::I64, Type::I64) => Ok(Type::I64),
+            (a, b) => Err(SemanticCheckerError::new(
+                ErrorSeverity::HIGH,
+                format!("Cannot perform modulo between values of type '{:?}' and '{:?}'.", a, b),
+            )),
+        }
+    }
+
     pub fn concatenation(t1: Type, t2: Type) -> Result<Type, SemanticCheckerError> {
         match (t1, t2) {
             (Type::Bool, Type::Bool) => Ok(Type::Bool),

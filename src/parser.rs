@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, vec};
+use std::{collections::HashMap, rc::Rc, unreachable, vec};
 
 use crate::{
     ast::{
@@ -394,7 +394,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_assign_or_call_without_semicolon(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // assign_or_call = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")");
+        // assign_or_call = identifier, ( { "[", expression, "]" }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
         let identifier = try_consume!(self, parse_identifier);
         let position = identifier.position;
 
@@ -548,6 +548,40 @@ impl<L: ILexer> Parser<L> {
 
             let value = Node {
                 value: Expression::Division(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::ModuloEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Modulo(Box::new(result), Box::new(expr)),
                 position,
             };
 
@@ -779,20 +813,26 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_multiplicative_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
-        // multiplicative_term = casted_term, { ("*" | "/"), casted_term };
+        // multiplicative_term = casted_term, { ("*" | "/" | "%"), casted_term };
         let mut left_side = try_consume!(self, parse_casted_term);
 
         let mut current_token = self.current_token();
-        while current_token.category == TokenCategory::Multiply || current_token.category == TokenCategory::Divide {
+        while current_token.category == TokenCategory::Multiply
+            || current_token.category == TokenCategory::Divide
+            || current_token.category == TokenCategory::Modulo
+        {
             let _ = self.next_token()?;
             let right_side = self
                 .parse_casted_term()?
                 .ok_or_else(|| self.create_parser_error(String::from("Couldn't create casted term while parsing multiplicative term.")))?;
 
-            let mut expression_type = Expression::Multiplication(Box::new(left_side.clone()), Box::new(right_side.clone()));
-            if current_token.category == TokenCategory::Divide {
-                expression_type = Expression::Division(Box::new(left_side), Box::new(right_side))
-            }
+            let expression_type = match current_token.category {
+                TokenCategory::Multiply => Expression::Multiplication(Box::new(left_side), Box::new(right_side)),
+                TokenCategory::Divide => Expression::Division(Box::new(left_side), Box::new(right_side)),
+                TokenCategory::Modulo => Expression::Modulo(Box::new(left_side), Box::new(right_side)),
+                _ => unreachable!(),
+            };
+
             left_side = Node {
                 value: expression_type,
                 position: current_token.position,

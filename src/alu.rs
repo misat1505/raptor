@@ -61,7 +61,7 @@ impl ALU {
 }
 
 impl ALU {
-    pub fn cast_to_type(val: Value, to_type: Type) -> Result<Value, ComputationError> {
+    pub fn cast_to_type(val: Value, to_type: &Type) -> Result<Value, ComputationError> {
         match (val, to_type) {
             (Value::I64(i64), Type::Str) => Ok(Value::String(i64.to_string())),
             (Value::F64(f64), Type::Str) => Ok(Value::String(f64.to_string())),
@@ -84,6 +84,9 @@ impl ALU {
                 )),
             },
             (Value::String(string), Type::Bool) => Ok(Value::Bool(string.as_str() != "")),
+            (Value::Bool(bool), Type::Str) => return Ok(Value::String(String::from(if bool { "true" } else { "false" }))),
+            (Value::Bool(bool), Type::I64) => return Ok(Value::I64(if bool { 1 } else { 0 })),
+            (Value::Bool(bool), Type::F64) => return Ok(Value::F64(if bool { 1.0 } else { 0.0 })),
             (value, target_type) => Err(ComputationError::new(
                 ErrorSeverity::HIGH,
                 format!("Cannot cast '{:?}' to '{:?}'.", value, target_type),
@@ -166,6 +169,20 @@ impl ALU {
                 ErrorSeverity::HIGH,
                 format!(
                     "Cannot perform division between values of type '{:?}' and '{:?}'.",
+                    a.to_type(),
+                    b.to_type()
+                ),
+            )),
+        }
+    }
+
+    pub fn modulo(val1: Value, val2: Value) -> Result<Value, ComputationError> {
+        match (&val1, &val2) {
+            (Value::I64(_), Value::I64(_)) => Self::check_int_operation(&val1, &val2, i64::checked_rem, "modulo"),
+            (a, b) => Err(ComputationError::new(
+                ErrorSeverity::HIGH,
+                format!(
+                    "Cannot perform modulo between values of type '{:?}' and '{:?}'.",
                     a.to_type(),
                     b.to_type()
                 ),
@@ -329,7 +346,7 @@ mod tests {
         for idx in 0..data.len() {
             let (init, to_type) = &data[idx];
             let exp = &expected[idx];
-            assert_eq!(ALU::cast_to_type(init.clone(), *to_type).unwrap(), *exp);
+            assert_eq!(ALU::cast_to_type(init.clone(), to_type).unwrap(), *exp);
         }
     }
 
@@ -342,7 +359,7 @@ mod tests {
 
         for (val, to_type) in data {
             assert_eq!(
-                ALU::cast_to_type(val, to_type).err().unwrap().message(),
+                ALU::cast_to_type(val, &to_type).err().unwrap().message(),
                 format!("Cannot cast String 'abc' to '{:?}'.", to_type)
             );
         }
@@ -619,6 +636,99 @@ mod tests {
         assert_eq!(
             ALU::not_equal(Value::Bool(true), Value::I64(1)).err().unwrap().message(),
             String::from("Cannot perform not equal between values of type 'bool' and 'i64'.")
+        );
+    }
+
+    #[test]
+    fn modulo() {
+        let data = [
+            (Value::I64(7), Value::I64(3)),
+            (Value::I64(-7), Value::I64(3)),
+            (Value::I64(0), Value::I64(5)),
+        ];
+
+        let expected = [Value::I64(1), Value::I64(-1), Value::I64(0)];
+
+        for idx in 0..data.len() {
+            let (val1, val2) = &data[idx];
+            assert_eq!(ALU::modulo(val1.clone(), val2.clone()).unwrap(), expected[idx]);
+        }
+    }
+
+    #[test]
+    fn modulo_fail() {
+        assert_eq!(
+            ALU::modulo(Value::I64(1), Value::I64(0)).err().unwrap().message(),
+            String::from("Overflow occurred when performing modulo on i64s.")
+        );
+        assert_eq!(
+            ALU::modulo(Value::I64(1), Value::F64(2.0)).err().unwrap().message(),
+            String::from("Cannot perform modulo between values of type 'i64' and 'f64'.")
+        );
+        assert_eq!(
+            ALU::modulo(Value::F64(1.0), Value::F64(2.0)).err().unwrap().message(),
+            String::from("Cannot perform modulo between values of type 'f64' and 'f64'.")
+        );
+    }
+
+    #[test]
+    fn cast_bool_to_other_types() {
+        assert_eq!(
+            ALU::cast_to_type(Value::Bool(true), &Type::Str).unwrap(),
+            Value::String(String::from("true"))
+        );
+        assert_eq!(
+            ALU::cast_to_type(Value::Bool(false), &Type::Str).unwrap(),
+            Value::String(String::from("false"))
+        );
+        assert_eq!(ALU::cast_to_type(Value::Bool(true), &Type::I64).unwrap(), Value::I64(1));
+        assert_eq!(ALU::cast_to_type(Value::Bool(false), &Type::I64).unwrap(), Value::I64(0));
+        assert_eq!(ALU::cast_to_type(Value::Bool(true), &Type::F64).unwrap(), Value::F64(1.0));
+        assert_eq!(ALU::cast_to_type(Value::Bool(false), &Type::F64).unwrap(), Value::F64(0.0));
+    }
+
+    #[test]
+    fn cast_to_type_unsupported_combination_fails() {
+        let result = ALU::cast_to_type(Value::I64(1), &Type::I64);
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap().message(), String::from("Cannot cast 'I64(1)' to 'i64'."));
+    }
+
+    #[test]
+    fn division_float_edge_cases() {
+        assert_eq!(
+            ALU::division(Value::F64(1.0), Value::F64(0.0)).err().unwrap().message(),
+            String::from("Invalid result when performing division on f64s.")
+        );
+        assert_eq!(
+            ALU::division(Value::F64(0.0), Value::F64(0.0)).err().unwrap().message(),
+            String::from("Invalid result when performing division on f64s.")
+        );
+    }
+
+    #[test]
+    fn comparisons_unsupported_types_fail() {
+        assert_eq!(
+            ALU::greater(Value::Bool(true), Value::Bool(false)).err().unwrap().message(),
+            String::from("Cannot perform greater between values of type 'bool' and 'bool'.")
+        );
+        assert_eq!(
+            ALU::greater_or_equal(Value::String(String::from("a")), Value::String(String::from("b")))
+                .err()
+                .unwrap()
+                .message(),
+            String::from("Cannot perform greater or equal between values of type 'str' and 'str'.")
+        );
+        assert_eq!(
+            ALU::less(Value::Bool(true), Value::Bool(false)).err().unwrap().message(),
+            String::from("Cannot perform less between values of type 'bool' and 'bool'.")
+        );
+        assert_eq!(
+            ALU::less_or_equal(Value::String(String::from("a")), Value::String(String::from("b")))
+                .err()
+                .unwrap()
+                .message(),
+            String::from("Cannot perform less or equal between values of type 'str' and 'str'.")
         );
     }
 }

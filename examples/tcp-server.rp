@@ -1,0 +1,33 @@
+# struct UsersRepository {
+#   users: str[]
+# }
+
+# fn users_repository_get_all(&UsersRepository repository): str[] {
+#   return repository["users"];
+# }
+
+# UsersRepository repository = {
+#   users: ["Elon", "Trump", "Batyr"]
+# };
+
+# str[] users = users_repository_get_all(&repository);
+
+fn get_all_users(): str[] {
+  str[] users = ["Elon", "Trump", "Batyr"];
+  return users;
+}
+
+i64 port = 8080;
+i64 listener = tcp_listen(port);
+println("Listening on " + port as str + "...");
+
+for (;true;) {
+  i64 client = tcp_accept(listener);
+  str request = tcp_read(client);
+  println(request);
+
+  str response = vector_stringify(get_all_users());
+
+  tcp_write(client, "HTTP/1.1 200 OK\r\nContent-Length: " + str_len(response) as str + "\r\n\r\n" + response);
+  tcp_close(client);
+}

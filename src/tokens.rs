@@ -16,6 +16,7 @@ pub enum TokenCategory {
     Minus,
     Multiply,
     Divide,
+    Modulo,
     // Boolean arithmetic
     Negate,
     And,
@@ -29,6 +30,7 @@ pub enum TokenCategory {
     BraceClose,
     // Keywords
     For,
+    While,
     If,
     Else,
     As,
@@ -38,6 +40,8 @@ pub enum TokenCategory {
     Return,
     Switch,
     Break,
+    Continue,
+    Import,
     // Type keywords
     Bool,
     String,
@@ -46,6 +50,11 @@ pub enum TokenCategory {
     Void,
     // Others
     Assign,
+    PlusEquals,
+    MinusEquals,
+    TimesEquals,
+    DivideEquals,
+    ModuloEquals,
     Colon,
     Semicolon,
     Comma,
@@ -77,6 +86,7 @@ impl Debug for TokenCategory {
             Minus => "-",
             Multiply => "*",
             Divide => "/",
+            Modulo => "%",
             Negate => "!",
             And => "&&",
             Or => "||",
@@ -87,6 +97,7 @@ impl Debug for TokenCategory {
             BraceOpen => "{",
             BraceClose => "}",
             For => "for",
+            While => "while",
             If => "if",
             Else => "else",
             As => "as",
@@ -96,12 +107,19 @@ impl Debug for TokenCategory {
             Return => "return",
             Switch => "switch",
             Break => "break",
+            Continue => "continue",
+            Import => "import",
             Bool => "bool type",
             String => "str type",
             I64 => "i64 type",
             F64 => "f64 type",
             Void => "void",
             Assign => "=",
+            PlusEquals => "+=",
+            MinusEquals => "-=",
+            TimesEquals => "*=",
+            DivideEquals => "/=",
+            ModuloEquals => "%=",
             Colon => ":",
             Semicolon => ";",
             Comma => ",",
@@ -116,7 +134,7 @@ impl Debug for TokenCategory {
             F64Value => "f64 value",
         };
 
-        write!(f, "{}", text)
+        Ok(write!(f, "{}", text)?)
     }
 }
 

@@ -10,5 +10,5 @@ if (true) {
   age = 22;
 }
 
-print(age as str);
-print(text);
+println(age as str);
+println(text);

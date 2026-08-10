@@ -13,7 +13,7 @@ mod tests {
 world"#
                 .as_bytes(),
         );
-        let mut stream_reader = LazyStreamReader::new(code);
+        let mut stream_reader = LazyStreamReader::new(code, None);
 
         let expected: Vec<(char, u32, u32)> = vec![
             ('h', 1, 1),

@@ -1,4 +1,4 @@
-use std::{env::args, fs::File, io::BufReader, time::Instant};
+use std::{env::args, eprintln, fs::File, io::BufReader, println};
 
 use errors::IError;
 use lexer::Lexer;
@@ -21,26 +21,62 @@ mod parser;
 mod scope_manager;
 mod semantic_checker;
 mod stack;
+mod static_checker_stack;
 mod std_functions;
 mod tokens;
+mod type_alu;
 mod value;
 mod visitor;
 
 mod tests;
 
-fn parse_filename() -> Option<String> {
-    let args: Vec<String> = args().collect();
-    args.get(1).cloned()
-}
-
 fn on_warning(warning: Box<dyn IError>) {
     eprintln!("{}", warning.message());
 }
 
+fn usage() {
+    println!(
+        "\
+Usage:
+    program [OPTIONS] <FILE>
+
+Options:
+    -h, --help      Show this help message
+    --unsafe        Skip semantic checking
+
+Arguments:
+    <FILE>          Path to the source file
+"
+    );
+}
+
 fn main() {
-    let path = match parse_filename() {
-        Some(p) => p,
-        None => return eprintln!("Path to file not given."),
+    let mut is_unsafe = false;
+    let args: Vec<String> = args().collect();
+
+    let path = match args.get(1).cloned() {
+        Some(arg) if arg == "-h" || arg == "--help" => {
+            usage();
+            return;
+        }
+        Some(arg) if arg == "--unsafe" => {
+            is_unsafe = true;
+
+            match args.get(2).cloned() {
+                Some(path) => path,
+                None => {
+                    eprintln!("Error: path to file not given.\n");
+                    usage();
+                    return;
+                }
+            }
+        }
+        Some(path) => path,
+        None => {
+            eprintln!("Error: path to file not given.\n");
+            usage();
+            return;
+        }
     };
 
     let file = match File::open(path.as_str()) {
@@ -49,39 +85,52 @@ fn main() {
     };
 
     let code = BufReader::new(file);
-    let reader = LazyStreamReader::new(code);
+    let filename: &'static str = Box::leak(path.clone().into_boxed_str());
+    let reader = LazyStreamReader::new(code, Some(filename));
 
     let lexer_options = LexerOptions {
         max_comment_length: 100,
         max_identifier_length: 20,
     };
 
-    let lexer = Lexer::new(reader, lexer_options, on_warning);
+    let lexer = match Lexer::new(reader, lexer_options, on_warning) {
+        Ok(lexer) => lexer,
+        Err(err) => {
+            eprintln!("{}", err.message());
+            std::process::exit(1);
+        }
+    };
     let mut parser = Parser::new(lexer);
 
-    let start = Instant::now();
     let program = match parser.parse() {
         Ok(p) => p,
         Err(err) => return eprintln!("{}", err.message()),
     };
 
-    let mut semantic_checker = match SemanticChecker::new(&program) {
-        Ok(checker) => checker,
-        Err(err) => return eprintln!("{}", err.message()),
-    };
-    semantic_checker.check();
+    if !is_unsafe {
+        let mut semantic_checker = match SemanticChecker::new(&program) {
+            Ok(checker) => checker,
+            Err(err) => return eprintln!("{}", err.message()),
+        };
+        semantic_checker.check();
 
-    if semantic_checker.errors.len() > 0 {
-        for error in &semantic_checker.errors {
-            eprintln!("{}", error.message());
+        if semantic_checker.errors.len() > 0 {
+            let mut warnings = 0;
+            let mut errors = 0;
+            for error in &semantic_checker.errors {
+                match error.get_severity() {
+                    errors::ErrorSeverity::HIGH => errors += 1,
+                    errors::ErrorSeverity::LOW => warnings += 1,
+                }
+                eprintln!("{}\n", error.message());
+            }
+            eprintln!("Static analysis finished with {} errors, {} warnings.", errors, warnings);
+            return;
         }
-        return;
     }
 
     let mut interpreter = Interpreter::new(&program);
     if let Err(err) = interpreter.interpret() {
         eprintln!("{}", err.message());
     };
-
-    println!("\nExecution time: {:?}", Instant::now() - start);
 }

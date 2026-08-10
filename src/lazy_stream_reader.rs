@@ -16,17 +16,37 @@ pub struct Position {
     pub line: u32,
     pub column: u32,
     pub offset: usize,
+    pub filename: Option<&'static str>,
 }
 
 impl Debug for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "line: {}, column: {}", self.line, self.column)
+        Ok(write!(
+            f,
+            "{}{}:{}",
+            match self.filename {
+                Some(filename) => format!("{}:", filename),
+                None => String::new(),
+            },
+            self.line,
+            self.column
+        )?)
     }
 }
 
 impl Position {
-    pub fn new(line: u32, column: u32, offset: usize) -> Self {
-        Position { line, column, offset }
+    pub fn new(line: u32, column: u32, offset: usize, filename: Option<&'static str>) -> Self {
+        Position {
+            line,
+            column,
+            offset,
+            filename,
+        }
+    }
+
+    pub fn location(&self) -> String {
+        let file = self.filename.unwrap_or("<input>");
+        return format!("{}:{}:{}", file, self.line, self.column);
     }
 }
 
@@ -36,6 +56,7 @@ pub struct LazyStreamReader<R: BufRead> {
     current_char: char,
     newline: Option<Vec<u8>>,
     current_position: Position,
+    filename: Option<&'static str>,
 }
 
 impl<R: BufRead> ILazyStreamReader for LazyStreamReader<R> {
@@ -56,13 +77,14 @@ impl<R: BufRead> ILazyStreamReader for LazyStreamReader<R> {
 }
 
 impl<R: BufRead> LazyStreamReader<R> {
-    pub fn new(src: R) -> LazyStreamReader<R> {
+    pub fn new(src: R, filename: Option<&'static str>) -> LazyStreamReader<R> {
         LazyStreamReader {
             src,
             current_line: String::new(),
             current_char: STX,
             newline: None,
-            current_position: Position::new(0, 0, 0),
+            current_position: Position::new(0, 0, 0, filename),
+            filename,
         }
     }
 
@@ -118,7 +140,7 @@ impl<R: BufRead> LazyStreamReader<R> {
     fn update_position(&mut self, read_character: char) {
         match read_character {
             STX => {
-                self.current_position = Position::new(1, 1, 0);
+                self.current_position = Position::new(1, 1, 0, self.filename);
             }
             ETX => {}
             '\n' => {
@@ -135,6 +157,7 @@ impl<R: BufRead> LazyStreamReader<R> {
         };
     }
 
+    #[allow(dead_code)]
     pub fn error_code_snippet(&mut self) -> String {
         let mut buffer = String::new();
         let _ = self.src.read_line(&mut buffer);
@@ -142,6 +165,6 @@ impl<R: BufRead> LazyStreamReader<R> {
         let spaces = " ".repeat((self.position().column - 1) as usize);
         let caret_string = format!("{}^", spaces);
 
-        format!("\nAt line:\n{}{}{}{}", self.current_line, self.current_char, buffer, caret_string)
+        return format!("\nAt line:\n{}{}{}{}", self.current_line, self.current_char, buffer, caret_string);
     }
 }

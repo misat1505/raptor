@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, rc::Rc};
 
-use crate::{lazy_stream_reader::Position, std_functions::StdFunction};
+use crate::{lazy_stream_reader::Position, std_functions::StdFunction, value::Value};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node<T> {
@@ -27,6 +27,7 @@ pub enum Expression {
     Subtraction(BNode<Expression>, BNode<Expression>),
     Multiplication(BNode<Expression>, BNode<Expression>),
     Division(BNode<Expression>, BNode<Expression>),
+    Modulo(BNode<Expression>, BNode<Expression>),
     // Unary operations
     BooleanNegation(BNode<Expression>),
     ArithmeticNegation(BNode<Expression>),
@@ -37,6 +38,11 @@ pub enum Expression {
     },
     // Values
     Literal(Literal),
+    Vector(Vec<BNode<Expression>>),
+    Index {
+        collection: BNode<Expression>,
+        index: BNode<Expression>,
+    },
     Variable(String),
     FunctionCall {
         identifier: Node<String>,
@@ -53,33 +59,51 @@ pub enum Literal {
     F64(f64),
 }
 
-#[derive(Clone, PartialEq, Copy)]
+#[derive(Clone, PartialEq)]
 pub enum Type {
     Bool,
     Str,
     I64,
     F64,
     Void,
+    Vector(Box<Type>),
+    #[allow(dead_code)]
+    Any, // internal, not available for the user
 }
 
 impl Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Bool => {
-                write!(f, "bool")
-            }
-            Type::F64 => {
-                write!(f, "f64")
-            }
-            Type::I64 => {
-                write!(f, "i64")
-            }
-            Type::Str => {
-                write!(f, "str")
-            }
-            Type::Void => {
-                write!(f, "void")
-            }
+            Type::Bool => Ok(write!(f, "bool")?),
+            Type::F64 => Ok(write!(f, "f64")?),
+            Type::I64 => Ok(write!(f, "i64")?),
+            Type::Str => Ok(write!(f, "str")?),
+            Type::Void => Ok(write!(f, "void")?),
+            Type::Vector(inner) => write!(f, "{:?}[]", inner),
+            Type::Any => Ok(write!(f, "any")?),
+        }
+    }
+}
+
+impl Type {
+    pub fn accepts(&self, value: &Value) -> bool {
+        match (self, value) {
+            (Type::Bool, Value::Bool(_)) => true,
+            (Type::F64, Value::F64(_)) => true,
+            (Type::I64, Value::I64(_)) => true,
+            (Type::Str, Value::String(_)) => true,
+
+            (Type::Vector(_), Value::Vector { kind, .. }) => *self == **kind,
+
+            _ => false,
+        }
+    }
+
+    pub fn is_compatible(&self, other: &Type) -> bool {
+        match (self, other) {
+            (Type::Any, _) | (_, Type::Any) => true,
+            (Type::Vector(a), Type::Vector(b)) => a.is_compatible(b),
+            (a, b) => a == b,
         }
     }
 }
@@ -109,12 +133,17 @@ pub enum Statement {
     },
     Assignment {
         identifier: Node<String>,
+        indices: Vec<Node<Expression>>,
         value: Node<Expression>,
     },
     Conditional {
         condition: Node<Expression>,
         if_block: Node<Block>,
         else_block: Option<Node<Block>>,
+    },
+    WhileLoop {
+        condition: Node<Expression>,
+        block: Node<Block>,
     },
     ForLoop {
         declaration: Option<Box<Node<Statement>>>,
@@ -128,6 +157,7 @@ pub enum Statement {
     },
     Return(Option<Node<Expression>>),
     Break,
+    Continue,
 }
 
 #[derive(Debug, Clone, PartialEq)]

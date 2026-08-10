@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc, unreachable, vec};
 
 use crate::{
     ast::{
@@ -43,9 +43,7 @@ impl<L: ILexer> IParser<L> for Parser<L> {
     }
 
     fn parse(&mut self) -> Result<Program, Box<dyn IError>> {
-        // program = { function_declaration | assign_or_call | if_statement | for_statement | switch_statement | declaration, ";" };
-        let _ = self.next_token()?; // initialize
-        let _ = self.next_token()?; // skip STX
+        // program = { function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" };
 
         let mut statements: Vec<Node<Statement>> = vec![];
         let mut functions: HashMap<String, Rc<Node<FunctionDeclaration>>> = HashMap::new();
@@ -96,17 +94,19 @@ impl<L: ILexer> Parser<L> {
     fn consume_must_be(&mut self, category: TokenCategory) -> Result<Token, Box<dyn IError>> {
         // consumes on match else throws error
         let current_token = self.current_token();
+
         if current_token.category == category {
-            let _ = self.next_token()?;
-            return Ok(current_token.clone());
+            self.next_token()?;
+            return Ok(current_token);
         }
-        let text = match current_token.value {
-            TokenValue::F64(f64) => f64.to_string(),
-            TokenValue::I64(i64) => i64.to_string(),
-            TokenValue::String(str) => str,
-            TokenValue::Null => format!("{:?}", current_token.category),
-        };
-        Err(self.create_parser_error(format!("Unexpected token - '{}'. Expected '{:?}'.", text, category)))
+
+        Err(Box::new(ParserError::expected_found(
+            ErrorSeverity::HIGH,
+            "Unexpected token".to_string(),
+            format!("{:?}", category),
+            Self::token_text(&current_token),
+            current_token.position,
+        )))
     }
 
     fn consume_if_matches(&mut self, category: TokenCategory) -> Result<Option<Token>, Box<dyn IError>> {
@@ -125,6 +125,7 @@ impl<L: ILexer> Parser<L> {
             Self::parse_assign_or_call,
             Self::parse_if_statement,
             Self::parse_for_statement,
+            Self::parse_while_statement,
             Self::parse_switch_statement,
             Self::parse_variable_declaration,
         ];
@@ -145,10 +146,13 @@ impl<L: ILexer> Parser<L> {
                 position: token.position,
             }),
             None => {
-                return Err(self.create_parser_error(format!(
-                    "Bad return type: {:?}. Expected one of: 'i64', 'f64', 'bool', 'str', 'void'.",
-                    self.current_token().category
-                )))
+                return Err(Box::new(ParserError::expected_found(
+                    ErrorSeverity::HIGH,
+                    "Bad return type".to_string(),
+                    "'i64', 'f64', 'bool', 'str', or 'void'".to_string(),
+                    format!("{:?}", self.current_token().category),
+                    self.current_token().position,
+                )));
             }
         }
     }
@@ -250,21 +254,9 @@ impl<L: ILexer> Parser<L> {
         self.consume_must_be(TokenCategory::Semicolon)?;
         let mut assignment: Option<Box<Node<Statement>>> = None;
         if self.current_token().category == TokenCategory::Identifier {
-            let identifier = self
-                .parse_identifier()?
-                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create identifier while parsing for statement.")))?;
-
-            let position = identifier.position;
-            let _ = self.consume_must_be(TokenCategory::Assign)?;
-            let expr = self
-                .parse_expression()?
-                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing for statement.")))?;
-
-            let assign = Box::new(Node {
-                value: Statement::Assignment { identifier, value: expr },
-                position,
-            });
-            assignment = Some(assign);
+            assignment = Some(Box::new(self.parse_assign_or_call_without_semicolon()?.ok_or_else(|| {
+                self.create_parser_error(String::from("Couldn't create assignment or call while parsing for statement."))
+            })?));
         };
 
         self.consume_must_be(TokenCategory::ParenClose)?;
@@ -280,6 +272,27 @@ impl<L: ILexer> Parser<L> {
                 block,
             },
             position: for_token.position,
+        };
+        Ok(Some(node))
+    }
+
+    fn parse_while_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // while_statement = "while", "(", expression, ")", statement_block;
+        let if_token = try_consume_token!(self, TokenCategory::While);
+
+        let _ = self.consume_must_be(TokenCategory::ParenOpen)?;
+        let condition = self
+            .parse_expression()?
+            .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing while statement.")))?;
+
+        let _ = self.consume_must_be(TokenCategory::ParenClose)?;
+        let block = self
+            .parse_statement_block()?
+            .ok_or_else(|| self.create_parser_error(String::from("Couldn't create statement block while parsing while statement.")))?;
+
+        let node = Node {
+            value: Statement::WhileLoop { condition, block },
+            position: if_token.position,
         };
         Ok(Some(node))
     }
@@ -315,7 +328,14 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_statement_block(&mut self) -> Result<Option<Node<Block>>, Box<dyn IError>> {
-        // statement_block = "{", {statement}, "}";
+        // statement_block = ("{", {statement}, "}") | statement;
+        if let Some(stmt) = self.parse_statement()? {
+            return Ok(Some(Node {
+                value: Block(vec![stmt.clone()]),
+                position: stmt.position,
+            }));
+        }
+
         let token = try_consume_token!(self, TokenCategory::BraceOpen);
 
         let mut statements: Vec<Node<Statement>> = vec![];
@@ -340,14 +360,16 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // statement = assign_or_call | if_statement | for_statement | switch_statement | declaration, ";" | return_statement | break_statement;
+        // statement = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement | continue_statement;
         let generators = [
             Self::parse_assign_or_call,
             Self::parse_if_statement,
             Self::parse_for_statement,
+            Self::parse_while_statement,
             Self::parse_switch_statement,
             Self::parse_return_statement,
             Self::parse_break_statement,
+            Self::parse_continue_statement,
             Self::parse_variable_declaration,
         ];
 
@@ -361,10 +383,29 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_assign_or_call(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // assign_or_call = identifier, ("=", expression | "(", arguments, ")"), ";";
-        let identifier = try_consume!(self, parse_identifier);
+        // assign_or_call = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")"), ";";
+        let node = self.parse_assign_or_call_without_semicolon()?;
+        if node.is_none() {
+            return Ok(None);
+        }
 
+        self.consume_must_be(TokenCategory::Semicolon)?;
+        Ok(node)
+    }
+
+    fn parse_assign_or_call_without_semicolon(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // assign_or_call = identifier, ( { "[", expression, "]" }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
+        let identifier = try_consume!(self, parse_identifier);
         let position = identifier.position;
+
+        let mut indices: Vec<Node<Expression>> = vec![];
+        while self.consume_if_matches(TokenCategory::BracketOpen)?.is_some() {
+            let index_expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression inside '[]' index.")))?;
+            self.consume_must_be(TokenCategory::BracketClose)?;
+            indices.push(index_expr);
+        }
 
         if self.consume_if_matches(TokenCategory::Assign)?.is_some() {
             let expr = self
@@ -372,10 +413,183 @@ impl<L: ILexer> Parser<L> {
                 .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
 
             let node = Node {
-                value: Statement::Assignment { identifier, value: expr },
+                value: Statement::Assignment {
+                    identifier,
+                    value: expr,
+                    indices,
+                },
                 position,
             };
-            self.consume_must_be(TokenCategory::Semicolon)?;
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::PlusEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Addition(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::MinusEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Subtraction(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::TimesEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Multiplication(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::DivideEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Division(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::ModuloEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Modulo(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
             return Ok(Some(node));
         }
 
@@ -386,7 +600,6 @@ impl<L: ILexer> Parser<L> {
                 position,
             };
             self.consume_must_be(TokenCategory::ParenClose)?;
-            self.consume_must_be(TokenCategory::Semicolon)?;
             return Ok(Some(node));
         }
 
@@ -437,6 +650,18 @@ impl<L: ILexer> Parser<L> {
         let _ = self.consume_must_be(TokenCategory::Semicolon)?;
         let node = Node {
             value: Statement::Break,
+            position: token.position,
+        };
+        Ok(Some(node))
+    }
+
+    fn parse_continue_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // continue_statement = "continue", ";";
+        let token = try_consume_token!(self, TokenCategory::Continue);
+
+        let _ = self.consume_must_be(TokenCategory::Semicolon)?;
+        let node = Node {
+            value: Statement::Continue,
             position: token.position,
         };
         Ok(Some(node))
@@ -588,20 +813,26 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_multiplicative_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
-        // multiplicative_term = casted_term, { ("*" | "/"), casted_term };
+        // multiplicative_term = casted_term, { ("*" | "/" | "%"), casted_term };
         let mut left_side = try_consume!(self, parse_casted_term);
 
         let mut current_token = self.current_token();
-        while current_token.category == TokenCategory::Multiply || current_token.category == TokenCategory::Divide {
+        while current_token.category == TokenCategory::Multiply
+            || current_token.category == TokenCategory::Divide
+            || current_token.category == TokenCategory::Modulo
+        {
             let _ = self.next_token()?;
             let right_side = self
                 .parse_casted_term()?
                 .ok_or_else(|| self.create_parser_error(String::from("Couldn't create casted term while parsing multiplicative term.")))?;
 
-            let mut expression_type = Expression::Multiplication(Box::new(left_side.clone()), Box::new(right_side.clone()));
-            if current_token.category == TokenCategory::Divide {
-                expression_type = Expression::Division(Box::new(left_side), Box::new(right_side))
-            }
+            let expression_type = match current_token.category {
+                TokenCategory::Multiply => Expression::Multiplication(Box::new(left_side), Box::new(right_side)),
+                TokenCategory::Divide => Expression::Division(Box::new(left_side), Box::new(right_side)),
+                TokenCategory::Modulo => Expression::Modulo(Box::new(left_side), Box::new(right_side)),
+                _ => unreachable!(),
+            };
+
             left_side = Node {
                 value: expression_type,
                 position: current_token.position,
@@ -664,7 +895,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_factor(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
-        // factor = literal | ( "(", expression, ")" ) | identifier_or_call;
+        // factor = literal | ( "(", expression, ")" ) | vector_literal | identifier_or_call;
         if let Ok(Some(literal)) = self.parse_literal() {
             let node = Node {
                 value: Expression::Literal(literal.value),
@@ -681,16 +912,47 @@ impl<L: ILexer> Parser<L> {
             self.consume_must_be(TokenCategory::ParenClose)?;
             return Ok(Some(expression));
         }
+
+        if let Ok(Some(vector)) = self.parse_vector_literal() {
+            return Ok(Some(vector));
+        }
+
         self.parse_identifier_or_call()
     }
 
+    fn parse_vector_literal(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+        // vector_literal = "[", [ expression, { ",", expression } ], "]";
+        let open_bracket_token = try_consume_token!(self, TokenCategory::BracketOpen);
+
+        let mut expressions: Vec<Box<Node<Expression>>> = vec![];
+        if let Ok(Some(expr)) = self.parse_expression() {
+            expressions.push(Box::new(expr));
+
+            while self.current_token().category == TokenCategory::Comma {
+                let _ = self.consume_must_be(TokenCategory::Comma)?;
+                let expression = self
+                    .parse_expression()?
+                    .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing vector literal.")))?;
+
+                expressions.push(Box::new(expression));
+            }
+        }
+        let _ = self.consume_must_be(TokenCategory::BracketClose)?;
+
+        let node = Node {
+            value: Expression::Vector(expressions),
+            position: open_bracket_token.position,
+        };
+        Ok(Some(node))
+    }
+
     fn parse_identifier_or_call(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
-        // identifier_or_call = identifier, [ "(", arguments, ")" ];
+        // identifier_or_call = identifier, [ "(", arguments, ")" ], { "[", expression, "]" }
         let identifier = try_consume!(self, parse_identifier);
 
         let position = identifier.position;
 
-        let result = match self.consume_if_matches(TokenCategory::ParenOpen)? {
+        let mut result = match self.consume_if_matches(TokenCategory::ParenOpen)? {
             Some(_) => {
                 let args = self.parse_arguments()?.into_iter().map(Box::new).collect();
                 let _ = self.consume_must_be(TokenCategory::ParenClose)?;
@@ -698,6 +960,20 @@ impl<L: ILexer> Parser<L> {
             }
             None => Expression::Variable(identifier.value),
         };
+
+        while self.current_token().category == TokenCategory::BracketOpen {
+            let _ = self.consume_must_be(TokenCategory::BracketOpen);
+            let index_expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Expected an expression inside '[]' index.")))?;
+            let _ = self.consume_must_be(TokenCategory::BracketClose)?;
+
+            result = Expression::Index {
+                collection: Box::new(Node { value: result, position }),
+                index: Box::new(index_expr),
+            };
+        }
+
         Ok(Some(Node { value: result, position }))
     }
 
@@ -789,7 +1065,7 @@ impl<L: ILexer> Parser<L> {
     fn parse_type(&mut self) -> Result<Option<Node<Type>>, Box<dyn IError>> {
         let token = self.current_token();
 
-        let result = match token.category {
+        let mut result = match token.category {
             TokenCategory::Bool => Type::Bool,
             TokenCategory::String => Type::Str,
             TokenCategory::I64 => Type::I64,
@@ -798,6 +1074,12 @@ impl<L: ILexer> Parser<L> {
         };
 
         let _ = self.next_token()?;
+        while self.current_token().category == TokenCategory::BracketOpen {
+            self.consume_must_be(TokenCategory::BracketOpen)?;
+            self.consume_must_be(TokenCategory::BracketClose)?;
+
+            result = Type::Vector(Box::new(result));
+        }
 
         Ok(Some(Node {
             value: result,
@@ -834,18 +1116,32 @@ impl<L: ILexer> Parser<L> {
             };
             return Ok(Some(node));
         }
-        Err(self.create_parser_error(format!("Wrong token value type - given: '{:?}', expected: 'str'.", token.category,)))
+        Err(Box::new(ParserError::expected_found(
+            ErrorSeverity::HIGH,
+            "Wrong token value type".to_string(),
+            "str".to_string(),
+            format!("{:?}", token.category),
+            token.position,
+        )))
     }
 
     fn create_parser_error(&self, text: String) -> Box<dyn IError> {
-        let position = self.current_token().position;
-        Box::new(ParserError::new(ErrorSeverity::HIGH, format!("{}\nAt {:?}.", text, position)))
+        Box::new(ParserError::at(ErrorSeverity::HIGH, text, self.current_token().position))
+    }
+
+    fn token_text(token: &Token) -> String {
+        match &token.value {
+            TokenValue::F64(value) => value.to_string(),
+            TokenValue::I64(value) => value.to_string(),
+            TokenValue::String(value) => value.clone(),
+            TokenValue::Null => format!("{:?}", token.category),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
+    use std::{assert_eq, vec};
 
     use crate::{
         errors::{ErrorSeverity, LexerError},
@@ -895,6 +1191,7 @@ mod tests {
 
     fn default_position() -> Position {
         Position {
+            filename: None,
             line: 0,
             column: 0,
             offset: 0,
@@ -909,10 +1206,6 @@ mod tests {
         }
     }
 
-    fn create_error_message(text: String) -> String {
-        format!("{}\nAt {:?}.", text, default_position())
-    }
-
     #[test]
     fn parse_statement_block_fail() {
         let series = vec![
@@ -923,10 +1216,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_statement_block().err().unwrap().message(),
-            create_error_message(String::from("Couldn't create statement while parsing statement block."))
-        );
+        assert!(parser.parse_statement_block().is_err());
     }
 
     #[test]
@@ -966,15 +1256,18 @@ mod tests {
             Block(vec![test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(5))),
+                indices: vec![]
             })]),
             Block(vec![
                 test_node!(Statement::Assignment {
                     identifier: test_node!(String::from("x")),
                     value: test_node!(Expression::Literal(Literal::I64(5))),
+                    indices: vec![]
                 }),
                 test_node!(Statement::Assignment {
                     identifier: test_node!(String::from("x")),
                     value: test_node!(Expression::Literal(Literal::I64(5))),
+                    indices: vec![]
                 }),
             ]),
         ];
@@ -1002,10 +1295,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_statement().err().unwrap().message(),
-            create_error_message(String::from("Unexpected token - 'ETX'. Expected ';'."))
-        );
+        assert!(parser.parse_statement().is_err());
     }
 
     #[test]
@@ -1094,6 +1384,7 @@ mod tests {
             Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(5))),
+                indices: vec![],
             },
             Statement::FunctionCall {
                 identifier: test_node!(String::from("print")),
@@ -1156,10 +1447,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_function_declaration().err().unwrap().message(),
-            create_error_message(String::from("Bad return type: ,. Expected one of: 'i64', 'f64', 'bool', 'str', 'void'."))
-        );
+        assert!(parser.parse_function_declaration().is_err());
     }
 
     #[test]
@@ -1228,10 +1516,7 @@ mod tests {
         let mock_lexer = LexerMock::new(tokens);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_parameters().err().unwrap().message(),
-            create_error_message(String::from("Couldn't create parameter while parsing parameters."))
-        );
+        assert!(parser.parse_parameters().is_err());
     }
 
     #[test]
@@ -1363,20 +1648,11 @@ mod tests {
             ],
         ];
 
-        let expected = [
-            String::from("Unexpected token - 'ETX'. Expected ';'."),
-            String::from("Couldn't create expression while parsing for statement."),
-            String::from("Unexpected token - '{'. Expected ')'."),
-        ];
-
         for idx in 0..token_series.len() {
             let mock_lexer = LexerMock::new(token_series[idx].clone());
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_for_statement().err().unwrap().message(),
-                create_error_message(expected[idx].clone())
-            );
+            assert!(parser.parse_for_statement().is_err());
         }
     }
 
@@ -1439,6 +1715,7 @@ mod tests {
                         Box::new(test_node!(Expression::Variable(String::from("x")))),
                         Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
                     )),
+                    indices: vec![]
                 }))),
                 block: test_node!(Block(vec![])),
             },
@@ -1485,19 +1762,11 @@ mod tests {
             ],
         ];
 
-        let expected = [
-            String::from("Unexpected token - 'true'. Expected '('."),
-            String::from("Unexpected token - '{'. Expected ')'."),
-        ];
-
         for idx in 0..token_series.len() {
             let mock_lexer = LexerMock::new(token_series[idx].to_vec());
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_if_statement().err().unwrap().message(),
-                create_error_message(expected[idx].clone())
-            );
+            assert!(parser.parse_if_statement().is_err());
         }
     }
 
@@ -1582,21 +1851,11 @@ mod tests {
             ],
         ];
 
-        let expected = [
-            String::from("Unexpected token - ';'. Expected ')'."),
-            String::from("Unexpected token - 'ETX'. Expected ';'."),
-            String::from("Unexpected token - 'ETX'. Expected ';'."),
-            String::from("Couldn't create assignment or call."),
-        ];
-
         for idx in 0..token_series.len() {
             let mock_lexer = LexerMock::new(token_series[idx].clone());
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_assign_or_call().err().unwrap().message(),
-                create_error_message(expected[idx].clone())
-            );
+            assert!(parser.parse_assign_or_call().is_err());
         }
     }
 
@@ -1629,6 +1888,7 @@ mod tests {
             Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(5))),
+                indices: vec![],
             },
         ];
 
@@ -1702,10 +1962,7 @@ mod tests {
             let mock_lexer = LexerMock::new(series);
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_return_statement().err().unwrap().message(),
-                create_error_message(String::from("Unexpected token - 'ETX'. Expected ';'."))
-            );
+            assert!(parser.parse_return_statement().is_err());
         }
     }
 
@@ -1752,10 +2009,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_break_statement().err().unwrap().message(),
-            create_error_message(String::from("Unexpected token - 'ETX'. Expected ';'."))
-        );
+        assert!(parser.parse_break_statement().is_err());
     }
 
     #[test]
@@ -1786,10 +2040,7 @@ mod tests {
         let mock_lexer = LexerMock::new(tokens);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_arguments().err().unwrap().message(),
-            create_error_message(String::from("Couldn't create argument while parsing arguments."))
-        );
+        assert!(parser.parse_arguments().is_err());
     }
 
     #[test]
@@ -2205,10 +2456,7 @@ mod tests {
         let mock_lexer = LexerMock::new(tokens);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_factor().err().unwrap().message(),
-            create_error_message(String::from("Unexpected token - 'ETX'. Expected ')'."))
-        );
+        assert!(parser.parse_factor().is_err());
     }
 
     #[test]
@@ -2234,19 +2482,11 @@ mod tests {
             ],
         ];
 
-        let expected = [
-            String::from("Couldn't create argument while parsing arguments."),
-            String::from("Unexpected token - 'ETX'. Expected ')'."),
-        ];
-
         for idx in 0..token_series.len() {
             let mock_lexer = LexerMock::new(token_series[idx].clone());
             let mut parser = Parser::new(mock_lexer);
 
-            assert_eq!(
-                parser.parse_identifier_or_call().err().unwrap().message(),
-                create_error_message(expected[idx].clone())
-            );
+            assert!(parser.parse_identifier_or_call().is_err());
         }
     }
 
@@ -2376,10 +2616,7 @@ mod tests {
         let mock_lexer = LexerMock::new(series);
         let mut parser = Parser::new(mock_lexer);
 
-        assert_eq!(
-            parser.parse_switch_expressions().err().unwrap().message(),
-            create_error_message(String::from("Couldn't create switch expression while parsing switch expressions."))
-        );
+        assert!(parser.parse_switch_expressions().is_err());
     }
 
     #[test]
@@ -2599,10 +2836,7 @@ mod tests {
         let mut parser = Parser::new(mock_lexer);
 
         let result = parser.parse_identifier();
-        assert_eq!(
-            result.err().unwrap().message(),
-            create_error_message(String::from("Wrong token value type - given: 'identifier', expected: 'str'."))
-        );
+        assert!(result.is_err());
     }
 
     #[test]
@@ -2632,10 +2866,7 @@ mod tests {
         assert_eq!(parser.current_token().clone().category, TokenCategory::ParenOpen);
         let result = parser.consume_must_be(TokenCategory::Semicolon);
 
-        assert_eq!(
-            result.err().unwrap().message(),
-            create_error_message(String::from("Unexpected token - '('. Expected ';'."))
-        );
+        assert!(result.is_err());
         assert_eq!(parser.current_token().clone().category, TokenCategory::ParenOpen);
     }
 
@@ -2668,5 +2899,497 @@ mod tests {
 
         assert!(result.unwrap().is_none());
         assert_eq!(parser.current_token().clone().category, TokenCategory::ParenOpen);
+    }
+
+    #[test]
+    fn parse_compound_assignments() {
+        let token_series = [
+            vec![
+                // x += 1;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::PlusEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x -= 1;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::MinusEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x *= 2;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::TimesEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x /= 2;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::DivideEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x %= 2;
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::ModuloEquals, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+                create_token(TokenCategory::Semicolon, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        let expected = [
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Addition(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+                )),
+                indices: vec![],
+            },
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Subtraction(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+                )),
+                indices: vec![],
+            },
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Multiplication(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                )),
+                indices: vec![],
+            },
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Division(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                )),
+                indices: vec![],
+            },
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Modulo(
+                    Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                )),
+                indices: vec![],
+            },
+        ];
+
+        for (idx, series) in token_series.iter().enumerate() {
+            let mock_lexer = LexerMock::new(series.to_vec());
+            let mut parser = Parser::new(mock_lexer);
+
+            let node = parser.parse_assign_or_call().unwrap().unwrap();
+            assert_eq!(node.value, expected[idx]);
+        }
+    }
+
+    #[test]
+    fn parse_compound_assignment_with_index() {
+        // x[0] += 1;
+        let tokens = vec![
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+            create_token(TokenCategory::BracketOpen, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(0)),
+            create_token(TokenCategory::BracketClose, TokenValue::Null),
+            create_token(TokenCategory::PlusEquals, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let expected = Statement::Assignment {
+            identifier: test_node!(String::from("x")),
+            indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+            value: test_node!(Expression::Addition(
+                Box::new(test_node!(Expression::Index {
+                    collection: Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    index: Box::new(test_node!(Expression::Literal(Literal::I64(0)))),
+                })),
+                Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+            )),
+        };
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_assign_or_call().unwrap().unwrap();
+        assert_eq!(node.value, expected);
+    }
+
+    #[test]
+    fn parse_assignment_with_index() {
+        // x[0] = 5;
+        let tokens = vec![
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+            create_token(TokenCategory::BracketOpen, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(0)),
+            create_token(TokenCategory::BracketClose, TokenValue::Null),
+            create_token(TokenCategory::Assign, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(5)),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let expected = Statement::Assignment {
+            identifier: test_node!(String::from("x")),
+            indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+            value: test_node!(Expression::Literal(Literal::I64(5))),
+        };
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_assign_or_call().unwrap().unwrap();
+        assert_eq!(node.value, expected);
+    }
+
+    #[test]
+    fn parse_continue_statement_fail() {
+        let series = vec![
+            // continue
+            create_token(TokenCategory::Continue, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(series);
+        let mut parser = Parser::new(mock_lexer);
+
+        assert!(parser.parse_continue_statement().is_err());
+    }
+
+    #[test]
+    fn parse_continue_statement() {
+        let tokens = vec![
+            // continue;
+            create_token(TokenCategory::Continue, TokenValue::Null),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_continue_statement().unwrap().unwrap();
+        assert_eq!(node.value, Statement::Continue);
+    }
+
+    #[test]
+    fn parse_while_statement_fail() {
+        let token_series = [
+            vec![
+                // while true) {}
+                create_token(TokenCategory::While, TokenValue::Null),
+                create_token(TokenCategory::True, TokenValue::Null),
+                create_token(TokenCategory::ParenClose, TokenValue::Null),
+                create_token(TokenCategory::BraceOpen, TokenValue::Null),
+                create_token(TokenCategory::BraceClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // while (true {}
+                create_token(TokenCategory::While, TokenValue::Null),
+                create_token(TokenCategory::ParenOpen, TokenValue::Null),
+                create_token(TokenCategory::True, TokenValue::Null),
+                create_token(TokenCategory::BraceOpen, TokenValue::Null),
+                create_token(TokenCategory::BraceClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        for series in token_series {
+            let mock_lexer = LexerMock::new(series);
+            let mut parser = Parser::new(mock_lexer);
+
+            assert!(parser.parse_while_statement().is_err());
+        }
+    }
+
+    #[test]
+    fn parse_while_statement() {
+        let tokens = vec![
+            // while (true) {}
+            create_token(TokenCategory::While, TokenValue::Null),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::True, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let expected = Statement::WhileLoop {
+            condition: test_node!(Expression::Literal(Literal::True)),
+            block: test_node!(Block(vec![])),
+        };
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_while_statement().unwrap().unwrap();
+        assert_eq!(node.value, expected);
+    }
+
+    #[test]
+    fn parse_vector_literal() {
+        let token_series = [
+            vec![
+                // []
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // [1, 2, 3]
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+                create_token(TokenCategory::Comma, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+                create_token(TokenCategory::Comma, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(3)),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        let expected = [
+            Expression::Vector(vec![]),
+            Expression::Vector(vec![
+                Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(3)))),
+            ]),
+        ];
+
+        for (idx, series) in token_series.iter().enumerate() {
+            let mock_lexer = LexerMock::new(series.to_vec());
+            let mut parser = Parser::new(mock_lexer);
+
+            let node = parser.parse_vector_literal().unwrap().unwrap();
+            assert_eq!(node.value, expected[idx]);
+        }
+    }
+
+    #[test]
+    fn parse_identifier_or_call_with_index() {
+        let token_series = [
+            vec![
+                // x[0]
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(0)),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // x[0][1]
+                create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(0)),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        let expected = [
+            Expression::Index {
+                collection: Box::new(test_node!(Expression::Variable(String::from("x")))),
+                index: Box::new(test_node!(Expression::Literal(Literal::I64(0)))),
+            },
+            Expression::Index {
+                collection: Box::new(test_node!(Expression::Index {
+                    collection: Box::new(test_node!(Expression::Variable(String::from("x")))),
+                    index: Box::new(test_node!(Expression::Literal(Literal::I64(0)))),
+                })),
+                index: Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+            },
+        ];
+
+        for (idx, series) in token_series.iter().enumerate() {
+            let mock_lexer = LexerMock::new(series.to_vec());
+            let mut parser = Parser::new(mock_lexer);
+
+            let node = parser.parse_identifier_or_call().unwrap().unwrap();
+            assert_eq!(node.value, expected[idx]);
+        }
+    }
+
+    #[test]
+    fn parse_multiplicative_term_modulo() {
+        let tokens = vec![
+            // 5 % 2
+            create_token(TokenCategory::I64Value, TokenValue::I64(5)),
+            create_token(TokenCategory::Modulo, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(2)),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_multiplicative_term().unwrap().unwrap();
+        assert_eq!(
+            node.value,
+            Expression::Modulo(
+                Box::new(test_node!(Expression::Literal(Literal::I64(5)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+            )
+        );
+    }
+
+    #[test]
+    fn parse_type_vector() {
+        let token_series = [
+            vec![
+                // i64[]
+                create_token(TokenCategory::I64, TokenValue::Null),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+            vec![
+                // i64[][]
+                create_token(TokenCategory::I64, TokenValue::Null),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::BracketOpen, TokenValue::Null),
+                create_token(TokenCategory::BracketClose, TokenValue::Null),
+                create_token(TokenCategory::ETX, TokenValue::Null),
+            ],
+        ];
+
+        let expected = [
+            Type::Vector(Box::new(Type::I64)),
+            Type::Vector(Box::new(Type::Vector(Box::new(Type::I64)))),
+        ];
+
+        for (idx, series) in token_series.iter().enumerate() {
+            let mock_lexer = LexerMock::new(series.to_vec());
+            let mut parser = Parser::new(mock_lexer);
+
+            let node = parser.parse_type().unwrap().unwrap();
+            assert_eq!(node.value, expected[idx]);
+        }
+    }
+
+    #[test]
+    fn parse_full_program() {
+        let tokens = vec![
+            // fn add(): i64 { return 1; }
+            // x = 5;
+            create_token(TokenCategory::Fn, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("add"))),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::Colon, TokenValue::Null),
+            create_token(TokenCategory::I64, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::Return, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(1)),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("x"))),
+            create_token(TokenCategory::Assign, TokenValue::Null),
+            create_token(TokenCategory::I64Value, TokenValue::I64(5)),
+            create_token(TokenCategory::Semicolon, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(
+            program.statements[0].value,
+            Statement::Assignment {
+                identifier: test_node!(String::from("x")),
+                value: test_node!(Expression::Literal(Literal::I64(5))),
+                indices: vec![],
+            }
+        );
+
+        let add_fn = program.functions.get("add").expect("function 'add' should be registered");
+        assert_eq!(add_fn.value.return_type.value, Type::I64);
+        assert_eq!(add_fn.value.parameters, vec![]);
+        assert_eq!(
+            add_fn.value.block.value,
+            Block(vec![test_node!(Statement::Return(Some(test_node!(Expression::Literal(Literal::I64(
+                1
+            ))))))])
+        );
+    }
+
+    #[test]
+    fn parse_program_redeclared_function_fails() {
+        let tokens = vec![
+            // fn add(): void {} fn add(): void {}
+            create_token(TokenCategory::Fn, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("add"))),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::Colon, TokenValue::Null),
+            create_token(TokenCategory::Void, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::Fn, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("add"))),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::Colon, TokenValue::Null),
+            create_token(TokenCategory::Void, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let err = parser.parse().unwrap_err();
+        assert_eq!(err.message(), format!("Redeclaration of function 'add'.\nAt: {:?}.", default_position()));
+    }
+
+    #[test]
+    fn parse_program_function_shadows_std_function_fails() {
+        let tokens = vec![
+            // fn print(): void {}
+            create_token(TokenCategory::Fn, TokenValue::Null),
+            create_token(TokenCategory::Identifier, TokenValue::String(String::from("print"))),
+            create_token(TokenCategory::ParenOpen, TokenValue::Null),
+            create_token(TokenCategory::ParenClose, TokenValue::Null),
+            create_token(TokenCategory::Colon, TokenValue::Null),
+            create_token(TokenCategory::Void, TokenValue::Null),
+            create_token(TokenCategory::BraceOpen, TokenValue::Null),
+            create_token(TokenCategory::BraceClose, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ];
+
+        let mock_lexer = LexerMock::new(tokens);
+        let mut parser = Parser::new(mock_lexer);
+
+        let err = parser.parse().unwrap_err();
+        assert_eq!(
+            err.message(),
+            format!("Redeclaration of function 'print'.\nAt: {:?}.", default_position())
+        );
     }
 }

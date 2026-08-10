@@ -745,6 +745,16 @@ impl<'a> Interpreter<'a> {
                     statement.position,
                 )));
             }
+
+            if self.is_continuing {
+                self.stack.pop_stack_frame();
+
+                return Err(Box::new(InterpreterError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("Continue called outside 'for' or 'while'."),
+                    statement.position,
+                )));
+            }
         }
 
         match &self.last_result {

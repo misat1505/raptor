@@ -571,7 +571,17 @@ impl<'a> Interpreter<'a> {
 
                     let value = self.read_last_result()?;
 
-                    args.push(Rc::new(RefCell::new(value)));
+                    match value {
+                        Value::Vector { ref kind, ref values } => {
+                            let shallow_copy = Rc::new(RefCell::new(values.borrow().iter().map(Rc::clone).collect::<Vec<_>>()));
+                            let shallow_copy_vector = Value::Vector {
+                                kind: kind.clone(),
+                                values: shallow_copy,
+                            };
+                            args.push(Rc::new(RefCell::new(shallow_copy_vector)));
+                        }
+                        _ => args.push(Rc::new(RefCell::new(value))),
+                    }
                 }
 
                 PassedBy::Reference => {
@@ -865,9 +875,9 @@ impl<'a> Interpreter<'a> {
 
         let new_value = self.read_last_result()?;
 
-        let borrowed = current_values.borrow();
+        let mut borrowed = current_values.borrow_mut();
 
-        let target_cell = borrowed.get(idx).ok_or_else(|| {
+        let target_cell = borrowed.get_mut(idx).ok_or_else(|| {
             Box::new(InterpreterError::at(
                 ErrorSeverity::HIGH,
                 format!("Index {} out of bounds.", idx),
@@ -875,7 +885,7 @@ impl<'a> Interpreter<'a> {
             )) as Box<dyn IError>
         })?;
 
-        *target_cell.borrow_mut() = new_value;
+        *target_cell = Rc::new(RefCell::new(new_value));
 
         Ok(())
     }

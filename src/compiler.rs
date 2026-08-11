@@ -23,6 +23,7 @@ pub struct Compiler<'a, 'ctx> {
     builder: Builder<'ctx>,
 
     main_fn: Option<FunctionValue<'ctx>>,
+    printf_fn: Option<FunctionValue<'ctx>>,
 
     // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
     // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
@@ -45,6 +46,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             module,
             builder,
             main_fn: None,
+            printf_fn: None,
             variables: HashMap::new(),
             last_value: None,
             position: Position {
@@ -58,6 +60,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     pub fn compile(&mut self) -> Result<(), Box<dyn IError>> {
         self.declare_main_function();
+        self.declare_printf();
         self.visit_program(self.program)?;
         self.finish_main_function();
         self.verify_module()?;
@@ -149,6 +152,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
+    fn declare_printf(&mut self) {
+        let i32_type = self.i32_type();
+        let str_type = self.string_type();
+        let printf_type = i32_type.fn_type(&[str_type.into()], true);
+        let function = self.module.add_function("printf", printf_type, None);
+        self.printf_fn = Some(function);
+    }
+
     fn read_last_value(&mut self) -> Result<BasicValueEnum<'ctx>, Box<dyn IError>> {
         self.last_value.take().ok_or_else(|| {
             Box::new(CompilerError::at(
@@ -191,6 +202,39 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         self.position = statement.position;
 
         match &statement.value {
+            Statement::FunctionCall { identifier, arguments } => match identifier.value.as_str() {
+                "println" => {
+                    let arg = arguments.get(0).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            String::from("'println' expects exactly one argument."),
+                            statement.position,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    self.visit_expression(&arg.value.value)?;
+                    let text_value = self.read_last_value()?;
+
+                    let printf_fn = self.printf_fn.expect("printf should be declared before visiting the program");
+
+                    let format_str = self
+                        .builder
+                        .build_global_string_ptr("%s\n", "fmt")
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
+
+                    self.builder
+                        .build_call(printf_fn, &[format_str.as_pointer_value().into(), text_value.into()], "printf_call")
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
+
+                    Ok(())
+                }
+
+                other => Err(Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Compiling calls to '{}' is not yet supported.", other),
+                    statement.position,
+                ))),
+            },
             Statement::Declaration { var_type, identifier, value } => {
                 let llvm_type: BasicTypeEnum<'ctx> = match &var_type.value {
                     Type::I64 => self.i64_type().into(),

@@ -1156,4 +1156,413 @@ board = next_state(&board);
             Rc::new(RefCell::new(Value::I64(3)))
         );
     }
+
+    #[test]
+    fn pass_vector_by_reference_mutates_original() {
+        let text = BufReader::new(
+            r#"
+    fn append_one(&i64[] arr): void {
+      vector_push(&arr, 1);
+    }
+
+    i64[] numbers = [];
+    append_one(&numbers);
+    append_one(&numbers);
+    i64 size = vector_size(&numbers);
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("size").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(2)))
+        );
+    }
+
+    #[test]
+    fn integer_division_truncates() {
+        let text = BufReader::new(
+            r#"
+    i64 a = 7 / 2;
+    i64 b = -7 / 2;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("a").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(3)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("b").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(-3)))
+        );
+    }
+
+    #[test]
+    fn unary_negation_chain() {
+        let text = BufReader::new(
+            r#"
+    i64 a = 5;
+    i64 b = -(-a);
+    i64 c = -a - -a;
+    bool d = !(!true);
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("b").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(5)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("c").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(0)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("d").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(true)))
+        );
+    }
+
+    #[test]
+    fn string_equality_and_inequality() {
+        let text = BufReader::new(
+            r#"
+    str a = "hello";
+    str b = "hello";
+    str c = "world";
+    bool eq = a == b;
+    bool neq = a != c;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("eq").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(true)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("neq").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(true)))
+        );
+    }
+
+    #[test]
+    fn void_function_calling_another_function() {
+        let text = BufReader::new(
+            r#"
+    fn helper(i64 x): i64 {
+      return x * 2;
+    }
+
+    fn main_logic(&i64 result): void {
+      result = helper(21);
+    }
+
+    i64 output = 0;
+    main_logic(&output);
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("output").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(42)))
+        );
+    }
+
+    #[test]
+    fn switch_no_matching_case_leaves_variable_untouched() {
+        let text = BufReader::new(
+            r#"
+    i64 x = -5;
+    str result = "default";
+    switch (x) {
+      (x > 0) -> {
+        result = "positive";
+      }
+      (x == 0) -> {
+        result = "zero";
+      }
+    }
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("result").unwrap().clone(),
+            Rc::new(RefCell::new(Value::String(String::from("default"))))
+        );
+    }
+
+    #[test]
+    fn nested_switch_inside_loop_with_continue() {
+        let text = BufReader::new(
+            r#"
+    i64 total = 0;
+    for (i64 i = 0; i < 5; i += 1) {
+      switch (i) {
+        (i % 2 == 0) -> {
+          continue;
+        }
+      }
+      total += i;
+    }
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("total").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(4)))
+        );
+    }
+
+    #[test]
+    fn reference_argument_evaluation_order() {
+        let text = BufReader::new(
+            r#"
+    fn set_both(&i64 a, &i64 b): void {
+      a = 1;
+      b = 2;
+    }
+
+    i64 x = 0;
+    i64 y = 0;
+    set_both(&x, &y);
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("x").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(1)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("y").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(2)))
+        );
+    }
+
+    #[test]
+    fn float_comparisons() {
+        let text = BufReader::new(
+            r#"
+    f64 a = 1.5;
+    f64 b = 2.5;
+    bool less = a < b;
+    bool greater_equal = b >= a;
+    bool equal_same = a == 1.5;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("less").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(true)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("greater_equal").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(true)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("equal_same").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(true)))
+        );
+    }
+
+    #[test]
+    fn cast_negative_number_to_bool() {
+        let text = BufReader::new(
+            r#"
+    i64 neg = 0 - 5;
+    bool a = neg as bool;
+    f64 neg_f = 0.0 - 3.5;
+    bool b = neg_f as bool;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("a").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(false)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("b").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(false)))
+        );
+    }
+
+    #[test]
+    fn cast_empty_and_nonempty_string_to_bool() {
+        let text = BufReader::new(
+            r#"
+    str empty = "";
+    str nonempty = "x";
+    bool a = empty as bool;
+    bool b = nonempty as bool;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("a").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(false)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("b").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(true)))
+        );
+    }
+
+    #[test]
+    fn for_loop_without_declaration_and_assignment() {
+        let text = BufReader::new(
+            r#"
+    i64 i = 0;
+    for (; i < 3;) {
+      i = i + 1;
+    }
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("i").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(3)))
+        );
+    }
+
+    #[test]
+    fn index_assignment_out_of_bounds_fails() {
+        let text = BufReader::new(
+            r#"
+    i64[] arr = [1, 2, 3];
+    arr[10] = 99;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn recursive_function_multiple_params_gcd() {
+        let text = BufReader::new(
+            r#"
+    fn gcd(i64 a, i64 b): i64 {
+      if (b == 0) {
+        return a;
+      }
+      return gcd(b, a % b);
+    }
+
+    i64 result = gcd(48, 18);
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("result").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(6)))
+        );
+    }
+
+    #[test]
+    fn redeclare_variable_in_same_scope_fails() {
+        let text = BufReader::new(
+            r#"
+    i64 x = 1;
+    i64 x = 2;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program_skip_typecheck(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn assign_to_undeclared_variable_fails() {
+        let text = BufReader::new(
+            r#"
+    x = 5;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program_skip_typecheck(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn calling_undeclared_function_fails() {
+        let text = BufReader::new(
+            r#"
+    does_not_exist(1, 2);
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program_skip_typecheck(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
 }

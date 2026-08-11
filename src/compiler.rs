@@ -24,6 +24,7 @@ pub struct Compiler<'a, 'ctx> {
 
     main_fn: Option<FunctionValue<'ctx>>,
     printf_fn: Option<FunctionValue<'ctx>>,
+    snprintf_fn: Option<FunctionValue<'ctx>>,
 
     // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
     // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
@@ -47,6 +48,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             builder,
             main_fn: None,
             printf_fn: None,
+            snprintf_fn: None,
             variables: HashMap::new(),
             last_value: None,
             position: Position {
@@ -61,6 +63,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub fn compile(&mut self) -> Result<(), Box<dyn IError>> {
         self.declare_main_function();
         self.declare_printf();
+        self.declare_snprintf();
         self.visit_program(self.program)?;
         self.finish_main_function();
         self.verify_module()?;
@@ -158,6 +161,16 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let printf_type = i32_type.fn_type(&[str_type.into()], true);
         let function = self.module.add_function("printf", printf_type, None);
         self.printf_fn = Some(function);
+    }
+
+    fn declare_snprintf(&mut self) {
+        let i32_type = self.i32_type();
+        let i64_type = self.i64_type();
+        let str_type = self.string_type();
+
+        let snprintf_type = i32_type.fn_type(&[str_type.into(), i64_type.into(), str_type.into()], true);
+        let function = self.module.add_function("snprintf", snprintf_type, None);
+        self.snprintf_fn = Some(function);
     }
 
     fn read_last_value(&mut self) -> Result<BasicValueEnum<'ctx>, Box<dyn IError>> {
@@ -487,6 +500,48 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.last_value = Some(result.into());
 
                 Ok(())
+            }
+
+            Expression::Casting { value, to_type } => {
+                self.visit_expression(value)?;
+                let source_value = self.read_last_value()?;
+
+                match (&to_type.value, source_value) {
+                    (Type::Str, BasicValueEnum::IntValue(int_value)) => {
+                        let snprintf_fn = self.snprintf_fn.expect("snprintf should be declared before visiting the program");
+
+                        let buffer_type = self.context.i8_type().array_type(24);
+                        let buffer_ptr = self.builder.build_alloca(buffer_type, "int_to_str_buf").map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?;
+
+                        let format_str = self.builder.build_global_string_ptr("%lld", "int_fmt").map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?;
+
+                        let size = self.i64_type().const_int(24, false);
+
+                        self.builder
+                            .build_call(
+                                snprintf_fn,
+                                &[buffer_ptr.into(), size.into(), format_str.as_pointer_value().into(), int_value.into()],
+                                "snprintf_call",
+                            )
+                            .map_err(|err| {
+                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                            })?;
+
+                        self.last_value = Some(buffer_ptr.into());
+
+                        Ok(())
+                    }
+
+                    (other_type, _) => Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Casting to type '{:?}' is not yet supported.", other_type),
+                        expression.position,
+                    ))),
+                }
             }
 
             other => Err(Box::new(CompilerError::at(

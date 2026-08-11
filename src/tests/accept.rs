@@ -19,7 +19,7 @@ mod tests {
 
     fn on_warning(_err: Box<dyn IError>) {}
 
-    fn setup_program(text: BufReader<&[u8]>) -> Program {
+    fn setup_program_impl(text: BufReader<&[u8]>, skip_typecheck: bool) -> Program {
         let mut text = text;
         let mut content = String::new();
         text.read_to_string(&mut content).unwrap();
@@ -35,10 +35,23 @@ mod tests {
         let lexer = Lexer::new(reader, lexer_options, on_warning).unwrap();
         let mut parser = Parser::new(lexer);
         let program = parser.parse().unwrap();
-        let mut checker = SemanticChecker::new(&program).unwrap();
-        checker.check();
-        assert_eq!(checker.errors.len(), 0);
+
+        if !skip_typecheck {
+            let mut checker = SemanticChecker::new(&program).unwrap();
+            checker.check();
+            assert_eq!(checker.errors.len(), 0);
+        }
+
         program
+    }
+
+    fn setup_program(text: BufReader<&[u8]>) -> Program {
+        setup_program_impl(text, false)
+    }
+
+    #[allow(dead_code)]
+    fn setup_program_skip_typecheck(text: BufReader<&[u8]>) -> Program {
+        setup_program_impl(text, true)
     }
 
     fn create_interpreter<'a>(program: &'a Program) -> Interpreter<'a> {
@@ -684,6 +697,463 @@ board = next_state(&board);
         assert_eq!(
             interpreter.stack().get_variable("d").unwrap().clone(),
             Rc::new(RefCell::new(Value::Bool(true)))
+        );
+    }
+
+    #[test]
+    fn division_by_zero_i64() {
+        let text = BufReader::new(
+            r#"
+    i64 a = 10;
+    i64 b = 0;
+    i64 c = a / b;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn division_by_zero_f64() {
+        let text = BufReader::new(
+            r#"
+    f64 a = 10.0;
+    f64 b = 0.0;
+    f64 c = a / b;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn i64_overflow() {
+        let text = BufReader::new(
+            r#"
+    i64 a = 9223372036854775807;
+    i64 b = a + 1;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn vector_index_out_of_bounds() {
+        let text = BufReader::new(
+            r#"
+    i64[] arr = [1, 2, 3];
+    i64 x = arr[10];
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn negative_index_fails() {
+        let text = BufReader::new(
+            r#"
+    i64[] arr = [1, 2, 3];
+    i64 idx = 0 - 1;
+    i64 x = arr[idx];
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn variable_out_of_scope_after_block() {
+        let text = BufReader::new(
+            r#"
+    if (true) {
+      i64 x = 5;
+    }
+    i64 y = x;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program_skip_typecheck(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn for_loop_iterator_not_visible_outside() {
+        let text = BufReader::new(
+            r#"
+    for (i64 i = 0; i < 3; i = i + 1) {}
+    i64 x = i;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program_skip_typecheck(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn shadowing_not_allowed_in_nested_block() {
+        let text = BufReader::new(
+            r#"
+    i64 x = 1;
+    if (true) {
+      i64 x = 2;
+    }
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program_skip_typecheck(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn default_values_for_all_types() {
+        let text = BufReader::new(
+            r#"
+    i64 a;
+    f64 b;
+    str c;
+    bool d;
+    i64[] e;
+    i64[][] f;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("a").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(0)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("b").unwrap().clone(),
+            Rc::new(RefCell::new(Value::F64(0.0)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("c").unwrap().clone(),
+            Rc::new(RefCell::new(Value::String(String::from(""))))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("d").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Bool(false)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("e").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Vector {
+                kind: Box::new(Type::Vector(Box::new(Type::I64))),
+                values: Rc::new(RefCell::new(vec![])),
+            }))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("f").unwrap().clone(),
+            Rc::new(RefCell::new(Value::Vector {
+                kind: Box::new(Type::Vector(Box::new(Type::Vector(Box::new(Type::I64))))),
+                values: Rc::new(RefCell::new(vec![])),
+            }))
+        );
+    }
+
+    #[test]
+    fn deeply_nested_vector_index_assignment() {
+        let text = BufReader::new(
+            r#"
+    i64[][][] cube = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
+    cube[1][0][1] = 99;
+    i64 x = cube[1][0][1];
+    i64 untouched = cube[0][0][0];
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("x").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(99)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("untouched").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(1)))
+        );
+    }
+
+    #[test]
+    fn empty_vector_declaration() {
+        let text = BufReader::new(
+            r#"
+    i64[] empty = [];
+    i64 size = vector_size(&empty);
+    vector_push(&empty, 1);
+    i64 size_after = vector_size(&empty);
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("size").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(0)))
+        );
+        assert_eq!(
+            interpreter.stack().get_variable("size_after").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(1)))
+        );
+    }
+
+    #[test]
+    fn multiple_switch_expressions_with_aliases() {
+        let text = BufReader::new(
+            r#"
+    i64 a = 3;
+    i64 b = 7;
+    str result;
+    switch (a: x, b: y) {
+      (x + y == 10) -> {
+        result = "sums to ten";
+      }
+    }
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("result").unwrap().clone(),
+            Rc::new(RefCell::new(Value::String(String::from("sums to ten"))))
+        );
+    }
+
+    #[test]
+    fn switch_executes_all_matching_cases_without_break() {
+        let text = BufReader::new(
+            r#"
+    i64 x = 5;
+    i64 counter = 0;
+    switch (x) {
+      (x > 0) -> {
+        counter = counter + 1;
+      }
+      (x > 1) -> {
+        counter = counter + 1;
+      }
+      (x > 100) -> {
+        counter = counter + 1;
+      }
+    }
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("counter").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(2)))
+        );
+    }
+
+    #[test]
+    fn nested_for_loops_with_break_only_breaks_inner() {
+        let text = BufReader::new(
+            r#"
+    i64 outer_count = 0;
+    i64 inner_count = 0;
+    for (i64 i = 0; i < 3; i = i + 1) {
+      outer_count = outer_count + 1;
+      for (i64 j = 0; j < 10; j = j + 1) {
+        if (j == 2) {
+          break;
+        }
+        inner_count = inner_count + 1;
+      }
+    }
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("outer_count").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(3)))
+        );
+        // wewnętrzna pętla robi 2 iteracje (j=0,1) razy 3 przebiegi zewnętrznej = 6
+        assert_eq!(
+            interpreter.stack().get_variable("inner_count").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(6)))
+        );
+    }
+
+    #[test]
+    fn function_call_with_wrong_arg_type_fails() {
+        let text = BufReader::new(
+            r#"
+    fn takes_i64(i64 x): void {}
+    takes_i64("not a number");
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program_skip_typecheck(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn function_without_explicit_return_and_void_type_ok() {
+        let text = BufReader::new(
+            r#"
+    fn do_nothing(): void {
+      i64 x = 5;
+    }
+    do_nothing();
+    i64 marker = 1;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("marker").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(1)))
+        );
+    }
+
+    #[test]
+    fn function_missing_return_for_non_void_fails() {
+        let text = BufReader::new(
+            r#"
+    fn broken(): i64 {
+      i64 x = 5;
+    }
+    i64 y = broken();
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_err());
+    }
+
+    #[test]
+    fn comments_are_ignored() {
+        let text = BufReader::new(
+            r#"
+    # this is a full line comment
+    i64 x = 5; # trailing comment
+    # another comment
+    i64 y = x + 1;
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("y").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(6)))
+        );
+    }
+
+    #[test]
+    fn recursive_function_with_reference_accumulator() {
+        let text = BufReader::new(
+            r#"
+    fn count_down(i64 n, &i64 steps): void {
+      if (n <= 0) {
+        return;
+      }
+      steps = steps + 1;
+      count_down(n - 1, &steps);
+    }
+
+    i64 steps = 0;
+    count_down(5, &steps);
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("steps").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(5)))
+        );
+    }
+
+    #[test]
+    fn empty_program_does_nothing() {
+        let text = BufReader::new(r#""#.as_bytes());
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        assert!(interpreter.interpret().is_ok());
+    }
+
+    #[test]
+    fn chained_index_and_function_call() {
+        let text = BufReader::new(
+            r#"
+    fn make_matrix(): i64[][] {
+      return [[1, 2], [3, 4]];
+    }
+
+    i64 x = make_matrix()[1][0];
+    "#
+            .as_bytes(),
+        );
+
+        let program = setup_program(text);
+        let mut interpreter = create_interpreter(&program);
+        interpreter.interpret().unwrap();
+
+        assert_eq!(
+            interpreter.stack().get_variable("x").unwrap().clone(),
+            Rc::new(RefCell::new(Value::I64(3)))
         );
     }
 }

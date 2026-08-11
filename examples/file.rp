@@ -4,3 +4,5 @@ for (i64 i = 0; i < iters; i += 1) {}
 
 i64 x = 0;
 while (x < iters) x += 1;
+
+str text = "Hello world";

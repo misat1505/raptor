@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
-use inkwell::attributes::AttributeLoc::Function;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine};
-use inkwell::types::IntType;
+use inkwell::types::{BasicTypeEnum, IntType, PointerType};
 use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
 use inkwell::{IntPredicate, OptimizationLevel};
 
@@ -127,6 +126,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.context.i32_type()
     }
 
+    fn string_type(&self) -> PointerType<'ctx> {
+        self.context.ptr_type(inkwell::AddressSpace::default())
+    }
+
     fn declare_main_function(&mut self) {
         let fn_type = self.i32_type().fn_type(&[], false);
         let function = self.module.add_function("main", fn_type, None);
@@ -189,8 +192,9 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
         match &statement.value {
             Statement::Declaration { var_type, identifier, value } => {
-                let llvm_type = match &var_type.value {
-                    Type::I64 => self.i64_type(),
+                let llvm_type: BasicTypeEnum<'ctx> = match &var_type.value {
+                    Type::I64 => self.i64_type().into(),
+                    Type::Str => self.string_type().into(),
                     other => {
                         return Err(Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
@@ -482,6 +486,16 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
             Literal::I64(value) => {
                 let const_value = self.i64_type().const_int(*value as u64, true);
                 self.last_value = Some(const_value.into());
+                Ok(())
+            }
+            Literal::String(value) => {
+                let string_value = self
+                    .builder
+                    .build_global_string_ptr(value.as_str(), "str")
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), self.position)) as Box<dyn IError>)?;
+
+                self.last_value = Some(string_value.as_pointer_value().into());
+
                 Ok(())
             }
 

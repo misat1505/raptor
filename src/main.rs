@@ -98,7 +98,7 @@ fn build_object_file(ir_path: &str, obj_path: &str) -> Result<(), String> {
 
 fn link_executable(obj_path: &str, exe_path: &str) -> Result<(), String> {
     let clang = format!("clang-{}", LLVM_VERSION);
-    run_command(&clang, &[obj_path, "-o", exe_path], "clang")
+    run_command(&clang, &[obj_path, "-o", exe_path, "-no-pie"], "clang")
 }
 
 fn build_executable(ir_path: &str, obj_path: &str, exe_path: &str) -> Result<(), String> {

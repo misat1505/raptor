@@ -1,7 +1,7 @@
 use std::{env::args, eprintln, fs::File, io::BufReader, path::Path, println, process::Command};
 
 use errors::IError;
-use inkwell::context::Context;
+use inkwell::{context::Context, OptimizationLevel};
 use lexer::Lexer;
 mod lazy_stream_reader;
 use lazy_stream_reader::LazyStreamReader;
@@ -51,6 +51,10 @@ Options:
     --compile       Compile the source file instead of interpreting it
     --run           After compiling, build and run the resulting executable
                     (implies --compile)
+    -O0             No optimization (default)
+    -O1             Basic optimization
+    -O2             Default optimization
+    -O3             Aggressive optimization
 
 Arguments:
     <FILE>          Path to the source file
@@ -120,6 +124,7 @@ fn main() {
     let mut is_unsafe = false;
     let mut is_compile = false;
     let mut should_run = false;
+    let mut opt_level: Option<OptimizationLevel> = None;
 
     let args: Vec<String> = args().collect();
 
@@ -143,6 +148,22 @@ fn main() {
             "--run" => {
                 is_compile = true;
                 should_run = true;
+            }
+
+            "-O0" => {
+                opt_level = Some(OptimizationLevel::None);
+            }
+
+            "-O1" => {
+                opt_level = Some(OptimizationLevel::Less);
+            }
+
+            "-O2" => {
+                opt_level = Some(OptimizationLevel::Default);
+            }
+
+            "-O3" => {
+                opt_level = Some(OptimizationLevel::Aggressive);
             }
 
             arg if arg.starts_with('-') => {
@@ -236,6 +257,12 @@ fn main() {
         if let Err(err) = compiler.compile() {
             eprintln!("{}", err.message());
             return;
+        }
+        if let Some(level) = opt_level {
+            if let Err(err) = compiler.optimize(level) {
+                eprintln!("{}", err.message());
+                return;
+            }
         }
         if let Err(err) = compiler.write_ir_to_file(&ir_path) {
             eprintln!("{}", err.message());

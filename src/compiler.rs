@@ -4,9 +4,11 @@ use inkwell::attributes::AttributeLoc::Function;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
+use inkwell::passes::PassBuilderOptions;
+use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine};
 use inkwell::types::IntType;
 use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
-use inkwell::IntPredicate;
+use inkwell::{IntPredicate, OptimizationLevel};
 
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression, Type},
@@ -78,6 +80,43 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.module
             .verify()
             .map_err(|err| Box::new(CompilerError::new(ErrorSeverity::HIGH, format!("Module verification failed: {}", err))) as Box<dyn IError>)
+    }
+
+    pub fn optimize(&self, level: OptimizationLevel) -> Result<(), Box<dyn IError>> {
+        Target::initialize_native(&InitializationConfig::default()).map_err(|err| {
+            Box::new(CompilerError::new(
+                ErrorSeverity::HIGH,
+                format!("Failed to initialize native target: {}", err),
+            )) as Box<dyn IError>
+        })?;
+
+        let triple = TargetMachine::get_default_triple();
+        let target = Target::from_triple(&triple)
+            .map_err(|err| Box::new(CompilerError::new(ErrorSeverity::HIGH, format!("Failed to get target: {}", err))) as Box<dyn IError>)?;
+
+        let target_machine = target
+            .create_target_machine(
+                &triple,
+                &TargetMachine::get_host_cpu_name().to_string(),
+                &TargetMachine::get_host_cpu_features().to_string(),
+                level,
+                RelocMode::Default,
+                CodeModel::Default,
+            )
+            .ok_or_else(|| Box::new(CompilerError::new(ErrorSeverity::HIGH, String::from("Failed to create target machine"))) as Box<dyn IError>)?;
+
+        let passes = match level {
+            OptimizationLevel::None => "default<O0>",
+            OptimizationLevel::Less => "default<O1>",
+            OptimizationLevel::Default => "default<O2>",
+            OptimizationLevel::Aggressive => "default<O3>",
+        };
+
+        self.module
+            .run_passes(passes, &target_machine, PassBuilderOptions::create())
+            .map_err(|err| Box::new(CompilerError::new(ErrorSeverity::HIGH, format!("Module optimization failed: {}", err))) as Box<dyn IError>)?;
+
+        Ok(())
     }
 
     fn i64_type(&self) -> IntType<'ctx> {

@@ -3,11 +3,12 @@ use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::IntType;
 use inkwell::values::FunctionValue;
-use inkwell::OptimizationLevel;
 
 use crate::{
-    ast::{Program, Statement},
+    ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression, Type},
     errors::{CompilerError, ErrorSeverity, IError},
+    lazy_stream_reader::Position,
+    visitor::Visitor,
 };
 
 pub struct Compiler<'a, 'ctx> {
@@ -16,7 +17,6 @@ pub struct Compiler<'a, 'ctx> {
     module: Module<'ctx>,
     builder: Builder<'ctx>,
 
-    // funkcja main, do której będziemy wstrzykiwać kod top-levelowych statementów
     main_fn: Option<FunctionValue<'ctx>>,
 }
 
@@ -43,12 +43,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         Ok(())
     }
 
-    /// Zwraca wygenerowany LLVM IR jako string — przydatne do debugowania i testów.
     pub fn print_ir(&self) -> String {
         self.module.print_to_string().to_string()
     }
 
-    /// Zapisuje wygenerowany moduł LLVM IR (.ll) do pliku.
     pub fn write_ir_to_file(&self, path: &str) -> Result<(), Box<dyn IError>> {
         self.module
             .print_to_file(path)
@@ -61,6 +59,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .map_err(|err| Box::new(CompilerError::new(ErrorSeverity::HIGH, format!("Module verification failed: {}", err))) as Box<dyn IError>)
     }
 
+    #[allow(dead_code)]
     fn i64_type(&self) -> IntType<'ctx> {
         self.context.i64_type()
     }
@@ -69,8 +68,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.context.i32_type()
     }
 
-    /// Deklaruje `fn main() -> i32` i ustawia builder na jej bloku wejściowym.
-    /// Wszystkie top-levelowe statementy programu wylądują wewnątrz tej funkcji.
     fn declare_main_function(&mut self) {
         let fn_type = self.i32_type().fn_type(&[], false);
         let function = self.module.add_function("main", fn_type, None);
@@ -81,8 +78,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.main_fn = Some(function);
     }
 
-    /// Dodaje `return 0;` na końcu `main`, o ile blok nie ma już terminatora
-    /// (np. gdy jakiś wcześniejszy `return` z poziomu top-level już go ustawił).
     fn finish_main_function(&mut self) {
         let current_block = self.builder.get_insert_block().expect("builder should be positioned inside main");
 
@@ -91,69 +86,54 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             self.builder.build_return(Some(&zero)).expect("failed to build return");
         }
     }
+}
 
+impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
     fn visit_program(&mut self, program: &'a Program) -> Result<(), Box<dyn IError>> {
-        // TODO: najpierw wygenerować deklaracje funkcji użytkownika (program.functions),
-        // żeby wywołania mogły się do nich odwoływać niezależnie od kolejności w pliku.
-        for _function in program.functions.values() {
-            // self.declare_function(function)?;
-        }
-
-        // TODO: właściwe wypełnienie ciał funkcji użytkownika.
-        for _function in program.functions.values() {
-            // self.compile_function_body(function)?;
-        }
-
-        // Top-levelowe statementy trafiają do ciała `main`.
-        for statement in &program.statements {
-            self.visit_statement(statement)?;
-        }
-
         Ok(())
     }
 
-    fn visit_statement(&mut self, statement: &'a crate::ast::Node<Statement>) -> Result<(), Box<dyn IError>> {
-        match &statement.value {
-            Statement::Declaration { .. } => {
-                // TODO
-                Ok(())
-            }
-            Statement::Assignment { .. } => {
-                // TODO
-                Ok(())
-            }
-            Statement::FunctionCall { .. } => {
-                // TODO
-                Ok(())
-            }
-            Statement::Conditional { .. } => {
-                // TODO
-                Ok(())
-            }
-            Statement::WhileLoop { .. } => {
-                // TODO
-                Ok(())
-            }
-            Statement::ForLoop { .. } => {
-                // TODO
-                Ok(())
-            }
-            Statement::Switch { .. } => {
-                // TODO
-                Ok(())
-            }
-            Statement::Return(_) => {
-                // TODO
-                Ok(())
-            }
-            Statement::Break => {
-                // TODO
-                Ok(())
-            }
-            Statement::Continue => {
-                // TODO
-                Ok(())
-            }
-        }
+    fn visit_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_expression(&mut self, expression: &'a Node<Expression>) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_parameter(&mut self, parameter: &'a Node<Parameter>) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_argument(&mut self, argument: &'a Node<Argument>) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_type(&mut self, node_type: &'a Node<Type>) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_block(&mut self, block: &'a Node<Block>) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_switch_expression(&mut self, switch_expression: &'a Node<SwitchExpression>) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_switch_case(&mut self, switch_case: &'a Node<SwitchCase>) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_literal(&mut self, literal: &'a Literal) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_vector_literal(&mut self, vector: &'a Vec<Box<Node<Expression>>>) -> Result<(), Box<dyn IError>> {
+        Ok(())
+    }
+
+    fn visit_variable(&mut self, variable: &'a String, position: Position) -> Result<(), Box<dyn IError>> {
+        Ok(())
     }
 }

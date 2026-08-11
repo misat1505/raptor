@@ -3,6 +3,7 @@
 /countlines*
 
 game-of-life
+file
 
 *.o
 *.ll

@@ -1,6 +1,7 @@
-use std::{env::args, eprintln, fs::File, io::BufReader, println};
+use std::{env::args, eprintln, fs::File, io::BufReader, path::Path, println, process::Command};
 
 use errors::IError;
+use inkwell::context::Context;
 use lexer::Lexer;
 mod lazy_stream_reader;
 use lazy_stream_reader::LazyStreamReader;
@@ -32,6 +33,8 @@ mod visitor;
 
 mod tests;
 
+const LLVM_VERSION: &str = "18";
+
 fn on_warning(warning: Box<dyn IError>) {
     eprintln!("{}", warning.message());
 }
@@ -46,6 +49,8 @@ Options:
     -h, --help      Show this help message
     --unsafe        Skip semantic checking
     --compile       Compile the source file instead of interpreting it
+    --run           After compiling, build and run the resulting executable
+                    (implies --compile)
 
 Arguments:
     <FILE>          Path to the source file
@@ -53,9 +58,68 @@ Arguments:
     );
 }
 
+fn output_paths(input_path: &str) -> (String, String, String) {
+    let path = Path::new(input_path);
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+
+    let ir_path = format!("{}.ll", stem);
+    let obj_path = format!("{}.o", stem);
+
+    #[cfg(windows)]
+    let exe_path = format!("{}.exe", stem);
+    #[cfg(not(windows))]
+    let exe_path = stem.to_string();
+
+    (ir_path, obj_path, exe_path)
+}
+
+fn run_command(program: &str, args: &[&str], step_description: &str) -> Result<(), String> {
+    let output = Command::new(program)
+        .args(args)
+        .output()
+        .map_err(|err| format!("Failed to invoke '{}': {}. Is it installed and on PATH?", program, err))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("{} failed:\n{}", step_description, stderr));
+    }
+
+    Ok(())
+}
+
+fn build_object_file(ir_path: &str, obj_path: &str) -> Result<(), String> {
+    let llc = format!("llc-{}", LLVM_VERSION);
+    run_command(&llc, &[ir_path, "-filetype=obj", "-o", obj_path], "llc")
+}
+
+fn link_executable(obj_path: &str, exe_path: &str) -> Result<(), String> {
+    let clang = format!("clang-{}", LLVM_VERSION);
+    run_command(&clang, &[obj_path, "-o", exe_path], "clang")
+}
+
+fn build_executable(ir_path: &str, obj_path: &str, exe_path: &str) -> Result<(), String> {
+    build_object_file(ir_path, obj_path)?;
+    link_executable(obj_path, exe_path)?;
+    Ok(())
+}
+
+fn run_executable(exe_path: &str) -> Result<i32, String> {
+    let path = if exe_path.starts_with('.') || exe_path.contains('/') || exe_path.contains('\\') {
+        exe_path.to_string()
+    } else {
+        let command = format!("./{}", exe_path);
+        command
+    };
+
+    let status = Command::new(&path).status().map_err(|err| format!("Failed to run '{}': {}", path, err))?;
+
+    Ok(status.code().unwrap_or(1))
+}
+
 fn main() {
     let mut is_unsafe = false;
     let mut is_compile = false;
+    let mut should_run = false;
 
     let args: Vec<String> = args().collect();
 
@@ -74,6 +138,11 @@ fn main() {
 
             "--compile" => {
                 is_compile = true;
+            }
+
+            "--run" => {
+                is_compile = true;
+                should_run = true;
             }
 
             arg if arg.starts_with('-') => {
@@ -160,10 +229,36 @@ fn main() {
     }
 
     if is_compile {
-        let mut compiler = Compiler::new(&program);
+        let (ir_path, obj_path, exe_path) = output_paths(&path);
 
+        let context = Context::create();
+        let mut compiler = Compiler::new(&program, &context);
         if let Err(err) = compiler.compile() {
             eprintln!("{}", err.message());
+            return;
+        }
+        if let Err(err) = compiler.write_ir_to_file(&ir_path) {
+            eprintln!("{}", err.message());
+            return;
+        }
+
+        println!("Wrote LLVM IR to '{}'.", ir_path);
+
+        if let Err(err) = build_executable(&ir_path, &obj_path, &exe_path) {
+            eprintln!("{}", err);
+            std::process::exit(1);
+        }
+
+        println!("Built executable '{}'.", exe_path);
+
+        if should_run {
+            match run_executable(&exe_path) {
+                Ok(code) => std::process::exit(code),
+                Err(err) => {
+                    eprintln!("{}", err);
+                    std::process::exit(1);
+                }
+            }
         }
     } else {
         let mut interpreter = Interpreter::new(&program);

@@ -6,6 +6,7 @@ mod lazy_stream_reader;
 use lazy_stream_reader::LazyStreamReader;
 
 use crate::{
+    compiler::Compiler,
     interpreter::Interpreter,
     lexer::LexerOptions,
     parser::{IParser, Parser},
@@ -14,6 +15,7 @@ use crate::{
 
 mod alu;
 mod ast;
+mod compiler;
 mod errors;
 mod interpreter;
 mod lexer;
@@ -43,6 +45,7 @@ Usage:
 Options:
     -h, --help      Show this help message
     --unsafe        Skip semantic checking
+    --compile       Compile the source file instead of interpreting it
 
 Arguments:
     <FILE>          Path to the source file
@@ -52,25 +55,46 @@ Arguments:
 
 fn main() {
     let mut is_unsafe = false;
+    let mut is_compile = false;
+
     let args: Vec<String> = args().collect();
 
-    let path = match args.get(1).cloned() {
-        Some(arg) if arg == "-h" || arg == "--help" => {
-            usage();
-            return;
-        }
-        Some(arg) if arg == "--unsafe" => {
-            is_unsafe = true;
+    let mut path: Option<String> = None;
 
-            match args.get(2).cloned() {
-                Some(path) => path,
-                None => {
-                    eprintln!("Error: path to file not given.\n");
+    for arg in args.iter().skip(1) {
+        match arg.as_str() {
+            "-h" | "--help" => {
+                usage();
+                return;
+            }
+
+            "--unsafe" => {
+                is_unsafe = true;
+            }
+
+            "--compile" => {
+                is_compile = true;
+            }
+
+            arg if arg.starts_with('-') => {
+                eprintln!("Error: unknown option '{}'.\n", arg);
+                usage();
+                return;
+            }
+
+            _ => {
+                if path.is_some() {
+                    eprintln!("Error: multiple input files given.\n");
                     usage();
                     return;
                 }
+
+                path = Some(arg.to_string());
             }
         }
+    }
+
+    let path = match path {
         Some(path) => path,
         None => {
             eprintln!("Error: path to file not given.\n");
@@ -100,6 +124,7 @@ fn main() {
             std::process::exit(1);
         }
     };
+
     let mut parser = Parser::new(lexer);
 
     let program = match parser.parse() {
@@ -112,25 +137,39 @@ fn main() {
             Ok(checker) => checker,
             Err(err) => return eprintln!("{}", err.message()),
         };
+
         semantic_checker.check();
 
         if semantic_checker.errors.len() > 0 {
             let mut warnings = 0;
             let mut errors = 0;
+
             for error in &semantic_checker.errors {
                 match error.get_severity() {
                     errors::ErrorSeverity::HIGH => errors += 1,
                     errors::ErrorSeverity::LOW => warnings += 1,
                 }
+
                 eprintln!("{}\n", error.message());
             }
+
             eprintln!("Static analysis finished with {} errors, {} warnings.", errors, warnings);
+
             return;
         }
     }
 
-    let mut interpreter = Interpreter::new(&program);
-    if let Err(err) = interpreter.interpret() {
-        eprintln!("{}", err.message());
-    };
+    if is_compile {
+        let mut compiler = Compiler::new(&program);
+
+        if let Err(err) = compiler.compile() {
+            eprintln!("{}", err.message());
+        }
+    } else {
+        let mut interpreter = Interpreter::new(&program);
+
+        if let Err(err) = interpreter.interpret() {
+            eprintln!("{}", err.message());
+        }
+    }
 }

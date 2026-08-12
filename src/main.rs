@@ -21,6 +21,8 @@ mod errors;
 mod interpreter;
 mod lexer;
 mod libc_functions;
+mod llvm_alu;
+mod llvm_value;
 mod parser;
 mod scope_manager;
 mod semantic_checker;

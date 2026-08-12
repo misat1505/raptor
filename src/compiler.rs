@@ -5,11 +5,13 @@ use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine};
-use inkwell::types::{BasicTypeEnum, FloatType, IntType, PointerType};
-use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
-use inkwell::{FloatPredicate, IntPredicate, OptimizationLevel};
+use inkwell::types::{FloatType, IntType, PointerType};
+use inkwell::values::{FunctionValue, PointerValue};
+use inkwell::OptimizationLevel;
 
 use crate::libc_functions::LibcFunctions;
+use crate::llvm_alu::LlvmAlu;
+use crate::llvm_value::LlvmValue;
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression, Type},
     errors::{CompilerError, ErrorSeverity, IError},
@@ -28,10 +30,10 @@ pub struct Compiler<'a, 'ctx> {
 
     // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
     // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
-    variables: HashMap<String, (PointerValue<'ctx>, BasicTypeEnum<'ctx>)>,
+    variables: HashMap<String, (PointerValue<'ctx>, Type)>,
 
     // odpowiednik `last_result` z interpretera — wynik ostatnio odwiedzonego wyrażenia.
-    last_value: Option<BasicValueEnum<'ctx>>,
+    last_value: Option<LlvmValue<'ctx>>,
 
     position: Position,
 }
@@ -135,14 +137,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.context.f64_type()
     }
 
-    fn string_type(&self) -> PointerType<'ctx> {
-        self.context.ptr_type(inkwell::AddressSpace::default())
-    }
-
-    fn bool_type(&self) -> IntType<'ctx> {
-        self.context.bool_type()
-    }
-
     fn declare_main_function(&mut self) {
         let fn_type = self.i32_type().fn_type(&[], false);
         let function = self.module.add_function("main", fn_type, None);
@@ -162,7 +156,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    fn read_last_value(&mut self) -> Result<BasicValueEnum<'ctx>, Box<dyn IError>> {
+    fn read_last_value(&mut self) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         self.last_value.take().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
@@ -172,8 +166,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         })
     }
 
-    fn get_variable(&self, name: &str) -> Result<(PointerValue<'ctx>, BasicTypeEnum<'ctx>), Box<dyn IError>> {
-        self.variables.get(name).copied().ok_or_else(|| {
+    fn get_variable(&self, name: &str) -> Result<(PointerValue<'ctx>, Type), Box<dyn IError>> {
+        self.variables.get(name).cloned().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Undeclared variable '{}'.", name),
@@ -188,6 +182,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .expect("builder should be positioned inside a function")
             .get_parent()
             .expect("basic block should belong to a function")
+    }
+
+    fn alu(&self) -> LlvmAlu<'_, 'ctx> {
+        LlvmAlu::new(&self.builder, &self.libc)
     }
 }
 
@@ -225,7 +223,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     self.builder
                         .build_call(
                             self.libc.printf_fn,
-                            &[format_str.as_pointer_value().into(), text_value.into()],
+                            &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
                             "printf_call",
                         )
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
@@ -240,19 +238,13 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 ))),
             },
             Statement::Declaration { var_type, identifier, value } => {
-                let llvm_type: BasicTypeEnum<'ctx> = match &var_type.value {
-                    Type::I64 => self.i64_type().into(),
-                    Type::F64 => self.f64_type().into(),
-                    Type::Str => self.string_type().into(),
-                    Type::Bool => self.bool_type().into(),
-                    other => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!("Compiling declarations of type '{:?}' is not yet supported.", other),
-                            statement.position,
-                        )))
-                    }
-                };
+                let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type.value, self.context).ok_or_else(|| {
+                    Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Compiling declarations of type '{:?}' is not yet supported.", var_type.value),
+                        statement.position,
+                    )) as Box<dyn IError>
+                })?;
 
                 let ptr = self
                     .builder
@@ -263,11 +255,11 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     self.visit_expression(val_expr)?;
                     let init_value = self.read_last_value()?;
                     self.builder
-                        .build_store(ptr, init_value)
+                        .build_store(ptr, init_value.as_basic_value_enum())
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
                 }
 
-                self.variables.insert(identifier.value.clone(), (ptr, llvm_type));
+                self.variables.insert(identifier.value.clone(), (ptr, var_type.value.clone()));
 
                 Ok(())
             }
@@ -286,7 +278,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                 let (ptr, _var_type) = self.get_variable(identifier.value.as_str())?;
                 self.builder
-                    .build_store(ptr, new_value)
+                    .build_store(ptr, new_value.as_basic_value_enum())
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
 
                 Ok(())
@@ -314,7 +306,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                 self.builder.position_at_end(cond_block);
                 self.visit_expression(condition)?;
-                let cond_value = self.read_last_value()?.into_int_value();
+                let cond_value = self.read_last_value()?.into_int_value(statement.position)?;
                 self.builder
                     .build_conditional_branch(cond_value, body_block, after_block)
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
@@ -358,7 +350,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                 self.builder.position_at_end(cond_block);
                 self.visit_expression(condition)?;
-                let cond_value = self.read_last_value()?.into_int_value();
+                let cond_value = self.read_last_value()?.into_int_value(statement.position)?;
                 self.builder
                     .build_conditional_branch(cond_value, true_block, false_block.unwrap_or(after_block))
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
@@ -395,7 +387,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                 self.builder.position_at_end(cond_block);
                 self.visit_expression(condition)?;
-                let cond_value = self.read_last_value()?.into_int_value();
+                let cond_value = self.read_last_value()?.into_int_value(statement.position)?;
                 self.builder
                     .build_conditional_branch(cond_value, body_block, after_block)
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
@@ -431,22 +423,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(expr)?;
                 let value = self.read_last_value()?;
 
-                let result = match value {
-                    BasicValueEnum::IntValue(int_value) => {
-                        self.builder.build_not(int_value, "bnottmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-                    other => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!("Cannot perform boolean negate on value of type '{:?}'.", other.get_type()),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().boolean_negate(value, expression.position)?);
 
                 Ok(())
             }
@@ -455,27 +432,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(expr)?;
                 let value = self.read_last_value()?;
 
-                let result = match value {
-                    BasicValueEnum::IntValue(int_value) => {
-                        self.builder.build_int_neg(int_value, "negtmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-                    BasicValueEnum::FloatValue(float_value) => self
-                        .builder
-                        .build_float_neg(float_value, "negtmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-                    other => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!("Cannot perform arithmetic negation on value of type '{:?}'.", other.get_type()),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().arithmetic_negate(value, expression.position)?);
 
                 Ok(())
             }
@@ -487,68 +444,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => {
-                        self.builder.build_int_add(l, r, "addtmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => {
-                        self.builder.build_float_add(l, r, "addtmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-
-                    (BasicValueEnum::PointerValue(l), BasicValueEnum::PointerValue(r)) => {
-                        let map_err = |err: inkwell::builder::BuilderError| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        };
-
-                        // len_l = strlen(l), len_r = strlen(r)
-                        let len_l_call = self.builder.build_call(self.libc.strlen_fn, &[l.into()], "strlen_l").map_err(map_err)?;
-                        let len_l = len_l_call.try_as_basic_value().unwrap_basic().into_int_value();
-
-                        let len_r_call = self.builder.build_call(self.libc.strlen_fn, &[r.into()], "strlen_r").map_err(map_err)?;
-                        let len_r = len_r_call.try_as_basic_value().unwrap_basic().into_int_value();
-
-                        // total = len_l + len_r + 1  (+1 na '\0')
-                        let sum_len = self.builder.build_int_add(len_l, len_r, "concat_len").map_err(map_err)?;
-                        let one = self.i64_type().const_int(1, false);
-                        let total_len = self.builder.build_int_add(sum_len, one, "concat_total_len").map_err(map_err)?;
-
-                        // buf = malloc(total)
-                        let malloc_call = self
-                            .builder
-                            .build_call(self.libc.malloc_fn, &[total_len.into()], "concat_buf")
-                            .map_err(map_err)?;
-                        let buf = malloc_call.try_as_basic_value().unwrap_basic().into_pointer_value();
-
-                        // strcpy(buf, l); strcat(buf, r);
-                        self.builder
-                            .build_call(self.libc.strcpy_fn, &[buf.into(), l.into()], "strcpy_call")
-                            .map_err(map_err)?;
-                        self.builder
-                            .build_call(self.libc.strcat_fn, &[buf.into(), r.into()], "strcat_call")
-                            .map_err(map_err)?;
-
-                        BasicValueEnum::from(buf)
-                    }
-
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform addition between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().add(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -556,114 +452,27 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
             Expression::Subtraction(lhs, rhs) => {
                 self.visit_expression(lhs)?;
                 let left = self.read_last_value()?;
-
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
-
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => {
-                        self.builder.build_int_sub(l, r, "subtmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => {
-                        self.builder.build_float_sub(l, r, "subtmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform subtraction between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
-
+                self.last_value = Some(self.alu().subtract(left, right, expression.position)?);
                 Ok(())
             }
 
             Expression::Multiplication(lhs, rhs) => {
                 self.visit_expression(lhs)?;
                 let left = self.read_last_value()?;
-
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
-
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => {
-                        self.builder.build_int_mul(l, r, "multmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => {
-                        self.builder.build_float_mul(l, r, "multmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform multiplication between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
-
+                self.last_value = Some(self.alu().multiplication(left, right, expression.position)?);
                 Ok(())
             }
 
             Expression::Division(lhs, rhs) => {
                 self.visit_expression(lhs)?;
                 let left = self.read_last_value()?;
-
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
-
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
-                        .builder
-                        .build_int_signed_div(l, r, "divtmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => {
-                        self.builder.build_float_div(l, r, "divtmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform division between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
-
+                self.last_value = Some(self.alu().division(left, right, expression.position)?);
                 Ok(())
             }
 
@@ -674,26 +483,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
-                        .builder
-                        .build_int_signed_rem(l, r, "remtmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform modulo between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().modulo(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -705,28 +495,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r))
-                        if l.get_type() == self.bool_type() && r.get_type() == self.bool_type() =>
-                    {
-                        self.builder.build_and(l, r, "andtmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform logical concatenation between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().concatenation(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -738,28 +507,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r))
-                        if l.get_type() == self.bool_type() && r.get_type() == self.bool_type() =>
-                    {
-                        self.builder.build_or(l, r, "ortmp").map(BasicValueEnum::from).map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?
-                    }
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform logical alternative between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().alternative(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -771,33 +519,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
-                        .builder
-                        .build_int_compare(IntPredicate::SGT, l, r, "gttmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
-                        .builder
-                        .build_float_compare(FloatPredicate::OGT, l, r, "gttmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform greater between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().greater(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -809,33 +531,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
-                        .builder
-                        .build_int_compare(IntPredicate::SGE, l, r, "getmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
-                        .builder
-                        .build_float_compare(FloatPredicate::OGE, l, r, "getmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform greater or equal between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().greater_or_equal(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -847,33 +543,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
-                        .builder
-                        .build_int_compare(IntPredicate::SLT, l, r, "lttmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
-                        .builder
-                        .build_float_compare(FloatPredicate::OLT, l, r, "lttmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform less between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().less(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -885,33 +555,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
-                        .builder
-                        .build_int_compare(IntPredicate::SLE, l, r, "letmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
-                        .builder
-                        .build_float_compare(FloatPredicate::OLE, l, r, "letmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform less or equal between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().less_or_equal(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -923,51 +567,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
-                        .builder
-                        .build_int_compare(IntPredicate::EQ, l, r, "eqtmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
-                        .builder
-                        .build_float_compare(FloatPredicate::OEQ, l, r, "eqtmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-                    (BasicValueEnum::PointerValue(l), BasicValueEnum::PointerValue(r)) => {
-                        let call = self
-                            .builder
-                            .build_call(self.libc.strcmp_fn, &[l.into(), r.into()], "strcmp_call")
-                            .map_err(|err| {
-                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                            })?;
-
-                        let cmp_result = call.try_as_basic_value().unwrap_basic().into_int_value();
-
-                        let zero = self.i32_type().const_int(0, false);
-
-                        self.builder
-                            .build_int_compare(IntPredicate::EQ, cmp_result, zero, "eqtmp")
-                            .map(BasicValueEnum::from)
-                            .map_err(|err| {
-                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                            })?
-                    }
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform equal between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().equal(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -979,51 +579,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(rhs)?;
                 let right = self.read_last_value()?;
 
-                let result = match (left, right) {
-                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
-                        .builder
-                        .build_int_compare(IntPredicate::NE, l, r, "netmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-
-                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
-                        .builder
-                        .build_float_compare(FloatPredicate::ONE, l, r, "netmp")
-                        .map(BasicValueEnum::from)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
-                    (BasicValueEnum::PointerValue(l), BasicValueEnum::PointerValue(r)) => {
-                        let call = self
-                            .builder
-                            .build_call(self.libc.strcmp_fn, &[l.into(), r.into()], "strcmp_call")
-                            .map_err(|err| {
-                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                            })?;
-
-                        let cmp_result = call.try_as_basic_value().unwrap_basic().into_int_value();
-
-                        let zero = self.i32_type().const_int(0, false);
-
-                        self.builder
-                            .build_int_compare(IntPredicate::NE, cmp_result, zero, "netmp")
-                            .map(BasicValueEnum::from)
-                            .map_err(|err| {
-                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                            })?
-                    }
-                    (l, r) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot perform not equal between values of type '{:?}' and '{:?}'.",
-                                l.get_type(),
-                                r.get_type()
-                            ),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().not_equal(left, right, expression.position)?);
 
                 Ok(())
             }
@@ -1032,148 +588,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(value)?;
                 let source_value = self.read_last_value()?;
 
-                let map_err = |err: inkwell::builder::BuilderError| {
-                    Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                };
-
-                let result: BasicValueEnum<'ctx> = match (&to_type.value, source_value) {
-                    // I64 -> Str
-                    (Type::Str, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.i64_type() => {
-                        let buffer_type = self.context.i8_type().array_type(24);
-                        let buffer_ptr = self.builder.build_alloca(buffer_type, "int_to_str_buf").map_err(map_err)?;
-
-                        let format_str = self.builder.build_global_string_ptr("%lld", "int_fmt").map_err(map_err)?;
-                        let size = self.i64_type().const_int(24, false);
-
-                        self.builder
-                            .build_call(
-                                self.libc.snprintf_fn,
-                                &[buffer_ptr.into(), size.into(), format_str.as_pointer_value().into(), int_value.into()],
-                                "snprintf_call",
-                            )
-                            .map_err(map_err)?;
-
-                        buffer_ptr.into()
-                    }
-
-                    // F64 -> Str
-                    (Type::Str, BasicValueEnum::FloatValue(float_value)) => {
-                        let buffer_type = self.context.i8_type().array_type(32);
-                        let buffer_ptr = self.builder.build_alloca(buffer_type, "float_to_str_buf").map_err(map_err)?;
-
-                        let format_str = self.builder.build_global_string_ptr("%g", "float_fmt").map_err(map_err)?;
-                        let size = self.i64_type().const_int(32, false);
-
-                        self.builder
-                            .build_call(
-                                self.libc.snprintf_fn,
-                                &[buffer_ptr.into(), size.into(), format_str.as_pointer_value().into(), float_value.into()],
-                                "snprintf_call",
-                            )
-                            .map_err(map_err)?;
-
-                        buffer_ptr.into()
-                    }
-
-                    // Bool -> Str
-                    (Type::Str, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.bool_type() => {
-                        let true_str = self.builder.build_global_string_ptr("true", "true_str").map_err(map_err)?;
-                        let false_str = self.builder.build_global_string_ptr("false", "false_str").map_err(map_err)?;
-
-                        self.builder
-                            .build_select(int_value, true_str.as_pointer_value(), false_str.as_pointer_value(), "bool_to_str")
-                            .map_err(map_err)?
-                    }
-
-                    // I64 -> F64
-                    (Type::F64, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.i64_type() => self
-                        .builder
-                        .build_signed_int_to_float(int_value, self.f64_type(), "i64_to_f64")
-                        .map(BasicValueEnum::from)
-                        .map_err(map_err)?,
-
-                    // F64 -> I64
-                    (Type::I64, BasicValueEnum::FloatValue(float_value)) => self
-                        .builder
-                        .build_float_to_signed_int(float_value, self.i64_type(), "f64_to_i64")
-                        .map(BasicValueEnum::from)
-                        .map_err(map_err)?,
-
-                    // I64 -> Bool
-                    (Type::Bool, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.i64_type() => {
-                        let zero = self.i64_type().const_int(0, false);
-                        self.builder
-                            .build_int_compare(IntPredicate::SGT, int_value, zero, "i64_to_bool")
-                            .map(BasicValueEnum::from)
-                            .map_err(map_err)?
-                    }
-
-                    // F64 -> Bool
-                    (Type::Bool, BasicValueEnum::FloatValue(float_value)) => {
-                        let zero = self.f64_type().const_float(0.0);
-                        self.builder
-                            .build_float_compare(FloatPredicate::OGT, float_value, zero, "f64_to_bool")
-                            .map(BasicValueEnum::from)
-                            .map_err(map_err)?
-                    }
-
-                    // String -> I64
-                    (Type::I64, BasicValueEnum::PointerValue(ptr_value)) => {
-                        let call = self
-                            .builder
-                            .build_call(self.libc.atoll_fn, &[ptr_value.into()], "atoll_call")
-                            .map_err(map_err)?;
-                        call.try_as_basic_value().unwrap_basic()
-                    }
-
-                    // String -> F64
-                    (Type::F64, BasicValueEnum::PointerValue(ptr_value)) => {
-                        let call = self
-                            .builder
-                            .build_call(self.libc.atof_fn, &[ptr_value.into()], "atof_call")
-                            .map_err(map_err)?;
-                        call.try_as_basic_value().unwrap_basic()
-                    }
-
-                    // String -> Bool
-                    (Type::Bool, BasicValueEnum::PointerValue(ptr_value)) => {
-                        let call = self
-                            .builder
-                            .build_call(self.libc.strlen_fn, &[ptr_value.into()], "strlen_call")
-                            .map_err(map_err)?;
-                        let len = call.try_as_basic_value().unwrap_basic().into_int_value();
-
-                        let zero = self.i64_type().const_int(0, false);
-                        self.builder
-                            .build_int_compare(IntPredicate::NE, len, zero, "str_to_bool")
-                            .map(BasicValueEnum::from)
-                            .map_err(map_err)?
-                    }
-
-                    // Bool -> I64
-                    (Type::I64, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.bool_type() => self
-                        .builder
-                        .build_int_z_extend(int_value, self.i64_type(), "bool_to_i64")
-                        .map(BasicValueEnum::from)
-                        .map_err(map_err)?,
-
-                    // Bool -> F64
-                    (Type::F64, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.bool_type() => self
-                        .builder
-                        .build_unsigned_int_to_float(int_value, self.f64_type(), "bool_to_f64")
-                        .map(BasicValueEnum::from)
-                        .map_err(map_err)?,
-
-                    (other_type, other_value) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!("Cannot cast value of type '{:?}' to '{:?}'.", other_value.get_type(), other_type),
-                            expression.position,
-                        )));
-                    }
-                };
-
-                self.last_value = Some(result);
+                self.last_value = Some(self.alu().cast_to_type(source_value, &to_type.value, expression.position)?);
 
                 Ok(())
             }
@@ -1218,12 +633,12 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         match literal {
             Literal::I64(value) => {
                 let const_value = self.i64_type().const_int(*value as u64, true);
-                self.last_value = Some(const_value.into());
+                self.last_value = Some(LlvmValue::I64(const_value));
                 Ok(())
             }
             Literal::F64(value) => {
                 let const_value = self.f64_type().const_float(*value);
-                self.last_value = Some(const_value.into());
+                self.last_value = Some(LlvmValue::F64(const_value));
                 Ok(())
             }
             Literal::String(value) => {
@@ -1232,18 +647,18 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     .build_global_string_ptr(value.as_str(), "str")
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), self.position)) as Box<dyn IError>)?;
 
-                self.last_value = Some(string_value.as_pointer_value().into());
+                self.last_value = Some(LlvmValue::Str(string_value.as_pointer_value()));
 
                 Ok(())
             }
 
             Literal::True => {
-                self.last_value = Some(self.context.bool_type().const_int(1, false).into());
+                self.last_value = Some(LlvmValue::Bool(self.context.bool_type().const_int(1, false)));
                 Ok(())
             }
 
             Literal::False => {
-                self.last_value = Some(self.context.bool_type().const_int(0, false).into());
+                self.last_value = Some(LlvmValue::Bool(self.context.bool_type().const_int(0, false)));
                 Ok(())
             }
         }
@@ -1259,13 +674,20 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
     fn visit_variable(&mut self, variable: &'a String, position: Position) -> Result<(), Box<dyn IError>> {
         let (ptr, var_type) = self.get_variable(variable.as_str())?;
+        let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type, self.context).ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Compiling variables of type '{:?}' is not yet supported.", var_type),
+                position,
+            )) as Box<dyn IError>
+        })?;
 
-        let value = self
+        let raw_value = self
             .builder
-            .build_load(var_type, ptr, variable.as_str())
+            .build_load(llvm_type, ptr, variable.as_str())
             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
 
-        self.last_value = Some(value);
+        self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &var_type));
 
         Ok(())
     }

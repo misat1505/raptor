@@ -5,10 +5,11 @@ use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine};
-use inkwell::types::{FloatType, IntType};
-use inkwell::values::{FunctionValue, PointerValue};
-use inkwell::OptimizationLevel;
+use inkwell::types::{BasicMetadataTypeEnum, BasicType, FloatType, IntType};
+use inkwell::values::{BasicMetadataValueEnum, FunctionValue, PointerValue};
+use inkwell::{AddressSpace, OptimizationLevel};
 
+use crate::ast::{FunctionDeclaration, PassedBy};
 use crate::libc_functions::LibcFunctions;
 use crate::llvm_alu::LlvmAlu;
 use crate::llvm_value::LlvmValue;
@@ -26,13 +27,13 @@ pub struct Compiler<'a, 'ctx> {
     builder: Builder<'ctx>,
 
     main_fn: Option<FunctionValue<'ctx>>,
+    functions: HashMap<String, FunctionValue<'ctx>>,
     libc: LibcFunctions<'ctx>,
 
     // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
     // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
     variables: HashMap<String, (PointerValue<'ctx>, Type)>,
 
-    // odpowiednik `last_result` z interpretera — wynik ostatnio odwiedzonego wyrażenia.
     last_value: Option<LlvmValue<'ctx>>,
 
     position: Position,
@@ -50,6 +51,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             module,
             builder,
             main_fn: None,
+            functions: HashMap::new(),
             libc,
             variables: HashMap::new(),
             last_value: None,
@@ -64,11 +66,235 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     pub fn compile(&mut self) -> Result<(), Box<dyn IError>> {
         self.declare_main_function();
+        self.declare_functions()?;
+
+        self.compile_functions()?;
+
+        let main_fn = self.main_fn.expect("main function should be declared");
+        let main_entry = main_fn.get_first_basic_block().expect("main should have an entry block");
+
+        self.builder.position_at_end(main_entry);
+
         self.visit_program(self.program)?;
+
         self.finish_main_function();
         self.verify_module()?;
 
         Ok(())
+    }
+
+    fn declare_functions(&mut self) -> Result<(), Box<dyn IError>> {
+        for (name, declaration) in &self.program.functions {
+            let function_decl = &declaration.value;
+
+            let mut param_types: Vec<BasicMetadataTypeEnum> = Vec::with_capacity(function_decl.parameters.len());
+
+            for parameter in &function_decl.parameters {
+                let param_type: BasicMetadataTypeEnum = match parameter.value.passed_by {
+                    PassedBy::Reference => self.context.ptr_type(AddressSpace::default()).into(),
+                    PassedBy::Value => {
+                        let llvm_type = LlvmValue::type_to_basic_type_enum(&parameter.value.parameter_type.value, self.context).ok_or_else(|| {
+                            Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                format!(
+                                    "Compiling parameters of type '{:?}' is not yet supported.",
+                                    parameter.value.parameter_type.value
+                                ),
+                                parameter.position,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        llvm_type.into()
+                    }
+                };
+
+                param_types.push(param_type);
+            }
+
+            let fn_type = match &function_decl.return_type.value {
+                Type::Void => self.context.void_type().fn_type(&param_types, false),
+                return_type => {
+                    let llvm_return_type = LlvmValue::type_to_basic_type_enum(return_type, self.context).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Compiling functions returning '{:?}' is not yet supported.", return_type),
+                            function_decl.return_type.position,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    llvm_return_type.fn_type(&param_types, false)
+                }
+            };
+
+            let function = self.module.add_function(name, fn_type, None);
+            self.functions.insert(name.clone(), function);
+        }
+
+        Ok(())
+    }
+
+    fn compile_functions(&mut self) -> Result<(), Box<dyn IError>> {
+        for (name, declaration) in &self.program.functions {
+            let function = *self
+                .functions
+                .get(name)
+                .expect("function should have been predeclared by declare_functions");
+
+            self.compile_function_body(function, &declaration.value)?;
+        }
+
+        Ok(())
+    }
+
+    fn compile_function_body(&mut self, function: FunctionValue<'ctx>, function_decl: &'a FunctionDeclaration) -> Result<(), Box<dyn IError>> {
+        let entry_block = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry_block);
+
+        let saved_variables = std::mem::take(&mut self.variables);
+
+        for (index, parameter) in function_decl.parameters.iter().enumerate() {
+            let identifier = parameter.value.identifier.value.as_str();
+            let param_type = &parameter.value.parameter_type.value;
+
+            let param_value = function
+                .get_nth_param(index as u32)
+                .expect("parameter index should be valid, matches signature built in declare_functions");
+
+            match parameter.value.passed_by {
+                PassedBy::Value => {
+                    let llvm_type = LlvmValue::type_to_basic_type_enum(param_type, self.context).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Compiling parameters of type '{:?}' is not yet supported.", param_type),
+                            parameter.position,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    // kopiujemy wartość parametru do lokalnego alloca, żeby dało się ją przypisywać jak zwykłą zmienną
+                    let ptr = self
+                        .builder
+                        .build_alloca(llvm_type, identifier)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), parameter.position)) as Box<dyn IError>)?;
+
+                    self.builder
+                        .build_store(ptr, param_value)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), parameter.position)) as Box<dyn IError>)?;
+
+                    self.variables.insert(identifier.to_string(), (ptr, param_type.clone()));
+                }
+
+                PassedBy::Reference => {
+                    // parametr od razu jest wskaźnikiem do zmiennej wołającego
+                    let ptr = param_value.into_pointer_value();
+                    self.variables.insert(identifier.to_string(), (ptr, param_type.clone()));
+                }
+            }
+        }
+
+        self.visit_block(&function_decl.block)?;
+
+        let current_block = self.builder.get_insert_block().expect("builder should be positioned inside the function");
+
+        if current_block.get_terminator().is_none() {
+            match &function_decl.return_type.value {
+                Type::Void => {
+                    self.builder.build_return(None).map_err(|err| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            err.to_string(),
+                            function_decl.return_type.position,
+                        )) as Box<dyn IError>
+                    })?;
+                }
+                // funkcja niepusta bez jawnego return na końcu ścieżki — na razie unreachable,
+                // docelowo to powinno być wykrywane wcześniej jako błąd "not all paths return a value"
+                _ => {
+                    self.builder.build_unreachable().map_err(|err| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            err.to_string(),
+                            function_decl.return_type.position,
+                        )) as Box<dyn IError>
+                    })?;
+                }
+            }
+        }
+
+        self.variables = saved_variables;
+
+        Ok(())
+    }
+
+    fn build_function_call(
+        &mut self,
+        identifier: &'a Node<String>,
+        arguments: &'a Vec<Box<Node<Argument>>>,
+        position: Position,
+    ) -> Result<(), Box<dyn IError>> {
+        let name = identifier.value.as_str();
+
+        let function = *self.functions.get(name).ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Compiling calls to '{}' is not yet supported.", name),
+                position,
+            )) as Box<dyn IError>
+        })?;
+
+        let mut compiled_args: Vec<BasicMetadataValueEnum> = Vec::with_capacity(arguments.len());
+
+        for argument in arguments {
+            match argument.value.passed_by {
+                PassedBy::Value => {
+                    self.visit_expression(&argument.value.value)?;
+                    let value = self.read_last_value()?;
+                    compiled_args.push(value.as_basic_value_enum().into());
+                }
+
+                PassedBy::Reference => {
+                    let ptr = self.resolve_reference(&argument.value.value)?;
+                    compiled_args.push(ptr.into());
+                }
+            }
+        }
+
+        let call_site = self
+            .builder
+            .build_call(function, &compiled_args, "call")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        self.last_value = match call_site.try_as_basic_value().basic() {
+            Some(return_value) => {
+                let return_type = &self
+                    .program
+                    .functions
+                    .get(name)
+                    .expect("function existence already checked above")
+                    .value
+                    .return_type
+                    .value;
+
+                Some(LlvmValue::from_basic_value_enum(return_value, return_type))
+            }
+            None => None,
+        };
+
+        Ok(())
+    }
+
+    fn resolve_reference(&mut self, expression: &'a Node<Expression>) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        match &expression.value {
+            Expression::Variable(name) => {
+                let (ptr, _) = self.get_variable(name.as_str())?;
+                Ok(ptr)
+            }
+
+            other => Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Cannot pass expression '{:?}' by reference.", other),
+                expression.position,
+            ))),
+        }
     }
 
     #[allow(dead_code)]
@@ -229,6 +455,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         self.position = expression.position;
 
         match &expression.value {
+            Expression::FunctionCall { identifier, arguments } => self.build_function_call(identifier, arguments, expression.position),
             Expression::Literal(literal) => self.visit_literal(literal),
             Expression::Variable(variable) => self.visit_variable(variable, expression.position),
             Expression::BooleanNegation(expr) => self.build_unary_op(expr, LlvmAlu::boolean_negate, expression.position),
@@ -302,11 +529,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     Ok(())
                 }
 
-                other => Err(Box::new(CompilerError::at(
-                    ErrorSeverity::HIGH,
-                    format!("Compiling calls to '{}' is not yet supported.", other),
-                    statement.position,
-                ))),
+                _ => self.build_function_call(identifier, arguments, statement.position),
             },
             Statement::Declaration { var_type, identifier, value } => {
                 let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type.value, self.context).ok_or_else(|| {
@@ -470,6 +693,25 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
 
                 self.builder.position_at_end(after_block);
+
+                Ok(())
+            }
+            Statement::Return(value) => {
+                match value {
+                    Some(expr) => {
+                        self.visit_expression(expr)?;
+                        let return_value = self.read_last_value()?;
+
+                        self.builder.build_return(Some(&return_value.as_basic_value_enum())).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>
+                        })?;
+                    }
+                    None => {
+                        self.builder.build_return(None).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>
+                        })?;
+                    }
+                }
 
                 Ok(())
             }

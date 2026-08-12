@@ -5,7 +5,7 @@ use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine};
-use inkwell::types::{FloatType, IntType, PointerType};
+use inkwell::types::{FloatType, IntType};
 use inkwell::values::{FunctionValue, PointerValue};
 use inkwell::OptimizationLevel;
 
@@ -184,8 +184,35 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .expect("basic block should belong to a function")
     }
 
-    fn alu(&self) -> LlvmAlu<'_, 'ctx> {
-        LlvmAlu::new(&self.builder, &self.libc)
+    fn build_binary_op<F>(&mut self, lhs: &'a Node<Expression>, rhs: &'a Node<Expression>, op: F, position: Position) -> Result<(), Box<dyn IError>>
+    where
+        F: Fn(&Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, LlvmValue<'ctx>, Position) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
+    {
+        self.visit_expression(lhs)?;
+        let left_value = self.read_last_value()?;
+
+        self.visit_expression(rhs)?;
+        let right_value = self.read_last_value()?;
+
+        let value = op(&self.builder, &self.libc, left_value, right_value, position)?;
+
+        self.last_value = Some(value);
+
+        Ok(())
+    }
+
+    fn build_unary_op<F>(&mut self, value: &'a Node<Expression>, op: F, position: Position) -> Result<(), Box<dyn IError>>
+    where
+        F: Fn(&Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, Position) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
+    {
+        self.visit_expression(value)?;
+        let computed_value = self.read_last_value()?;
+
+        let value = op(&self.builder, &self.libc, computed_value, position)?;
+
+        self.last_value = Some(value);
+
+        Ok(())
     }
 }
 
@@ -196,6 +223,50 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         }
 
         Ok(())
+    }
+
+    fn visit_expression(&mut self, expression: &'a Node<Expression>) -> Result<(), Box<dyn IError>> {
+        self.position = expression.position;
+
+        match &expression.value {
+            Expression::Literal(literal) => self.visit_literal(literal),
+            Expression::Variable(variable) => self.visit_variable(variable, expression.position),
+            Expression::BooleanNegation(expr) => self.build_unary_op(expr, LlvmAlu::boolean_negate, expression.position),
+            Expression::ArithmeticNegation(expr) => self.build_unary_op(expr, LlvmAlu::arithmetic_negate, expression.position),
+            Expression::Addition(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::add, expression.position),
+            Expression::Subtraction(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::subtract, expression.position),
+            Expression::Multiplication(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::multiplication, expression.position),
+            Expression::Division(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::division, expression.position),
+            Expression::Modulo(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::modulo, expression.position),
+            Expression::Concatenation(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::concatenation, expression.position),
+            Expression::Alternative(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::alternative, expression.position),
+            Expression::Greater(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::greater, expression.position),
+            Expression::GreaterEqual(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::greater_or_equal, expression.position),
+            Expression::Less(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::less, expression.position),
+            Expression::LessEqual(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::less_or_equal, expression.position),
+            Expression::Equal(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::equal, expression.position),
+            Expression::NotEqual(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::not_equal, expression.position),
+            Expression::Casting { value, to_type } => {
+                self.visit_expression(value)?;
+                let source_value = self.read_last_value()?;
+
+                self.last_value = Some(LlvmAlu::cast_to_type(
+                    &self.builder,
+                    &self.libc,
+                    source_value,
+                    &to_type.value,
+                    expression.position,
+                )?);
+
+                Ok(())
+            }
+
+            other => Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Compiling expression '{:?}' is not yet supported.", other),
+                expression.position,
+            ))),
+        }
     }
 
     fn visit_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
@@ -407,196 +478,6 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 ErrorSeverity::HIGH,
                 format!("Compiling statement '{:?}' is not yet supported.", other),
                 statement.position,
-            ))),
-        }
-    }
-
-    fn visit_expression(&mut self, expression: &'a Node<Expression>) -> Result<(), Box<dyn IError>> {
-        self.position = expression.position;
-
-        match &expression.value {
-            Expression::Literal(literal) => self.visit_literal(literal),
-
-            Expression::Variable(variable) => self.visit_variable(variable, expression.position),
-
-            Expression::BooleanNegation(expr) => {
-                self.visit_expression(expr)?;
-                let value = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().boolean_negate(value, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::ArithmeticNegation(expr) => {
-                self.visit_expression(expr)?;
-                let value = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().arithmetic_negate(value, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::Addition(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().add(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::Subtraction(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-                self.last_value = Some(self.alu().subtract(left, right, expression.position)?);
-                Ok(())
-            }
-
-            Expression::Multiplication(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-                self.last_value = Some(self.alu().multiplication(left, right, expression.position)?);
-                Ok(())
-            }
-
-            Expression::Division(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-                self.last_value = Some(self.alu().division(left, right, expression.position)?);
-                Ok(())
-            }
-
-            Expression::Modulo(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().modulo(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::Concatenation(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().concatenation(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::Alternative(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().alternative(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::Greater(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().greater(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::GreaterEqual(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().greater_or_equal(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::Less(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().less(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::LessEqual(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().less_or_equal(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::Equal(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().equal(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::NotEqual(lhs, rhs) => {
-                self.visit_expression(lhs)?;
-                let left = self.read_last_value()?;
-
-                self.visit_expression(rhs)?;
-                let right = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().not_equal(left, right, expression.position)?);
-
-                Ok(())
-            }
-
-            Expression::Casting { value, to_type } => {
-                self.visit_expression(value)?;
-                let source_value = self.read_last_value()?;
-
-                self.last_value = Some(self.alu().cast_to_type(source_value, &to_type.value, expression.position)?);
-
-                Ok(())
-            }
-
-            other => Err(Box::new(CompilerError::at(
-                ErrorSeverity::HIGH,
-                format!("Compiling expression '{:?}' is not yet supported.", other),
-                expression.position,
             ))),
         }
     }

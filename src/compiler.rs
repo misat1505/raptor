@@ -9,6 +9,7 @@ use inkwell::types::{BasicTypeEnum, FloatType, IntType, PointerType};
 use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
 use inkwell::{FloatPredicate, IntPredicate, OptimizationLevel};
 
+use crate::libc_functions::LibcFunctions;
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression, Type},
     errors::{CompilerError, ErrorSeverity, IError},
@@ -23,15 +24,7 @@ pub struct Compiler<'a, 'ctx> {
     builder: Builder<'ctx>,
 
     main_fn: Option<FunctionValue<'ctx>>,
-    printf_fn: Option<FunctionValue<'ctx>>,
-    snprintf_fn: Option<FunctionValue<'ctx>>,
-    strcmp_fn: Option<FunctionValue<'ctx>>,
-    strlen_fn: Option<FunctionValue<'ctx>>,
-    strcpy_fn: Option<FunctionValue<'ctx>>,
-    strcat_fn: Option<FunctionValue<'ctx>>,
-    malloc_fn: Option<FunctionValue<'ctx>>,
-    atoll_fn: Option<FunctionValue<'ctx>>,
-    atof_fn: Option<FunctionValue<'ctx>>,
+    libc: LibcFunctions<'ctx>,
 
     // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
     // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
@@ -47,6 +40,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub fn new(program: &'a Program, context: &'ctx Context) -> Self {
         let module = context.create_module("main_module");
         let builder = context.create_builder();
+        let libc = LibcFunctions::new(context, &module);
 
         Compiler {
             program,
@@ -54,15 +48,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             module,
             builder,
             main_fn: None,
-            printf_fn: None,
-            snprintf_fn: None,
-            strcmp_fn: None,
-            strlen_fn: None,
-            strcpy_fn: None,
-            strcat_fn: None,
-            malloc_fn: None,
-            atoll_fn: None,
-            atof_fn: None,
+            libc,
             variables: HashMap::new(),
             last_value: None,
             position: Position {
@@ -76,15 +62,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     pub fn compile(&mut self) -> Result<(), Box<dyn IError>> {
         self.declare_main_function();
-        self.declare_printf();
-        self.declare_snprintf();
-        self.declare_strcmp();
-        self.declare_strlen();
-        self.declare_strcpy();
-        self.declare_strcat();
-        self.declare_malloc();
-        self.declare_atoll();
-        self.declare_atof();
         self.visit_program(self.program)?;
         self.finish_main_function();
         self.verify_module()?;
@@ -185,85 +162,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    fn declare_printf(&mut self) {
-        let i32_type = self.i32_type();
-        let str_type = self.string_type();
-        let printf_type = i32_type.fn_type(&[str_type.into()], true);
-        let function = self.module.add_function("printf", printf_type, None);
-        self.printf_fn = Some(function);
-    }
-
-    fn declare_snprintf(&mut self) {
-        let i32_type = self.i32_type();
-        let i64_type = self.i64_type();
-        let str_type = self.string_type();
-
-        let snprintf_type = i32_type.fn_type(&[str_type.into(), i64_type.into(), str_type.into()], true);
-        let function = self.module.add_function("snprintf", snprintf_type, None);
-        self.snprintf_fn = Some(function);
-    }
-
-    fn declare_strcmp(&mut self) {
-        let i32_type = self.i32_type();
-        let str_type = self.string_type();
-
-        let strcmp_type = i32_type.fn_type(&[str_type.into(), str_type.into()], false);
-        let function = self.module.add_function("strcmp", strcmp_type, None);
-        self.strcmp_fn = Some(function);
-    }
-
-    fn declare_strlen(&mut self) {
-        let i64_type = self.i64_type();
-        let str_type = self.string_type();
-
-        let strlen_type = i64_type.fn_type(&[str_type.into()], false);
-        let function = self.module.add_function("strlen", strlen_type, None);
-        self.strlen_fn = Some(function);
-    }
-
-    fn declare_strcpy(&mut self) {
-        let str_type = self.string_type();
-
-        let strcpy_type = str_type.fn_type(&[str_type.into(), str_type.into()], false);
-        let function = self.module.add_function("strcpy", strcpy_type, None);
-        self.strcpy_fn = Some(function);
-    }
-
-    fn declare_strcat(&mut self) {
-        let str_type = self.string_type();
-
-        let strcat_type = str_type.fn_type(&[str_type.into(), str_type.into()], false);
-        let function = self.module.add_function("strcat", strcat_type, None);
-        self.strcat_fn = Some(function);
-    }
-
-    fn declare_malloc(&mut self) {
-        let i64_type = self.i64_type();
-        let str_type = self.string_type();
-
-        let malloc_type = str_type.fn_type(&[i64_type.into()], false);
-        let function = self.module.add_function("malloc", malloc_type, None);
-        self.malloc_fn = Some(function);
-    }
-
-    fn declare_atoll(&mut self) {
-        let i64_type = self.i64_type();
-        let str_type = self.string_type();
-
-        let atoll_type = i64_type.fn_type(&[str_type.into()], false);
-        let function = self.module.add_function("atoll", atoll_type, None);
-        self.atoll_fn = Some(function);
-    }
-
-    fn declare_atof(&mut self) {
-        let f64_type = self.f64_type();
-        let str_type = self.string_type();
-
-        let atof_type = f64_type.fn_type(&[str_type.into()], false);
-        let function = self.module.add_function("atof", atof_type, None);
-        self.atof_fn = Some(function);
-    }
-
     fn read_last_value(&mut self) -> Result<BasicValueEnum<'ctx>, Box<dyn IError>> {
         self.last_value.take().ok_or_else(|| {
             Box::new(CompilerError::at(
@@ -319,15 +217,17 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     self.visit_expression(&arg.value.value)?;
                     let text_value = self.read_last_value()?;
 
-                    let printf_fn = self.printf_fn.expect("printf should be declared before visiting the program");
-
                     let format_str = self
                         .builder
                         .build_global_string_ptr("%s\n", "fmt")
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
 
                     self.builder
-                        .build_call(printf_fn, &[format_str.as_pointer_value().into(), text_value.into()], "printf_call")
+                        .build_call(
+                            self.libc.printf_fn,
+                            &[format_str.as_pointer_value().into(), text_value.into()],
+                            "printf_call",
+                        )
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
 
                     Ok(())
@@ -601,20 +501,15 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     }
 
                     (BasicValueEnum::PointerValue(l), BasicValueEnum::PointerValue(r)) => {
-                        let strlen_fn = self.strlen_fn.expect("strlen should be declared before visiting the program");
-                        let strcpy_fn = self.strcpy_fn.expect("strcpy should be declared before visiting the program");
-                        let strcat_fn = self.strcat_fn.expect("strcat should be declared before visiting the program");
-                        let malloc_fn = self.malloc_fn.expect("malloc should be declared before visiting the program");
-
                         let map_err = |err: inkwell::builder::BuilderError| {
                             Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
                         };
 
                         // len_l = strlen(l), len_r = strlen(r)
-                        let len_l_call = self.builder.build_call(strlen_fn, &[l.into()], "strlen_l").map_err(map_err)?;
+                        let len_l_call = self.builder.build_call(self.libc.strlen_fn, &[l.into()], "strlen_l").map_err(map_err)?;
                         let len_l = len_l_call.try_as_basic_value().unwrap_basic().into_int_value();
 
-                        let len_r_call = self.builder.build_call(strlen_fn, &[r.into()], "strlen_r").map_err(map_err)?;
+                        let len_r_call = self.builder.build_call(self.libc.strlen_fn, &[r.into()], "strlen_r").map_err(map_err)?;
                         let len_r = len_r_call.try_as_basic_value().unwrap_basic().into_int_value();
 
                         // total = len_l + len_r + 1  (+1 na '\0')
@@ -623,15 +518,18 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                         let total_len = self.builder.build_int_add(sum_len, one, "concat_total_len").map_err(map_err)?;
 
                         // buf = malloc(total)
-                        let malloc_call = self.builder.build_call(malloc_fn, &[total_len.into()], "concat_buf").map_err(map_err)?;
+                        let malloc_call = self
+                            .builder
+                            .build_call(self.libc.malloc_fn, &[total_len.into()], "concat_buf")
+                            .map_err(map_err)?;
                         let buf = malloc_call.try_as_basic_value().unwrap_basic().into_pointer_value();
 
                         // strcpy(buf, l); strcat(buf, r);
                         self.builder
-                            .build_call(strcpy_fn, &[buf.into(), l.into()], "strcpy_call")
+                            .build_call(self.libc.strcpy_fn, &[buf.into(), l.into()], "strcpy_call")
                             .map_err(map_err)?;
                         self.builder
-                            .build_call(strcat_fn, &[buf.into(), r.into()], "strcat_call")
+                            .build_call(self.libc.strcat_fn, &[buf.into(), r.into()], "strcat_call")
                             .map_err(map_err)?;
 
                         BasicValueEnum::from(buf)
@@ -1038,11 +936,12 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                         .map(BasicValueEnum::from)
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
                     (BasicValueEnum::PointerValue(l), BasicValueEnum::PointerValue(r)) => {
-                        let strcmp_fn = self.strcmp_fn.expect("strcmp should be declared before visiting the program");
-
-                        let call = self.builder.build_call(strcmp_fn, &[l.into(), r.into()], "strcmp_call").map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?;
+                        let call = self
+                            .builder
+                            .build_call(self.libc.strcmp_fn, &[l.into(), r.into()], "strcmp_call")
+                            .map_err(|err| {
+                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                            })?;
 
                         let cmp_result = call.try_as_basic_value().unwrap_basic().into_int_value();
 
@@ -1093,11 +992,12 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                         .map(BasicValueEnum::from)
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
                     (BasicValueEnum::PointerValue(l), BasicValueEnum::PointerValue(r)) => {
-                        let strcmp_fn = self.strcmp_fn.expect("strcmp should be declared before visiting the program");
-
-                        let call = self.builder.build_call(strcmp_fn, &[l.into(), r.into()], "strcmp_call").map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?;
+                        let call = self
+                            .builder
+                            .build_call(self.libc.strcmp_fn, &[l.into(), r.into()], "strcmp_call")
+                            .map_err(|err| {
+                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                            })?;
 
                         let cmp_result = call.try_as_basic_value().unwrap_basic().into_int_value();
 
@@ -1139,8 +1039,6 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 let result: BasicValueEnum<'ctx> = match (&to_type.value, source_value) {
                     // I64 -> Str
                     (Type::Str, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.i64_type() => {
-                        let snprintf_fn = self.snprintf_fn.expect("snprintf should be declared before visiting the program");
-
                         let buffer_type = self.context.i8_type().array_type(24);
                         let buffer_ptr = self.builder.build_alloca(buffer_type, "int_to_str_buf").map_err(map_err)?;
 
@@ -1149,7 +1047,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                         self.builder
                             .build_call(
-                                snprintf_fn,
+                                self.libc.snprintf_fn,
                                 &[buffer_ptr.into(), size.into(), format_str.as_pointer_value().into(), int_value.into()],
                                 "snprintf_call",
                             )
@@ -1160,8 +1058,6 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                     // F64 -> Str
                     (Type::Str, BasicValueEnum::FloatValue(float_value)) => {
-                        let snprintf_fn = self.snprintf_fn.expect("snprintf should be declared before visiting the program");
-
                         let buffer_type = self.context.i8_type().array_type(32);
                         let buffer_ptr = self.builder.build_alloca(buffer_type, "float_to_str_buf").map_err(map_err)?;
 
@@ -1170,7 +1066,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                         self.builder
                             .build_call(
-                                snprintf_fn,
+                                self.libc.snprintf_fn,
                                 &[buffer_ptr.into(), size.into(), format_str.as_pointer_value().into(), float_value.into()],
                                 "snprintf_call",
                             )
@@ -1223,22 +1119,28 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                     // String -> I64
                     (Type::I64, BasicValueEnum::PointerValue(ptr_value)) => {
-                        let atoll_fn = self.atoll_fn.expect("atoll should be declared before visiting the program");
-                        let call = self.builder.build_call(atoll_fn, &[ptr_value.into()], "atoll_call").map_err(map_err)?;
+                        let call = self
+                            .builder
+                            .build_call(self.libc.atoll_fn, &[ptr_value.into()], "atoll_call")
+                            .map_err(map_err)?;
                         call.try_as_basic_value().unwrap_basic()
                     }
 
                     // String -> F64
                     (Type::F64, BasicValueEnum::PointerValue(ptr_value)) => {
-                        let atof_fn = self.atof_fn.expect("atof should be declared before visiting the program");
-                        let call = self.builder.build_call(atof_fn, &[ptr_value.into()], "atof_call").map_err(map_err)?;
+                        let call = self
+                            .builder
+                            .build_call(self.libc.atof_fn, &[ptr_value.into()], "atof_call")
+                            .map_err(map_err)?;
                         call.try_as_basic_value().unwrap_basic()
                     }
 
                     // String -> Bool
                     (Type::Bool, BasicValueEnum::PointerValue(ptr_value)) => {
-                        let strlen_fn = self.strlen_fn.expect("strlen should be declared before visiting the program");
-                        let call = self.builder.build_call(strlen_fn, &[ptr_value.into()], "strlen_call").map_err(map_err)?;
+                        let call = self
+                            .builder
+                            .build_call(self.libc.strlen_fn, &[ptr_value.into()], "strlen_call")
+                            .map_err(map_err)?;
                         let len = call.try_as_basic_value().unwrap_basic().into_int_value();
 
                         let zero = self.i64_type().const_int(0, false);

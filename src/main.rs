@@ -20,6 +20,7 @@ mod compiler;
 mod errors;
 mod interpreter;
 mod lexer;
+mod libc_functions;
 mod parser;
 mod scope_manager;
 mod semantic_checker;

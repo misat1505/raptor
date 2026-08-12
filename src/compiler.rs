@@ -26,6 +26,12 @@ pub struct Compiler<'a, 'ctx> {
     printf_fn: Option<FunctionValue<'ctx>>,
     snprintf_fn: Option<FunctionValue<'ctx>>,
     strcmp_fn: Option<FunctionValue<'ctx>>,
+    strlen_fn: Option<FunctionValue<'ctx>>,
+    strcpy_fn: Option<FunctionValue<'ctx>>,
+    strcat_fn: Option<FunctionValue<'ctx>>,
+    malloc_fn: Option<FunctionValue<'ctx>>,
+    atoll_fn: Option<FunctionValue<'ctx>>,
+    atof_fn: Option<FunctionValue<'ctx>>,
 
     // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
     // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
@@ -51,6 +57,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             printf_fn: None,
             snprintf_fn: None,
             strcmp_fn: None,
+            strlen_fn: None,
+            strcpy_fn: None,
+            strcat_fn: None,
+            malloc_fn: None,
+            atoll_fn: None,
+            atof_fn: None,
             variables: HashMap::new(),
             last_value: None,
             position: Position {
@@ -67,6 +79,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.declare_printf();
         self.declare_snprintf();
         self.declare_strcmp();
+        self.declare_strlen();
+        self.declare_strcpy();
+        self.declare_strcat();
+        self.declare_malloc();
+        self.declare_atoll();
+        self.declare_atof();
         self.visit_program(self.program)?;
         self.finish_main_function();
         self.verify_module()?;
@@ -192,6 +210,58 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let strcmp_type = i32_type.fn_type(&[str_type.into(), str_type.into()], false);
         let function = self.module.add_function("strcmp", strcmp_type, None);
         self.strcmp_fn = Some(function);
+    }
+
+    fn declare_strlen(&mut self) {
+        let i64_type = self.i64_type();
+        let str_type = self.string_type();
+
+        let strlen_type = i64_type.fn_type(&[str_type.into()], false);
+        let function = self.module.add_function("strlen", strlen_type, None);
+        self.strlen_fn = Some(function);
+    }
+
+    fn declare_strcpy(&mut self) {
+        let str_type = self.string_type();
+
+        let strcpy_type = str_type.fn_type(&[str_type.into(), str_type.into()], false);
+        let function = self.module.add_function("strcpy", strcpy_type, None);
+        self.strcpy_fn = Some(function);
+    }
+
+    fn declare_strcat(&mut self) {
+        let str_type = self.string_type();
+
+        let strcat_type = str_type.fn_type(&[str_type.into(), str_type.into()], false);
+        let function = self.module.add_function("strcat", strcat_type, None);
+        self.strcat_fn = Some(function);
+    }
+
+    fn declare_malloc(&mut self) {
+        let i64_type = self.i64_type();
+        let str_type = self.string_type();
+
+        let malloc_type = str_type.fn_type(&[i64_type.into()], false);
+        let function = self.module.add_function("malloc", malloc_type, None);
+        self.malloc_fn = Some(function);
+    }
+
+    fn declare_atoll(&mut self) {
+        let i64_type = self.i64_type();
+        let str_type = self.string_type();
+
+        let atoll_type = i64_type.fn_type(&[str_type.into()], false);
+        let function = self.module.add_function("atoll", atoll_type, None);
+        self.atoll_fn = Some(function);
+    }
+
+    fn declare_atof(&mut self) {
+        let f64_type = self.f64_type();
+        let str_type = self.string_type();
+
+        let atof_type = f64_type.fn_type(&[str_type.into()], false);
+        let function = self.module.add_function("atof", atof_type, None);
+        self.atof_fn = Some(function);
     }
 
     fn read_last_value(&mut self) -> Result<BasicValueEnum<'ctx>, Box<dyn IError>> {
@@ -511,7 +581,6 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
             }
 
             Expression::Addition(lhs, rhs) => {
-                // TODO: (String, String)
                 self.visit_expression(lhs)?;
                 let left = self.read_last_value()?;
 
@@ -531,12 +600,41 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                         })?
                     }
 
-                    (BasicValueEnum::PointerValue(_), BasicValueEnum::PointerValue(_)) => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            String::from("Compiling string concatenation is not yet supported."),
-                            expression.position,
-                        )));
+                    (BasicValueEnum::PointerValue(l), BasicValueEnum::PointerValue(r)) => {
+                        let strlen_fn = self.strlen_fn.expect("strlen should be declared before visiting the program");
+                        let strcpy_fn = self.strcpy_fn.expect("strcpy should be declared before visiting the program");
+                        let strcat_fn = self.strcat_fn.expect("strcat should be declared before visiting the program");
+                        let malloc_fn = self.malloc_fn.expect("malloc should be declared before visiting the program");
+
+                        let map_err = |err: inkwell::builder::BuilderError| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        };
+
+                        // len_l = strlen(l), len_r = strlen(r)
+                        let len_l_call = self.builder.build_call(strlen_fn, &[l.into()], "strlen_l").map_err(map_err)?;
+                        let len_l = len_l_call.try_as_basic_value().unwrap_basic().into_int_value();
+
+                        let len_r_call = self.builder.build_call(strlen_fn, &[r.into()], "strlen_r").map_err(map_err)?;
+                        let len_r = len_r_call.try_as_basic_value().unwrap_basic().into_int_value();
+
+                        // total = len_l + len_r + 1  (+1 na '\0')
+                        let sum_len = self.builder.build_int_add(len_l, len_r, "concat_len").map_err(map_err)?;
+                        let one = self.i64_type().const_int(1, false);
+                        let total_len = self.builder.build_int_add(sum_len, one, "concat_total_len").map_err(map_err)?;
+
+                        // buf = malloc(total)
+                        let malloc_call = self.builder.build_call(malloc_fn, &[total_len.into()], "concat_buf").map_err(map_err)?;
+                        let buf = malloc_call.try_as_basic_value().unwrap_basic().into_pointer_value();
+
+                        // strcpy(buf, l); strcat(buf, r);
+                        self.builder
+                            .build_call(strcpy_fn, &[buf.into(), l.into()], "strcpy_call")
+                            .map_err(map_err)?;
+                        self.builder
+                            .build_call(strcat_fn, &[buf.into(), r.into()], "strcat_call")
+                            .map_err(map_err)?;
+
+                        BasicValueEnum::from(buf)
                     }
 
                     (l, r) => {
@@ -1034,19 +1132,19 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(value)?;
                 let source_value = self.read_last_value()?;
 
-                match (&to_type.value, source_value) {
-                    (Type::Str, BasicValueEnum::IntValue(int_value)) => {
+                let map_err = |err: inkwell::builder::BuilderError| {
+                    Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                };
+
+                let result: BasicValueEnum<'ctx> = match (&to_type.value, source_value) {
+                    // I64 -> Str
+                    (Type::Str, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.i64_type() => {
                         let snprintf_fn = self.snprintf_fn.expect("snprintf should be declared before visiting the program");
 
                         let buffer_type = self.context.i8_type().array_type(24);
-                        let buffer_ptr = self.builder.build_alloca(buffer_type, "int_to_str_buf").map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?;
+                        let buffer_ptr = self.builder.build_alloca(buffer_type, "int_to_str_buf").map_err(map_err)?;
 
-                        let format_str = self.builder.build_global_string_ptr("%lld", "int_fmt").map_err(|err| {
-                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                        })?;
-
+                        let format_str = self.builder.build_global_string_ptr("%lld", "int_fmt").map_err(map_err)?;
                         let size = self.i64_type().const_int(24, false);
 
                         self.builder
@@ -1055,21 +1153,127 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                                 &[buffer_ptr.into(), size.into(), format_str.as_pointer_value().into(), int_value.into()],
                                 "snprintf_call",
                             )
-                            .map_err(|err| {
-                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
-                            })?;
+                            .map_err(map_err)?;
 
-                        self.last_value = Some(buffer_ptr.into());
-
-                        Ok(())
+                        buffer_ptr.into()
                     }
 
-                    (other_type, _) => Err(Box::new(CompilerError::at(
-                        ErrorSeverity::HIGH,
-                        format!("Casting to type '{:?}' is not yet supported.", other_type),
-                        expression.position,
-                    ))),
-                }
+                    // F64 -> Str
+                    (Type::Str, BasicValueEnum::FloatValue(float_value)) => {
+                        let snprintf_fn = self.snprintf_fn.expect("snprintf should be declared before visiting the program");
+
+                        let buffer_type = self.context.i8_type().array_type(32);
+                        let buffer_ptr = self.builder.build_alloca(buffer_type, "float_to_str_buf").map_err(map_err)?;
+
+                        let format_str = self.builder.build_global_string_ptr("%g", "float_fmt").map_err(map_err)?;
+                        let size = self.i64_type().const_int(32, false);
+
+                        self.builder
+                            .build_call(
+                                snprintf_fn,
+                                &[buffer_ptr.into(), size.into(), format_str.as_pointer_value().into(), float_value.into()],
+                                "snprintf_call",
+                            )
+                            .map_err(map_err)?;
+
+                        buffer_ptr.into()
+                    }
+
+                    // Bool -> Str
+                    (Type::Str, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.bool_type() => {
+                        let true_str = self.builder.build_global_string_ptr("true", "true_str").map_err(map_err)?;
+                        let false_str = self.builder.build_global_string_ptr("false", "false_str").map_err(map_err)?;
+
+                        self.builder
+                            .build_select(int_value, true_str.as_pointer_value(), false_str.as_pointer_value(), "bool_to_str")
+                            .map_err(map_err)?
+                    }
+
+                    // I64 -> F64
+                    (Type::F64, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.i64_type() => self
+                        .builder
+                        .build_signed_int_to_float(int_value, self.f64_type(), "i64_to_f64")
+                        .map(BasicValueEnum::from)
+                        .map_err(map_err)?,
+
+                    // F64 -> I64
+                    (Type::I64, BasicValueEnum::FloatValue(float_value)) => self
+                        .builder
+                        .build_float_to_signed_int(float_value, self.i64_type(), "f64_to_i64")
+                        .map(BasicValueEnum::from)
+                        .map_err(map_err)?,
+
+                    // I64 -> Bool
+                    (Type::Bool, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.i64_type() => {
+                        let zero = self.i64_type().const_int(0, false);
+                        self.builder
+                            .build_int_compare(IntPredicate::SGT, int_value, zero, "i64_to_bool")
+                            .map(BasicValueEnum::from)
+                            .map_err(map_err)?
+                    }
+
+                    // F64 -> Bool
+                    (Type::Bool, BasicValueEnum::FloatValue(float_value)) => {
+                        let zero = self.f64_type().const_float(0.0);
+                        self.builder
+                            .build_float_compare(FloatPredicate::OGT, float_value, zero, "f64_to_bool")
+                            .map(BasicValueEnum::from)
+                            .map_err(map_err)?
+                    }
+
+                    // String -> I64
+                    (Type::I64, BasicValueEnum::PointerValue(ptr_value)) => {
+                        let atoll_fn = self.atoll_fn.expect("atoll should be declared before visiting the program");
+                        let call = self.builder.build_call(atoll_fn, &[ptr_value.into()], "atoll_call").map_err(map_err)?;
+                        call.try_as_basic_value().unwrap_basic()
+                    }
+
+                    // String -> F64
+                    (Type::F64, BasicValueEnum::PointerValue(ptr_value)) => {
+                        let atof_fn = self.atof_fn.expect("atof should be declared before visiting the program");
+                        let call = self.builder.build_call(atof_fn, &[ptr_value.into()], "atof_call").map_err(map_err)?;
+                        call.try_as_basic_value().unwrap_basic()
+                    }
+
+                    // String -> Bool
+                    (Type::Bool, BasicValueEnum::PointerValue(ptr_value)) => {
+                        let strlen_fn = self.strlen_fn.expect("strlen should be declared before visiting the program");
+                        let call = self.builder.build_call(strlen_fn, &[ptr_value.into()], "strlen_call").map_err(map_err)?;
+                        let len = call.try_as_basic_value().unwrap_basic().into_int_value();
+
+                        let zero = self.i64_type().const_int(0, false);
+                        self.builder
+                            .build_int_compare(IntPredicate::NE, len, zero, "str_to_bool")
+                            .map(BasicValueEnum::from)
+                            .map_err(map_err)?
+                    }
+
+                    // Bool -> I64
+                    (Type::I64, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.bool_type() => self
+                        .builder
+                        .build_int_z_extend(int_value, self.i64_type(), "bool_to_i64")
+                        .map(BasicValueEnum::from)
+                        .map_err(map_err)?,
+
+                    // Bool -> F64
+                    (Type::F64, BasicValueEnum::IntValue(int_value)) if int_value.get_type() == self.bool_type() => self
+                        .builder
+                        .build_unsigned_int_to_float(int_value, self.f64_type(), "bool_to_f64")
+                        .map(BasicValueEnum::from)
+                        .map_err(map_err)?,
+
+                    (other_type, other_value) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot cast value of type '{:?}' to '{:?}'.", other_value.get_type(), other_type),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
             }
 
             other => Err(Box::new(CompilerError::at(

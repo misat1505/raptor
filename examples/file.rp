@@ -1,3 +1,6 @@
-i64 three = 3;
-i64 x = (2 + 5) * 4 + 10 / three + 4 * three;
-println(x as str);
+str text = "abc";
+if (text == "abcd") {
+  println("equal");
+} else {
+  println("not equal");
+}

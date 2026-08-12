@@ -25,6 +25,7 @@ pub struct Compiler<'a, 'ctx> {
     main_fn: Option<FunctionValue<'ctx>>,
     printf_fn: Option<FunctionValue<'ctx>>,
     snprintf_fn: Option<FunctionValue<'ctx>>,
+    strcmp_fn: Option<FunctionValue<'ctx>>,
 
     // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
     // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
@@ -49,6 +50,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             main_fn: None,
             printf_fn: None,
             snprintf_fn: None,
+            strcmp_fn: None,
             variables: HashMap::new(),
             last_value: None,
             position: Position {
@@ -64,6 +66,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.declare_main_function();
         self.declare_printf();
         self.declare_snprintf();
+        self.declare_strcmp();
         self.visit_program(self.program)?;
         self.finish_main_function();
         self.verify_module()?;
@@ -71,6 +74,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn print_ir(&self) -> String {
         self.module.print_to_string().to_string()
     }
@@ -179,6 +183,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let snprintf_type = i32_type.fn_type(&[str_type.into(), i64_type.into(), str_type.into()], true);
         let function = self.module.add_function("snprintf", snprintf_type, None);
         self.snprintf_fn = Some(function);
+    }
+
+    fn declare_strcmp(&mut self) {
+        let i32_type = self.i32_type();
+        let str_type = self.string_type();
+
+        let strcmp_type = i32_type.fn_type(&[str_type.into(), str_type.into()], false);
+        let function = self.module.add_function("strcmp", strcmp_type, None);
+        self.strcmp_fn = Some(function);
     }
 
     fn read_last_value(&mut self) -> Result<BasicValueEnum<'ctx>, Box<dyn IError>> {
@@ -908,7 +921,6 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
             }
 
             Expression::Equal(lhs, rhs) => {
-                // TODO: (String, String)
                 self.visit_expression(lhs)?;
                 let left = self.read_last_value()?;
 
@@ -927,7 +939,24 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                         .build_float_compare(FloatPredicate::OEQ, l, r, "eqtmp")
                         .map(BasicValueEnum::from)
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+                    (BasicValueEnum::PointerValue(l), BasicValueEnum::PointerValue(r)) => {
+                        let strcmp_fn = self.strcmp_fn.expect("strcmp should be declared before visiting the program");
 
+                        let call = self.builder.build_call(strcmp_fn, &[l.into(), r.into()], "strcmp_call").map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?;
+
+                        let cmp_result = call.try_as_basic_value().unwrap_basic().into_int_value();
+
+                        let zero = self.i32_type().const_int(0, false);
+
+                        self.builder
+                            .build_int_compare(IntPredicate::EQ, cmp_result, zero, "eqtmp")
+                            .map(BasicValueEnum::from)
+                            .map_err(|err| {
+                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                            })?
+                    }
                     (l, r) => {
                         return Err(Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
@@ -947,7 +976,6 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
             }
 
             Expression::NotEqual(lhs, rhs) => {
-                // TODO: (String, String)
                 self.visit_expression(lhs)?;
                 let left = self.read_last_value()?;
 
@@ -966,7 +994,24 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                         .build_float_compare(FloatPredicate::ONE, l, r, "netmp")
                         .map(BasicValueEnum::from)
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+                    (BasicValueEnum::PointerValue(l), BasicValueEnum::PointerValue(r)) => {
+                        let strcmp_fn = self.strcmp_fn.expect("strcmp should be declared before visiting the program");
 
+                        let call = self.builder.build_call(strcmp_fn, &[l.into(), r.into()], "strcmp_call").map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?;
+
+                        let cmp_result = call.try_as_basic_value().unwrap_basic().into_int_value();
+
+                        let zero = self.i32_type().const_int(0, false);
+
+                        self.builder
+                            .build_int_compare(IntPredicate::NE, cmp_result, zero, "netmp")
+                            .map(BasicValueEnum::from)
+                            .map_err(|err| {
+                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                            })?
+                    }
                     (l, r) => {
                         return Err(Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
@@ -1095,12 +1140,6 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.last_value = Some(self.context.bool_type().const_int(0, false).into());
                 Ok(())
             }
-
-            other => Err(Box::new(CompilerError::at(
-                ErrorSeverity::HIGH,
-                format!("Compiling literal '{:?}' is not yet supported.", other),
-                self.position,
-            ))),
         }
     }
 

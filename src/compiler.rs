@@ -7,7 +7,7 @@ use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine};
 use inkwell::types::{BasicTypeEnum, FloatType, IntType, PointerType};
 use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
-use inkwell::{IntPredicate, OptimizationLevel};
+use inkwell::{FloatPredicate, IntPredicate, OptimizationLevel};
 
 use crate::{
     ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression, Type},
@@ -444,70 +444,543 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
             Expression::Variable(variable) => self.visit_variable(variable, expression.position),
 
+            Expression::BooleanNegation(expr) => {
+                self.visit_expression(expr)?;
+                let value = self.read_last_value()?;
+
+                let result = match value {
+                    BasicValueEnum::IntValue(int_value) => {
+                        self.builder.build_not(int_value, "bnottmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+                    other => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot perform boolean negate on value of type '{:?}'.", other.get_type()),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::ArithmeticNegation(expr) => {
+                self.visit_expression(expr)?;
+                let value = self.read_last_value()?;
+
+                let result = match value {
+                    BasicValueEnum::IntValue(int_value) => {
+                        self.builder.build_int_neg(int_value, "negtmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+                    BasicValueEnum::FloatValue(float_value) => self
+                        .builder
+                        .build_float_neg(float_value, "negtmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+                    other => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot perform arithmetic negation on value of type '{:?}'.", other.get_type()),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
             Expression::Addition(lhs, rhs) => {
+                // TODO: (String, String)
                 self.visit_expression(lhs)?;
-                let left = self.read_last_value()?.into_int_value();
+                let left = self.read_last_value()?;
 
                 self.visit_expression(rhs)?;
-                let right = self.read_last_value()?.into_int_value();
+                let right = self.read_last_value()?;
 
-                let result = self
-                    .builder
-                    .build_int_add(left, right, "addtmp")
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?;
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => {
+                        self.builder.build_int_add(l, r, "addtmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
 
-                self.last_value = Some(result.into());
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => {
+                        self.builder.build_float_add(l, r, "addtmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+
+                    (BasicValueEnum::PointerValue(_), BasicValueEnum::PointerValue(_)) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            String::from("Compiling string concatenation is not yet supported."),
+                            expression.position,
+                        )));
+                    }
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform addition between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::Subtraction(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left = self.read_last_value()?;
+
+                self.visit_expression(rhs)?;
+                let right = self.read_last_value()?;
+
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => {
+                        self.builder.build_int_sub(l, r, "subtmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => {
+                        self.builder.build_float_sub(l, r, "subtmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform subtraction between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::Multiplication(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left = self.read_last_value()?;
+
+                self.visit_expression(rhs)?;
+                let right = self.read_last_value()?;
+
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => {
+                        self.builder.build_int_mul(l, r, "multmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => {
+                        self.builder.build_float_mul(l, r, "multmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform multiplication between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::Division(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left = self.read_last_value()?;
+
+                self.visit_expression(rhs)?;
+                let right = self.read_last_value()?;
+
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
+                        .builder
+                        .build_int_signed_div(l, r, "divtmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => {
+                        self.builder.build_float_div(l, r, "divtmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform division between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
 
                 Ok(())
             }
 
             Expression::Modulo(lhs, rhs) => {
                 self.visit_expression(lhs)?;
-                let left = self.read_last_value()?.into_int_value();
+                let left = self.read_last_value()?;
 
                 self.visit_expression(rhs)?;
-                let right = self.read_last_value()?.into_int_value();
+                let right = self.read_last_value()?;
 
-                let result = self
-                    .builder
-                    .build_int_signed_rem(left, right, "remtmp")
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?;
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
+                        .builder
+                        .build_int_signed_rem(l, r, "remtmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform modulo between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
 
-                self.last_value = Some(result.into());
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::Concatenation(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left = self.read_last_value()?;
+
+                self.visit_expression(rhs)?;
+                let right = self.read_last_value()?;
+
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r))
+                        if l.get_type() == self.bool_type() && r.get_type() == self.bool_type() =>
+                    {
+                        self.builder.build_and(l, r, "andtmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform logical concatenation between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::Alternative(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left = self.read_last_value()?;
+
+                self.visit_expression(rhs)?;
+                let right = self.read_last_value()?;
+
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r))
+                        if l.get_type() == self.bool_type() && r.get_type() == self.bool_type() =>
+                    {
+                        self.builder.build_or(l, r, "ortmp").map(BasicValueEnum::from).map_err(|err| {
+                            Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>
+                        })?
+                    }
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform logical alternative between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::Greater(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left = self.read_last_value()?;
+
+                self.visit_expression(rhs)?;
+                let right = self.read_last_value()?;
+
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
+                        .builder
+                        .build_int_compare(IntPredicate::SGT, l, r, "gttmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
+                        .builder
+                        .build_float_compare(FloatPredicate::OGT, l, r, "gttmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform greater between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::GreaterEqual(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left = self.read_last_value()?;
+
+                self.visit_expression(rhs)?;
+                let right = self.read_last_value()?;
+
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
+                        .builder
+                        .build_int_compare(IntPredicate::SGE, l, r, "getmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
+                        .builder
+                        .build_float_compare(FloatPredicate::OGE, l, r, "getmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform greater or equal between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
 
                 Ok(())
             }
 
             Expression::Less(lhs, rhs) => {
                 self.visit_expression(lhs)?;
-                let left = self.read_last_value()?.into_int_value();
+                let left = self.read_last_value()?;
 
                 self.visit_expression(rhs)?;
-                let right = self.read_last_value()?.into_int_value();
+                let right = self.read_last_value()?;
 
-                let result = self
-                    .builder
-                    .build_int_compare(IntPredicate::SLT, left, right, "cmptmp")
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?;
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
+                        .builder
+                        .build_int_compare(IntPredicate::SLT, l, r, "lttmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
 
-                self.last_value = Some(result.into());
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
+                        .builder
+                        .build_float_compare(FloatPredicate::OLT, l, r, "lttmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform less between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::LessEqual(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left = self.read_last_value()?;
+
+                self.visit_expression(rhs)?;
+                let right = self.read_last_value()?;
+
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
+                        .builder
+                        .build_int_compare(IntPredicate::SLE, l, r, "letmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
+                        .builder
+                        .build_float_compare(FloatPredicate::OLE, l, r, "letmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform less or equal between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
 
                 Ok(())
             }
 
             Expression::Equal(lhs, rhs) => {
+                // TODO: (String, String)
                 self.visit_expression(lhs)?;
-                let left = self.read_last_value()?.into_int_value();
+                let left = self.read_last_value()?;
 
                 self.visit_expression(rhs)?;
-                let right = self.read_last_value()?.into_int_value();
+                let right = self.read_last_value()?;
 
-                let result = self
-                    .builder
-                    .build_int_compare(IntPredicate::EQ, left, right, "cmptmp")
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?;
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
+                        .builder
+                        .build_int_compare(IntPredicate::EQ, l, r, "eqtmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
 
-                self.last_value = Some(result.into());
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
+                        .builder
+                        .build_float_compare(FloatPredicate::OEQ, l, r, "eqtmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform equal between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
+
+                Ok(())
+            }
+
+            Expression::NotEqual(lhs, rhs) => {
+                // TODO: (String, String)
+                self.visit_expression(lhs)?;
+                let left = self.read_last_value()?;
+
+                self.visit_expression(rhs)?;
+                let right = self.read_last_value()?;
+
+                let result = match (left, right) {
+                    (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => self
+                        .builder
+                        .build_int_compare(IntPredicate::NE, l, r, "netmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (BasicValueEnum::FloatValue(l), BasicValueEnum::FloatValue(r)) => self
+                        .builder
+                        .build_float_compare(FloatPredicate::ONE, l, r, "netmp")
+                        .map(BasicValueEnum::from)
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?,
+
+                    (l, r) => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot perform not equal between values of type '{:?}' and '{:?}'.",
+                                l.get_type(),
+                                r.get_type()
+                            ),
+                            expression.position,
+                        )));
+                    }
+                };
+
+                self.last_value = Some(result);
 
                 Ok(())
             }

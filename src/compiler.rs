@@ -5,7 +5,7 @@ use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine};
-use inkwell::types::{BasicTypeEnum, IntType, PointerType};
+use inkwell::types::{BasicTypeEnum, FloatType, IntType, PointerType};
 use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
 use inkwell::{IntPredicate, OptimizationLevel};
 
@@ -28,7 +28,7 @@ pub struct Compiler<'a, 'ctx> {
 
     // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
     // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
-    variables: HashMap<String, PointerValue<'ctx>>,
+    variables: HashMap<String, (PointerValue<'ctx>, BasicTypeEnum<'ctx>)>,
 
     // odpowiednik `last_result` z interpretera — wynik ostatnio odwiedzonego wyrażenia.
     last_value: Option<BasicValueEnum<'ctx>>,
@@ -132,8 +132,16 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.context.i32_type()
     }
 
+    fn f64_type(&self) -> FloatType<'ctx> {
+        self.context.f64_type()
+    }
+
     fn string_type(&self) -> PointerType<'ctx> {
         self.context.ptr_type(inkwell::AddressSpace::default())
+    }
+
+    fn bool_type(&self) -> IntType<'ctx> {
+        self.context.bool_type()
     }
 
     fn declare_main_function(&mut self) {
@@ -183,7 +191,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         })
     }
 
-    fn get_variable(&self, name: &str) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+    fn get_variable(&self, name: &str) -> Result<(PointerValue<'ctx>, BasicTypeEnum<'ctx>), Box<dyn IError>> {
         self.variables.get(name).copied().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
@@ -251,7 +259,9 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
             Statement::Declaration { var_type, identifier, value } => {
                 let llvm_type: BasicTypeEnum<'ctx> = match &var_type.value {
                     Type::I64 => self.i64_type().into(),
+                    Type::F64 => self.f64_type().into(),
                     Type::Str => self.string_type().into(),
+                    Type::Bool => self.bool_type().into(),
                     other => {
                         return Err(Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
@@ -274,7 +284,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
                 }
 
-                self.variables.insert(identifier.value.clone(), ptr);
+                self.variables.insert(identifier.value.clone(), (ptr, llvm_type));
 
                 Ok(())
             }
@@ -291,7 +301,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.visit_expression(value)?;
                 let new_value = self.read_last_value()?;
 
-                let ptr = self.get_variable(identifier.value.as_str())?;
+                let (ptr, _var_type) = self.get_variable(identifier.value.as_str())?;
                 self.builder
                     .build_store(ptr, new_value)
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
@@ -587,6 +597,11 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.last_value = Some(const_value.into());
                 Ok(())
             }
+            Literal::F64(value) => {
+                let const_value = self.f64_type().const_float(*value);
+                self.last_value = Some(const_value.into());
+                Ok(())
+            }
             Literal::String(value) => {
                 let string_value = self
                     .builder
@@ -625,11 +640,11 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
     }
 
     fn visit_variable(&mut self, variable: &'a String, position: Position) -> Result<(), Box<dyn IError>> {
-        let ptr = self.get_variable(variable.as_str())?;
+        let (ptr, var_type) = self.get_variable(variable.as_str())?;
 
         let value = self
             .builder
-            .build_load(self.i64_type(), ptr, variable.as_str())
+            .build_load(var_type, ptr, variable.as_str())
             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
 
         self.last_value = Some(value);

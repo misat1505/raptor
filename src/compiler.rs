@@ -395,7 +395,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    fn read_last_value(&mut self) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
+    pub fn read_last_value(&mut self) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         self.last_value.take().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
@@ -403,6 +403,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.position,
             )) as Box<dyn IError>
         })
+    }
+
+    pub fn builder(&self) -> &Builder<'ctx> {
+        &self.builder
+    }
+
+    pub fn libc(&self) -> &LibcFunctions<'ctx> {
+        &self.libc
     }
 
     fn get_variable(&self, name: &str) -> Result<(PointerValue<'ctx>, Type), Box<dyn IError>> {
@@ -500,12 +508,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             })
     }
 
-    fn compile_switch(
-        &mut self,
-        expressions: &'a Vec<Node<SwitchExpression>>,
-        cases: &'a Vec<Node<SwitchCase>>,
-        position: Position,
-    ) -> Result<(), Box<dyn IError>> {
+    fn compile_switch(&mut self, expressions: &'a Vec<Node<SwitchExpression>>, cases: &'a Vec<Node<SwitchCase>>) -> Result<(), Box<dyn IError>> {
         let function = self.current_function();
 
         let saved_variables = self.variables.clone();
@@ -633,37 +636,15 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         self.position = statement.position;
 
         match &statement.value {
-            Statement::FunctionCall { identifier, arguments } => match identifier.value.as_str() {
-                "println" => {
-                    let arg = arguments.get(0).ok_or_else(|| {
-                        Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            String::from("'println' expects exactly one argument."),
-                            statement.position,
-                        )) as Box<dyn IError>
-                    })?;
+            Statement::FunctionCall { identifier, arguments } => {
+                let name = identifier.value.as_str();
 
-                    self.visit_expression(&arg.value.value)?;
-                    let text_value = self.read_last_value()?;
-
-                    let format_str = self
-                        .builder
-                        .build_global_string_ptr("%s\n", "fmt")
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
-
-                    self.builder
-                        .build_call(
-                            self.libc.printf_fn,
-                            &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
-                            "printf_call",
-                        )
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
-
-                    Ok(())
+                if let Some(std_function) = self.program.std_functions.get(name) {
+                    return (std_function.compile)(self, arguments, statement.position);
                 }
 
-                _ => self.build_function_call(identifier, arguments, statement.position),
-            },
+                self.build_function_call(identifier, arguments, statement.position)
+            }
             Statement::Declaration { var_type, identifier, value } => {
                 let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type.value, self.context).ok_or_else(|| {
                     Box::new(CompilerError::at(
@@ -864,7 +845,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 Ok(())
             }
 
-            Statement::Switch { expressions, cases } => self.compile_switch(expressions, cases, statement.position),
+            Statement::Switch { expressions, cases } => self.compile_switch(expressions, cases),
         }
     }
 

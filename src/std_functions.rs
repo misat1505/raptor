@@ -12,10 +12,15 @@ use std::{
 };
 
 use crate::{
-    ast::{PassedBy, Type},
-    errors::{ErrorSeverity, StdFunctionError},
+    ast::{Argument, Node, PassedBy, Type},
+    compiler::Compiler,
+    errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+    lazy_stream_reader::Position,
     value::Value,
+    visitor::Visitor,
 };
+
+pub type LlvmCompileFn = for<'a, 'ctx> fn(&mut Compiler<'a, 'ctx>, &'a Vec<Box<Node<Argument>>>, Position) -> Result<(), Box<dyn IError>>;
 
 #[derive(Debug, Clone)]
 pub struct StdFunction {
@@ -24,12 +29,25 @@ pub struct StdFunction {
     pub execute: fn(&Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, StdFunctionError>,
     pub return_type: Type,
     pub type_check: Option<fn(&[Type]) -> Result<Type, String>>,
+    pub compile: LlvmCompileFn,
 }
 
 impl PartialEq for StdFunction {
     fn eq(&self, other: &Self) -> bool {
         self.params == other.params
     }
+}
+
+macro_rules! unimplemented_compile {
+    () => {
+        |_compiler: &mut Compiler, _arguments: &Vec<Box<Node<Argument>>>, _position: Position| -> Result<(), Box<dyn IError>> {
+            Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                String::from("Compiling this standard function is not yet supported."),
+                _position,
+            )) as Box<dyn IError>)
+        }
+    };
 }
 
 fn format_types(types: &[Type]) -> String {
@@ -94,12 +112,44 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'println' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let text_value = compiler.read_last_value()?;
+
+            let printf_fn = compiler.libc().printf_fn;
+
+            let format_str = compiler
+                .builder()
+                .build_global_string_ptr("%s", "fmt")
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+            compiler
+                .builder()
+                .build_call(
+                    printf_fn,
+                    &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
+                    "printf_call",
+                )
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -124,12 +174,44 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'println' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let text_value = compiler.read_last_value()?;
+
+            let printf_fn = compiler.libc().printf_fn;
+
+            let format_str = compiler
+                .builder()
+                .build_global_string_ptr("%s\n", "fmt")
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+            compiler
+                .builder()
+                .build_call(
+                    printf_fn,
+                    &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
+                    "printf_call",
+                )
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -165,6 +247,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -195,6 +278,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -234,6 +318,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -276,6 +361,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -306,6 +392,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -336,6 +423,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             return_type: Type::Bool,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -374,6 +462,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
             type_check: Some(type_check),
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -435,6 +524,7 @@ impl StdFunction {
             execute,
             return_type: Type::Void,
             type_check: Some(type_check),
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -477,6 +567,7 @@ impl StdFunction {
             execute,
             return_type: Type::I64,
             type_check: Some(type_check),
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -514,6 +605,7 @@ impl StdFunction {
             execute,
             return_type: Type::Void,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -554,6 +646,7 @@ impl StdFunction {
             execute,
             return_type: Type::I64,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -603,6 +696,7 @@ impl StdFunction {
             execute,
             return_type: Type::I64,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -648,6 +742,7 @@ impl StdFunction {
             execute,
             return_type: Type::Str,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -697,6 +792,7 @@ impl StdFunction {
             execute,
             return_type: Type::Void,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -733,6 +829,7 @@ impl StdFunction {
             execute,
             return_type: Type::Void,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 
@@ -765,6 +862,7 @@ impl StdFunction {
             execute,
             return_type: Type::I64,
             type_check: None,
+            compile: unimplemented_compile!(),
         }
     }
 }

@@ -1,4 +1,12 @@
-use std::{env::args, eprintln, fs::File, io::BufReader, path::Path, println, process::Command};
+use std::{
+    env::args,
+    eprintln,
+    fs::File,
+    io::BufReader,
+    path::Path,
+    println,
+    process::{exit, Command},
+};
 
 use errors::IError;
 use inkwell::{context::Context, OptimizationLevel};
@@ -192,13 +200,16 @@ fn main() {
         None => {
             eprintln!("Error: path to file not given.\n");
             usage();
-            return;
+            exit(1);
         }
     };
 
     let file = match File::open(path.as_str()) {
         Ok(f) => f,
-        Err(_) => return eprintln!("File '{}' not found.", path),
+        Err(_) => {
+            eprintln!("File '{}' not found.", path);
+            exit(1);
+        }
     };
 
     let code = BufReader::new(file);
@@ -214,7 +225,7 @@ fn main() {
         Ok(lexer) => lexer,
         Err(err) => {
             eprintln!("{}", err.message());
-            std::process::exit(1);
+            exit(1);
         }
     };
 
@@ -222,13 +233,19 @@ fn main() {
 
     let program = match parser.parse() {
         Ok(p) => p,
-        Err(err) => return eprintln!("{}", err.message()),
+        Err(err) => {
+            eprintln!("{}", err.message());
+            exit(1);
+        }
     };
 
     if !is_unsafe {
         let mut semantic_checker = match SemanticChecker::new(&program) {
             Ok(checker) => checker,
-            Err(err) => return eprintln!("{}", err.message()),
+            Err(err) => {
+                eprintln!("{}", err.message());
+                exit(1);
+            }
         };
 
         semantic_checker.check();
@@ -247,8 +264,7 @@ fn main() {
             }
 
             eprintln!("Static analysis finished with {} errors, {} warnings.", errors, warnings);
-
-            return;
+            exit(1);
         }
     }
 
@@ -259,24 +275,24 @@ fn main() {
         let mut compiler = Compiler::new(&program, &context);
         if let Err(err) = compiler.compile() {
             eprintln!("{}", err.message());
-            return;
+            exit(1);
         }
         if let Some(level) = opt_level {
             if let Err(err) = compiler.optimize(level) {
                 eprintln!("{}", err.message());
-                return;
+                exit(1);
             }
         }
         if let Err(err) = compiler.write_ir_to_file(&ir_path) {
             eprintln!("{}", err.message());
-            return;
+            exit(1);
         }
 
         println!("Wrote LLVM IR to '{}'.", ir_path);
 
         if let Err(err) = build_executable(&ir_path, &obj_path, &exe_path) {
             eprintln!("{}", err);
-            std::process::exit(1);
+            exit(1);
         }
 
         println!("Built executable '{}'.", exe_path);
@@ -286,7 +302,7 @@ fn main() {
                 Ok(code) => std::process::exit(code),
                 Err(err) => {
                     eprintln!("{}", err);
-                    std::process::exit(1);
+                    exit(1);
                 }
             }
         }
@@ -295,6 +311,7 @@ fn main() {
 
         if let Err(err) = interpreter.interpret() {
             eprintln!("{}", err.message());
+            exit(1);
         }
     }
 }

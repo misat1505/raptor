@@ -551,6 +551,9 @@ impl StdFunction {
         };
 
         let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
             let err_arity = || {
                 Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
@@ -585,13 +588,32 @@ impl StdFunction {
                 }
             };
 
+            compiler.visit_expression(&value_arg.value.value)?;
+            let pushed_value = compiler.read_last_value()?;
+
+            if pushed_value.to_type() != inner_type {
+                return Err(Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Vector element type mismatch: expected '{:?}', got '{:?}'.",
+                        inner_type,
+                        pushed_value.to_type()
+                    ),
+                    position,
+                )));
+            }
+
             let context = compiler.context();
             let ptr_type = context.ptr_type(AddressSpace::default());
             let i64_type = context.i64_type();
             let struct_type = LlvmValue::vector_struct_type(context);
 
-            let err =
-                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+            let function = compiler
+                .builder()
+                .get_insert_block()
+                .expect("builder should be positioned inside a function")
+                .get_parent()
+                .expect("basic block should belong to a function");
 
             let struct_ptr = compiler
                 .builder()
@@ -612,14 +634,14 @@ impl StdFunction {
                 .build_struct_gep(struct_type, struct_ptr, 2, "vector.capacity")
                 .map_err(err)?;
 
-            let old_data = compiler
-                .builder()
-                .build_load(ptr_type, data_field, "vector.data.old")
-                .map_err(err)?
-                .into_pointer_value();
             let old_length = compiler
                 .builder()
                 .build_load(i64_type, length_field, "vector.length.old")
+                .map_err(err)?
+                .into_int_value();
+            let old_capacity = compiler
+                .builder()
+                .build_load(i64_type, capacity_field, "vector.capacity.old")
                 .map_err(err)?
                 .into_int_value();
 
@@ -632,15 +654,44 @@ impl StdFunction {
             })?;
             let element_size = LlvmValue::element_byte_size(&inner_type, i64_type)?;
 
-            let new_length = compiler
+            let needs_grow = compiler
                 .builder()
-                .build_int_add(old_length, i64_type.const_int(1, false), "vector.length.new")
-                .map_err(err)?;
-            let new_bytes = compiler
-                .builder()
-                .build_int_mul(new_length, element_size, "vector.bytes.new")
+                .build_int_compare(inkwell::IntPredicate::SGE, old_length, old_capacity, "needs.grow")
                 .map_err(err)?;
 
+            let grow_block = context.append_basic_block(function, "push.grow");
+            let merge_block = context.append_basic_block(function, "push.merge");
+
+            compiler
+                .builder()
+                .build_conditional_branch(needs_grow, grow_block, merge_block)
+                .map_err(err)?;
+
+            compiler.builder().position_at_end(grow_block);
+            let old_data = compiler
+                .builder()
+                .build_load(ptr_type, data_field, "vector.data.old")
+                .map_err(err)?
+                .into_pointer_value();
+
+            let is_zero = compiler
+                .builder()
+                .build_int_compare(inkwell::IntPredicate::EQ, old_capacity, i64_type.const_int(0, false), "cap.is_zero")
+                .map_err(err)?;
+            let doubled = compiler
+                .builder()
+                .build_int_mul(old_capacity, i64_type.const_int(2, false), "cap.doubled")
+                .map_err(err)?;
+            let new_capacity = compiler
+                .builder()
+                .build_select(is_zero, i64_type.const_int(1, false), doubled, "cap.new")
+                .map_err(err)?
+                .into_int_value();
+
+            let new_bytes = compiler
+                .builder()
+                .build_int_mul(new_capacity, element_size, "vector.bytes.new")
+                .map_err(err)?;
             let new_data = compiler
                 .builder()
                 .build_call(compiler.libc().realloc_fn, &[old_data.into(), new_bytes.into()], "vector.realloc")
@@ -650,25 +701,22 @@ impl StdFunction {
                 .expect("realloc should return a value")
                 .into_pointer_value();
 
-            compiler.visit_expression(&value_arg.value.value)?;
-            let pushed_value = compiler.read_last_value()?;
+            compiler.builder().build_store(data_field, new_data).map_err(err)?;
+            compiler.builder().build_store(capacity_field, new_capacity).map_err(err)?;
+            compiler.builder().build_unconditional_branch(merge_block).map_err(err)?;
 
-            if pushed_value.to_type() != inner_type {
-                return Err(Box::new(CompilerError::at(
-                    ErrorSeverity::HIGH,
-                    format!(
-                        "Vector element type mismatch: expected '{:?}', got '{:?}'.",
-                        inner_type,
-                        pushed_value.to_type()
-                    ),
-                    position,
-                )));
-            }
+            compiler.builder().position_at_end(merge_block);
+
+            let current_data = compiler
+                .builder()
+                .build_load(ptr_type, data_field, "vector.data.current")
+                .map_err(err)?
+                .into_pointer_value();
 
             let elem_ptr = unsafe {
                 compiler
                     .builder()
-                    .build_gep(element_llvm_type, new_data, &[old_length], "vector.push.elem")
+                    .build_gep(element_llvm_type, current_data, &[old_length], "vector.push.elem")
                     .map_err(err)?
             };
             compiler
@@ -676,9 +724,11 @@ impl StdFunction {
                 .build_store(elem_ptr, pushed_value.as_basic_value_enum())
                 .map_err(err)?;
 
-            compiler.builder().build_store(data_field, new_data).map_err(err)?;
+            let new_length = compiler
+                .builder()
+                .build_int_add(old_length, i64_type.const_int(1, false), "vector.length.new")
+                .map_err(err)?;
             compiler.builder().build_store(length_field, new_length).map_err(err)?;
-            compiler.builder().build_store(capacity_field, new_length).map_err(err)?;
 
             Ok(())
         };

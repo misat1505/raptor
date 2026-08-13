@@ -499,6 +499,80 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 )) as Box<dyn IError>
             })
     }
+
+    fn compile_switch(
+        &mut self,
+        expressions: &'a Vec<Node<SwitchExpression>>,
+        cases: &'a Vec<Node<SwitchCase>>,
+        position: Position,
+    ) -> Result<(), Box<dyn IError>> {
+        let function = self.current_function();
+
+        let saved_variables = self.variables.clone();
+
+        for switch_expr in expressions {
+            if let Some(alias) = &switch_expr.value.alias {
+                self.visit_expression(&switch_expr.value.expression)?;
+                let value = self.read_last_value()?;
+
+                let var_type = value.to_type();
+                let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type, self.context).ok_or_else(|| {
+                    Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Compiling switch bindings of type '{:?}' is not yet supported.", var_type),
+                        switch_expr.position,
+                    )) as Box<dyn IError>
+                })?;
+
+                let ptr = self
+                    .builder
+                    .build_alloca(llvm_type, alias.value.as_str())
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), switch_expr.position)) as Box<dyn IError>)?;
+
+                self.builder
+                    .build_store(ptr, value.as_basic_value_enum())
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), switch_expr.position)) as Box<dyn IError>)?;
+
+                self.variables.insert(alias.value.clone(), (ptr, var_type));
+            }
+        }
+
+        let after_block = self.context.append_basic_block(function, "switch.after");
+
+        self.control_stack.push(ControlFrame::Switch { break_block: after_block });
+
+        for (index, case) in cases.iter().enumerate() {
+            let case_block = self.context.append_basic_block(function, &format!("switch.case{}", index));
+
+            // blok, do którego przechodzimy po tym case (albo sprawdzenie kolejnego case'a, albo after_block)
+            let next_check_block = if index + 1 < cases.len() {
+                self.context.append_basic_block(function, &format!("switch.check{}", index + 1))
+            } else {
+                after_block
+            };
+
+            self.visit_expression(&case.value.condition)?;
+            let cond_value = self.read_last_value()?.into_int_value(case.position)?;
+
+            self.builder
+                .build_conditional_branch(cond_value, case_block, next_check_block)
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), case.position)) as Box<dyn IError>)?;
+
+            self.builder.position_at_end(case_block);
+            self.visit_block(&case.value.block)?;
+            self.branch_if_no_terminator(next_check_block, case.position)?;
+
+            self.builder.position_at_end(next_check_block);
+        }
+
+        self.control_stack.pop();
+
+        self.variables = saved_variables;
+
+        self.builder.position_at_end(after_block);
+
+        Ok(())
+    }
 }
 
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
@@ -790,11 +864,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 Ok(())
             }
 
-            other => Err(Box::new(CompilerError::at(
-                ErrorSeverity::HIGH,
-                format!("Compiling statement '{:?}' is not yet supported.", other),
-                statement.position,
-            ))),
+            Statement::Switch { expressions, cases } => self.compile_switch(expressions, cases, statement.position),
         }
     }
 

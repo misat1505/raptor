@@ -77,13 +77,14 @@ fn output_paths(input_path: &str) -> (String, String, String) {
     let path = Path::new(input_path);
     let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
 
-    let ir_path = format!("{}.ll", stem);
-    let obj_path = format!("{}.o", stem);
+    let output_dir = "build/";
+    let ir_path = format!("{}{}.ll", output_dir, stem);
+    let obj_path = format!("{}{}.o", output_dir, stem);
 
     #[cfg(windows)]
-    let exe_path = format!("{}.exe", stem);
+    let exe_path = format!("{}{}.exe", output_dir, stem);
     #[cfg(not(windows))]
-    let exe_path = stem.to_string();
+    let exe_path = format!("{}{}", output_dir, stem);
 
     (ir_path, obj_path, exe_path)
 }

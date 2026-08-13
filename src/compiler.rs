@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::vec;
 
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
@@ -21,6 +22,17 @@ use crate::{
     visitor::Visitor,
 };
 
+#[derive(Clone, Copy)]
+enum ControlFrame<'ctx> {
+    Loop {
+        continue_block: BasicBlock<'ctx>,
+        break_block: BasicBlock<'ctx>,
+    },
+    Switch {
+        break_block: BasicBlock<'ctx>,
+    },
+}
+
 pub struct Compiler<'a, 'ctx> {
     program: &'a Program,
     context: &'ctx Context,
@@ -30,6 +42,7 @@ pub struct Compiler<'a, 'ctx> {
     main_fn: Option<FunctionValue<'ctx>>,
     functions: HashMap<String, FunctionValue<'ctx>>,
     libc: LibcFunctions<'ctx>,
+    control_stack: Vec<ControlFrame<'ctx>>,
 
     // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
     // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
@@ -54,6 +67,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             main_fn: None,
             functions: HashMap::new(),
             libc,
+            control_stack: vec![],
             variables: HashMap::new(),
             last_value: None,
             position: Position {
@@ -207,8 +221,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         )) as Box<dyn IError>
                     })?;
                 }
-                // funkcja niepusta bez jawnego return na końcu ścieżki — na razie unreachable,
-                // docelowo to powinno być wykrywane wcześniej jako błąd "not all paths return a value"
                 _ => {
                     self.builder.build_unreachable().map_err(|err| {
                         Box::new(CompilerError::at(
@@ -453,6 +465,40 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         Ok(())
     }
+
+    fn find_break_target(&self, position: Position) -> Result<BasicBlock<'ctx>, Box<dyn IError>> {
+        self.control_stack
+            .iter()
+            .rev()
+            .find_map(|frame| match frame {
+                ControlFrame::Loop { break_block, .. } => Some(*break_block),
+                ControlFrame::Switch { break_block } => Some(*break_block),
+            })
+            .ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'break' used outside of a loop or switch."),
+                    position,
+                )) as Box<dyn IError>
+            })
+    }
+
+    fn find_continue_target(&self, position: Position) -> Result<BasicBlock<'ctx>, Box<dyn IError>> {
+        self.control_stack
+            .iter()
+            .rev()
+            .find_map(|frame| match frame {
+                ControlFrame::Loop { continue_block, .. } => Some(*continue_block),
+                ControlFrame::Switch { .. } => None, // passes through continue
+            })
+            .ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'continue' used outside of a loop."),
+                    position,
+                )) as Box<dyn IError>
+            })
+    }
 }
 
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
@@ -605,6 +651,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                 let cond_block = self.context.append_basic_block(function, "for.cond");
                 let body_block = self.context.append_basic_block(function, "for.body");
+                let continue_block = self.context.append_basic_block(function, "for.continue");
                 let after_block = self.context.append_basic_block(function, "for.after");
 
                 self.builder
@@ -619,13 +666,20 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
 
                 self.builder.position_at_end(body_block);
+                self.control_stack.push(ControlFrame::Loop {
+                    continue_block,
+                    break_block: after_block,
+                });
                 self.visit_block(block)?;
+                self.control_stack.pop();
 
+                self.branch_if_no_terminator(continue_block, statement.position)?;
+
+                self.builder.position_at_end(continue_block);
                 if let Some(assign) = assignment {
                     self.visit_statement(assign)?;
                 }
 
-                // TODO: `break`/`continue` będą wymagały osobnego stosu bloków docelowych.
                 self.branch_if_no_terminator(cond_block, statement.position)?;
 
                 self.builder.position_at_end(after_block);
@@ -693,8 +747,13 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
 
                 self.builder.position_at_end(body_block);
+                self.control_stack.push(ControlFrame::Loop {
+                    continue_block: cond_block,
+                    break_block: after_block,
+                });
                 self.visit_block(block)?;
-                self.branch_if_no_terminator(after_block, statement.position)?;
+                self.control_stack.pop();
+                self.branch_if_no_terminator(cond_block, statement.position)?;
 
                 self.builder.position_at_end(after_block);
 
@@ -717,6 +776,17 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     }
                 }
 
+                Ok(())
+            }
+            Statement::Break => {
+                let target = self.find_break_target(statement.position)?;
+                self.branch_if_no_terminator(target, statement.position)?;
+                Ok(())
+            }
+
+            Statement::Continue => {
+                let target = self.find_continue_target(statement.position)?;
+                self.branch_if_no_terminator(target, statement.position)?;
                 Ok(())
             }
 

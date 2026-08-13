@@ -116,7 +116,7 @@ impl StdFunction {
             let arg = arguments.get(0).ok_or_else(|| {
                 Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    String::from("'println' expects exactly one argument."),
+                    String::from("'print' expects exactly one argument."),
                     position,
                 )) as Box<dyn IError>
             })?;

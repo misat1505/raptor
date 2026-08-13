@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
@@ -440,6 +441,18 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         Ok(())
     }
+
+    fn branch_if_no_terminator(&mut self, target: BasicBlock<'ctx>, position: Position) -> Result<(), Box<dyn IError>> {
+        let current_block = self.builder.get_insert_block().expect("builder should be positioned inside a block");
+
+        if current_block.get_terminator().is_none() {
+            self.builder
+                .build_unconditional_branch(target)
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
@@ -612,11 +625,8 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     self.visit_statement(assign)?;
                 }
 
-                // TODO: `break`/`continue` będą wymagały osobnego stosu bloków docelowych,
-                // na razie zakładamy, że blok nigdy nie kończy się już terminatorem.
-                self.builder
-                    .build_unconditional_branch(cond_block)
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
+                // TODO: `break`/`continue` będą wymagały osobnego stosu bloków docelowych.
+                self.branch_if_no_terminator(cond_block, statement.position)?;
 
                 self.builder.position_at_end(after_block);
 
@@ -651,16 +661,12 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                 self.builder.position_at_end(true_block);
                 self.visit_block(if_block)?;
-                self.builder
-                    .build_unconditional_branch(after_block)
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
+                self.branch_if_no_terminator(after_block, statement.position)?;
 
                 if let Some(b) = false_block {
                     self.builder.position_at_end(b);
                     self.visit_block(&else_block.as_ref().unwrap())?;
-                    self.builder
-                        .build_unconditional_branch(after_block)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
+                    self.branch_if_no_terminator(after_block, statement.position)?;
                 }
 
                 self.builder.position_at_end(after_block);
@@ -688,9 +694,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
                 self.builder.position_at_end(body_block);
                 self.visit_block(block)?;
-                self.builder
-                    .build_unconditional_branch(cond_block)
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
+                self.branch_if_no_terminator(after_block, statement.position)?;
 
                 self.builder.position_at_end(after_block);
 

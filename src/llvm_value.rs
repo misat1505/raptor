@@ -1,5 +1,5 @@
 use inkwell::context::Context;
-use inkwell::types::{BasicTypeEnum, StructType};
+use inkwell::types::{BasicTypeEnum, IntType, StructType};
 use inkwell::values::{BasicValueEnum, FloatValue, IntValue, PointerValue};
 use inkwell::AddressSpace;
 
@@ -74,5 +74,22 @@ impl<'ctx> LlvmValue<'ctx> {
         let ptr_type = context.ptr_type(AddressSpace::default());
         let i64_type = context.i64_type();
         context.struct_type(&[ptr_type.into(), i64_type.into(), i64_type.into()], false)
+    }
+
+    pub fn element_byte_size(inner_type: &Type, i64_type: IntType<'ctx>) -> Result<inkwell::values::IntValue<'ctx>, Box<dyn IError>> {
+        let size: u64 = match inner_type {
+            Type::I64 => 8,
+            Type::F64 => 8,
+            Type::Bool => 1,
+            Type::Str => 8,       // TODO: 64-bit platform only
+            Type::Vector(_) => 8, // TODO: 64-bit platform only
+            other => {
+                return Err(Box::new(CompilerError::new(
+                    ErrorSeverity::HIGH,
+                    format!("Compiling vectors of type '{:?}' is not yet supported.", other),
+                )))
+            }
+        };
+        Ok(i64_type.const_int(size, false))
     }
 }

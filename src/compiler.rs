@@ -619,6 +619,111 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         Ok(struct_ptr)
     }
+
+    fn build_vector_from_elements(
+        &mut self,
+        inner_type: &Type,
+        elements: &'a Vec<Box<Node<Expression>>>,
+        position: Position,
+    ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let element_llvm_type = LlvmValue::type_to_basic_type_enum(inner_type, self.context).ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                position,
+            )) as Box<dyn IError>
+        })?;
+
+        let count = elements.len() as u64;
+        let i64_type = self.context.i64_type();
+
+        let element_size = LlvmValue::element_byte_size(inner_type, i64_type)?;
+
+        let total_size = self
+            .builder
+            .build_int_mul(element_size, i64_type.const_int(count, false), "vector.bytes")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        let data_ptr = self
+            .builder
+            .build_call(self.libc.malloc_fn, &[total_size.into()], "vector.malloc")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+
+        for (index, element) in elements.iter().enumerate() {
+            let element_value = match (inner_type, &element.value) {
+                (Type::Vector(nested_inner), Expression::Vector(nested_elements)) => {
+                    let nested_ptr = if nested_elements.is_empty() {
+                        self.build_empty_vector(nested_inner, element.position)?
+                    } else {
+                        self.build_vector_from_elements(nested_inner, nested_elements, element.position)?
+                    };
+                    LlvmValue::Vector(nested_ptr, nested_inner.clone())
+                }
+                _ => {
+                    self.visit_expression(&element)?;
+                    self.read_last_value()?
+                }
+            };
+
+            if element_value.to_type() != *inner_type {
+                return Err(Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Vector element type mismatch: expected '{:?}', got '{:?}'.",
+                        inner_type,
+                        element_value.to_type()
+                    ),
+                    element.position,
+                )));
+            }
+
+            let element_ptr = unsafe {
+                self.builder
+                    .build_gep(element_llvm_type, data_ptr, &[i64_type.const_int(index as u64, false)], "vector.elem")
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), element.position)) as Box<dyn IError>)?
+            };
+
+            self.builder
+                .build_store(element_ptr, element_value.as_basic_value_enum())
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), element.position)) as Box<dyn IError>)?;
+        }
+
+        let struct_type = LlvmValue::vector_struct_type(self.context);
+        let struct_ptr = self
+            .builder
+            .build_alloca(struct_type, "vector")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        let data_field = self
+            .builder
+            .build_struct_gep(struct_type, struct_ptr, 0, "vector.data.field")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+        self.builder
+            .build_store(data_field, data_ptr)
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        let length_field = self
+            .builder
+            .build_struct_gep(struct_type, struct_ptr, 1, "vector.length.field")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+        self.builder
+            .build_store(length_field, i64_type.const_int(count, false))
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        let capacity_field = self
+            .builder
+            .build_struct_gep(struct_type, struct_ptr, 2, "vector.capacity.field")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+        self.builder
+            .build_store(capacity_field, i64_type.const_int(count, false))
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        Ok(struct_ptr)
+    }
 }
 
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
@@ -711,12 +816,16 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                             })?;
                         }
 
-                        (Type::Vector(_), Expression::Vector(_)) => {
-                            return Err(Box::new(CompilerError::at(
-                                ErrorSeverity::HIGH,
-                                String::from("Compiling non-empty vector literals is not yet supported."),
-                                statement.position,
-                            )));
+                        (Type::Vector(inner), Expression::Vector(elements)) => {
+                            let vector_ptr = if elements.is_empty() {
+                                self.build_empty_vector(inner, statement.position)?
+                            } else {
+                                self.build_vector_from_elements(inner, elements, statement.position)?
+                            };
+
+                            self.builder.build_store(ptr, vector_ptr).map_err(|err| {
+                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>
+                            })?;
                         }
 
                         _ => {

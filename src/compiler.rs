@@ -9,7 +9,7 @@ use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine};
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, FloatType, IntType};
 use inkwell::values::{BasicMetadataValueEnum, FunctionValue, PointerValue};
-use inkwell::{AddressSpace, OptimizationLevel};
+use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 
 use crate::ast::{FunctionDeclaration, PassedBy};
 use crate::libc_functions::LibcFunctions;
@@ -44,8 +44,6 @@ pub struct Compiler<'a, 'ctx> {
     libc: LibcFunctions<'ctx>,
     control_stack: Vec<ControlFrame<'ctx>>,
 
-    // płaska tabela zmiennych: nazwa -> wskaźnik z `alloca`.
-    // TODO: docelowo zastąpić stosem zakresów, analogicznie do ScopeManager w interpreterze.
     variables: HashMap<String, (PointerValue<'ctx>, Type)>,
 
     last_value: Option<LlvmValue<'ctx>>,
@@ -199,7 +197,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
 
                 PassedBy::Reference => {
-                    // parametr od razu jest wskaźnikiem do zmiennej wołającego
                     let ptr = param_value.into_pointer_value();
                     self.variables.insert(identifier.to_string(), (ptr, param_type.clone()));
                 }
@@ -413,7 +410,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         &self.libc
     }
 
-    fn get_variable(&self, name: &str) -> Result<(PointerValue<'ctx>, Type), Box<dyn IError>> {
+    pub fn get_variable(&self, name: &str) -> Result<(PointerValue<'ctx>, Type), Box<dyn IError>> {
         self.variables.get(name).cloned().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
@@ -547,7 +544,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         for (index, case) in cases.iter().enumerate() {
             let case_block = self.context.append_basic_block(function, &format!("switch.case{}", index));
 
-            // blok, do którego przechodzimy po tym case (albo sprawdzenie kolejnego case'a, albo after_block)
             let next_check_block = if index + 1 < cases.len() {
                 self.context.append_basic_block(function, &format!("switch.check{}", index + 1))
             } else {
@@ -615,7 +611,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .build_store(capacity_field, i64_type.const_int(0, false))
             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
 
-        let _ = inner_type; // typ elementu na razie nieużywany w codegenie (potrzebny dopiero przy push/indeksowaniu)
+        let _ = inner_type;
 
         Ok(struct_ptr)
     }
@@ -724,6 +720,317 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         Ok(struct_ptr)
     }
+
+    pub fn append_cstring(
+        &mut self,
+        buffer_ptr: PointerValue<'ctx>,
+        addition: PointerValue<'ctx>,
+        position: Position,
+    ) -> Result<(), Box<dyn IError>> {
+        let err = Self::builder_err(position);
+        let ptr_type = self.context.ptr_type(AddressSpace::default());
+        let i64_type = self.context.i64_type();
+
+        let current = self
+            .builder
+            .build_load(ptr_type, buffer_ptr, "buf.cur")
+            .map_err(&err)?
+            .into_pointer_value();
+
+        let len_current = self
+            .builder
+            .build_call(self.libc.strlen_fn, &[current.into()], "len.cur")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("strlen returns a value")
+            .into_int_value();
+
+        let len_add = self
+            .builder
+            .build_call(self.libc.strlen_fn, &[addition.into()], "len.add")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("strlen returns a value")
+            .into_int_value();
+
+        let total = self.builder.build_int_add(len_current, len_add, "len.total").map_err(&err)?;
+        let total_plus_nul = self
+            .builder
+            .build_int_add(total, i64_type.const_int(1, false), "len.total.nul")
+            .map_err(&err)?;
+
+        let new_buf = self
+            .builder
+            .build_call(self.libc.realloc_fn, &[current.into(), total_plus_nul.into()], "buf.realloc")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("realloc returns a value")
+            .into_pointer_value();
+
+        self.builder
+            .build_call(self.libc.strcat_fn, &[new_buf.into(), addition.into()], "buf.strcat")
+            .map_err(&err)?;
+
+        self.builder.build_store(buffer_ptr, new_buf).map_err(&err)?;
+
+        Ok(())
+    }
+
+    pub fn format_scalar_to_cstring(
+        &mut self,
+        value: LlvmValue<'ctx>,
+        elem_type: &Type,
+        position: Position,
+    ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let err = Self::builder_err(position);
+        let i64_type = self.context.i64_type();
+
+        match (elem_type, &value) {
+            (Type::I64, LlvmValue::I64(v)) => {
+                let buf_size = i64_type.const_int(24, false);
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "num.buf")
+                    .map_err(&err)?;
+                let fmt = self.builder.build_global_string_ptr("%lld", "fmt.i64").map_err(&err)?.as_pointer_value();
+                self.builder
+                    .build_call(
+                        self.libc.snprintf_fn,
+                        &[buf.into(), buf_size.into(), fmt.into(), (*v).into()],
+                        "snprintf.i64",
+                    )
+                    .map_err(&err)?;
+                Ok(buf)
+            }
+
+            (Type::F64, LlvmValue::F64(v)) => {
+                let buf_size = i64_type.const_int(64, false);
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "num.buf")
+                    .map_err(&err)?;
+                let fmt = self.builder.build_global_string_ptr("%g", "fmt.f64").map_err(&err)?.as_pointer_value();
+                self.builder
+                    .build_call(
+                        self.libc.snprintf_fn,
+                        &[buf.into(), buf_size.into(), fmt.into(), (*v).into()],
+                        "snprintf.f64",
+                    )
+                    .map_err(&err)?;
+                Ok(buf)
+            }
+
+            (Type::Bool, LlvmValue::Bool(v)) => {
+                let true_str = self
+                    .builder
+                    .build_global_string_ptr("true", "bool.true")
+                    .map_err(&err)?
+                    .as_pointer_value();
+                let false_str = self
+                    .builder
+                    .build_global_string_ptr("false", "bool.false")
+                    .map_err(&err)?
+                    .as_pointer_value();
+                let picked = self
+                    .builder
+                    .build_select(*v, true_str, false_str, "bool.str")
+                    .map_err(&err)?
+                    .into_pointer_value();
+
+                let len = self
+                    .builder
+                    .build_call(self.libc.strlen_fn, &[picked.into()], "bool.len")
+                    .map_err(&err)?
+                    .try_as_basic_value()
+                    .basic()
+                    .unwrap()
+                    .into_int_value();
+                let len_nul = self
+                    .builder
+                    .build_int_add(len, i64_type.const_int(1, false), "bool.len.nul")
+                    .map_err(&err)?;
+                let dup = self
+                    .builder
+                    .build_call(self.libc.malloc_fn, &[len_nul.into()], "bool.dup")
+                    .map_err(&err)?
+                    .try_as_basic_value()
+                    .basic()
+                    .unwrap()
+                    .into_pointer_value();
+                self.builder
+                    .build_call(self.libc.strcpy_fn, &[dup.into(), picked.into()], "bool.strcpy")
+                    .map_err(&err)?;
+                Ok(dup)
+            }
+
+            (Type::Str, LlvmValue::Str(v)) => {
+                // wynik: "\"" + v + "\""
+                let quote = self.builder.build_global_string_ptr("\"", "quote").map_err(&err)?.as_pointer_value();
+                let len_v = self
+                    .builder
+                    .build_call(self.libc.strlen_fn, &[(*v).into()], "str.len")
+                    .map_err(&err)?
+                    .try_as_basic_value()
+                    .basic()
+                    .unwrap()
+                    .into_int_value();
+                let total = self
+                    .builder
+                    .build_int_add(len_v, i64_type.const_int(3, false), "str.total")
+                    .map_err(&err)?; // 2x '"' + NUL
+
+                let buf = self
+                    .builder
+                    .build_call(self.libc.malloc_fn, &[total.into()], "str.buf")
+                    .map_err(&err)?
+                    .try_as_basic_value()
+                    .basic()
+                    .unwrap()
+                    .into_pointer_value();
+
+                let empty = self.builder.build_global_string_ptr("", "empty").map_err(&err)?.as_pointer_value();
+                self.builder
+                    .build_call(self.libc.strcpy_fn, &[buf.into(), empty.into()], "str.init")
+                    .map_err(&err)?;
+
+                self.builder
+                    .build_call(self.libc.strcat_fn, &[buf.into(), quote.into()], "str.cat1")
+                    .map_err(&err)?;
+                self.builder
+                    .build_call(self.libc.strcat_fn, &[buf.into(), (*v).into()], "str.cat2")
+                    .map_err(&err)?;
+                self.builder
+                    .build_call(self.libc.strcat_fn, &[buf.into(), quote.into()], "str.cat3")
+                    .map_err(&err)?;
+                Ok(buf)
+            }
+
+            (other, _) => Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Compiling vector_stringify for element type '{:?}' is not yet supported.", other),
+                position,
+            ))),
+        }
+    }
+
+    pub fn build_vector_to_string(
+        &mut self,
+        vector_ptr: PointerValue<'ctx>,
+        inner_type: &Type,
+        position: Position,
+    ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let err = Self::builder_err(position);
+        let function = self.current_function();
+        let struct_type = LlvmValue::vector_struct_type(self.context);
+        let ptr_type = self.context.ptr_type(AddressSpace::default());
+        let i64_type = self.context.i64_type();
+
+        let data_field = self.builder.build_struct_gep(struct_type, vector_ptr, 0, "vec.data").map_err(&err)?;
+        let length_field = self.builder.build_struct_gep(struct_type, vector_ptr, 1, "vec.length").map_err(&err)?;
+        let data = self
+            .builder
+            .build_load(ptr_type, data_field, "vec.data.val")
+            .map_err(&err)?
+            .into_pointer_value();
+        let length = self
+            .builder
+            .build_load(i64_type, length_field, "vec.length.val")
+            .map_err(&err)?
+            .into_int_value();
+
+        let open_bracket = self.builder.build_global_string_ptr("[", "open").map_err(&err)?.as_pointer_value();
+        let result_init = self
+            .builder
+            .build_call(self.libc.malloc_fn, &[i64_type.const_int(2, false).into()], "result.init")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .unwrap()
+            .into_pointer_value();
+        self.builder
+            .build_call(self.libc.strcpy_fn, &[result_init.into(), open_bracket.into()], "result.strcpy")
+            .map_err(&err)?;
+
+        let result_alloca = self.builder.build_alloca(ptr_type, "result").map_err(&err)?;
+        self.builder.build_store(result_alloca, result_init).map_err(&err)?;
+
+        let index_alloca = self.builder.build_alloca(i64_type, "stringify.i").map_err(&err)?;
+        self.builder.build_store(index_alloca, i64_type.const_int(0, false)).map_err(&err)?;
+
+        let cond_block = self.context.append_basic_block(function, "stringify.cond");
+        let body_block = self.context.append_basic_block(function, "stringify.body");
+        let after_block = self.context.append_basic_block(function, "stringify.after");
+
+        self.builder.build_unconditional_branch(cond_block).map_err(&err)?;
+
+        self.builder.position_at_end(cond_block);
+        let idx = self.builder.build_load(i64_type, index_alloca, "i.val").map_err(&err)?.into_int_value();
+        let cmp = self.builder.build_int_compare(IntPredicate::SLT, idx, length, "i.cmp").map_err(&err)?;
+        self.builder.build_conditional_branch(cmp, body_block, after_block).map_err(&err)?;
+
+        self.builder.position_at_end(body_block);
+
+        let is_first = self
+            .builder
+            .build_int_compare(IntPredicate::EQ, idx, i64_type.const_int(0, false), "i.is_first")
+            .map_err(&err)?;
+        let empty_sep = self.builder.build_global_string_ptr("", "sep.empty").map_err(&err)?.as_pointer_value();
+        let comma_sep = self.builder.build_global_string_ptr(", ", "sep.comma").map_err(&err)?.as_pointer_value();
+        let sep = self
+            .builder
+            .build_select(is_first, empty_sep, comma_sep, "sep")
+            .map_err(&err)?
+            .into_pointer_value();
+        self.append_cstring(result_alloca, sep, position)?;
+
+        let element_llvm_type = LlvmValue::type_to_basic_type_enum(inner_type, self.context).ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                position,
+            )) as Box<dyn IError>
+        })?;
+
+        let elem_ptr = unsafe { self.builder.build_gep(element_llvm_type, data, &[idx], "elem.ptr").map_err(&err)? };
+        let elem_raw = self.builder.build_load(element_llvm_type, elem_ptr, "elem.val").map_err(&err)?;
+        let elem_value = LlvmValue::from_basic_value_enum(elem_raw, inner_type);
+
+        let elem_str = match &elem_value {
+            LlvmValue::Vector(nested_ptr, nested_inner) => self.build_vector_to_string(*nested_ptr, nested_inner, position)?,
+            _ => self.format_scalar_to_cstring(elem_value.clone(), inner_type, position)?,
+        };
+        self.append_cstring(result_alloca, elem_str, position)?;
+
+        let next_idx = self.builder.build_int_add(idx, i64_type.const_int(1, false), "i.next").map_err(&err)?;
+        self.builder.build_store(index_alloca, next_idx).map_err(&err)?;
+        self.builder.build_unconditional_branch(cond_block).map_err(&err)?;
+
+        self.builder.position_at_end(after_block);
+        let close_bracket = self.builder.build_global_string_ptr("]", "close").map_err(&err)?.as_pointer_value();
+        self.append_cstring(result_alloca, close_bracket, position)?;
+
+        let final_result = self
+            .builder
+            .build_load(ptr_type, result_alloca, "result.final")
+            .map_err(&err)?
+            .into_pointer_value();
+        Ok(final_result)
+    }
+
+    pub fn context(&self) -> &'ctx Context {
+        self.context
+    }
+
+    pub fn set_last_value(&mut self, value: LlvmValue<'ctx>) {
+        self.last_value = Some(value);
+    }
+
+    fn builder_err(position: Position) -> impl Fn(inkwell::builder::BuilderError) -> Box<dyn IError> {
+        move |err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>
+    }
 }
 
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
@@ -739,7 +1046,15 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         self.position = expression.position;
 
         match &expression.value {
-            Expression::FunctionCall { identifier, arguments } => self.build_function_call(identifier, arguments, expression.position),
+            Expression::FunctionCall { identifier, arguments } => {
+                let name = identifier.value.as_str();
+
+                if let Some(std_function) = self.program.std_functions.get(name) {
+                    return (std_function.compile)(self, arguments, expression.position);
+                }
+
+                return self.build_function_call(identifier, arguments, expression.position);
+            }
             Expression::Literal(literal) => self.visit_literal(literal),
             Expression::Variable(variable) => self.visit_variable(variable, expression.position),
             Expression::BooleanNegation(expr) => self.build_unary_op(expr, LlvmAlu::boolean_negate, expression.position),

@@ -11,11 +11,14 @@ use std::{
     thread, time, vec,
 };
 
+use inkwell::AddressSpace;
+
 use crate::{
     ast::{Argument, Node, PassedBy, Type},
     compiler::Compiler,
     errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
     lazy_stream_reader::Position,
+    llvm_value::LlvmValue,
     value::Value,
     visitor::Visitor,
 };
@@ -456,13 +459,42 @@ impl StdFunction {
             _ => Err(String::from("vector_size expects exactly 1 argument.")),
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let vector_arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'vector_stringify' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&vector_arg.value.value)?;
+            let vector_value = compiler.read_last_value()?;
+
+            let (vector_ptr, inner_type) = match vector_value {
+                LlvmValue::Vector(ptr, inner) => (ptr, *inner),
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'vector_stringify' expects a vector, got '{:?}'.", other.to_type()),
+                        position,
+                    )))
+                }
+            };
+
+            let result = compiler.build_vector_to_string(vector_ptr, &inner_type, position)?;
+            compiler.set_last_value(LlvmValue::Str(result));
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
             type_check: Some(type_check),
-            compile: unimplemented_compile!(),
+            compile,
         }
     }
 
@@ -518,13 +550,146 @@ impl StdFunction {
             _ => Err(String::from("vector_push expects exactly 2 arguments.")),
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err_arity = || {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'vector_push' expects exactly 2 arguments."),
+                    position,
+                )) as Box<dyn IError>
+            };
+
+            let vector_arg = arguments.get(0).ok_or_else(err_arity)?;
+            let value_arg = arguments.get(1).ok_or_else(err_arity)?;
+
+            let variable_name = match &vector_arg.value.value.value {
+                crate::ast::Expression::Variable(name) => name.clone(),
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'vector_push' expects a variable as its first argument, got '{:?}'.", other),
+                        position,
+                    )))
+                }
+            };
+
+            let (var_slot_ptr, var_type) = compiler.get_variable(&variable_name)?;
+            let inner_type = match var_type {
+                Type::Vector(inner) => *inner,
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'vector_push' expects a vector, got '{:?}'.", other),
+                        position,
+                    )))
+                }
+            };
+
+            let context = compiler.context();
+            let ptr_type = context.ptr_type(AddressSpace::default());
+            let i64_type = context.i64_type();
+            let struct_type = LlvmValue::vector_struct_type(context);
+
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let struct_ptr = compiler
+                .builder()
+                .build_load(ptr_type, var_slot_ptr, "vector.ptr")
+                .map_err(err)?
+                .into_pointer_value();
+
+            let data_field = compiler
+                .builder()
+                .build_struct_gep(struct_type, struct_ptr, 0, "vector.data")
+                .map_err(err)?;
+            let length_field = compiler
+                .builder()
+                .build_struct_gep(struct_type, struct_ptr, 1, "vector.length")
+                .map_err(err)?;
+            let capacity_field = compiler
+                .builder()
+                .build_struct_gep(struct_type, struct_ptr, 2, "vector.capacity")
+                .map_err(err)?;
+
+            let old_data = compiler
+                .builder()
+                .build_load(ptr_type, data_field, "vector.data.old")
+                .map_err(err)?
+                .into_pointer_value();
+            let old_length = compiler
+                .builder()
+                .build_load(i64_type, length_field, "vector.length.old")
+                .map_err(err)?
+                .into_int_value();
+
+            let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, context).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+            let element_size = LlvmValue::element_byte_size(&inner_type, i64_type)?;
+
+            let new_length = compiler
+                .builder()
+                .build_int_add(old_length, i64_type.const_int(1, false), "vector.length.new")
+                .map_err(err)?;
+            let new_bytes = compiler
+                .builder()
+                .build_int_mul(new_length, element_size, "vector.bytes.new")
+                .map_err(err)?;
+
+            let new_data = compiler
+                .builder()
+                .build_call(compiler.libc().realloc_fn, &[old_data.into(), new_bytes.into()], "vector.realloc")
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("realloc should return a value")
+                .into_pointer_value();
+
+            compiler.visit_expression(&value_arg.value.value)?;
+            let pushed_value = compiler.read_last_value()?;
+
+            if pushed_value.to_type() != inner_type {
+                return Err(Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Vector element type mismatch: expected '{:?}', got '{:?}'.",
+                        inner_type,
+                        pushed_value.to_type()
+                    ),
+                    position,
+                )));
+            }
+
+            let elem_ptr = unsafe {
+                compiler
+                    .builder()
+                    .build_gep(element_llvm_type, new_data, &[old_length], "vector.push.elem")
+                    .map_err(err)?
+            };
+            compiler
+                .builder()
+                .build_store(elem_ptr, pushed_value.as_basic_value_enum())
+                .map_err(err)?;
+
+            compiler.builder().build_store(data_field, new_data).map_err(err)?;
+            compiler.builder().build_store(length_field, new_length).map_err(err)?;
+            compiler.builder().build_store(capacity_field, new_length).map_err(err)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Reference, PassedBy::Value],
             execute,
             return_type: Type::Void,
             type_check: Some(type_check),
-            compile: unimplemented_compile!(),
+            compile,
         }
     }
 

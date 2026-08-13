@@ -13,6 +13,7 @@ pub struct LibcFunctions<'ctx> {
     pub malloc_fn: FunctionValue<'ctx>,
     pub atoll_fn: FunctionValue<'ctx>,
     pub atof_fn: FunctionValue<'ctx>,
+    pub realloc_fn: FunctionValue<'ctx>,
 }
 
 impl<'ctx> LibcFunctions<'ctx> {
@@ -21,28 +22,22 @@ impl<'ctx> LibcFunctions<'ctx> {
         let i64_type = context.i64_type();
         let f64_type = context.f64_type();
         let str_type = context.ptr_type(AddressSpace::default());
+        let ptr_type = context.ptr_type(AddressSpace::default());
 
         let printf_fn = module.add_function("printf", i32_type.fn_type(&[str_type.into()], true), None);
-
         let snprintf_fn = module.add_function(
             "snprintf",
             i32_type.fn_type(&[str_type.into(), i64_type.into(), str_type.into()], true),
             None,
         );
-
         let strcmp_fn = module.add_function("strcmp", i32_type.fn_type(&[str_type.into(), str_type.into()], false), None);
-
         let strlen_fn = module.add_function("strlen", i64_type.fn_type(&[str_type.into()], false), None);
-
         let strcpy_fn = module.add_function("strcpy", str_type.fn_type(&[str_type.into(), str_type.into()], false), None);
-
         let strcat_fn = module.add_function("strcat", str_type.fn_type(&[str_type.into(), str_type.into()], false), None);
-
         let malloc_fn = module.add_function("malloc", str_type.fn_type(&[i64_type.into()], false), None);
-
         let atoll_fn = module.add_function("atoll", i64_type.fn_type(&[str_type.into()], false), None);
-
         let atof_fn = module.add_function("atof", f64_type.fn_type(&[str_type.into()], false), None);
+        let realloc_fn = module.add_function("realloc", ptr_type.fn_type(&[ptr_type.into(), i64_type.into()], false), None);
 
         LibcFunctions {
             printf_fn,
@@ -54,6 +49,7 @@ impl<'ctx> LibcFunctions<'ctx> {
             malloc_fn,
             atoll_fn,
             atof_fn,
+            realloc_fn,
         }
     }
 }

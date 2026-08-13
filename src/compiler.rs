@@ -576,6 +576,49 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         Ok(())
     }
+
+    fn build_empty_vector(&mut self, inner_type: &Type, position: Position) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let struct_type = LlvmValue::vector_struct_type(self.context);
+
+        let struct_ptr = self
+            .builder
+            .build_alloca(struct_type, "vector")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        let ptr_type = self.context.ptr_type(AddressSpace::default());
+        let i64_type = self.context.i64_type();
+
+        // data = null
+        let data_field = self
+            .builder
+            .build_struct_gep(struct_type, struct_ptr, 0, "vector.data")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+        self.builder
+            .build_store(data_field, ptr_type.const_null())
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        // length = 0
+        let length_field = self
+            .builder
+            .build_struct_gep(struct_type, struct_ptr, 1, "vector.length")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+        self.builder
+            .build_store(length_field, i64_type.const_int(0, false))
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        // capacity = 0
+        let capacity_field = self
+            .builder
+            .build_struct_gep(struct_type, struct_ptr, 2, "vector.capacity")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+        self.builder
+            .build_store(capacity_field, i64_type.const_int(0, false))
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+        let _ = inner_type; // typ elementu na razie nieużywany w codegenie (potrzebny dopiero przy push/indeksowaniu)
+
+        Ok(struct_ptr)
+    }
 }
 
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
@@ -660,11 +703,30 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
 
                 if let Some(val_expr) = value {
-                    self.visit_expression(val_expr)?;
-                    let init_value = self.read_last_value()?;
-                    self.builder
-                        .build_store(ptr, init_value.as_basic_value_enum())
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
+                    match (&var_type.value, &val_expr.value) {
+                        (Type::Vector(inner), Expression::Vector(elements)) if elements.is_empty() => {
+                            let vector_ptr = self.build_empty_vector(inner, statement.position)?;
+                            self.builder.build_store(ptr, vector_ptr).map_err(|err| {
+                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>
+                            })?;
+                        }
+
+                        (Type::Vector(_), Expression::Vector(_)) => {
+                            return Err(Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                String::from("Compiling non-empty vector literals is not yet supported."),
+                                statement.position,
+                            )));
+                        }
+
+                        _ => {
+                            self.visit_expression(val_expr)?;
+                            let init_value = self.read_last_value()?;
+                            self.builder.build_store(ptr, init_value.as_basic_value_enum()).map_err(|err| {
+                                Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>
+                            })?;
+                        }
+                    }
                 }
 
                 self.variables.insert(identifier.value.clone(), (ptr, var_type.value.clone()));

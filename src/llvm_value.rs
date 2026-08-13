@@ -1,5 +1,5 @@
 use inkwell::context::Context;
-use inkwell::types::BasicTypeEnum;
+use inkwell::types::{BasicTypeEnum, StructType};
 use inkwell::values::{BasicValueEnum, FloatValue, IntValue, PointerValue};
 use inkwell::AddressSpace;
 
@@ -7,12 +7,13 @@ use crate::ast::Type;
 use crate::errors::{CompilerError, ErrorSeverity, IError};
 use crate::lazy_stream_reader::Position;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum LlvmValue<'ctx> {
     I64(IntValue<'ctx>),
     F64(FloatValue<'ctx>),
     Str(PointerValue<'ctx>),
     Bool(IntValue<'ctx>),
+    Vector(PointerValue<'ctx>, Box<Type>),
 }
 
 impl<'ctx> LlvmValue<'ctx> {
@@ -22,6 +23,7 @@ impl<'ctx> LlvmValue<'ctx> {
             LlvmValue::F64(_) => Type::F64,
             LlvmValue::Str(_) => Type::Str,
             LlvmValue::Bool(_) => Type::Bool,
+            LlvmValue::Vector(_, inner) => Type::Vector(inner.clone()),
         }
     }
 
@@ -31,6 +33,7 @@ impl<'ctx> LlvmValue<'ctx> {
             LlvmValue::F64(v) => (*v).into(),
             LlvmValue::Str(v) => (*v).into(),
             LlvmValue::Bool(v) => (*v).into(),
+            LlvmValue::Vector(v, _) => (*v).into(),
         }
     }
 
@@ -51,6 +54,7 @@ impl<'ctx> LlvmValue<'ctx> {
             (Type::F64, BasicValueEnum::FloatValue(v)) => LlvmValue::F64(v),
             (Type::Str, BasicValueEnum::PointerValue(v)) => LlvmValue::Str(v),
             (Type::Bool, BasicValueEnum::IntValue(v)) => LlvmValue::Bool(v),
+            (Type::Vector(inner), BasicValueEnum::PointerValue(v)) => LlvmValue::Vector(v, inner.clone()),
             _ => unreachable!("BasicValueEnum variant should always match the declared Type"),
         }
     }
@@ -61,7 +65,14 @@ impl<'ctx> LlvmValue<'ctx> {
             Type::F64 => Some(context.f64_type().into()),
             Type::Str => Some(context.ptr_type(AddressSpace::default()).into()),
             Type::Bool => Some(context.bool_type().into()),
+            Type::Vector(_) => Some(context.ptr_type(AddressSpace::default()).into()),
             _ => None,
         }
+    }
+
+    pub fn vector_struct_type(context: &'ctx Context) -> StructType<'ctx> {
+        let ptr_type = context.ptr_type(AddressSpace::default());
+        let i64_type = context.i64_type();
+        context.struct_type(&[ptr_type.into(), i64_type.into(), i64_type.into()], false)
     }
 }

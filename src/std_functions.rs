@@ -455,8 +455,8 @@ impl StdFunction {
 
         let type_check: fn(&[Type]) -> Result<Type, String> = |arg_types: &[Type]| match arg_types {
             [Type::Vector(_)] => Ok(Type::Str),
-            [other] => Err(format!("vector_size expected a vector, but got '{:?}'.", other)),
-            _ => Err(String::from("vector_size expects exactly 1 argument.")),
+            [other] => Err(format!("vector_stringify expected a vector, but got '{:?}'.", other)),
+            _ => Err(String::from("vector_stringify expects exactly 1 argument.")),
         };
 
         let compile: LlvmCompileFn = |compiler, arguments, position| {
@@ -776,13 +776,61 @@ impl StdFunction {
             _ => Err(String::from("vector_size expects exactly 1 argument.")),
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let vector_arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'vector_size' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&vector_arg.value.value)?;
+
+            let vector_value = compiler.read_last_value()?;
+
+            let vector_ptr = match vector_value {
+                LlvmValue::Vector(ptr, _) => ptr,
+
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'vector_size' expects a vector, got '{:?}'.", other.to_type()),
+                        position,
+                    )))
+                }
+            };
+
+            let context = compiler.context();
+            let i64_type = context.i64_type();
+            let struct_type = LlvmValue::vector_struct_type(context);
+
+            let length_field = compiler
+                .builder()
+                .build_struct_gep(struct_type, vector_ptr, 1, "vector.length")
+                .map_err(err)?;
+
+            let length = compiler
+                .builder()
+                .build_load(i64_type, length_field, "vector.size")
+                .map_err(err)?
+                .into_int_value();
+
+            compiler.set_last_value(LlvmValue::I64(length));
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Reference],
             execute,
             return_type: Type::I64,
             type_check: Some(type_check),
-            compile: unimplemented_compile!(),
+            compile,
         }
     }
 

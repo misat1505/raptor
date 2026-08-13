@@ -8,7 +8,7 @@ use inkwell::module::Module;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine};
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, FloatType, IntType};
-use inkwell::values::{BasicMetadataValueEnum, FunctionValue, PointerValue};
+use inkwell::values::{BasicMetadataValueEnum, FunctionValue, IntValue, PointerValue};
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 
 use crate::ast::{FunctionDeclaration, PassedBy};
@@ -721,12 +721,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         Ok(struct_ptr)
     }
 
-    pub fn append_cstring(
+    fn append_cstring_tracked(
         &mut self,
         buffer_ptr: PointerValue<'ctx>,
+        current_length: IntValue<'ctx>,
         addition: PointerValue<'ctx>,
         position: Position,
-    ) -> Result<(), Box<dyn IError>> {
+    ) -> Result<IntValue<'ctx>, Box<dyn IError>> {
         let err = Self::builder_err(position);
         let ptr_type = self.context.ptr_type(AddressSpace::default());
         let i64_type = self.context.i64_type();
@@ -737,46 +738,51 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .map_err(&err)?
             .into_pointer_value();
 
-        let len_current = self
-            .builder
-            .build_call(self.libc.strlen_fn, &[current.into()], "len.cur")
-            .map_err(&err)?
-            .try_as_basic_value()
-            .basic()
-            .expect("strlen returns a value")
-            .into_int_value();
-
         let len_add = self
             .builder
             .build_call(self.libc.strlen_fn, &[addition.into()], "len.add")
             .map_err(&err)?
             .try_as_basic_value()
             .basic()
-            .expect("strlen returns a value")
+            .unwrap()
             .into_int_value();
 
-        let total = self.builder.build_int_add(len_current, len_add, "len.total").map_err(&err)?;
-        let total_plus_nul = self
+        let new_length = self.builder.build_int_add(current_length, len_add, "len.new").map_err(&err)?;
+        let new_length_plus_nul = self
             .builder
-            .build_int_add(total, i64_type.const_int(1, false), "len.total.nul")
+            .build_int_add(new_length, i64_type.const_int(1, false), "len.new.nul")
             .map_err(&err)?;
 
         let new_buf = self
             .builder
-            .build_call(self.libc.realloc_fn, &[current.into(), total_plus_nul.into()], "buf.realloc")
+            .build_call(self.libc.realloc_fn, &[current.into(), new_length_plus_nul.into()], "buf.realloc")
             .map_err(&err)?
             .try_as_basic_value()
             .basic()
-            .expect("realloc returns a value")
+            .unwrap()
             .into_pointer_value();
 
+        let end_ptr = unsafe {
+            self.builder
+                .build_gep(self.context.i8_type(), new_buf, &[current_length], "buf.end")
+                .map_err(&err)?
+        };
+
+        let len_add_plus_nul = self
+            .builder
+            .build_int_add(len_add, i64_type.const_int(1, false), "len.add.nul")
+            .map_err(&err)?;
         self.builder
-            .build_call(self.libc.strcat_fn, &[new_buf.into(), addition.into()], "buf.strcat")
+            .build_call(
+                self.libc.memcpy_fn,
+                &[end_ptr.into(), addition.into(), len_add_plus_nul.into()],
+                "buf.memcpy",
+            )
             .map_err(&err)?;
 
         self.builder.build_store(buffer_ptr, new_buf).map_err(&err)?;
 
-        Ok(())
+        Ok(new_length)
     }
 
     pub fn format_scalar_to_cstring(
@@ -941,6 +947,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .map_err(&err)?
             .into_int_value();
 
+        // result = "[" (malloc'owany, żeby dało się realokować)
         let open_bracket = self.builder.build_global_string_ptr("[", "open").map_err(&err)?.as_pointer_value();
         let result_init = self
             .builder
@@ -956,6 +963,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let result_alloca = self.builder.build_alloca(ptr_type, "result").map_err(&err)?;
         self.builder.build_store(result_alloca, result_init).map_err(&err)?;
+
+        // trzymana ręcznie długość bufora — "[" ma długość 1, żeby uniknąć strlen() na akumulowanym stringu
+        let length_alloca = self.builder.build_alloca(i64_type, "stringify.len").map_err(&err)?;
+        self.builder.build_store(length_alloca, i64_type.const_int(1, false)).map_err(&err)?;
 
         let index_alloca = self.builder.build_alloca(i64_type, "stringify.i").map_err(&err)?;
         self.builder.build_store(index_alloca, i64_type.const_int(0, false)).map_err(&err)?;
@@ -973,6 +984,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         self.builder.position_at_end(body_block);
 
+        // separator: "" dla i==0, ", " w przeciwnym razie
         let is_first = self
             .builder
             .build_int_compare(IntPredicate::EQ, idx, i64_type.const_int(0, false), "i.is_first")
@@ -984,7 +996,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .build_select(is_first, empty_sep, comma_sep, "sep")
             .map_err(&err)?
             .into_pointer_value();
-        self.append_cstring(result_alloca, sep, position)?;
+
+        let len_before_sep = self
+            .builder
+            .build_load(i64_type, length_alloca, "len.before_sep")
+            .map_err(&err)?
+            .into_int_value();
+        let len_after_sep = self.append_cstring_tracked(result_alloca, len_before_sep, sep, position)?;
+        self.builder.build_store(length_alloca, len_after_sep).map_err(&err)?;
 
         let element_llvm_type = LlvmValue::type_to_basic_type_enum(inner_type, self.context).ok_or_else(|| {
             Box::new(CompilerError::at(
@@ -1002,7 +1021,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             LlvmValue::Vector(nested_ptr, nested_inner) => self.build_vector_to_string(*nested_ptr, nested_inner, position)?,
             _ => self.format_scalar_to_cstring(elem_value.clone(), inner_type, position)?,
         };
-        self.append_cstring(result_alloca, elem_str, position)?;
+
+        let len_before_elem = self
+            .builder
+            .build_load(i64_type, length_alloca, "len.before_elem")
+            .map_err(&err)?
+            .into_int_value();
+        let len_after_elem = self.append_cstring_tracked(result_alloca, len_before_elem, elem_str, position)?;
+        self.builder.build_store(length_alloca, len_after_elem).map_err(&err)?;
 
         let next_idx = self.builder.build_int_add(idx, i64_type.const_int(1, false), "i.next").map_err(&err)?;
         self.builder.build_store(index_alloca, next_idx).map_err(&err)?;
@@ -1010,7 +1036,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         self.builder.position_at_end(after_block);
         let close_bracket = self.builder.build_global_string_ptr("]", "close").map_err(&err)?.as_pointer_value();
-        self.append_cstring(result_alloca, close_bracket, position)?;
+
+        let len_before_close = self
+            .builder
+            .build_load(i64_type, length_alloca, "len.before_close")
+            .map_err(&err)?
+            .into_int_value();
+        let _len_after_close = self.append_cstring_tracked(result_alloca, len_before_close, close_bracket, position)?;
 
         let final_result = self
             .builder

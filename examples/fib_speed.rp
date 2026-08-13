@@ -13,4 +13,4 @@ for (i64 x = 0; x < 1'000'000; x += 1) {
   vector_push(&numbers, x);
 }
 
-# println(vector_stringify(numbers));
+println(vector_stringify(numbers));

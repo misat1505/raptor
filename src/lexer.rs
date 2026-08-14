@@ -548,7 +548,8 @@ static KEYWORDS: phf::Map<&'static str, TokenCategory> = phf_map! {
     "switch" => TokenCategory::Switch,
     "break" => TokenCategory::Break,
     "continue" => TokenCategory::Continue,
-    "import" => TokenCategory::Import
+    "import" => TokenCategory::Import,
+    "extern" => TokenCategory::Extern,
 };
 
 static ESCAPES: phf::Map<char, char> = phf_map! {

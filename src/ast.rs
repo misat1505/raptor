@@ -191,8 +191,16 @@ pub struct FunctionDeclaration {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ExternFunctionDeclaration {
+    pub identifier: Node<String>,
+    pub parameters: Vec<Node<Parameter>>,
+    pub return_type: Node<Type>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub statements: Vec<Node<Statement>>,
     pub functions: HashMap<String, Rc<Node<FunctionDeclaration>>>,
     pub std_functions: HashMap<String, StdFunction>,
+    pub extern_functions: HashMap<String, Rc<Node<ExternFunctionDeclaration>>>,
 }

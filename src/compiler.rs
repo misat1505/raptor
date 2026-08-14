@@ -80,6 +80,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub fn compile(&mut self) -> Result<(), Box<dyn IError>> {
         self.declare_main_function();
         self.declare_functions()?;
+        self.declare_extern_functions()?;
 
         self.compile_functions()?;
 
@@ -140,6 +141,59 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             };
 
             let function = self.module.add_function(name, fn_type, None);
+            self.functions.insert(name.clone(), function);
+        }
+
+        Ok(())
+    }
+
+    fn declare_extern_functions(&mut self) -> Result<(), Box<dyn IError>> {
+        for (name, declaration) in &self.program.extern_functions {
+            let function_decl = &declaration.value;
+
+            let mut param_types: Vec<BasicMetadataTypeEnum> = Vec::with_capacity(function_decl.parameters.len());
+
+            for parameter in &function_decl.parameters {
+                let param_type: BasicMetadataTypeEnum = match parameter.value.passed_by {
+                    PassedBy::Reference => self.context.ptr_type(AddressSpace::default()).into(),
+
+                    PassedBy::Value => {
+                        let llvm_type = LlvmValue::type_to_basic_type_enum(&parameter.value.parameter_type.value, self.context).ok_or_else(|| {
+                            Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                format!(
+                                    "Compiling extern parameters of type '{:?}' is not yet supported.",
+                                    parameter.value.parameter_type.value
+                                ),
+                                parameter.position,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        llvm_type.into()
+                    }
+                };
+
+                param_types.push(param_type);
+            }
+
+            let fn_type = match &function_decl.return_type.value {
+                Type::Void => self.context.void_type().fn_type(&param_types, false),
+
+                return_type => {
+                    let llvm_return_type = LlvmValue::type_to_basic_type_enum(return_type, self.context).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Compiling extern functions returning '{:?}' is not yet supported.", return_type),
+                            function_decl.return_type.position,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    llvm_return_type.fn_type(&param_types, false)
+                }
+            };
+
+            let function = self.module.add_function(name, fn_type, None);
+
             self.functions.insert(name.clone(), function);
         }
 
@@ -282,19 +336,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .build_call(function, &compiled_args, "call")
             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
 
-        self.last_value = match call_site.try_as_basic_value().basic() {
-            Some(return_value) => {
-                let return_type = &self
-                    .program
-                    .functions
-                    .get(name)
-                    .expect("function existence already checked above")
-                    .value
-                    .return_type
-                    .value;
+        let return_type = if let Some(function) = self.program.functions.get(name) {
+            &function.value.return_type.value
+        } else if let Some(function) = self.program.extern_functions.get(name) {
+            &function.value.return_type.value
+        } else {
+            return Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Unknown function '{}'.", name),
+                position,
+            )));
+        };
 
-                Some(LlvmValue::from_basic_value_enum(return_value, return_type))
-            }
+        self.last_value = match call_site.try_as_basic_value().basic() {
+            Some(return_value) => Some(LlvmValue::from_basic_value_enum(return_value, return_type)),
             None => None,
         };
 

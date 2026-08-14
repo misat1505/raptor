@@ -576,10 +576,16 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     fn build_empty_vector(&mut self, inner_type: &Type, position: Position) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
         let struct_type = LlvmValue::vector_struct_type(self.context);
 
-        let struct_ptr = self
+        let struct_size = self.context.i64_type().const_int(24, false);
+        let struct_ptr_raw = self
             .builder
-            .build_alloca(struct_type, "vector")
-            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+            .build_call(self.libc.malloc_fn, &[struct_size.into()], "vector.header.malloc")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+        let struct_ptr = struct_ptr_raw;
 
         let ptr_type = self.context.ptr_type(AddressSpace::default());
         let i64_type = self.context.i64_type();
@@ -689,10 +695,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         let struct_type = LlvmValue::vector_struct_type(self.context);
-        let struct_ptr = self
+
+        let struct_size = self.context.i64_type().const_int(24, false);
+        let struct_ptr_raw = self
             .builder
-            .build_alloca(struct_type, "vector")
-            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+            .build_call(self.libc.malloc_fn, &[struct_size.into()], "vector.header.malloc")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+        let struct_ptr = struct_ptr_raw;
 
         let data_field = self
             .builder
@@ -947,7 +960,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .map_err(&err)?
             .into_int_value();
 
-        // result = "[" (malloc'owany, żeby dało się realokować)
         let open_bracket = self.builder.build_global_string_ptr("[", "open").map_err(&err)?.as_pointer_value();
         let result_init = self
             .builder
@@ -964,7 +976,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let result_alloca = self.builder.build_alloca(ptr_type, "result").map_err(&err)?;
         self.builder.build_store(result_alloca, result_init).map_err(&err)?;
 
-        // trzymana ręcznie długość bufora — "[" ma długość 1, żeby uniknąć strlen() na akumulowanym stringu
         let length_alloca = self.builder.build_alloca(i64_type, "stringify.len").map_err(&err)?;
         self.builder.build_store(length_alloca, i64_type.const_int(1, false)).map_err(&err)?;
 
@@ -984,7 +995,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         self.builder.position_at_end(body_block);
 
-        // separator: "" dla i==0, ", " w przeciwnym razie
         let is_first = self
             .builder
             .build_int_compare(IntPredicate::EQ, idx, i64_type.const_int(0, false), "i.is_first")
@@ -1063,6 +1073,82 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     fn builder_err(position: Position) -> impl Fn(inkwell::builder::BuilderError) -> Box<dyn IError> {
         move |err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>
     }
+
+    fn resolve_indexed_element(
+        &mut self,
+        mut current_ptr: PointerValue<'ctx>,
+        current_type: &Type,
+        indices: &'a [Node<Expression>],
+        position: Position,
+    ) -> Result<(PointerValue<'ctx>, Type), Box<dyn IError>> {
+        if indices.is_empty() {
+            return Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                String::from("Indexing requires at least one index."),
+                position,
+            )) as Box<dyn IError>);
+        }
+
+        let err = Self::builder_err(position);
+        let struct_type = LlvmValue::vector_struct_type(self.context);
+        let ptr_type = self.context.ptr_type(AddressSpace::default());
+
+        let mut current_element_type = current_type.clone();
+
+        for (i, index_expr) in indices.iter().enumerate() {
+            let inner_type = match &current_element_type {
+                Type::Vector(inner) => (**inner).clone(),
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Cannot index into type '{:?}'.", other),
+                        index_expr.position,
+                    )) as Box<dyn IError>)
+                }
+            };
+
+            let data_field = self.builder.build_struct_gep(struct_type, current_ptr, 0, "idx.data").map_err(&err)?;
+            let data = self
+                .builder
+                .build_load(ptr_type, data_field, "idx.data.val")
+                .map_err(&err)?
+                .into_pointer_value();
+
+            self.visit_expression(index_expr)?;
+            let index_value = self.read_last_value()?.into_i64_value(index_expr.position)?;
+
+            let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                    index_expr.position,
+                )) as Box<dyn IError>
+            })?;
+
+            let element_ptr = unsafe {
+                self.builder
+                    .build_gep(element_llvm_type, data, &[index_value], "idx.elem")
+                    .map_err(&err)?
+            };
+
+            if i == indices.len() - 1 {
+                return Ok((element_ptr, inner_type));
+            }
+
+            current_ptr = self
+                .builder
+                .build_load(ptr_type, element_ptr, "idx.next")
+                .map_err(&err)?
+                .into_pointer_value();
+            current_element_type = inner_type;
+        }
+
+        Err(Box::new(CompilerError::at(
+            ErrorSeverity::HIGH,
+            String::from("Indexing requires at least one index."),
+            position,
+        )) as Box<dyn IError>)
+    }
 }
 
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
@@ -1115,6 +1201,42 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     &to_type.value,
                     expression.position,
                 )?);
+
+                Ok(())
+            }
+            Expression::Index { collection, index } => {
+                self.visit_expression(collection)?;
+                let collection_value = self.read_last_value()?;
+
+                let vector_ptr = match &collection_value {
+                    LlvmValue::Vector(ptr, _) => *ptr,
+                    other => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot index into type '{:?}'.", other.to_type()),
+                            expression.position,
+                        )) as Box<dyn IError>)
+                    }
+                };
+                let collection_type = collection_value.to_type();
+
+                let (element_ptr, element_type) =
+                    self.resolve_indexed_element(vector_ptr, &collection_type, std::slice::from_ref(index.as_ref()), expression.position)?;
+
+                let element_llvm_type = LlvmValue::type_to_basic_type_enum(&element_type, self.context).ok_or_else(|| {
+                    Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Compiling vectors of type '{:?}' is not yet supported.", element_type),
+                        expression.position,
+                    )) as Box<dyn IError>
+                })?;
+
+                let raw_value = self
+                    .builder
+                    .build_load(element_llvm_type, element_ptr, "idx.load")
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.position)) as Box<dyn IError>)?;
+
+                self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &element_type));
 
                 Ok(())
             }
@@ -1191,20 +1313,44 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
             }
 
             Statement::Assignment { identifier, value, indices } => {
-                if !indices.is_empty() {
-                    return Err(Box::new(CompilerError::at(
-                        ErrorSeverity::HIGH,
-                        String::from("Compiling indexed assignment is not yet supported."),
-                        statement.position,
-                    )));
+                let (var_ptr, var_type) = self.get_variable(identifier.value.as_str())?;
+
+                if indices.is_empty() {
+                    self.visit_expression(value)?;
+                    let new_value = self.read_last_value()?;
+                    self.builder
+                        .build_store(var_ptr, new_value.as_basic_value_enum())
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
+
+                    return Ok(());
                 }
+
+                let ptr_type = self.context.ptr_type(AddressSpace::default());
+                let vector_ptr = self
+                    .builder
+                    .build_load(ptr_type, var_ptr, "assign.vec")
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?
+                    .into_pointer_value();
+
+                let (element_ptr, element_type) = self.resolve_indexed_element(vector_ptr, &var_type, indices, statement.position)?;
 
                 self.visit_expression(value)?;
                 let new_value = self.read_last_value()?;
 
-                let (ptr, _var_type) = self.get_variable(identifier.value.as_str())?;
+                if new_value.to_type() != element_type {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!(
+                            "Type mismatch in indexed assignment: expected '{:?}', got '{:?}'.",
+                            element_type,
+                            new_value.to_type()
+                        ),
+                        statement.position,
+                    )));
+                }
+
                 self.builder
-                    .build_store(ptr, new_value.as_basic_value_enum())
+                    .build_store(element_ptr, new_value.as_basic_value_enum())
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
 
                 Ok(())

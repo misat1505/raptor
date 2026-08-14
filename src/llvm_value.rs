@@ -92,4 +92,15 @@ impl<'ctx> LlvmValue<'ctx> {
         };
         Ok(i64_type.const_int(size, false))
     }
+
+    pub fn into_i64_value(self, position: Position) -> Result<IntValue<'ctx>, Box<dyn IError>> {
+        match self {
+            LlvmValue::I64(v) => Ok(v),
+            other => Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Expected an i64 index, got '{:?}'.", other.to_type()),
+                position,
+            )) as Box<dyn IError>),
+        }
+    }
 }

@@ -1,17 +1,17 @@
-# fn fib(i64 x): i64 {
-#   if (x == 1 || x == 2) {
-#     return 1;
-#   }
+fn fib(i64 x): i64 {
+  if (x == 1 || x == 2) {
+    return 1;
+  }
 
-#   return fib(x - 1) + fib(x - 2);
-# }
-
-# print(fib(35) as str);
-i64[] numbers = [];
-
-for (i64 x = 0; x < 10'000; x += 1) {
-  vector_push(&numbers, x);
+  return fib(x - 1) + fib(x - 2);
 }
 
-println(vector_stringify(numbers));
-println(vector_size(&numbers) as str);
+print(fib(35) as str);
+# i64[] numbers = [];
+
+# for (i64 x = 0; x < 10'000'000; x += 1) {
+#   vector_push(&numbers, x);
+# }
+
+# println(vector_stringify(numbers));
+# println(vector_size(&numbers) as str);

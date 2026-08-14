@@ -15,6 +15,7 @@ pub struct LibcFunctions<'ctx> {
     pub atof_fn: FunctionValue<'ctx>,
     pub realloc_fn: FunctionValue<'ctx>,
     pub memcpy_fn: FunctionValue<'ctx>,
+    pub usleep_fn: FunctionValue<'ctx>,
 }
 
 impl<'ctx> LibcFunctions<'ctx> {
@@ -44,6 +45,7 @@ impl<'ctx> LibcFunctions<'ctx> {
             ptr_type.fn_type(&[ptr_type.into(), ptr_type.into(), i64_type.into()], false),
             None,
         );
+        let usleep_fn = module.add_function("usleep", i32_type.fn_type(&[i32_type.into()], false), None);
 
         LibcFunctions {
             printf_fn,
@@ -57,6 +59,7 @@ impl<'ctx> LibcFunctions<'ctx> {
             atof_fn,
             realloc_fn,
             memcpy_fn,
+            usleep_fn,
         }
     }
 }

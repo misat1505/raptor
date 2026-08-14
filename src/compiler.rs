@@ -626,6 +626,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         &mut self,
         inner_type: &Type,
         elements: &'a Vec<Box<Node<Expression>>>,
+        precomputed_first: Option<LlvmValue<'ctx>>,
         position: Position,
     ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
         let element_llvm_type = LlvmValue::type_to_basic_type_enum(inner_type, self.context).ok_or_else(|| {
@@ -656,19 +657,16 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .into_pointer_value();
 
         for (index, element) in elements.iter().enumerate() {
-            let element_value = match (inner_type, &element.value) {
-                (Type::Vector(nested_inner), Expression::Vector(nested_elements)) => {
-                    let nested_ptr = if nested_elements.is_empty() {
-                        self.build_empty_vector(nested_inner, element.position)?
-                    } else {
-                        self.build_vector_from_elements(nested_inner, nested_elements, element.position)?
-                    };
-                    LlvmValue::Vector(nested_ptr, nested_inner.clone())
+            // element 0 mógł już zostać policzony wcześniej (np. do wywnioskowania inner_type) —
+            // wtedy nie liczymy go drugi raz, żeby nie zdublować efektów ubocznych (np. wywołań funkcji)
+            let element_value = if index == 0 {
+                if let Some(value) = precomputed_first.clone() {
+                    value
+                } else {
+                    self.evaluate_vector_element(inner_type, element)?
                 }
-                _ => {
-                    self.visit_expression(&element)?;
-                    self.read_last_value()?
-                }
+            } else {
+                self.evaluate_vector_element(inner_type, element)?
             };
 
             if element_value.to_type() != *inner_type {
@@ -695,9 +693,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         let struct_type = LlvmValue::vector_struct_type(self.context);
-
         let struct_size = self.context.i64_type().const_int(24, false);
-        let struct_ptr_raw = self
+        let struct_ptr = self
             .builder
             .build_call(self.libc.malloc_fn, &[struct_size.into()], "vector.header.malloc")
             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?
@@ -705,7 +702,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .basic()
             .expect("malloc should return a value")
             .into_pointer_value();
-        let struct_ptr = struct_ptr_raw;
 
         let data_field = self
             .builder
@@ -732,6 +728,45 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
 
         Ok(struct_ptr)
+    }
+
+    fn evaluate_vector_element(&mut self, inner_type: &Type, element: &'a Node<Expression>) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
+        match (inner_type, &element.value) {
+            (Type::Vector(nested_inner), Expression::Vector(nested_elements)) => {
+                let nested_ptr = if nested_elements.is_empty() {
+                    self.build_empty_vector(nested_inner, element.position)?
+                } else {
+                    self.build_vector_from_elements(nested_inner, nested_elements, None, element.position)?
+                };
+                Ok(LlvmValue::Vector(nested_ptr, nested_inner.clone()))
+            }
+            _ => {
+                self.visit_expression(element)?;
+                self.read_last_value()
+            }
+        }
+    }
+
+    fn build_vector_expression(
+        &mut self,
+        elements: &'a Vec<Box<Node<Expression>>>,
+        position: Position,
+    ) -> Result<(PointerValue<'ctx>, Type), Box<dyn IError>> {
+        if elements.is_empty() {
+            return Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                String::from("Cannot infer the element type of an empty vector literal in this context; declare it with an explicit type instead."),
+                position,
+            )) as Box<dyn IError>);
+        }
+
+        self.visit_expression(&elements[0])?;
+        let first_value = self.read_last_value()?;
+        let inner_type = first_value.to_type();
+
+        let vector_ptr = self.build_vector_from_elements(&inner_type, elements, Some(first_value), position)?;
+
+        Ok((vector_ptr, inner_type))
     }
 
     fn append_cstring_tracked(
@@ -1241,11 +1276,11 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 Ok(())
             }
 
-            other => Err(Box::new(CompilerError::at(
-                ErrorSeverity::HIGH,
-                format!("Compiling expression '{:?}' is not yet supported.", other),
-                expression.position,
-            ))),
+            Expression::Vector(elements) => {
+                let (vector_ptr, inner_type) = self.build_vector_expression(elements, expression.position)?;
+                self.last_value = Some(LlvmValue::Vector(vector_ptr, Box::new(inner_type)));
+                Ok(())
+            }
         }
     }
 
@@ -1289,7 +1324,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                             let vector_ptr = if elements.is_empty() {
                                 self.build_empty_vector(inner, statement.position)?
                             } else {
-                                self.build_vector_from_elements(inner, elements, statement.position)?
+                                self.build_vector_from_elements(inner, elements, None, statement.position)?
                             };
 
                             self.builder.build_store(ptr, vector_ptr).map_err(|err| {

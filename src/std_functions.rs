@@ -862,13 +862,50 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'sleep_ms' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let ms_value = compiler.read_last_value()?.into_i64_value(position)?;
+
+            let context = compiler.context();
+            let i32_type = context.i32_type();
+
+            let i64_type = context.i64_type();
+            let micros_i64 = compiler
+                .builder()
+                .build_int_mul(ms_value, i64_type.const_int(1000, false), "sleep.micros")
+                .map_err(err)?;
+            let micros_i32 = compiler
+                .builder()
+                .build_int_truncate(micros_i64, i32_type, "sleep.micros.i32")
+                .map_err(err)?;
+
+            let usleep_fn = compiler.libc().usleep_fn;
+            compiler
+                .builder()
+                .build_call(usleep_fn, &[micros_i32.into()], "usleep.call")
+                .map_err(err)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::Void,
             type_check: None,
-            compile: unimplemented_compile!(),
+            compile,
         }
     }
 

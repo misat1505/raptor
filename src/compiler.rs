@@ -258,6 +258,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 PassedBy::Value => {
                     self.visit_expression(&argument.value.value)?;
                     let value = self.read_last_value()?;
+
+                    let value = match value {
+                        LlvmValue::Vector(ptr, inner) => {
+                            let copy_ptr = self.build_shallow_copy_vector(ptr, &inner, position)?;
+                            LlvmValue::Vector(copy_ptr, inner)
+                        }
+                        other => other,
+                    };
+
                     compiled_args.push(value.as_basic_value_enum().into());
                 }
 
@@ -1184,6 +1193,141 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             position,
         )) as Box<dyn IError>)
     }
+
+    fn build_default_value(&mut self, ptr: PointerValue<'ctx>, var_type: &Type, position: Position) -> Result<(), Box<dyn IError>> {
+        let err = Self::builder_err(position);
+
+        match var_type {
+            Type::I64 => {
+                let zero = self.context.i64_type().const_int(0, true);
+                self.builder.build_store(ptr, zero).map_err(&err)?;
+            }
+            Type::F64 => {
+                let zero = self.context.f64_type().const_float(0.0);
+                self.builder.build_store(ptr, zero).map_err(&err)?;
+            }
+            Type::Bool => {
+                let zero = self.context.bool_type().const_int(0, false);
+                self.builder.build_store(ptr, zero).map_err(&err)?;
+            }
+            Type::Str => {
+                let empty = self.builder.build_global_string_ptr("", "str.default").map_err(&err)?.as_pointer_value();
+                self.builder.build_store(ptr, empty).map_err(&err)?;
+            }
+            Type::Vector(inner) => {
+                let vector_ptr = self.build_empty_vector(inner, position)?;
+                self.builder.build_store(ptr, vector_ptr).map_err(&err)?;
+            }
+            other => {
+                return Err(Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Compiling default values of type '{:?}' is not yet supported.", other),
+                    position,
+                )) as Box<dyn IError>)
+            }
+        }
+
+        Ok(())
+    }
+
+    fn build_shallow_copy_vector(
+        &mut self,
+        vector_ptr: PointerValue<'ctx>,
+        inner_type: &Type,
+        position: Position,
+    ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let err = Self::builder_err(position);
+        let function = self.current_function();
+        let struct_type = LlvmValue::vector_struct_type(self.context);
+        let ptr_type = self.context.ptr_type(AddressSpace::default());
+        let i64_type = self.context.i64_type();
+
+        let data_field = self.builder.build_struct_gep(struct_type, vector_ptr, 0, "copy.src.data").map_err(&err)?;
+        let length_field = self
+            .builder
+            .build_struct_gep(struct_type, vector_ptr, 1, "copy.src.length")
+            .map_err(&err)?;
+
+        let old_data = self
+            .builder
+            .build_load(ptr_type, data_field, "copy.data.old")
+            .map_err(&err)?
+            .into_pointer_value();
+        let old_length = self
+            .builder
+            .build_load(i64_type, length_field, "copy.length.old")
+            .map_err(&err)?
+            .into_int_value();
+
+        let element_size = LlvmValue::element_byte_size(inner_type, i64_type)?;
+        let bytes = self.builder.build_int_mul(old_length, element_size, "copy.bytes").map_err(&err)?;
+
+        // dla pustego wektora (data == null) unikamy malloc(0)/memcpy z null jako src — to UB
+        let new_data_alloca = self.builder.build_alloca(ptr_type, "copy.data.slot").map_err(&err)?;
+        self.builder.build_store(new_data_alloca, ptr_type.const_null()).map_err(&err)?;
+
+        let is_empty = self
+            .builder
+            .build_int_compare(IntPredicate::EQ, old_length, i64_type.const_int(0, false), "copy.is_empty")
+            .map_err(&err)?;
+
+        let copy_block = self.context.append_basic_block(function, "copy.data");
+        let merge_block = self.context.append_basic_block(function, "copy.merge");
+
+        self.builder.build_conditional_branch(is_empty, merge_block, copy_block).map_err(&err)?;
+
+        self.builder.position_at_end(copy_block);
+        let new_data = self
+            .builder
+            .build_call(self.libc.malloc_fn, &[bytes.into()], "copy.data.malloc")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+        self.builder
+            .build_call(self.libc.memcpy_fn, &[new_data.into(), old_data.into(), bytes.into()], "copy.memcpy")
+            .map_err(&err)?;
+        self.builder.build_store(new_data_alloca, new_data).map_err(&err)?;
+        self.builder.build_unconditional_branch(merge_block).map_err(&err)?;
+
+        self.builder.position_at_end(merge_block);
+        let final_data = self
+            .builder
+            .build_load(ptr_type, new_data_alloca, "copy.data.final")
+            .map_err(&err)?
+            .into_pointer_value();
+
+        let struct_size = i64_type.const_int(24, false);
+        let new_struct_ptr = self
+            .builder
+            .build_call(self.libc.malloc_fn, &[struct_size.into()], "copy.header.malloc")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+
+        let new_data_field = self
+            .builder
+            .build_struct_gep(struct_type, new_struct_ptr, 0, "copy.dst.data")
+            .map_err(&err)?;
+        self.builder.build_store(new_data_field, final_data).map_err(&err)?;
+
+        let new_length_field = self
+            .builder
+            .build_struct_gep(struct_type, new_struct_ptr, 1, "copy.dst.length")
+            .map_err(&err)?;
+        self.builder.build_store(new_length_field, old_length).map_err(&err)?;
+
+        let new_capacity_field = self
+            .builder
+            .build_struct_gep(struct_type, new_struct_ptr, 2, "copy.dst.capacity")
+            .map_err(&err)?;
+        self.builder.build_store(new_capacity_field, old_length).map_err(&err)?; // po kopii capacity == length
+
+        Ok(new_struct_ptr)
+    }
 }
 
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
@@ -1311,8 +1455,8 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                     .build_alloca(llvm_type, identifier.value.as_str())
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>)?;
 
-                if let Some(val_expr) = value {
-                    match (&var_type.value, &val_expr.value) {
+                match value {
+                    Some(val_expr) => match (&var_type.value, &val_expr.value) {
                         (Type::Vector(inner), Expression::Vector(elements)) if elements.is_empty() => {
                             let vector_ptr = self.build_empty_vector(inner, statement.position)?;
                             self.builder.build_store(ptr, vector_ptr).map_err(|err| {
@@ -1339,6 +1483,10 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                                 Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), statement.position)) as Box<dyn IError>
                             })?;
                         }
+                    },
+
+                    None => {
+                        self.build_default_value(ptr, &var_type.value, statement.position)?;
                     }
                 }
 

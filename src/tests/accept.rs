@@ -746,7 +746,7 @@ print_board(&board);
             .as_bytes(),
         );
 
-        assert_same_output(text, "0\n0\n\nfalse\n[]\n[[]]\n");
+        assert_same_output(text, "0\n0\n\nfalse\n[]\n[]\n");
     }
 
     #[test]

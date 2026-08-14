@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 phf = {version = "0.11.1", features = ["macros"]}
 inkwell = { version = "0.9", features = ["llvm18-1"] }
+
+[dev-dependencies]
+gag = "1.0"

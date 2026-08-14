@@ -1,21 +1,27 @@
 #[cfg(test)]
 mod tests {
     use std::{
-        cell::RefCell,
         io::{BufReader, Read},
-        rc::Rc,
+        process::Command,
+        sync::atomic::{AtomicU64, Ordering},
     };
 
+    use gag::BufferRedirect;
+    use inkwell::context::Context;
+
     use crate::{
-        ast::{Program, Type},
+        ast::Program,
+        compiler::Compiler,
         errors::IError,
         interpreter::Interpreter,
         lazy_stream_reader::LazyStreamReader,
         lexer::{Lexer, LexerOptions},
         parser::{IParser, Parser},
         semantic_checker::SemanticChecker,
-        value::Value,
     };
+
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+    const LLVM_VERSION: &str = "18";
 
     fn on_warning(_err: Box<dyn IError>) {}
 
@@ -58,6 +64,77 @@ mod tests {
         Interpreter::new(program)
     }
 
+    fn capture_interpreter_output(program: &Program) -> String {
+        let mut buf = BufferRedirect::stdout().expect("failed to redirect stdout");
+
+        let mut interpreter = create_interpreter(program);
+        interpreter.interpret().unwrap();
+
+        let mut output = String::new();
+        buf.read_to_string(&mut output).unwrap();
+        output
+    }
+
+    fn run_command(program: &str, args: &[&str], step_description: &str) {
+        let output = Command::new(program)
+            .args(args)
+            .output()
+            .unwrap_or_else(|err| panic!("Failed to invoke '{}': {}. Is it installed and on PATH?", program, err));
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            panic!("{} failed:\n{}", step_description, stderr);
+        }
+    }
+
+    fn capture_compiled_output(program: &Program) -> String {
+        let context = Context::create();
+        let mut compiler = Compiler::new(program, &context);
+        compiler.compile().expect("compilation failed");
+
+        let id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let dir = std::env::temp_dir();
+        let ir_path = dir.join(format!("tkom_test_{}_{}.ll", std::process::id(), id));
+        let obj_path = dir.join(format!("tkom_test_{}_{}.o", std::process::id(), id));
+        let exe_path = dir.join(format!("tkom_test_{}_{}", std::process::id(), id));
+
+        compiler.write_ir_to_file(ir_path.to_str().unwrap()).expect("failed to write IR");
+
+        let llc = format!("llc-{}", LLVM_VERSION);
+        run_command(
+            &llc,
+            &[ir_path.to_str().unwrap(), "-filetype=obj", "-o", obj_path.to_str().unwrap()],
+            "llc",
+        );
+
+        let clang = format!("clang-{}", LLVM_VERSION);
+        run_command(
+            &clang,
+            &[obj_path.to_str().unwrap(), "-o", exe_path.to_str().unwrap(), "-no-pie"],
+            "clang",
+        );
+
+        let output = Command::new(&exe_path).output().expect("failed to run compiled binary");
+        assert!(output.status.success(), "compiled binary exited with a non-zero status");
+
+        let _ = std::fs::remove_file(&ir_path);
+        let _ = std::fs::remove_file(&obj_path);
+        let _ = std::fs::remove_file(&exe_path);
+
+        String::from_utf8(output.stdout).expect("compiled binary produced non-UTF8 output")
+    }
+
+    fn assert_same_output(text: BufReader<&[u8]>, expected: &str) {
+        let program = setup_program(text);
+
+        let interpreter_output = capture_interpreter_output(&program);
+        let compiler_output = capture_compiled_output(&program);
+
+        assert_eq!(interpreter_output, expected, "interpreter output mismatch");
+        assert_eq!(compiler_output, expected, "compiler output mismatch");
+        assert_eq!(interpreter_output, compiler_output, "interpreter and compiler outputs disagree");
+    }
+
     #[test]
     fn if_statement() {
         let text = BufReader::new(
@@ -70,17 +147,12 @@ mod tests {
     } else {
         text = "not equal";
     }
+    println(text);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-        assert_eq!(
-            interpreter.stack().get_variable("text").unwrap().clone(),
-            Rc::new(RefCell::new(Value::String(String::from("equal"))))
-        );
+        assert_same_output(text, "equal\n");
     }
 
     #[test]
@@ -93,17 +165,12 @@ mod tests {
         break;
       }
     }
+    println(i as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-        assert_eq!(
-            interpreter.stack().get_variable("i").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(2)))
-        );
+        assert_same_output(text, "2\n");
     }
 
     #[test]
@@ -115,17 +182,12 @@ mod tests {
     }
 
     i64 a = add(1, 2);
+    println(a as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-        assert_eq!(
-            interpreter.stack().get_variable("a").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(3)))
-        );
+        assert_same_output(text, "3\n");
     }
 
     #[test]
@@ -138,17 +200,12 @@ mod tests {
 
     i64 x = 2;
     foo(&x);
+    println(x as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-        assert_eq!(
-            interpreter.stack().get_variable("x").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(3)))
-        );
+        assert_same_output(text, "3\n");
     }
 
     #[test]
@@ -164,17 +221,12 @@ mod tests {
     }
 
     i64 x = fib(6);
+    println(x as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-        assert_eq!(
-            interpreter.stack().get_variable("x").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(8)))
-        );
+        assert_same_output(text, "8\n");
     }
 
     #[test]
@@ -197,21 +249,13 @@ mod tests {
 
     bool is_5 = is_prime(5);
     bool is_6 = is_prime(6);
+    println(is_5 as str);
+    println(is_6 as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-        assert_eq!(
-            interpreter.stack().get_variable("is_5").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("is_6").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(false)))
-        );
+        assert_same_output(text, "true\nfalse\n");
     }
 
     #[test]
@@ -232,17 +276,12 @@ mod tests {
         text = ">2";
       }
     }
+    println(text);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-        assert_eq!(
-            interpreter.stack().get_variable("text").unwrap().clone(),
-            Rc::new(RefCell::new(Value::String(String::from(">1"))))
-        );
+        assert_same_output(text, ">1\n");
     }
 
     #[test]
@@ -260,34 +299,27 @@ mod tests {
         arr[1][0] = 69;
     }
     pass_by_change_inner(arr);
+    println(vector_stringify(arr));
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-        let expected = Value::Vector {
-            kind: Box::new(Type::Vector(Box::new(Type::Vector(Box::new(Type::I64))))),
-            values: Rc::new(RefCell::new(vec![
-                Rc::new(RefCell::new(Value::Vector {
-                    kind: Box::new(Type::Vector(Box::new(Type::I64))),
-                    values: Rc::new(RefCell::new(vec![Rc::new(RefCell::new(Value::I64(1)))])),
-                })),
-                Rc::new(RefCell::new(Value::Vector {
-                    kind: Box::new(Type::Vector(Box::new(Type::I64))),
-                    values: Rc::new(RefCell::new(vec![Rc::new(RefCell::new(Value::I64(69)))])),
-                })),
-            ])),
-        };
-
-        assert_eq!(interpreter.stack().get_variable("arr").unwrap().clone(), Rc::new(RefCell::new(expected)));
+        assert_same_output(text, "[[1], [69]]\n");
     }
 
     #[test]
     fn game_of_life() {
         let text = BufReader::new(
             r##"
+fn print_board(&str[][] board): void {
+  for (i64 i = 0; i < vector_size(&board); i += 1) {
+    for (i64 j = 0; j < vector_size(&board[0]); j += 1) {
+      print(board[i][j]);
+    }
+    println("");
+  }
+}
+  
 fn next_state(&str[][] board): str[][] {
   str[][] next_board = [];
 
@@ -340,38 +372,12 @@ str[][] board = [
 ];
 
 board = next_state(&board);
+print_board(&board);
     "##
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        fn str_row(cells: [&str; 5]) -> Rc<RefCell<Value>> {
-            Rc::new(RefCell::new(Value::Vector {
-                kind: Box::new(Type::Vector(Box::new(Type::Str))),
-                values: Rc::new(RefCell::new(
-                    cells.iter().map(|c| Rc::new(RefCell::new(Value::String(c.to_string())))).collect(),
-                )),
-            }))
-        }
-
-        let expected = Value::Vector {
-            kind: Box::new(Type::Vector(Box::new(Type::Vector(Box::new(Type::Str))))),
-            values: Rc::new(RefCell::new(vec![
-                str_row([".", ".", ".", ".", "."]),
-                str_row([".", ".", ".", ".", "."]),
-                str_row([".", "#", "#", "#", "."]),
-                str_row([".", ".", ".", ".", "."]),
-                str_row([".", ".", ".", ".", "."]),
-            ])),
-        };
-
-        assert_eq!(
-            interpreter.stack().get_variable("board").unwrap().clone(),
-            Rc::new(RefCell::new(expected))
-        );
+        assert_same_output(text, ".....\n.....\n.###.\n.....\n.....\n");
     }
 
     #[test]
@@ -379,39 +385,23 @@ board = next_state(&board);
         let text = BufReader::new(
             r#"
     i64 a = 5;
-    f64 b = a as f64;
+    f64 b = a as f64 + 0.1;
     str c = a as str;
     bool d = a as bool;
     bool e = 0 as bool;
     i64 f = "123" as i64;
+
+    println(a as str);
+    println(b as str);
+    println(c);
+    println(d as str);
+    println(e as str);
+    println(f as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("b").unwrap().clone(),
-            Rc::new(RefCell::new(Value::F64(5.0)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("c").unwrap().clone(),
-            Rc::new(RefCell::new(Value::String(String::from("5"))))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("d").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("e").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(false)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("f").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(123)))
-        );
+        assert_same_output(text, "5\n5.1\n5\ntrue\nfalse\n123\n");
     }
 
     #[test]
@@ -424,22 +414,13 @@ board = next_state(&board);
       total += i;
       i += 1;
     }
+    println(i as str);
+    println(total as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("i").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(5)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("total").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(10)))
-        );
+        assert_same_output(text, "5\n10\n");
     }
 
     #[test]
@@ -451,19 +432,12 @@ board = next_state(&board);
       if (i % 2 == 0) continue;
       total = total + i;
     }
+    println(total as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        // 1 + 3 = 4 (pomija liczby parzyste: 0, 2, 4)
-        assert_eq!(
-            interpreter.stack().get_variable("total").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(4)))
-        );
+        assert_same_output(text, "4\n");
     }
 
     #[test]
@@ -479,18 +453,12 @@ board = next_state(&board);
       }
       total = total + i;
     }
+    println(total as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("total").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(9)))
-        );
+        assert_same_output(text, "9\n");
     }
 
     #[test]
@@ -500,18 +468,12 @@ board = next_state(&board);
     str a = "Hello, ";
     str b = "world!";
     str c = a + b;
+    println(c);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("c").unwrap().clone(),
-            Rc::new(RefCell::new(Value::String(String::from("Hello, world!"))))
-        );
+        assert_same_output(text, "Hello, world!\n");
     }
 
     #[test]
@@ -522,26 +484,14 @@ board = next_state(&board);
     i64 b = 10 % 3;
     i64 c = 10;
     c %= 3;
+    println(a as str);
+    println(b as str);
+    println(c as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("a").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(1)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("b").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(1)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("c").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(1)))
-        );
+        assert_same_output(text, "1\n1\n1\n");
     }
 
     #[test]
@@ -553,35 +503,17 @@ board = next_state(&board);
     bool c = 2 + 2 == 4 && 1 < 2;
     bool d = !false || false;
     i64 e = 10 - 2 - 3;
+
+    println(a as str);
+    println(b as str);
+    println(c as str);
+    println(d as str);
+    println(e as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("a").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(14)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("b").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(20)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("c").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("d").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
-        // lewostronna łączność: (10 - 2) - 3 = 5, a nie 10 - (2 - 3) = 11
-        assert_eq!(
-            interpreter.stack().get_variable("e").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(5)))
-        );
+        assert_same_output(text, "14\n20\ntrue\ntrue\n5\n");
     }
 
     #[test]
@@ -594,18 +526,12 @@ board = next_state(&board);
         result = "ten";
       }
     }
+    println(result);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("result").unwrap().clone(),
-            Rc::new(RefCell::new(Value::String(String::from("ten"))))
-        );
+        assert_same_output(text, "ten\n");
     }
 
     #[test]
@@ -616,22 +542,14 @@ board = next_state(&board);
     arr[1] = 99;
     i64 first = arr[0];
     i64 second = arr[1];
+
+    println(first as str);
+    println(second as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("first").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(1)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("second").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(99)))
-        );
+        assert_same_output(text, "1\n99\n");
     }
 
     #[test]
@@ -651,19 +569,13 @@ board = next_state(&board);
     for (i64 i = 0; i < vector_size(&range); i += 1) {
       sum += range[i];
     }
+
+    println(sum as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        // 0+1+2+3 = 6
-        assert_eq!(
-            interpreter.stack().get_variable("sum").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(6)))
-        );
+        assert_same_output(text, "6\n");
     }
 
     #[test]
@@ -674,30 +586,16 @@ board = next_state(&board);
     bool b = true && false;
     bool c = false || false;
     bool d = true && true;
+
+    println(a as str);
+    println(b as str);
+    println(c as str);
+    println(d as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("a").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("b").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(false)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("c").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(false)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("d").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
+        assert_same_output(text, "true\nfalse\nfalse\ntrue\n");
     }
 
     #[test]
@@ -837,44 +735,18 @@ board = next_state(&board);
     bool d;
     i64[] e;
     i64[][] f;
+
+    println(a as str);
+    println(b as str);
+    println(c);
+    println(d as str);
+    println(vector_stringify(e));
+    println(vector_stringify(f));
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("a").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(0)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("b").unwrap().clone(),
-            Rc::new(RefCell::new(Value::F64(0.0)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("c").unwrap().clone(),
-            Rc::new(RefCell::new(Value::String(String::from(""))))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("d").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(false)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("e").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Vector {
-                kind: Box::new(Type::Vector(Box::new(Type::I64))),
-                values: Rc::new(RefCell::new(vec![])),
-            }))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("f").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Vector {
-                kind: Box::new(Type::Vector(Box::new(Type::Vector(Box::new(Type::I64))))),
-                values: Rc::new(RefCell::new(vec![])),
-            }))
-        );
+        assert_same_output(text, "0\n0\n\nfalse\n[]\n[[]]\n");
     }
 
     #[test]
@@ -885,22 +757,14 @@ board = next_state(&board);
     cube[1][0][1] = 99;
     i64 x = cube[1][0][1];
     i64 untouched = cube[0][0][0];
+
+    println(x as str);
+    println(untouched as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("x").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(99)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("untouched").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(1)))
-        );
+        assert_same_output(text, "99\n1\n");
     }
 
     #[test]
@@ -911,22 +775,14 @@ board = next_state(&board);
     i64 size = vector_size(&empty);
     vector_push(&empty, 1);
     i64 size_after = vector_size(&empty);
+
+    println(size as str);
+    println(size_after as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("size").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(0)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("size_after").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(1)))
-        );
+        assert_same_output(text, "0\n1\n");
     }
 
     #[test]
@@ -941,18 +797,13 @@ board = next_state(&board);
         result = "sums to ten";
       }
     }
+
+    println(result);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("result").unwrap().clone(),
-            Rc::new(RefCell::new(Value::String(String::from("sums to ten"))))
-        );
+        assert_same_output(text, "sums to ten\n");
     }
 
     #[test]
@@ -972,18 +823,13 @@ board = next_state(&board);
         counter = counter + 1;
       }
     }
+
+    println(counter as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("counter").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(2)))
-        );
+        assert_same_output(text, "2\n");
     }
 
     #[test]
@@ -1001,23 +847,14 @@ board = next_state(&board);
         inner_count = inner_count + 1;
       }
     }
+
+    println(outer_count as str);
+    println(inner_count as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("outer_count").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(3)))
-        );
-        // wewnętrzna pętla robi 2 iteracje (j=0,1) razy 3 przebiegi zewnętrznej = 6
-        assert_eq!(
-            interpreter.stack().get_variable("inner_count").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(6)))
-        );
+        assert_same_output(text, "3\n6\n");
     }
 
     #[test]
@@ -1044,18 +881,13 @@ board = next_state(&board);
     }
     do_nothing();
     i64 marker = 1;
+
+    println(marker as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("marker").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(1)))
-        );
+        assert_same_output(text, "1\n");
     }
 
     #[test]
@@ -1083,18 +915,13 @@ board = next_state(&board);
     i64 x = 5; # trailing comment
     # another comment
     i64 y = x + 1;
+
+    println(y as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("y").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(6)))
-        );
+        assert_same_output(text, "6\n");
     }
 
     #[test]
@@ -1111,27 +938,20 @@ board = next_state(&board);
 
     i64 steps = 0;
     count_down(5, &steps);
+
+    println(steps as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("steps").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(5)))
-        );
+        assert_same_output(text, "5\n");
     }
 
     #[test]
     fn empty_program_does_nothing() {
         let text = BufReader::new(r#""#.as_bytes());
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        assert!(interpreter.interpret().is_ok());
+        assert_same_output(text, "");
     }
 
     #[test]
@@ -1143,18 +963,13 @@ board = next_state(&board);
     }
 
     i64 x = make_matrix()[1][0];
+    
+    println(x as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("x").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(3)))
-        );
+        assert_same_output(text, "3\n");
     }
 
     #[test]
@@ -1169,18 +984,13 @@ board = next_state(&board);
     append_one(&numbers);
     append_one(&numbers);
     i64 size = vector_size(&numbers);
+
+    println(size as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("size").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(2)))
-        );
+        assert_same_output(text, "2\n");
     }
 
     #[test]
@@ -1189,22 +999,14 @@ board = next_state(&board);
             r#"
     i64 a = 7 / 2;
     i64 b = -7 / 2;
+
+    println(a as str);
+    println(b as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("a").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(3)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("b").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(-3)))
-        );
+        assert_same_output(text, "3\n-3\n");
     }
 
     #[test]
@@ -1215,26 +1017,15 @@ board = next_state(&board);
     i64 b = -(-a);
     i64 c = -a - -a;
     bool d = !(!true);
+
+    println(b as str);
+    println(c as str);
+    println(d as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("b").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(5)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("c").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(0)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("d").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
+        assert_same_output(text, "5\n0\ntrue\n");
     }
 
     #[test]
@@ -1246,22 +1037,14 @@ board = next_state(&board);
     str c = "world";
     bool eq = a == b;
     bool neq = a != c;
+
+    println(eq as str);
+    println(neq as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("eq").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("neq").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
+        assert_same_output(text, "true\ntrue\n");
     }
 
     #[test]
@@ -1278,18 +1061,13 @@ board = next_state(&board);
 
     i64 output = 0;
     main_logic(&output);
+
+    println(output as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("output").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(42)))
-        );
+        assert_same_output(text, "42\n");
     }
 
     #[test]
@@ -1306,18 +1084,13 @@ board = next_state(&board);
         result = "zero";
       }
     }
+
+    println(result);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("result").unwrap().clone(),
-            Rc::new(RefCell::new(Value::String(String::from("default"))))
-        );
+        assert_same_output(text, "default\n");
     }
 
     #[test]
@@ -1333,18 +1106,13 @@ board = next_state(&board);
       }
       total += i;
     }
+
+    println(total as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("total").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(4)))
-        );
+        assert_same_output(text, "4\n");
     }
 
     #[test]
@@ -1359,22 +1127,14 @@ board = next_state(&board);
     i64 x = 0;
     i64 y = 0;
     set_both(&x, &y);
+
+    println(x as str);
+    println(y as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("x").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(1)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("y").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(2)))
-        );
+        assert_same_output(text, "1\n2\n");
     }
 
     #[test]
@@ -1386,26 +1146,15 @@ board = next_state(&board);
     bool less = a < b;
     bool greater_equal = b >= a;
     bool equal_same = a == 1.5;
+
+    println(less as str);
+    println(greater_equal as str);
+    println(equal_same as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("less").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("greater_equal").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("equal_same").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
+        assert_same_output(text, "true\ntrue\ntrue\n");
     }
 
     #[test]
@@ -1416,22 +1165,14 @@ board = next_state(&board);
     bool a = neg as bool;
     f64 neg_f = 0.0 - 3.5;
     bool b = neg_f as bool;
+
+    println(a as str);
+    println(b as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("a").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(false)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("b").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(false)))
-        );
+        assert_same_output(text, "false\nfalse\n");
     }
 
     #[test]
@@ -1442,22 +1183,14 @@ board = next_state(&board);
     str nonempty = "x";
     bool a = empty as bool;
     bool b = nonempty as bool;
+
+    println(a as str);
+    println(b as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("a").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(false)))
-        );
-        assert_eq!(
-            interpreter.stack().get_variable("b").unwrap().clone(),
-            Rc::new(RefCell::new(Value::Bool(true)))
-        );
+        assert_same_output(text, "false\ntrue\n");
     }
 
     #[test]
@@ -1468,18 +1201,13 @@ board = next_state(&board);
     for (; i < 3;) {
       i = i + 1;
     }
+
+    println(i as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("i").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(3)))
-        );
+        assert_same_output(text, "3\n");
     }
 
     #[test]
@@ -1509,18 +1237,13 @@ board = next_state(&board);
     }
 
     i64 result = gcd(48, 18);
+
+    println(result as str);
     "#
             .as_bytes(),
         );
 
-        let program = setup_program(text);
-        let mut interpreter = create_interpreter(&program);
-        interpreter.interpret().unwrap();
-
-        assert_eq!(
-            interpreter.stack().get_variable("result").unwrap().clone(),
-            Rc::new(RefCell::new(Value::I64(6)))
-        );
+        assert_same_output(text, "6\n");
     }
 
     #[test]

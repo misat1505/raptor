@@ -103,4 +103,15 @@ impl<'ctx> LlvmValue<'ctx> {
             )) as Box<dyn IError>),
         }
     }
+
+    pub fn into_str_value(self, position: Position) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        match self {
+            LlvmValue::Str(v) => Ok(v),
+            other => Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Expected a string, got '{:?}'.", other.to_type()),
+                position,
+            )) as Box<dyn IError>),
+        }
+    }
 }

@@ -5,7 +5,7 @@ fn is_prime(i64 x, &i64 total_iters): bool {
 
   for (i64 i = 2; i < x; i = i + 1) {
     total_iters = total_iters + 1;
-    if (mod(x, i) == 0) {
+    if (x % i == 0) {
       return false;
     }
   }

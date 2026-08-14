@@ -94,9 +94,9 @@ mod tests {
 
         let id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
         let dir = std::env::temp_dir();
-        let ir_path = dir.join(format!("tkom_test_{}_{}.ll", std::process::id(), id));
-        let obj_path = dir.join(format!("tkom_test_{}_{}.o", std::process::id(), id));
-        let exe_path = dir.join(format!("tkom_test_{}_{}", std::process::id(), id));
+        let ir_path = dir.join(format!("raptor_test_{}_{}.ll", std::process::id(), id));
+        let obj_path = dir.join(format!("raptor_test_{}_{}.o", std::process::id(), id));
+        let exe_path = dir.join(format!("raptor_test_{}_{}", std::process::id(), id));
 
         compiler.write_ir_to_file(ir_path.to_str().unwrap()).expect("failed to write IR");
 

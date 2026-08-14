@@ -1,3 +1,6 @@
+# Run this file both in interpreted and compiled mode and see the difference.
+# Enable -O3 flag in compilation mode to see rocket speed.
+
 i64 iters = 1'000'000'000;
 
 for (i64 i = 0; i < iters; i += 1) {}

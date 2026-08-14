@@ -2,4 +2,4 @@
 /.vscode
 /countlines*
 
-examples/build
+build/

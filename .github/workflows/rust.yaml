@@ -9,6 +9,9 @@ jobs:
   test-and-build:
     runs-on: ubuntu-latest
 
+    env:
+      LLVM_SYS_180_PREFIX: /usr/lib/llvm-18
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -16,8 +19,24 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install LLVM 18 + Clang + Polly
+        run: |
+          wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh 18
+          sudo apt-get install -y \
+            libpolly-18-dev \
+            libzstd-dev \
+            llvm-18-dev \
+            clang-18 \
+            lld-18
+
+      - name: Verify LLVM tools on PATH
+        run: |
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+
       - name: Run tests
-        run: cargo test
+        run: cargo test -- --nocapture --test-threads=1
 
       - name: Build release
         run: cargo build --release

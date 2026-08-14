@@ -11,11 +11,19 @@ use std::{
     thread, time, vec,
 };
 
+use inkwell::AddressSpace;
+
 use crate::{
-    ast::{PassedBy, Type},
-    errors::{ErrorSeverity, StdFunctionError},
+    ast::{Argument, Node, PassedBy, Type},
+    compiler::Compiler,
+    errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+    lazy_stream_reader::Position,
+    llvm_value::LlvmValue,
     value::Value,
+    visitor::Visitor,
 };
+
+pub type LlvmCompileFn = for<'a, 'ctx> fn(&mut Compiler<'a, 'ctx>, &'a Vec<Box<Node<Argument>>>, Position) -> Result<(), Box<dyn IError>>;
 
 #[derive(Debug, Clone)]
 pub struct StdFunction {
@@ -24,6 +32,7 @@ pub struct StdFunction {
     pub execute: fn(&Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, StdFunctionError>,
     pub return_type: Type,
     pub type_check: Option<fn(&[Type]) -> Result<Type, String>>,
+    pub compile: LlvmCompileFn,
 }
 
 impl PartialEq for StdFunction {
@@ -73,6 +82,77 @@ fn next_handle() -> i64 {
 }
 
 impl StdFunction {
+    fn compile_write_or_append<'a, 'ctx>(
+        compiler: &mut Compiler<'a, 'ctx>,
+        arguments: &'a Vec<Box<Node<Argument>>>,
+        mode_str: &str,
+        position: Position,
+    ) -> Result<(), Box<dyn IError>> {
+        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+        let path_arg = arguments.get(0).ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                String::from("Expected a file path argument."),
+                position,
+            )) as Box<dyn IError>
+        })?;
+        let content_arg = arguments.get(1).ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                String::from("Expected a content argument."),
+                position,
+            )) as Box<dyn IError>
+        })?;
+
+        compiler.visit_expression(&path_arg.value.value)?;
+        let path_ptr = compiler.read_last_value()?.into_str_value(position)?;
+
+        compiler.visit_expression(&content_arg.value.value)?;
+        let content_ptr = compiler.read_last_value()?.into_str_value(position)?;
+
+        let mode = compiler
+            .builder()
+            .build_global_string_ptr(mode_str, "mode")
+            .map_err(err)?
+            .as_pointer_value();
+        let fopen_fn = compiler.libc().fopen_fn;
+        let file = compiler
+            .builder()
+            .build_call(fopen_fn, &[path_ptr.into(), mode.into()], "fopen.call")
+            .map_err(err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("fopen should return a value")
+            .into_pointer_value();
+
+        let strlen_fn = compiler.libc().strlen_fn;
+        let len = compiler
+            .builder()
+            .build_call(strlen_fn, &[content_ptr.into()], "content.len")
+            .map_err(err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("strlen should return a value")
+            .into_int_value();
+
+        let i64_type = compiler.context().i64_type();
+        let fwrite_fn = compiler.libc().fwrite_fn;
+        compiler
+            .builder()
+            .build_call(
+                fwrite_fn,
+                &[content_ptr.into(), i64_type.const_int(1, false).into(), len.into(), file.into()],
+                "fwrite.call",
+            )
+            .map_err(err)?;
+
+        let fclose_fn = compiler.libc().fclose_fn;
+        compiler.builder().build_call(fclose_fn, &[file.into()], "fclose.call").map_err(err)?;
+
+        Ok(())
+    }
+
     fn print() -> Self {
         let params = vec![Type::Str];
         let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
@@ -94,12 +174,44 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'print' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let text_value = compiler.read_last_value()?;
+
+            let printf_fn = compiler.libc().printf_fn;
+
+            let format_str = compiler
+                .builder()
+                .build_global_string_ptr("%s", "fmt")
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+            compiler
+                .builder()
+                .build_call(
+                    printf_fn,
+                    &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
+                    "printf_call",
+                )
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -124,12 +236,44 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'println' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let text_value = compiler.read_last_value()?;
+
+            let printf_fn = compiler.libc().printf_fn;
+
+            let format_str = compiler
+                .builder()
+                .build_global_string_ptr("%s\n", "fmt")
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+            compiler
+                .builder()
+                .build_call(
+                    printf_fn,
+                    &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
+                    "printf_call",
+                )
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -159,12 +303,86 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'input' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let prompt_ptr = compiler.read_last_value()?.into_str_value(position)?;
+
+            let format_str = compiler
+                .builder()
+                .build_global_string_ptr("%s", "fmt.prompt")
+                .map_err(err)?
+                .as_pointer_value();
+            let printf_fn = compiler.libc().printf_fn;
+            compiler
+                .builder()
+                .build_call(printf_fn, &[format_str.into(), prompt_ptr.into()], "printf.prompt")
+                .map_err(err)?;
+
+            let context = compiler.context();
+            let i64_type = context.i64_type();
+            let i32_type = context.i32_type();
+            let buf_size = 4096u64;
+
+            let malloc_fn = compiler.libc().malloc_fn;
+            let buf = compiler
+                .builder()
+                .build_call(malloc_fn, &[i64_type.const_int(buf_size, false).into()], "input.buf")
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("malloc should return a value")
+                .into_pointer_value();
+
+            // read(fd=0, buf, buf_size - 1)
+            let read_fn = compiler.libc().read_fn;
+            let n = compiler
+                .builder()
+                .build_call(
+                    read_fn,
+                    &[
+                        i32_type.const_int(0, false).into(),
+                        buf.into(),
+                        i64_type.const_int(buf_size - 1, false).into(),
+                    ],
+                    "read.call",
+                )
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("read should return a value")
+                .into_int_value();
+
+            let n_clamped = compiler.builder().build_call(compiler.libc().strlen_fn, &[buf.into()], "unused");
+            let _ = n_clamped;
+
+            let end_ptr = unsafe { compiler.builder().build_gep(context.i8_type(), buf, &[n], "input.end").map_err(err)? };
+            compiler
+                .builder()
+                .build_store(end_ptr, context.i8_type().const_int(0, false))
+                .map_err(err)?;
+
+            compiler.set_last_value(LlvmValue::Str(buf));
+            Ok(())
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
             type_check: None,
+            compile,
         }
     }
 
@@ -189,12 +407,117 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'read_file' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let path_ptr = compiler.read_last_value()?.into_str_value(position)?;
+
+            let context = compiler.context();
+            let i64_type = context.i64_type();
+            let i32_type = context.i32_type();
+
+            let mode = compiler
+                .builder()
+                .build_global_string_ptr("rb", "mode.r")
+                .map_err(err)?
+                .as_pointer_value();
+            let fopen_fn = compiler.libc().fopen_fn;
+            let file = compiler
+                .builder()
+                .build_call(fopen_fn, &[path_ptr.into(), mode.into()], "fopen.call")
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("fopen should return a value")
+                .into_pointer_value();
+
+            // fseek(file, 0, SEEK_END=2) -> ftell -> fseek(file, 0, SEEK_SET=0)
+            let fseek_fn = compiler.libc().fseek_fn;
+            let ftell_fn = compiler.libc().ftell_fn;
+
+            compiler
+                .builder()
+                .build_call(
+                    fseek_fn,
+                    &[file.into(), i64_type.const_int(0, false).into(), i32_type.const_int(2, false).into()],
+                    "fseek.end",
+                )
+                .map_err(err)?;
+
+            let size = compiler
+                .builder()
+                .build_call(ftell_fn, &[file.into()], "ftell.call")
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("ftell should return a value")
+                .into_int_value();
+
+            compiler
+                .builder()
+                .build_call(
+                    fseek_fn,
+                    &[file.into(), i64_type.const_int(0, false).into(), i32_type.const_int(0, false).into()],
+                    "fseek.start",
+                )
+                .map_err(err)?;
+
+            let size_plus_nul = compiler
+                .builder()
+                .build_int_add(size, i64_type.const_int(1, false), "size.nul")
+                .map_err(err)?;
+
+            let malloc_fn = compiler.libc().malloc_fn;
+            let buf = compiler
+                .builder()
+                .build_call(malloc_fn, &[size_plus_nul.into()], "read.buf")
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("malloc should return a value")
+                .into_pointer_value();
+
+            let fread_fn = compiler.libc().fread_fn;
+            compiler
+                .builder()
+                .build_call(
+                    fread_fn,
+                    &[buf.into(), i64_type.const_int(1, false).into(), size.into(), file.into()],
+                    "fread.call",
+                )
+                .map_err(err)?;
+
+            let fclose_fn = compiler.libc().fclose_fn;
+            compiler.builder().build_call(fclose_fn, &[file.into()], "fclose.call").map_err(err)?;
+
+            // NUL-terminator na końcu bufora
+            let end_ptr = unsafe { compiler.builder().build_gep(context.i8_type(), buf, &[size], "read.end").map_err(err)? };
+            compiler
+                .builder()
+                .build_store(end_ptr, context.i8_type().const_int(0, false))
+                .map_err(err)?;
+
+            compiler.set_last_value(LlvmValue::Str(buf));
+            Ok(())
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
             type_check: None,
+            compile,
         }
     }
 
@@ -228,12 +551,15 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| Self::compile_write_or_append(compiler, arguments, "wb", position);
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -270,12 +596,15 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| Self::compile_write_or_append(compiler, arguments, "ab", position);
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -300,12 +629,34 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'delete_file' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let path_ptr = compiler.read_last_value()?.into_str_value(position)?;
+
+            let remove_fn = compiler.libc().remove_fn;
+            compiler.builder().build_call(remove_fn, &[path_ptr.into()], "remove.call").map_err(err)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -330,12 +681,50 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'exists_file' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let path_ptr = compiler.read_last_value()?.into_str_value(position)?;
+
+            let context = compiler.context();
+            let i32_type = context.i32_type();
+
+            let access_fn = compiler.libc().access_fn;
+            let result = compiler
+                .builder()
+                .build_call(access_fn, &[path_ptr.into(), i32_type.const_int(0, false).into()], "access.call") // F_OK = 0
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("access should return a value")
+                .into_int_value();
+
+            let exists = compiler
+                .builder()
+                .build_int_compare(inkwell::IntPredicate::EQ, result, i32_type.const_int(0, false), "access.exists")
+                .map_err(err)?;
+
+            compiler.set_last_value(LlvmValue::Bool(exists));
+            Ok(())
+        };
+
         StdFunction {
             params,
             execute,
             passed_by: vec![PassedBy::Value],
             return_type: Type::Bool,
             type_check: None,
+            compile,
         }
     }
 
@@ -364,8 +753,37 @@ impl StdFunction {
 
         let type_check: fn(&[Type]) -> Result<Type, String> = |arg_types: &[Type]| match arg_types {
             [Type::Vector(_)] => Ok(Type::Str),
-            [other] => Err(format!("vector_size expected a vector, but got '{:?}'.", other)),
-            _ => Err(String::from("vector_size expects exactly 1 argument.")),
+            [other] => Err(format!("vector_stringify expected a vector, but got '{:?}'.", other)),
+            _ => Err(String::from("vector_stringify expects exactly 1 argument.")),
+        };
+
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let vector_arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'vector_stringify' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&vector_arg.value.value)?;
+            let vector_value = compiler.read_last_value()?;
+
+            let (vector_ptr, inner_type) = match vector_value {
+                LlvmValue::Vector(ptr, inner) => (ptr, *inner),
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'vector_stringify' expects a vector, got '{:?}'.", other.to_type()),
+                        position,
+                    )))
+                }
+            };
+
+            let result = compiler.build_vector_to_string(vector_ptr, &inner_type, position)?;
+            compiler.set_last_value(LlvmValue::Str(result));
+
+            Ok(())
         };
 
         StdFunction {
@@ -374,6 +792,7 @@ impl StdFunction {
             passed_by: vec![PassedBy::Value],
             return_type: Type::Str,
             type_check: Some(type_check),
+            compile,
         }
     }
 
@@ -429,12 +848,196 @@ impl StdFunction {
             _ => Err(String::from("vector_push expects exactly 2 arguments.")),
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let err_arity = || {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'vector_push' expects exactly 2 arguments."),
+                    position,
+                )) as Box<dyn IError>
+            };
+
+            let vector_arg = arguments.get(0).ok_or_else(err_arity)?;
+            let value_arg = arguments.get(1).ok_or_else(err_arity)?;
+
+            let variable_name = match &vector_arg.value.value.value {
+                crate::ast::Expression::Variable(name) => name.clone(),
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'vector_push' expects a variable as its first argument, got '{:?}'.", other),
+                        position,
+                    )))
+                }
+            };
+
+            let (var_slot_ptr, var_type) = compiler.get_variable(&variable_name)?;
+            let inner_type = match var_type {
+                Type::Vector(inner) => *inner,
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'vector_push' expects a vector, got '{:?}'.", other),
+                        position,
+                    )))
+                }
+            };
+
+            compiler.visit_expression(&value_arg.value.value)?;
+            let pushed_value = compiler.read_last_value()?;
+
+            if pushed_value.to_type() != inner_type {
+                return Err(Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Vector element type mismatch: expected '{:?}', got '{:?}'.",
+                        inner_type,
+                        pushed_value.to_type()
+                    ),
+                    position,
+                )));
+            }
+
+            let context = compiler.context();
+            let ptr_type = context.ptr_type(AddressSpace::default());
+            let i64_type = context.i64_type();
+            let struct_type = LlvmValue::vector_struct_type(context);
+
+            let function = compiler
+                .builder()
+                .get_insert_block()
+                .expect("builder should be positioned inside a function")
+                .get_parent()
+                .expect("basic block should belong to a function");
+
+            let struct_ptr = compiler
+                .builder()
+                .build_load(ptr_type, var_slot_ptr, "vector.ptr")
+                .map_err(err)?
+                .into_pointer_value();
+
+            let data_field = compiler
+                .builder()
+                .build_struct_gep(struct_type, struct_ptr, 0, "vector.data")
+                .map_err(err)?;
+            let length_field = compiler
+                .builder()
+                .build_struct_gep(struct_type, struct_ptr, 1, "vector.length")
+                .map_err(err)?;
+            let capacity_field = compiler
+                .builder()
+                .build_struct_gep(struct_type, struct_ptr, 2, "vector.capacity")
+                .map_err(err)?;
+
+            let old_length = compiler
+                .builder()
+                .build_load(i64_type, length_field, "vector.length.old")
+                .map_err(err)?
+                .into_int_value();
+            let old_capacity = compiler
+                .builder()
+                .build_load(i64_type, capacity_field, "vector.capacity.old")
+                .map_err(err)?
+                .into_int_value();
+
+            let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, context).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+            let element_size = LlvmValue::element_byte_size(&inner_type, i64_type)?;
+
+            let needs_grow = compiler
+                .builder()
+                .build_int_compare(inkwell::IntPredicate::SGE, old_length, old_capacity, "needs.grow")
+                .map_err(err)?;
+
+            let grow_block = context.append_basic_block(function, "push.grow");
+            let merge_block = context.append_basic_block(function, "push.merge");
+
+            compiler
+                .builder()
+                .build_conditional_branch(needs_grow, grow_block, merge_block)
+                .map_err(err)?;
+
+            compiler.builder().position_at_end(grow_block);
+            let old_data = compiler
+                .builder()
+                .build_load(ptr_type, data_field, "vector.data.old")
+                .map_err(err)?
+                .into_pointer_value();
+
+            let is_zero = compiler
+                .builder()
+                .build_int_compare(inkwell::IntPredicate::EQ, old_capacity, i64_type.const_int(0, false), "cap.is_zero")
+                .map_err(err)?;
+            let doubled = compiler
+                .builder()
+                .build_int_mul(old_capacity, i64_type.const_int(2, false), "cap.doubled")
+                .map_err(err)?;
+            let new_capacity = compiler
+                .builder()
+                .build_select(is_zero, i64_type.const_int(1, false), doubled, "cap.new")
+                .map_err(err)?
+                .into_int_value();
+
+            let new_bytes = compiler
+                .builder()
+                .build_int_mul(new_capacity, element_size, "vector.bytes.new")
+                .map_err(err)?;
+            let new_data = compiler
+                .builder()
+                .build_call(compiler.libc().realloc_fn, &[old_data.into(), new_bytes.into()], "vector.realloc")
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("realloc should return a value")
+                .into_pointer_value();
+
+            compiler.builder().build_store(data_field, new_data).map_err(err)?;
+            compiler.builder().build_store(capacity_field, new_capacity).map_err(err)?;
+            compiler.builder().build_unconditional_branch(merge_block).map_err(err)?;
+
+            compiler.builder().position_at_end(merge_block);
+
+            let current_data = compiler
+                .builder()
+                .build_load(ptr_type, data_field, "vector.data.current")
+                .map_err(err)?
+                .into_pointer_value();
+
+            let elem_ptr = unsafe {
+                compiler
+                    .builder()
+                    .build_gep(element_llvm_type, current_data, &[old_length], "vector.push.elem")
+                    .map_err(err)?
+            };
+            compiler
+                .builder()
+                .build_store(elem_ptr, pushed_value.as_basic_value_enum())
+                .map_err(err)?;
+
+            let new_length = compiler
+                .builder()
+                .build_int_add(old_length, i64_type.const_int(1, false), "vector.length.new")
+                .map_err(err)?;
+            compiler.builder().build_store(length_field, new_length).map_err(err)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Reference, PassedBy::Value],
             execute,
             return_type: Type::Void,
             type_check: Some(type_check),
+            compile,
         }
     }
 
@@ -471,12 +1074,61 @@ impl StdFunction {
             _ => Err(String::from("vector_size expects exactly 1 argument.")),
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let vector_arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'vector_size' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&vector_arg.value.value)?;
+
+            let vector_value = compiler.read_last_value()?;
+
+            let vector_ptr = match vector_value {
+                LlvmValue::Vector(ptr, _) => ptr,
+
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'vector_size' expects a vector, got '{:?}'.", other.to_type()),
+                        position,
+                    )))
+                }
+            };
+
+            let context = compiler.context();
+            let i64_type = context.i64_type();
+            let struct_type = LlvmValue::vector_struct_type(context);
+
+            let length_field = compiler
+                .builder()
+                .build_struct_gep(struct_type, vector_ptr, 1, "vector.length")
+                .map_err(err)?;
+
+            let length = compiler
+                .builder()
+                .build_load(i64_type, length_field, "vector.size")
+                .map_err(err)?
+                .into_int_value();
+
+            compiler.set_last_value(LlvmValue::I64(length));
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Reference],
             execute,
             return_type: Type::I64,
             type_check: Some(type_check),
+            compile,
         }
     }
 
@@ -508,12 +1160,50 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'sleep_ms' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let ms_value = compiler.read_last_value()?.into_i64_value(position)?;
+
+            let context = compiler.context();
+            let i32_type = context.i32_type();
+
+            let i64_type = context.i64_type();
+            let micros_i64 = compiler
+                .builder()
+                .build_int_mul(ms_value, i64_type.const_int(1000, false), "sleep.micros")
+                .map_err(err)?;
+            let micros_i32 = compiler
+                .builder()
+                .build_int_truncate(micros_i64, i32_type, "sleep.micros.i32")
+                .map_err(err)?;
+
+            let usleep_fn = compiler.libc().usleep_fn;
+            compiler
+                .builder()
+                .build_call(usleep_fn, &[micros_i32.into()], "usleep.call")
+                .map_err(err)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -548,12 +1238,135 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'tcp_listen' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let port = compiler.read_last_value()?.into_i64_value(position)?;
+
+            let context = compiler.context();
+            let i16_type = context.i16_type();
+            let i32_type = context.i32_type();
+            let i8_type = context.i8_type();
+
+            // socket(AF_INET=2, SOCK_STREAM=1, 0)
+            let socket_fn = compiler.libc().socket_fn;
+            let fd = compiler
+                .builder()
+                .build_call(
+                    socket_fn,
+                    &[
+                        i32_type.const_int(2, false).into(),
+                        i32_type.const_int(1, false).into(),
+                        i32_type.const_int(0, false).into(),
+                    ],
+                    "socket.call",
+                )
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("socket should return a value")
+                .into_int_value();
+
+            // budujemy sockaddr_in (16 bajtów) na stosie
+            let sockaddr_type = context.struct_type(&[i16_type.into(), i16_type.into(), i32_type.into(), i8_type.array_type(8).into()], false);
+            let sockaddr_ptr = compiler.builder().build_alloca(sockaddr_type, "sockaddr").map_err(err)?;
+
+            let family_field = compiler
+                .builder()
+                .build_struct_gep(sockaddr_type, sockaddr_ptr, 0, "sockaddr.family")
+                .map_err(err)?;
+            compiler.builder().build_store(family_field, i16_type.const_int(2, false)).map_err(err)?; // AF_INET
+
+            // port trzeba zapisać w big-endian (htons) — port ma zakres 0-65535, więc rzutujemy na i16 po zamianie bajtów
+            let port_i32 = compiler.builder().build_int_truncate(port, i32_type, "port.i32").map_err(err)?;
+            let port_lo = compiler
+                .builder()
+                .build_and(port_i32, i32_type.const_int(0xFF, false), "port.lo")
+                .map_err(err)?;
+            let port_hi = compiler
+                .builder()
+                .build_right_shift(
+                    compiler
+                        .builder()
+                        .build_and(port_i32, i32_type.const_int(0xFF00, false), "port.hi.mask")
+                        .map_err(err)?,
+                    i32_type.const_int(8, false),
+                    false,
+                    "port.hi",
+                )
+                .map_err(err)?;
+            let port_be = compiler
+                .builder()
+                .build_or(
+                    compiler
+                        .builder()
+                        .build_left_shift(port_lo, i32_type.const_int(8, false), "port.lo.shifted")
+                        .map_err(err)?,
+                    port_hi,
+                    "port.be",
+                )
+                .map_err(err)?;
+            let port_be_i16 = compiler.builder().build_int_truncate(port_be, i16_type, "port.be.i16").map_err(err)?;
+
+            let port_field = compiler
+                .builder()
+                .build_struct_gep(sockaddr_type, sockaddr_ptr, 1, "sockaddr.port")
+                .map_err(err)?;
+            compiler.builder().build_store(port_field, port_be_i16).map_err(err)?;
+
+            let addr_field = compiler
+                .builder()
+                .build_struct_gep(sockaddr_type, sockaddr_ptr, 2, "sockaddr.addr")
+                .map_err(err)?;
+            compiler.builder().build_store(addr_field, i32_type.const_int(0, false)).map_err(err)?; // INADDR_ANY
+
+            let zero_field = compiler
+                .builder()
+                .build_struct_gep(sockaddr_type, sockaddr_ptr, 3, "sockaddr.zero")
+                .map_err(err)?;
+            compiler
+                .builder()
+                .build_store(zero_field, i8_type.array_type(8).const_zero())
+                .map_err(err)?;
+
+            let bind_fn = compiler.libc().bind_fn;
+            compiler
+                .builder()
+                .build_call(
+                    bind_fn,
+                    &[fd.into(), sockaddr_ptr.into(), i32_type.const_int(16, false).into()],
+                    "bind.call",
+                )
+                .map_err(err)?;
+
+            let listen_fn = compiler.libc().listen_fn;
+            compiler
+                .builder()
+                .build_call(listen_fn, &[fd.into(), i32_type.const_int(128, false).into()], "listen.call")
+                .map_err(err)?;
+
+            let fd_i64 = compiler.builder().build_int_z_extend(fd, context.i64_type(), "fd.i64").map_err(err)?;
+            compiler.set_last_value(LlvmValue::I64(fd_i64));
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::I64,
             type_check: None,
+            compile,
         }
     }
 
@@ -597,12 +1410,56 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'tcp_accept' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let listener_fd = compiler.read_last_value()?.into_i64_value(position)?;
+
+            let context = compiler.context();
+            let i32_type = context.i32_type();
+            let ptr_type = context.ptr_type(AddressSpace::default());
+
+            let listener_fd_i32 = compiler.builder().build_int_truncate(listener_fd, i32_type, "fd.i32").map_err(err)?;
+
+            let accept_fn = compiler.libc().accept_fn;
+            let client_fd = compiler
+                .builder()
+                .build_call(
+                    accept_fn,
+                    &[listener_fd_i32.into(), ptr_type.const_null().into(), ptr_type.const_null().into()],
+                    "accept.call",
+                )
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("accept should return a value")
+                .into_int_value();
+
+            let client_fd_i64 = compiler
+                .builder()
+                .build_int_z_extend(client_fd, context.i64_type(), "fd.i64")
+                .map_err(err)?;
+            compiler.set_last_value(LlvmValue::I64(client_fd_i64));
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::I64,
             type_check: None,
+            compile,
         }
     }
 
@@ -642,12 +1499,74 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'tcp_read' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let fd = compiler.read_last_value()?.into_i64_value(position)?;
+
+            let context = compiler.context();
+            let i32_type = context.i32_type();
+            let i64_type = context.i64_type();
+            let buf_size = 4096u64;
+
+            let fd_i32 = compiler.builder().build_int_truncate(fd, i32_type, "fd.i32").map_err(err)?;
+
+            let malloc_fn = compiler.libc().malloc_fn;
+            let buf = compiler
+                .builder()
+                .build_call(malloc_fn, &[i64_type.const_int(buf_size, false).into()], "recv.buf")
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("malloc should return a value")
+                .into_pointer_value();
+
+            let recv_fn = compiler.libc().recv_fn;
+            let n = compiler
+                .builder()
+                .build_call(
+                    recv_fn,
+                    &[
+                        fd_i32.into(),
+                        buf.into(),
+                        i64_type.const_int(buf_size - 1, false).into(),
+                        i32_type.const_int(0, false).into(),
+                    ],
+                    "recv.call",
+                )
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("recv should return a value")
+                .into_int_value();
+
+            let end_ptr = unsafe { compiler.builder().build_gep(context.i8_type(), buf, &[n], "recv.end").map_err(err)? };
+            compiler
+                .builder()
+                .build_store(end_ptr, context.i8_type().const_int(0, false))
+                .map_err(err)?;
+
+            compiler.set_last_value(LlvmValue::Str(buf));
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::Str,
             type_check: None,
+            compile,
         }
     }
 
@@ -691,12 +1610,68 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let fd_arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'tcp_write' expects exactly two arguments."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+            let data_arg = arguments.get(1).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'tcp_write' expects exactly two arguments."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&fd_arg.value.value)?;
+            let fd = compiler.read_last_value()?.into_i64_value(position)?;
+
+            compiler.visit_expression(&data_arg.value.value)?;
+            let data_ptr = compiler.read_last_value()?.into_str_value(position)?;
+
+            let context = compiler.context();
+            let i32_type = context.i32_type();
+            let i64_type = context.i64_type();
+
+            let fd_i32 = compiler.builder().build_int_truncate(fd, i32_type, "fd.i32").map_err(err)?;
+
+            let strlen_fn = compiler.libc().strlen_fn;
+            let len = compiler
+                .builder()
+                .build_call(strlen_fn, &[data_ptr.into()], "data.len")
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("strlen should return a value")
+                .into_int_value();
+
+            let send_fn = compiler.libc().send_fn;
+            compiler
+                .builder()
+                .build_call(
+                    send_fn,
+                    &[fd_i32.into(), data_ptr.into(), len.into(), i32_type.const_int(0, false).into()],
+                    "send.call",
+                )
+                .map_err(err)?;
+
+            let _ = i64_type;
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Value, PassedBy::Value],
             execute,
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -727,12 +1702,38 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'tcp_close' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let fd = compiler.read_last_value()?.into_i64_value(position)?;
+
+            let context = compiler.context();
+            let i32_type = context.i32_type();
+            let fd_i32 = compiler.builder().build_int_truncate(fd, i32_type, "fd.i32").map_err(err)?;
+
+            let close_fn = compiler.libc().close_fn;
+            compiler.builder().build_call(close_fn, &[fd_i32.into()], "close.call").map_err(err)?;
+
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::Void,
             type_check: None,
+            compile,
         }
     }
 
@@ -759,12 +1760,53 @@ impl StdFunction {
             }
         };
 
+        let compile: LlvmCompileFn = |compiler, arguments, position| {
+            let err =
+                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+
+            let arg = arguments.get(0).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("'str_len' expects exactly one argument."),
+                    position,
+                )) as Box<dyn IError>
+            })?;
+
+            compiler.visit_expression(&arg.value.value)?;
+            let str_value = compiler.read_last_value()?;
+
+            let str_ptr = match str_value {
+                LlvmValue::Str(ptr) => ptr,
+                other => {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'str_len' expects a string, got '{:?}'.", other.to_type()),
+                        position,
+                    )))
+                }
+            };
+
+            let strlen_fn = compiler.libc().strlen_fn;
+            let length = compiler
+                .builder()
+                .build_call(strlen_fn, &[str_ptr.into()], "str.len")
+                .map_err(err)?
+                .try_as_basic_value()
+                .basic()
+                .expect("strlen should return a value")
+                .into_int_value();
+
+            compiler.set_last_value(LlvmValue::I64(length));
+            Ok(())
+        };
+
         StdFunction {
             params,
             passed_by: vec![PassedBy::Value],
             execute,
             return_type: Type::I64,
             type_check: None,
+            compile,
         }
     }
 }

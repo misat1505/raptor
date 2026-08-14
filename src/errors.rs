@@ -79,6 +79,7 @@ define_error!(ComputationError);
 define_error!(ScopeManagerError);
 define_error!(StackOverflowError);
 define_error!(StdFunctionError);
+define_error!(CompilerError);
 
 #[allow(dead_code)]
 pub struct ErrorsManager;

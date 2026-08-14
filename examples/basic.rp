@@ -1,5 +1,6 @@
 # import "vectors.rp";
 
+i64 x = "";
 i64 foo = 2 + 2;
 foo = "Elon";
 str a = foo;
@@ -43,3 +44,4 @@ println(text);
 
 str[] names = [];
 vector_push(&names, "Elon");
+

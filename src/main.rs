@@ -78,11 +78,15 @@ fn output_paths(input_path: &str) -> (String, String, String) {
     let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
 
     let output_dir = "build/";
+
+    std::fs::create_dir_all(output_dir).expect("failed to create build directory");
+
     let ir_path = format!("{}{}.ll", output_dir, stem);
     let obj_path = format!("{}{}.o", output_dir, stem);
 
     #[cfg(windows)]
     let exe_path = format!("{}{}.exe", output_dir, stem);
+
     #[cfg(not(windows))]
     let exe_path = format!("{}{}", output_dir, stem);
 

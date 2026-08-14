@@ -1,5 +1,0 @@
-import "functions.rp";
-
-fn add(i64 x, i64 y): i64 {
-  return x + y;
-}

@@ -1,25 +1,14 @@
-# struct UsersRepository {
-#   users: str[]
-# }
-
-# fn users_repository_get_all(&UsersRepository repository): str[] {
-#   return repository["users"];
-# }
-
-# UsersRepository repository = {
-#   users: ["Elon", "Trump", "Batyr"]
-# };
-
-# str[] users = users_repository_get_all(&repository);
+# Run this file and then visit http://localhost:8080 in the browser
 
 fn get_all_users(): str[] {
-  str[] users = ["Elon", "Trump", "Batyr"];
+  str[] users = ["Bob", "Fred", "Jack"];
   return users;
 }
 
 i64 port = 8080;
 i64 listener = tcp_listen(port);
 println("Listening on " + port as str + "...");
+println("Open browser: http://localhost:" + port as str);
 
 for (;true;) {
   i64 client = tcp_accept(listener);

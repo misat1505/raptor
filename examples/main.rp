@@ -1,5 +1,0 @@
-import "functions.rp";
-import "utils.rp";
-
-println(add(2, 2) as str);
-println("Bye world");

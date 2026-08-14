@@ -1,0 +1,207 @@
+fn random(&i64 state): i64 {
+    state = (state * 1103515245 + 12345) % 2147483647;
+    return state;
+}
+
+fn print_maze(&str[][] maze): void {
+    print("\e[2J\e[H");
+
+    for (i64 y = 0; y < vector_size(&maze); y += 1) {
+        for (i64 x = 0; x < vector_size(&maze[y]); x += 1) {
+            print(maze[y][x]);
+        }
+
+        println("");
+    }
+}
+
+fn is_inside(&str[][] maze, i64 x, i64 y): bool {
+    if (y < 0 || y >= vector_size(&maze)) {
+        return false;
+    }
+
+    if (x < 0 || x >= vector_size(&maze[y])) {
+        return false;
+    }
+
+    return true;
+}
+
+fn carve(&str[][] maze, i64 x, i64 y, &i64 state): void {
+    maze[y][x] = " ";
+
+    i64[] directions = [0, 1, 2, 3];
+
+    for (i64 i = 0; i < 4; i += 1) {
+        i64 remaining = 4 - i;
+        i64 index = random(&state) % remaining + i;
+
+        i64 temp = directions[i];
+        directions[i] = directions[index];
+        directions[index] = temp;
+    }
+
+    for (i64 i = 0; i < 4; i += 1) {
+        i64 direction = directions[i];
+
+        i64 dx = 0;
+        i64 dy = 0;
+
+        if (direction == 0) {
+            dx = 2;
+        } else if (direction == 1) {
+            dy = 2;
+        } else if (direction == 2) {
+            dx = -2;
+        } else {
+            dy = -2;
+        }
+
+        i64 nx = x + dx;
+        i64 ny = y + dy;
+
+        if (is_inside(&maze, nx, ny)) {
+            if (maze[ny][nx] == "#") {
+                maze[y + dy / 2][x + dx / 2] = " ";
+                carve(&maze, nx, ny, &state);
+            }
+        }
+    }
+}
+
+fn create_maze(i64 width, i64 height, &i64 state): str[][] {
+    str[][] maze = [];
+
+    for (i64 y = 0; y < height; y += 1) {
+        str[] row = [];
+
+        for (i64 x = 0; x < width; x += 1) {
+            vector_push(&row, "#");
+        }
+
+        vector_push(&maze, row);
+    }
+
+    carve(&maze, 1, 1, &state);
+
+    maze[1][1] = "S";
+    maze[height - 2][width - 2] = "E";
+
+    return maze;
+}
+
+fn find_path(&str[][] maze, i64 start_x, i64 start_y): void {
+    i64 height = vector_size(&maze);
+    i64 width = vector_size(&maze[0]);
+
+    i64[][] parent_x = [];
+    i64[][] parent_y = [];
+
+    for (i64 y = 0; y < height; y += 1) {
+        i64[] row_x = [];
+        i64[] row_y = [];
+
+        for (i64 x = 0; x < width; x += 1) {
+            vector_push(&row_x, -1);
+            vector_push(&row_y, -1);
+        }
+
+        vector_push(&parent_x, row_x);
+        vector_push(&parent_y, row_y);
+    }
+
+    i64[] queue_x = [];
+    i64[] queue_y = [];
+
+    vector_push(&queue_x, start_x);
+    vector_push(&queue_y, start_y);
+
+    parent_x[start_y][start_x] = start_x;
+    parent_y[start_y][start_x] = start_y;
+
+    i64 front = 0;
+    bool found = false;
+
+    while (front < vector_size(&queue_x)) {
+        i64 x = queue_x[front];
+        i64 y = queue_y[front];
+
+        front += 1;
+
+        if (maze[y][x] == "E") {
+            found = true;
+            break;
+        }
+
+        for (i64 direction = 0; direction < 4; direction += 1) {
+            i64 dx = 0;
+            i64 dy = 0;
+
+            if (direction == 0) {
+                dy = -1;
+            } else if (direction == 1) {
+                dx = 1;
+            } else if (direction == 2) {
+                dy = 1;
+            } else {
+                dx = -1;
+            }
+
+            i64 nx = x + dx;
+            i64 ny = y + dy;
+
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+                continue;
+            }
+
+            if (parent_x[ny][nx] != -1) {
+                continue;
+            }
+
+            if (maze[ny][nx] == " " || maze[ny][nx] == "E") {
+                parent_x[ny][nx] = x;
+                parent_y[ny][nx] = y;
+
+                vector_push(&queue_x, nx);
+                vector_push(&queue_y, ny);
+            }
+        }
+    }
+
+    if (!found) {
+        return;
+    }
+
+    i64 x = width - 2;
+    i64 y = height - 2;
+
+    while (x != start_x || y != start_y) {
+        if (maze[y][x] != "E") {
+            maze[y][x] = ".";
+        }
+
+        i64 previous_x = parent_x[y][x];
+        i64 previous_y = parent_y[y][x];
+
+        x = previous_x;
+        y = previous_y;
+    }
+}
+
+fn main(): void {
+    i64 state = 123456789;
+
+    str[][] maze = create_maze(31, 17, &state);
+
+    println("Generated maze:");
+    print_maze(&maze);
+
+    println("Solving...");
+
+    find_path(&maze, 1, 1);
+
+    println("Solved!\n");
+    print_maze(&maze);
+}
+
+main();

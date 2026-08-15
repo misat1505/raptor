@@ -1,0 +1,152 @@
+use std::{
+    io::{BufReader, Read},
+    process::Command,
+    sync::atomic::{AtomicU64, Ordering},
+};
+
+use gag::BufferRedirect;
+use inkwell::context::Context;
+
+use crate::{
+    backend::{interpreter::interpreter::Interpreter, llvm::compiler::Compiler},
+    common::errors::IError,
+    frontend::{
+        ast::Program,
+        lexer::{
+            lazy_stream_reader::LazyStreamReader,
+            lexer::{Lexer, LexerOptions},
+        },
+        parser::parser::{IParser, Parser},
+    },
+    semantic::semantic_checker::SemanticChecker,
+};
+
+static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+const LLVM_VERSION: &str = "18";
+
+fn on_warning(_err: Box<dyn IError>) {}
+
+fn setup_program_impl(text: BufReader<&[u8]>, skip_typecheck: bool) -> Program {
+    let mut text = text;
+    let mut content = String::new();
+    text.read_to_string(&mut content).unwrap();
+
+    let owned_text: &'static str = Box::leak(content.into_boxed_str());
+    let code = BufReader::new(owned_text.as_bytes());
+
+    let reader = LazyStreamReader::new(code, None);
+
+    let lexer_options = LexerOptions {
+        max_comment_length: 100,
+        max_identifier_length: 20,
+    };
+
+    let lexer = Lexer::new(reader, lexer_options, on_warning).unwrap();
+    let mut parser = Parser::new(lexer);
+
+    let program = parser.parse().unwrap();
+
+    if !skip_typecheck {
+        let mut checker = SemanticChecker::new(&program).unwrap();
+        checker.check();
+
+        assert_eq!(checker.errors.len(), 0, "semantic checker found unexpected errors");
+    }
+
+    program
+}
+
+pub fn setup_program(text: BufReader<&[u8]>) -> Program {
+    setup_program_impl(text, false)
+}
+
+pub fn setup_program_skip_typecheck(text: BufReader<&[u8]>) -> Program {
+    setup_program_impl(text, true)
+}
+
+pub fn create_interpreter<'a>(program: &'a Program) -> Interpreter<'a> {
+    Interpreter::new(program)
+}
+
+pub fn capture_interpreter_output(program: &Program) -> String {
+    let mut buf = BufferRedirect::stdout().expect("failed to redirect stdout");
+
+    let mut interpreter = create_interpreter(program);
+    interpreter.interpret().unwrap();
+
+    let mut output = String::new();
+    buf.read_to_string(&mut output).unwrap();
+
+    output
+}
+
+fn run_command(program: &str, args: &[&str], step_description: &str) {
+    let output = Command::new(program)
+        .args(args)
+        .output()
+        .unwrap_or_else(|err| panic!("Failed to invoke '{}': {}. Is it installed and on PATH?", program, err));
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        panic!("{} failed:\n{}", step_description, stderr);
+    }
+}
+
+pub fn capture_compiled_output(program: &Program) -> String {
+    let context = Context::create();
+
+    let mut compiler = Compiler::new(program, &context);
+    compiler.compile().expect("compilation failed");
+
+    let id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let dir = std::env::temp_dir();
+
+    let ir_path = dir.join(format!("raptor_test_{}_{}.ll", std::process::id(), id));
+
+    let obj_path = dir.join(format!("raptor_test_{}_{}.o", std::process::id(), id));
+
+    let exe_path = dir.join(format!("raptor_test_{}_{}", std::process::id(), id));
+
+    compiler.write_ir_to_file(ir_path.to_str().unwrap()).expect("failed to write IR");
+
+    let llc = format!("llc-{}", LLVM_VERSION);
+
+    run_command(
+        &llc,
+        &[ir_path.to_str().unwrap(), "-filetype=obj", "-o", obj_path.to_str().unwrap()],
+        "llc",
+    );
+
+    let clang = format!("clang-{}", LLVM_VERSION);
+
+    run_command(
+        &clang,
+        &[obj_path.to_str().unwrap(), "-o", exe_path.to_str().unwrap(), "-no-pie"],
+        "clang",
+    );
+
+    let output = Command::new(&exe_path).output().expect("failed to run compiled binary");
+
+    assert!(output.status.success(), "compiled binary exited with a non-zero status");
+
+    let _ = std::fs::remove_file(&ir_path);
+    let _ = std::fs::remove_file(&obj_path);
+    let _ = std::fs::remove_file(&exe_path);
+
+    String::from_utf8(output.stdout).expect("compiled binary produced non-UTF8 output")
+}
+
+pub fn assert_same_output(text: BufReader<&[u8]>, expected: &str) {
+    let program = setup_program(text);
+
+    let interpreter_output = capture_interpreter_output(&program);
+    let compiler_output = capture_compiled_output(&program);
+
+    assert_eq!(interpreter_output, expected, "interpreter output mismatch");
+
+    assert_eq!(compiler_output, expected, "compiler output mismatch");
+
+    assert_eq!(interpreter_output, compiler_output, "interpreter and compiler outputs disagree");
+}

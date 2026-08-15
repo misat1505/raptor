@@ -2,9 +2,7 @@
 mod tests {
     use std::io::BufReader;
 
-    use crate::lazy_stream_reader::ILazyStreamReader;
-    use crate::lazy_stream_reader::LazyStreamReader;
-    use crate::lazy_stream_reader::{ETX, STX};
+    use crate::frontend::lexer::lazy_stream_reader::{ILazyStreamReader, LazyStreamReader, ETX, STX};
 
     #[test]
     fn test_lazy_stream_reader() {

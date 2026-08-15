@@ -134,7 +134,7 @@ impl<'a> Scope<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::errors::IError;
+    use crate::common::errors::IError;
 
     use super::*;
 

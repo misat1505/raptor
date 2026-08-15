@@ -249,7 +249,7 @@ impl<'a> StaticCheckerStack<'a> {
 mod tests {
     use super::*;
 
-    use crate::errors::IError;
+    use crate::common::errors::IError;
 
     #[test]
     fn scope_manager_declare_and_get() {

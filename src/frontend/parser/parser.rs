@@ -1214,8 +1214,8 @@ mod tests {
     use std::{assert_eq, vec};
 
     use crate::{
-        errors::{ErrorSeverity, LexerError},
-        lazy_stream_reader::Position,
+        common::errors::{ErrorSeverity, LexerError},
+        frontend::lexer::lazy_stream_reader::Position,
     };
 
     use super::*;

@@ -970,7 +970,7 @@ impl<'a> Interpreter<'a> {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::ast::FunctionDeclaration;
+    use crate::frontend::ast::FunctionDeclaration;
 
     use super::*;
 

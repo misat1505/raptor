@@ -3,10 +3,14 @@ mod tests {
     use std::{io::BufReader, println};
 
     use crate::{
-        errors::IError,
-        lazy_stream_reader::LazyStreamReader,
-        lexer::{ILexer, Lexer, LexerOptions},
-        tokens::{TokenCategory, TokenValue},
+        common::errors::IError,
+        frontend::{
+            lexer::{
+                lazy_stream_reader::LazyStreamReader,
+                lexer::{ILexer, Lexer, LexerOptions},
+            },
+            tokens::{TokenCategory, TokenValue},
+        },
     };
 
     fn on_warning(warning: Box<dyn IError>) {
@@ -322,10 +326,14 @@ mod edge_case_tests {
     use std::io::BufReader;
 
     use crate::{
-        errors::IError,
-        lazy_stream_reader::LazyStreamReader,
-        lexer::{Lexer, LexerOptions},
-        tokens::TokenCategory,
+        common::errors::IError,
+        frontend::{
+            lexer::{
+                lazy_stream_reader::LazyStreamReader,
+                lexer::{Lexer, LexerOptions},
+            },
+            tokens::TokenCategory,
+        },
     };
 
     fn on_warning(warning: Box<dyn IError>) {

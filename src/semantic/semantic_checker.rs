@@ -846,7 +846,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 mod tests {
     use std::{collections::HashMap, rc::Rc};
 
-    use crate::{ast::FunctionDeclaration, lazy_stream_reader::Position};
+    use crate::{frontend::ast::FunctionDeclaration, frontend::lexer::lazy_stream_reader::Position};
 
     use super::*;
 

@@ -10,14 +10,17 @@ mod tests {
     use inkwell::context::Context;
 
     use crate::{
-        ast::Program,
-        compiler::Compiler,
-        errors::IError,
-        interpreter::Interpreter,
-        lazy_stream_reader::LazyStreamReader,
-        lexer::{Lexer, LexerOptions},
-        parser::{IParser, Parser},
-        semantic_checker::SemanticChecker,
+        backend::{interpreter::interpreter::Interpreter, llvm::compiler::Compiler},
+        common::errors::IError,
+        frontend::{
+            ast::Program,
+            lexer::{
+                lazy_stream_reader::LazyStreamReader,
+                lexer::{Lexer, LexerOptions},
+            },
+            parser::parser::{IParser, Parser},
+        },
+        semantic::semantic_checker::SemanticChecker,
     };
 
     static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);

@@ -81,8 +81,7 @@ impl<'a> Stack<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::errors::IError;
-    use crate::value::Value;
+    use crate::{backend::interpreter::value::Value, common::errors::IError};
 
     #[test]
     fn test_stack_push_pop_frame() {

@@ -246,7 +246,7 @@ fn main() {
 
     let lexer_options = LexerOptions {
         max_comment_length: 500,
-        max_identifier_length: 20,
+        max_identifier_length: 100,
     };
 
     let lexer = match Lexer::new(reader, lexer_options, on_warning) {

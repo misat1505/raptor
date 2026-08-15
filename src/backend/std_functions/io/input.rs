@@ -18,6 +18,7 @@ use crate::{
     },
     frontend::ast::PassedBy,
 };
+
 pub fn input() -> StdFunction {
     let params = vec![Type::Str];
     let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {

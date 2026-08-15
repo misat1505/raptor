@@ -1,3 +1,0 @@
-extern fn add(i64 x, i64 y): i64;
-
-println(add(2, 3) as str);

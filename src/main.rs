@@ -245,7 +245,7 @@ fn main() {
     let reader = LazyStreamReader::new(code, Some(filename));
 
     let lexer_options = LexerOptions {
-        max_comment_length: 100,
+        max_comment_length: 500,
         max_identifier_length: 20,
     };
 

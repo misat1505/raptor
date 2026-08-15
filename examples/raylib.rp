@@ -1,0 +1,20 @@
+# cargo run -- --compile --run -O3 --link <path_to_libraylib.a> --link -lm --link -lX11 examples/raylib.rp
+
+extern fn InitWindow(i64 x, i64 y, str name): void;
+extern fn WindowShouldClose(): bool;
+extern fn BeginDrawing(): void;
+extern fn EndDrawing(): void;
+extern fn CloseWindow(): void;
+# extern fn ClearBackground(i64 color): void;
+
+InitWindow(800, 600, "Raylib from Raptor");
+
+while (!WindowShouldClose()) {
+    BeginDrawing();
+
+    # ClearBackground(256 * 256 * 256 * 256);
+
+    EndDrawing();
+}
+
+CloseWindow();

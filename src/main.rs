@@ -27,7 +27,6 @@ mod backend;
 mod common;
 mod frontend;
 mod semantic;
-mod std_functions;
 
 mod tests;
 

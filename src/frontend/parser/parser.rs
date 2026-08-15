@@ -1,6 +1,7 @@
 use std::{collections::HashMap, rc::Rc, unreachable, vec};
 
 use crate::{
+    backend::std_functions::std_functions::get_std_functions,
     common::{
         errors::{ErrorSeverity, IError, ParserError},
         types::Type,
@@ -13,7 +14,6 @@ use crate::{
         lexer::lexer::ILexer,
         tokens::{Token, TokenCategory, TokenValue},
     },
-    std_functions::std_functions::get_std_functions,
 };
 
 macro_rules! try_consume_token {

@@ -1,5 +1,7 @@
-pub mod alu;
+mod alu;
 pub mod interpreter;
-pub mod scope_manager;
-pub mod stack;
-pub mod value;
+mod scope_manager;
+mod stack;
+mod value;
+
+pub use value::Value;

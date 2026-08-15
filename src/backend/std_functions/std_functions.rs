@@ -15,8 +15,8 @@ use inkwell::AddressSpace;
 
 use crate::{
     backend::{
-        interpreter::value::Value,
-        llvm::{compiler::Compiler, llvm_value::LlvmValue},
+        interpreter::Value,
+        llvm::{compiler::Compiler, LlvmValue},
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},

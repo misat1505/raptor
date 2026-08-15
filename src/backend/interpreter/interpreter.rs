@@ -2,6 +2,7 @@ use std::{cell::RefCell, rc::Rc, vec};
 
 use crate::{
     backend::interpreter::{alu::ALU, stack::Stack, value::Value},
+    backend::std_functions::std_functions::StdFunction,
     common::{
         errors::{ComputationError, ErrorSeverity, IError, InterpreterError},
         position::Position,
@@ -11,7 +12,6 @@ use crate::{
     frontend::ast::{
         Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression,
     },
-    std_functions::std_functions::StdFunction,
 };
 
 #[derive(Debug, PartialEq)]

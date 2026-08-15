@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::backend::interpreter::value::Value;
+use crate::backend::interpreter::Value;
 
 #[derive(Clone, PartialEq)]
 pub enum Type {

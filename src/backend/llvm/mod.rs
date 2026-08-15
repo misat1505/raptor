@@ -1,4 +1,6 @@
 pub mod compiler;
-pub mod libc_functions;
-pub mod llvm_alu;
-pub mod llvm_value;
+mod libc_functions;
+mod llvm_alu;
+mod llvm_value;
+
+pub use llvm_value::LlvmValue;

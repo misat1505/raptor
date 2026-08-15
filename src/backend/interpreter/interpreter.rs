@@ -5,10 +5,11 @@ use crate::{
     common::{
         errors::{ComputationError, ErrorSeverity, IError, InterpreterError},
         position::Position,
+        types::Type,
         visitor::Visitor,
     },
     frontend::ast::{
-        Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type,
+        Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression,
     },
     std_functions::std_functions::StdFunction,
 };

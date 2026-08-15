@@ -1,6 +1,6 @@
-use crate::{
-    common::errors::{ErrorSeverity, SemanticCheckerError},
-    frontend::ast::Type,
+use crate::common::{
+    errors::{ErrorSeverity, SemanticCheckerError},
+    types::Type,
 };
 
 pub struct TypeALU;

@@ -16,10 +16,11 @@ use crate::{
     backend::llvm::{libc_functions::LibcFunctions, llvm_alu::LlvmAlu, llvm_value::LlvmValue},
     common::{
         errors::{CompilerError, ErrorSeverity, IError},
+        types::Type,
         visitor::Visitor,
     },
     frontend::ast::{
-        Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type,
+        Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression,
     },
 };
 

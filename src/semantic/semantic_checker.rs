@@ -4,9 +4,10 @@ use crate::{
     common::{
         errors::{ErrorSeverity, IError, SemanticCheckerError},
         position::Position,
+        types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
+    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression},
     semantic::{static_checker_stack::StaticCheckerStack, type_alu::TypeALU},
 };
 

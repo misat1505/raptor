@@ -1,4 +1,4 @@
-use crate::{common::position::Position, frontend::ast::Type};
+use crate::common::{position::Position, types::Type};
 use std::fmt::Debug;
 
 pub trait IError: Debug {

@@ -1,8 +1,8 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::{
-    common::errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
-    frontend::ast::Type,
+use crate::common::{
+    errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
+    types::Type,
 };
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,6 @@
 use crate::{
-    common::{errors::IError, position::Position},
-    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression, Type},
+    common::{errors::IError, position::Position, types::Type},
+    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression},
 };
 
 pub trait Visitor<'a> {

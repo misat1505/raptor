@@ -1,8 +1,7 @@
 use inkwell::builder::{Builder, BuilderError};
 use inkwell::{FloatPredicate, IntPredicate};
 
-use crate::common::position::Position;
-use crate::frontend::ast::Type;
+use crate::common::{position::Position, types::Type};
 use crate::{
     backend::llvm::{libc_functions::LibcFunctions, llvm_value::LlvmValue},
     common::errors::{CompilerError, ErrorSeverity, IError},

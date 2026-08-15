@@ -1,11 +1,14 @@
 use std::{collections::HashMap, rc::Rc, unreachable, vec};
 
 use crate::{
-    common::errors::{ErrorSeverity, IError, ParserError},
+    common::{
+        errors::{ErrorSeverity, IError, ParserError},
+        types::Type,
+    },
     frontend::{
         ast::{
             Argument, Block, Expression, ExternFunctionDeclaration, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement,
-            SwitchCase, SwitchExpression, Type,
+            SwitchCase, SwitchExpression,
         },
         lexer::lexer::ILexer,
         tokens::{Token, TokenCategory, TokenValue},

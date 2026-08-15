@@ -4,9 +4,9 @@ use inkwell::values::{BasicValueEnum, FloatValue, IntValue, PointerValue};
 use inkwell::AddressSpace;
 
 use crate::common::position::Position;
-use crate::{
-    common::errors::{CompilerError, ErrorSeverity, IError},
-    frontend::ast::Type,
+use crate::common::{
+    errors::{CompilerError, ErrorSeverity, IError},
+    types::Type,
 };
 
 #[derive(Debug, Clone)]

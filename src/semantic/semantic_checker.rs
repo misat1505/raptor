@@ -3,12 +3,10 @@ use std::{unreachable, vec};
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, SemanticCheckerError},
+        position::Position,
         visitor::Visitor,
     },
-    frontend::{
-        ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
-        lexer::lazy_stream_reader::Position,
-    },
+    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
     semantic::{static_checker_stack::StaticCheckerStack, type_alu::TypeALU},
 };
 
@@ -846,7 +844,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 mod tests {
     use std::{collections::HashMap, rc::Rc};
 
-    use crate::{frontend::ast::FunctionDeclaration, frontend::lexer::lazy_stream_reader::Position};
+    use crate::{common::position::Position, frontend::ast::FunctionDeclaration};
 
     use super::*;
 

@@ -5,9 +5,12 @@ use std::vec;
 use phf::phf_map;
 
 use crate::{
-    common::errors::{ErrorSeverity, IError, LexerError},
+    common::{
+        errors::{ErrorSeverity, IError, LexerError},
+        position::Position,
+    },
     frontend::{
-        lexer::lazy_stream_reader::{ILazyStreamReader, LazyStreamReader, Position, ETX},
+        lexer::lazy_stream_reader::{ILazyStreamReader, LazyStreamReader, ETX},
         tokens::{Token, TokenCategory, TokenValue},
     },
 };

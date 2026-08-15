@@ -1,6 +1,7 @@
 use std::error::Error;
-use std::fmt::Debug;
 use std::io::BufRead;
+
+use crate::common::position::Position;
 
 pub const STX: char = '\u{2}';
 pub const ETX: char = '\u{3}';
@@ -9,45 +10,6 @@ pub trait ILazyStreamReader {
     fn current(&self) -> &char;
     fn next(&mut self) -> Result<&char, Box<dyn Error>>;
     fn position(&self) -> Position;
-}
-
-#[derive(PartialEq, Eq, Clone, Copy)]
-pub struct Position {
-    pub line: u32,
-    pub column: u32,
-    pub offset: usize,
-    pub filename: Option<&'static str>,
-}
-
-impl Debug for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Ok(write!(
-            f,
-            "{}{}:{}",
-            match self.filename {
-                Some(filename) => format!("{}:", filename),
-                None => String::new(),
-            },
-            self.line,
-            self.column
-        )?)
-    }
-}
-
-impl Position {
-    pub fn new(line: u32, column: u32, offset: usize, filename: Option<&'static str>) -> Self {
-        Position {
-            line,
-            column,
-            offset,
-            filename,
-        }
-    }
-
-    pub fn location(&self) -> String {
-        let file = self.filename.unwrap_or("<input>");
-        return format!("{}:{}:{}", file, self.line, self.column);
-    }
 }
 
 pub struct LazyStreamReader<R: BufRead> {

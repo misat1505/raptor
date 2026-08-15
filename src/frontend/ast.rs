@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, rc::Rc};
 
-use crate::{backend::interpreter::value::Value, frontend::lexer::lazy_stream_reader::Position, std_functions::std_functions::StdFunction};
+use crate::{backend::interpreter::value::Value, common::position::Position, std_functions::std_functions::StdFunction};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node<T> {

@@ -20,12 +20,10 @@ use crate::{
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        position::Position,
         visitor::Visitor,
     },
-    frontend::{
-        ast::{Argument, Expression, Node, PassedBy, Type},
-        lexer::lazy_stream_reader::Position,
-    },
+    frontend::ast::{Argument, Expression, Node, PassedBy, Type},
 };
 
 pub type LlvmCompileFn = for<'a, 'ctx> fn(&mut Compiler<'a, 'ctx>, &'a Vec<Box<Node<Argument>>>, Position) -> Result<(), Box<dyn IError>>;

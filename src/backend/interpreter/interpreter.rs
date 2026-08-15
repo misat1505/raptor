@@ -4,14 +4,11 @@ use crate::{
     backend::interpreter::{alu::ALU, stack::Stack, value::Value},
     common::{
         errors::{ComputationError, ErrorSeverity, IError, InterpreterError},
+        position::Position,
         visitor::Visitor,
     },
-    frontend::{
-        ast::{
-            Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression,
-            Type,
-        },
-        lexer::lazy_stream_reader::Position,
+    frontend::ast::{
+        Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type,
     },
     std_functions::std_functions::StdFunction,
 };

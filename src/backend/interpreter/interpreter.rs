@@ -688,7 +688,7 @@ impl<'a> Interpreter<'a> {
             let param_name = &parameter.value.identifier.value;
             let value = &self.last_arguments[idx];
 
-            if type_accepts_value(desired_type, &value.borrow()) {
+            if !type_accepts_value(desired_type, &value.borrow()) {
                 self.stack.pop_stack_frame();
 
                 return Err(Box::new(InterpreterError::expected_found(

@@ -1216,9 +1216,9 @@ impl<L: ILexer> Parser<L> {
 mod tests {
     use std::{assert_eq, vec};
 
-    use crate::{
-        common::errors::{ErrorSeverity, LexerError},
-        frontend::lexer::lazy_stream_reader::Position,
+    use crate::common::{
+        errors::{ErrorSeverity, LexerError},
+        position::Position,
     };
 
     use super::*;

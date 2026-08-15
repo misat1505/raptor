@@ -67,7 +67,14 @@ impl<L: ILexer> IParser<L> for Parser<L> {
                 }
                 functions.insert(function_name, Rc::new(function_declaration));
             } else if let Some(function_declaration) = self.parse_extern_function_declaration()? {
-                let function_name = function_declaration.value.identifier.value.clone();
+                let function_name = function_declaration
+                    .value
+                    .alias
+                    .as_ref()
+                    .unwrap_or(&function_declaration.value.identifier)
+                    .value
+                    .clone();
+
                 if functions.contains_key(&function_name)
                     || std_functions.contains_key(&function_name)
                     || extern_functions.contains_key(&function_name)
@@ -77,6 +84,7 @@ impl<L: ILexer> IParser<L> for Parser<L> {
                         format!("Redeclaration of function '{}'.\nAt: {:?}.", function_name, function_declaration.position),
                     )));
                 }
+
                 extern_functions.insert(function_name, Rc::new(function_declaration));
             } else {
                 break;
@@ -209,7 +217,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_extern_function_declaration(&mut self) -> Result<Option<Node<ExternFunctionDeclaration>>, Box<dyn IError>> {
-        // function_declaration = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", ";";
+        // function_declaration = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
         let extern_token = try_consume_token!(self, TokenCategory::Extern);
         let _ = self.consume_must_be(TokenCategory::Fn)?;
 
@@ -226,6 +234,15 @@ impl<L: ILexer> Parser<L> {
             _ => self.void_type_or_error()?,
         };
 
+        let alias = if self.consume_if_matches(TokenCategory::As)?.is_some() {
+            Some(
+                self.parse_identifier()?
+                    .ok_or_else(|| self.create_parser_error(String::from("Expected identifier after 'as' in extern function declaration.")))?,
+            )
+        } else {
+            None
+        };
+
         let _ = self.consume_must_be(TokenCategory::Semicolon)?;
 
         let node = Node {
@@ -233,6 +250,7 @@ impl<L: ILexer> Parser<L> {
                 identifier,
                 parameters,
                 return_type,
+                alias,
             },
             position: extern_token.position,
         };

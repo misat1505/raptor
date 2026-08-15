@@ -192,8 +192,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
             };
 
-            let function = self.module.add_function(name, fn_type, None);
+            // Symbol LLVM musi być prawdziwą nazwą funkcji w bibliotece C (np. "InitWindow"),
+            // niezależnie od tego, jak program się do niej odwołuje w kodzie źródłowym (alias, np. "init_window").
+            let symbol_name = function_decl.identifier.value.as_str();
 
+            let function = self.module.add_function(symbol_name, fn_type, None);
+
+            // Klucz w mapie `functions` to `name` z `program.extern_functions`, czyli już
+            // alias.unwrap_or(identifier) — dokładnie to, po czym `build_function_call`
+            // będzie szukać tej funkcji, gdy user napisze `init_window(...)` w kodzie.
             self.functions.insert(name.clone(), function);
         }
 

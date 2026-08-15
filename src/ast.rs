@@ -193,6 +193,7 @@ pub struct FunctionDeclaration {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExternFunctionDeclaration {
     pub identifier: Node<String>,
+    pub alias: Option<Node<String>>,
     pub parameters: Vec<Node<Parameter>>,
     pub return_type: Node<Type>,
 }

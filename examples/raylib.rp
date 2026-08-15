@@ -19,36 +19,34 @@
 #   b = 255
 #   a = 0
 #
-#   ClearBackground(a * 256^3 + b * 256^2 + g * 256 + r)
+#   clear_background(a * 256^3 + b * 256^2 + g * 256 + r)
 #
 # Build and run:
 #
-# cargo run -- --compile --run -O3 \
-#   --link <path_to_libraylib.a> \
-#   --link -lm \
-#   --link -lX11 \
-#   examples/raylib.rp
+# cargo run -- --compile --run -O3 --link <path_to_libraylib.a> --link -lm --link -lX11 examples/raylib.rp
 
-extern fn InitWindow(i64 x, i64 y, str name): void;
-extern fn WindowShouldClose(): bool;
-extern fn BeginDrawing(): void;
-extern fn EndDrawing(): void;
+extern fn InitWindow(i64 x, i64 y, str name): void as init_window;
+extern fn WindowShouldClose(): bool as window_should_close;
+extern fn BeginDrawing(): void as begin_drawing;
+extern fn ClearBackground(i64 color): void as clear_background;
+extern fn EndDrawing(): void as end_drawing;
+
+# aliases are optional - you can use original name
 extern fn CloseWindow(): void;
-extern fn ClearBackground(i64 color): void;
 
-InitWindow(800, 600, "Raylib from Raptor");
+init_window(800, 600, "Raylib from Raptor");
 
-while (!WindowShouldClose()) {
-    BeginDrawing();
+while (!window_should_close()) {
+    begin_drawing();
 
     i64 r = 0;
     i64 g = 0;
     i64 b = 255;
     i64 a = 0;
 
-    ClearBackground(a * 256 * 256 * 256 + b * 256 * 256 + g * 256 + r);
+    clear_background(a * 256 * 256 * 256 + b * 256 * 256 + g * 256 + r);
 
-    EndDrawing();
+    end_drawing();
 }
 
 CloseWindow();

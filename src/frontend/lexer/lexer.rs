@@ -4,9 +4,13 @@ use std::vec;
 
 use phf::phf_map;
 
-use crate::errors::{ErrorSeverity, IError, LexerError};
-use crate::lazy_stream_reader::{ILazyStreamReader, LazyStreamReader, Position, ETX};
-use crate::tokens::{Token, TokenCategory, TokenValue};
+use crate::{
+    common::errors::{ErrorSeverity, IError, LexerError},
+    frontend::{
+        lexer::lazy_stream_reader::{ILazyStreamReader, LazyStreamReader, Position, ETX},
+        tokens::{Token, TokenCategory, TokenValue},
+    },
+};
 
 pub struct LexerOptions {
     pub max_comment_length: u32,

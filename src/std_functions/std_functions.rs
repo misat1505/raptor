@@ -14,13 +14,18 @@ use std::{
 use inkwell::AddressSpace;
 
 use crate::{
-    ast::{Argument, Node, PassedBy, Type},
-    compiler::Compiler,
-    errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
-    lazy_stream_reader::Position,
-    llvm_value::LlvmValue,
-    value::Value,
-    visitor::Visitor,
+    backend::{
+        interpreter::value::Value,
+        llvm::{compiler::Compiler, llvm_value::LlvmValue},
+    },
+    common::{
+        errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        visitor::Visitor,
+    },
+    frontend::{
+        ast::{Argument, Expression, Node, PassedBy, Type},
+        lexer::lazy_stream_reader::Position,
+    },
 };
 
 pub type LlvmCompileFn = for<'a, 'ctx> fn(&mut Compiler<'a, 'ctx>, &'a Vec<Box<Node<Argument>>>, Position) -> Result<(), Box<dyn IError>>;
@@ -864,7 +869,7 @@ impl StdFunction {
             let value_arg = arguments.get(1).ok_or_else(err_arity)?;
 
             let variable_name = match &vector_arg.value.value.value {
-                crate::ast::Expression::Variable(name) => name.clone(),
+                Expression::Variable(name) => name.clone(),
                 other => {
                     return Err(Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,

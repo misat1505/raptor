@@ -3,9 +3,11 @@ use inkwell::types::{BasicTypeEnum, IntType, StructType};
 use inkwell::values::{BasicValueEnum, FloatValue, IntValue, PointerValue};
 use inkwell::AddressSpace;
 
-use crate::ast::Type;
-use crate::errors::{CompilerError, ErrorSeverity, IError};
-use crate::lazy_stream_reader::Position;
+use crate::{
+    common::errors::{CompilerError, ErrorSeverity, IError},
+    frontend::ast::Type,
+    frontend::lexer::lazy_stream_reader::Position,
+};
 
 #[derive(Debug, Clone)]
 pub enum LlvmValue<'ctx> {

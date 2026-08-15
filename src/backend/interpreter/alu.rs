@@ -1,7 +1,7 @@
 use crate::{
-    ast::Type,
-    errors::{ComputationError, ErrorSeverity},
-    value::Value,
+    backend::interpreter::value::Value,
+    common::errors::{ComputationError, ErrorSeverity},
+    frontend::ast::Type,
 };
 
 pub struct ALU;

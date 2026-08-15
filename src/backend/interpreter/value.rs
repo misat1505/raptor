@@ -1,8 +1,8 @@
 use std::{cell::RefCell, rc::Rc, vec};
 
 use crate::{
-    ast::Type,
-    errors::{ComputationError, ErrorSeverity},
+    common::errors::{ComputationError, ErrorSeverity},
+    frontend::ast::Type,
 };
 
 #[derive(Debug, Clone, PartialEq)]

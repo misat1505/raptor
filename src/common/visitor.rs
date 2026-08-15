@@ -1,7 +1,9 @@
 use crate::{
-    ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression, Type},
-    errors::IError,
-    lazy_stream_reader::Position,
+    common::errors::IError,
+    frontend::{
+        ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression, Type},
+        lexer::lazy_stream_reader::Position,
+    },
 };
 
 pub trait Visitor<'a> {

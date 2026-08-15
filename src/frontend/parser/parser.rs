@@ -1,14 +1,16 @@
 use std::{collections::HashMap, rc::Rc, unreachable, vec};
 
 use crate::{
-    ast::{
-        Argument, Block, Expression, ExternFunctionDeclaration, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement,
-        SwitchCase, SwitchExpression, Type,
+    common::errors::{ErrorSeverity, IError, ParserError},
+    frontend::{
+        ast::{
+            Argument, Block, Expression, ExternFunctionDeclaration, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement,
+            SwitchCase, SwitchExpression, Type,
+        },
+        lexer::lexer::ILexer,
+        tokens::{Token, TokenCategory, TokenValue},
     },
-    errors::{ErrorSeverity, IError, ParserError},
-    lexer::ILexer,
-    std_functions::get_std_functions,
-    tokens::{Token, TokenCategory, TokenValue},
+    std_functions::std_functions::get_std_functions,
 };
 
 macro_rules! try_consume_token {

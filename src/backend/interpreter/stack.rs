@@ -1,9 +1,8 @@
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::{
-    errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
-    scope_manager::ScopeManager,
-    value::Value,
+    backend::interpreter::{scope_manager::ScopeManager, value::Value},
+    common::errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
 };
 
 #[derive(Debug, Clone)]

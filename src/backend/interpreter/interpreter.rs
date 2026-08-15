@@ -1,16 +1,19 @@
 use std::{cell::RefCell, rc::Rc, vec};
 
 use crate::{
-    alu::ALU,
-    ast::{
-        Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type,
+    backend::interpreter::{alu::ALU, stack::Stack, value::Value},
+    common::{
+        errors::{ComputationError, ErrorSeverity, IError, InterpreterError},
+        visitor::Visitor,
     },
-    errors::{ComputationError, ErrorSeverity, IError, InterpreterError},
-    lazy_stream_reader::Position,
-    stack::Stack,
-    std_functions::StdFunction,
-    value::Value,
-    visitor::Visitor,
+    frontend::{
+        ast::{
+            Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression,
+            Type,
+        },
+        lexer::lazy_stream_reader::Position,
+    },
+    std_functions::std_functions::StdFunction,
 };
 
 #[derive(Debug, PartialEq)]

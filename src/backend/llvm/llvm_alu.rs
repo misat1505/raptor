@@ -1,11 +1,11 @@
 use inkwell::builder::{Builder, BuilderError};
 use inkwell::{FloatPredicate, IntPredicate};
 
-use crate::libc_functions::LibcFunctions;
+use crate::frontend::ast::Type;
 use crate::{
-    errors::{CompilerError, ErrorSeverity, IError},
-    lazy_stream_reader::Position,
-    llvm_value::LlvmValue,
+    backend::llvm::{libc_functions::LibcFunctions, llvm_value::LlvmValue},
+    common::errors::{CompilerError, ErrorSeverity, IError},
+    frontend::lexer::lazy_stream_reader::Position,
 };
 
 pub struct LlvmAlu;
@@ -403,11 +403,9 @@ impl LlvmAlu {
         builder: &Builder<'ctx>,
         libc: &LibcFunctions<'ctx>,
         value: LlvmValue<'ctx>,
-        to_type: &crate::ast::Type,
+        to_type: &Type,
         position: Position,
     ) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
-        use crate::ast::Type;
-
         match (value, to_type) {
             (LlvmValue::I64(v), Type::Str) => Self::int_to_str(builder, libc, v, position),
             (LlvmValue::F64(v), Type::Str) => Self::float_to_str(builder, libc, v, position),

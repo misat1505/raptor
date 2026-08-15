@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::lazy_stream_reader::Position;
+use crate::frontend::lexer::lazy_stream_reader::Position;
 
 #[derive(PartialEq, Clone)]
 pub enum TokenCategory {

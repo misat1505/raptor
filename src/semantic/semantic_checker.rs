@@ -1,12 +1,15 @@
 use std::{unreachable, vec};
 
 use crate::{
-    ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
-    errors::{ErrorSeverity, IError, SemanticCheckerError},
-    lazy_stream_reader::Position,
-    static_checker_stack::StaticCheckerStack,
-    type_alu::TypeALU,
-    visitor::Visitor,
+    common::{
+        errors::{ErrorSeverity, IError, SemanticCheckerError},
+        visitor::Visitor,
+    },
+    frontend::{
+        ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type},
+        lexer::lazy_stream_reader::Position,
+    },
+    semantic::{static_checker_stack::StaticCheckerStack, type_alu::TypeALU},
 };
 
 enum FunctionCallType<'a> {

@@ -1,8 +1,8 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    errors::{ErrorSeverity, ScopeManagerError},
-    value::Value,
+    backend::interpreter::value::Value,
+    common::errors::{ErrorSeverity, ScopeManagerError},
 };
 
 #[derive(Debug, Clone)]

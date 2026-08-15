@@ -1,4 +1,4 @@
-use crate::{ast::Type, lazy_stream_reader::Position};
+use crate::{frontend::ast::Type, frontend::lexer::lazy_stream_reader::Position};
 use std::fmt::Debug;
 
 pub trait IError: Debug {

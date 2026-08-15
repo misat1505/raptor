@@ -11,15 +11,19 @@ use inkwell::types::{BasicMetadataTypeEnum, BasicType, FloatType, IntType};
 use inkwell::values::{BasicMetadataValueEnum, FunctionValue, IntValue, PointerValue};
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 
-use crate::ast::{FunctionDeclaration, PassedBy};
-use crate::libc_functions::LibcFunctions;
-use crate::llvm_alu::LlvmAlu;
-use crate::llvm_value::LlvmValue;
 use crate::{
-    ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression, Type},
-    errors::{CompilerError, ErrorSeverity, IError},
-    lazy_stream_reader::Position,
-    visitor::Visitor,
+    backend::llvm::{libc_functions::LibcFunctions, llvm_alu::LlvmAlu, llvm_value::LlvmValue},
+    common::{
+        errors::{CompilerError, ErrorSeverity, IError},
+        visitor::Visitor,
+    },
+    frontend::{
+        ast::{
+            Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression,
+            Type,
+        },
+        lexer::lazy_stream_reader::Position,
+    },
 };
 
 #[derive(Clone, Copy)]

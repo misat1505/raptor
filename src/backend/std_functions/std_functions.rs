@@ -2,10 +2,9 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     fs::{self, OpenOptions},
-    io::{self, Read, Write},
+    io::{Read, Write},
     net::{TcpListener, TcpStream},
     path::Path,
-    println,
     rc::Rc,
     sync::Mutex,
     thread, time, vec,
@@ -17,6 +16,7 @@ use crate::{
     backend::{
         interpreter::Value,
         llvm::{compiler::Compiler, LlvmValue},
+        std_functions::io::{input::input, print::print, println::println},
         type_utils::type_accepts_value,
     },
     common::{
@@ -46,11 +46,11 @@ impl PartialEq for StdFunction {
     }
 }
 
-fn format_types(types: &[Type]) -> String {
+pub fn format_types(types: &[Type]) -> String {
     types.iter().map(|t| format!("{:?}", t)).collect::<Vec<String>>().join(", ")
 }
 
-fn build_usage_error(fn_name: &str, expected_types: Vec<Type>, actual_types: Vec<Type>) -> StdFunctionError {
+pub fn build_usage_error(fn_name: &str, expected_types: Vec<Type>, actual_types: Vec<Type>) -> StdFunctionError {
     let message = format!(
         "\nInvalid usage of built-in function '{}'.\nExpected signature: {}({})\nProvided types: {}({})",
         fn_name,
@@ -156,239 +156,6 @@ impl StdFunction {
         compiler.builder().build_call(fclose_fn, &[file.into()], "fclose.call").map_err(err)?;
 
         Ok(())
-    }
-
-    fn print() -> Self {
-        let params = vec![Type::Str];
-        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
-            let fn_name = "write_file";
-            let expected_types = vec![Type::Str];
-            let mut actual_types: Vec<Type> = vec![];
-            if let Some(value) = params.get(0) {
-                actual_types.push(value.borrow().to_type());
-                let value = value.borrow();
-                match &*value {
-                    Value::String(text) => {
-                        print!("{}", text);
-                        Ok(None)
-                    }
-                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
-                }
-            } else {
-                Err(build_usage_error(fn_name, expected_types, actual_types))
-            }
-        };
-
-        let compile: LlvmCompileFn = |compiler, arguments, position| {
-            let arg = arguments.get(0).ok_or_else(|| {
-                Box::new(CompilerError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("'print' expects exactly one argument."),
-                    position,
-                )) as Box<dyn IError>
-            })?;
-
-            compiler.visit_expression(&arg.value.value)?;
-            let text_value = compiler.read_last_value()?;
-
-            let printf_fn = compiler.libc().printf_fn;
-
-            let format_str = compiler
-                .builder()
-                .build_global_string_ptr("%s", "fmt")
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
-
-            compiler
-                .builder()
-                .build_call(
-                    printf_fn,
-                    &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
-                    "printf_call",
-                )
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
-
-            Ok(())
-        };
-
-        StdFunction {
-            params,
-            execute,
-            passed_by: vec![PassedBy::Value],
-            return_type: Type::Void,
-            type_check: None,
-            compile,
-        }
-    }
-
-    fn println() -> Self {
-        let params = vec![Type::Str];
-        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
-            let fn_name = "println";
-            let expected_types = vec![Type::Str];
-            let mut actual_types: Vec<Type> = vec![];
-            if let Some(value) = params.get(0) {
-                actual_types.push(value.borrow().to_type());
-                let value = value.borrow();
-                match &*value {
-                    Value::String(text) => {
-                        println!("{}", text);
-                        Ok(None)
-                    }
-                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
-                }
-            } else {
-                Err(build_usage_error(fn_name, expected_types, actual_types))
-            }
-        };
-
-        let compile: LlvmCompileFn = |compiler, arguments, position| {
-            let arg = arguments.get(0).ok_or_else(|| {
-                Box::new(CompilerError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("'println' expects exactly one argument."),
-                    position,
-                )) as Box<dyn IError>
-            })?;
-
-            compiler.visit_expression(&arg.value.value)?;
-            let text_value = compiler.read_last_value()?;
-
-            let printf_fn = compiler.libc().printf_fn;
-
-            let format_str = compiler
-                .builder()
-                .build_global_string_ptr("%s\n", "fmt")
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
-
-            compiler
-                .builder()
-                .build_call(
-                    printf_fn,
-                    &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
-                    "printf_call",
-                )
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
-
-            Ok(())
-        };
-
-        StdFunction {
-            params,
-            execute,
-            passed_by: vec![PassedBy::Value],
-            return_type: Type::Void,
-            type_check: None,
-            compile,
-        }
-    }
-
-    fn input() -> Self {
-        let params = vec![Type::Str];
-        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
-            let fn_name = "input";
-            let expected_types = vec![Type::Str];
-            let mut actual_types: Vec<Type> = vec![];
-            if let Some(value) = params.get(0) {
-                actual_types.push(value.borrow().to_type());
-                let value = value.borrow();
-                match &*value {
-                    Value::String(prompt) => {
-                        print!("{}", prompt);
-                        io::stdout().flush().unwrap();
-                        let mut input = String::new();
-                        match io::stdin().read_line(&mut input) {
-                            Ok(_) => Ok(Some(Value::String(input.trim().to_string()))),
-                            Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to read input."))),
-                        }
-                    }
-                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
-                }
-            } else {
-                Err(build_usage_error(fn_name, expected_types, actual_types))
-            }
-        };
-
-        let compile: LlvmCompileFn = |compiler, arguments, position| {
-            let err =
-                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
-
-            let arg = arguments.get(0).ok_or_else(|| {
-                Box::new(CompilerError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("'input' expects exactly one argument."),
-                    position,
-                )) as Box<dyn IError>
-            })?;
-
-            compiler.visit_expression(&arg.value.value)?;
-            let prompt_ptr = compiler.read_last_value()?.into_str_value(position)?;
-
-            let format_str = compiler
-                .builder()
-                .build_global_string_ptr("%s", "fmt.prompt")
-                .map_err(err)?
-                .as_pointer_value();
-            let printf_fn = compiler.libc().printf_fn;
-            compiler
-                .builder()
-                .build_call(printf_fn, &[format_str.into(), prompt_ptr.into()], "printf.prompt")
-                .map_err(err)?;
-
-            let context = compiler.context();
-            let i64_type = context.i64_type();
-            let i32_type = context.i32_type();
-            let buf_size = 4096u64;
-
-            let malloc_fn = compiler.libc().malloc_fn;
-            let buf = compiler
-                .builder()
-                .build_call(malloc_fn, &[i64_type.const_int(buf_size, false).into()], "input.buf")
-                .map_err(err)?
-                .try_as_basic_value()
-                .basic()
-                .expect("malloc should return a value")
-                .into_pointer_value();
-
-            // read(fd=0, buf, buf_size - 1)
-            let read_fn = compiler.libc().read_fn;
-            let n = compiler
-                .builder()
-                .build_call(
-                    read_fn,
-                    &[
-                        i32_type.const_int(0, false).into(),
-                        buf.into(),
-                        i64_type.const_int(buf_size - 1, false).into(),
-                    ],
-                    "read.call",
-                )
-                .map_err(err)?
-                .try_as_basic_value()
-                .basic()
-                .expect("read should return a value")
-                .into_int_value();
-
-            let n_clamped = compiler.builder().build_call(compiler.libc().strlen_fn, &[buf.into()], "unused");
-            let _ = n_clamped;
-
-            let end_ptr = unsafe { compiler.builder().build_gep(context.i8_type(), buf, &[n], "input.end").map_err(err)? };
-            compiler
-                .builder()
-                .build_store(end_ptr, context.i8_type().const_int(0, false))
-                .map_err(err)?;
-
-            compiler.set_last_value(LlvmValue::Str(buf));
-            Ok(())
-        };
-
-        StdFunction {
-            params,
-            execute,
-            passed_by: vec![PassedBy::Value],
-            return_type: Type::Str,
-            type_check: None,
-            compile,
-        }
     }
 
     fn read_file() -> Self {
@@ -1818,9 +1585,9 @@ impl StdFunction {
 
 pub fn get_std_functions() -> HashMap<String, StdFunction> {
     let mut std_functions: HashMap<String, StdFunction> = HashMap::new();
-    std_functions.insert("print".to_owned(), StdFunction::print());
-    std_functions.insert("println".to_owned(), StdFunction::println());
-    std_functions.insert("input".to_owned(), StdFunction::input());
+    std_functions.insert("print".to_owned(), print());
+    std_functions.insert("println".to_owned(), println());
+    std_functions.insert("input".to_owned(), input());
     std_functions.insert("read_file".to_owned(), StdFunction::read_file());
     std_functions.insert("write_file".to_owned(), StdFunction::write_file());
     std_functions.insert("append_file".to_owned(), StdFunction::append_file());

@@ -1,0 +1,97 @@
+use std::{cell::RefCell, rc::Rc, vec};
+
+use crate::{
+    backend::{
+        interpreter::Value,
+        llvm::LlvmValue,
+        std_functions::std_functions::{build_usage_error, LlvmCompileFn, StdFunction},
+    },
+    common::{
+        errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        types::Type,
+        visitor::Visitor,
+    },
+    frontend::ast::PassedBy,
+};
+
+fn stringify_value(value: &Value) -> String {
+    match value {
+        Value::I64(v) => v.to_string(),
+        Value::F64(v) => v.to_string(),
+        Value::String(v) => format!("\"{}\"", v),
+        Value::Bool(v) => v.to_string(),
+        Value::Vector { values, .. } => {
+            let values = values.borrow().iter().map(|v| stringify_value(&v.borrow())).collect::<Vec<String>>();
+
+            return format!("[{}]", values.join(", "));
+        }
+    }
+}
+
+pub fn vector_stringify() -> StdFunction {
+    let params = vec![Type::Vector(Box::new(Type::Void))];
+    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+        let fn_name = "vector_stringify";
+        let expected_types = vec![Type::Vector(Box::new(Type::Void))];
+        let mut actual_types: Vec<Type> = vec![];
+
+        if let Some(vector) = params.get(0) {
+            actual_types.push(vector.borrow().to_type());
+
+            let vector = vector.borrow();
+
+            match &*vector {
+                Value::Vector { .. } => {
+                    return Ok(Some(Value::String(stringify_value(&vector))));
+                }
+                _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+            }
+        } else {
+            Err(build_usage_error(fn_name, expected_types, actual_types))
+        }
+    };
+
+    let type_check: fn(&[Type]) -> Result<Type, String> = |arg_types: &[Type]| match arg_types {
+        [Type::Vector(_)] => Ok(Type::Str),
+        [other] => Err(format!("vector_stringify expected a vector, but got '{:?}'.", other)),
+        _ => Err(String::from("vector_stringify expects exactly 1 argument.")),
+    };
+
+    let compile: LlvmCompileFn = |compiler, arguments, position| {
+        let vector_arg = arguments.get(0).ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                String::from("'vector_stringify' expects exactly one argument."),
+                position,
+            )) as Box<dyn IError>
+        })?;
+
+        compiler.visit_expression(&vector_arg.value.value)?;
+        let vector_value = compiler.read_last_value()?;
+
+        let (vector_ptr, inner_type) = match vector_value {
+            LlvmValue::Vector(ptr, inner) => (ptr, *inner),
+            other => {
+                return Err(Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("'vector_stringify' expects a vector, got '{:?}'.", other.to_type()),
+                    position,
+                )))
+            }
+        };
+
+        let result = compiler.build_vector_to_string(vector_ptr, &inner_type, position)?;
+        compiler.set_last_value(LlvmValue::Str(result));
+
+        Ok(())
+    };
+
+    StdFunction {
+        params,
+        execute,
+        passed_by: vec![PassedBy::Value],
+        return_type: Type::Str,
+        type_check: Some(type_check),
+        compile,
+    }
+}

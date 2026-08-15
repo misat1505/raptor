@@ -1,4 +1,7 @@
 mod files;
 mod io;
-pub mod std_functions;
+mod strings;
+mod time;
 mod vectors;
+
+pub mod std_functions;

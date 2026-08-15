@@ -5,7 +5,7 @@ use std::{
     net::{TcpListener, TcpStream},
     rc::Rc,
     sync::Mutex,
-    thread, time, vec,
+    vec,
 };
 
 use inkwell::AddressSpace;
@@ -17,6 +17,8 @@ use crate::{
         std_functions::{
             files::{append_file::append_file, delete_file::delete_file, exists_file::exists_file, read_file::read_file, write_file::write_file},
             io::{input::input, print::print, println::println},
+            strings::str_len::str_len,
+            time::sleep_ms::sleep_ms,
             vectors::{vector_push::vector_push, vector_size::vector_size, vector_stringify::vector_stringify},
         },
     },
@@ -74,81 +76,6 @@ fn next_handle() -> i64 {
 }
 
 impl StdFunction {
-    fn sleep_ms() -> Self {
-        let params = vec![Type::I64];
-
-        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
-            let fn_name = "vector_size";
-            let expected_types = vec![Type::I64];
-
-            let mut actual_types: Vec<Type> = vec![];
-
-            if let Some(millis) = params.get(0) {
-                actual_types.push(millis.borrow().to_type());
-
-                let millis = millis.borrow();
-
-                match &*millis {
-                    Value::I64(ms) => {
-                        let duration = time::Duration::from_millis(*ms as u64);
-                        thread::sleep(duration);
-                        Ok(None)
-                    }
-
-                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
-                }
-            } else {
-                Err(build_usage_error(fn_name, expected_types, actual_types))
-            }
-        };
-
-        let compile: LlvmCompileFn = |compiler, arguments, position| {
-            let err =
-                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
-
-            let arg = arguments.get(0).ok_or_else(|| {
-                Box::new(CompilerError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("'sleep_ms' expects exactly one argument."),
-                    position,
-                )) as Box<dyn IError>
-            })?;
-
-            compiler.visit_expression(&arg.value.value)?;
-            let ms_value = compiler.read_last_value()?.into_i64_value(position)?;
-
-            let context = compiler.context();
-            let i32_type = context.i32_type();
-
-            let i64_type = context.i64_type();
-            let micros_i64 = compiler
-                .builder()
-                .build_int_mul(ms_value, i64_type.const_int(1000, false), "sleep.micros")
-                .map_err(err)?;
-            let micros_i32 = compiler
-                .builder()
-                .build_int_truncate(micros_i64, i32_type, "sleep.micros.i32")
-                .map_err(err)?;
-
-            let usleep_fn = compiler.libc().usleep_fn;
-            compiler
-                .builder()
-                .build_call(usleep_fn, &[micros_i32.into()], "usleep.call")
-                .map_err(err)?;
-
-            Ok(())
-        };
-
-        StdFunction {
-            params,
-            passed_by: vec![PassedBy::Value],
-            execute,
-            return_type: Type::Void,
-            type_check: None,
-            compile,
-        }
-    }
-
     fn tcp_listen() -> Self {
         let params = vec![Type::I64];
 
@@ -678,79 +605,6 @@ impl StdFunction {
             compile,
         }
     }
-
-    fn str_len() -> Self {
-        let params = vec![Type::Str];
-
-        let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
-            let fn_name = "str_len";
-            let expected_types = vec![Type::Str];
-
-            let mut actual_types: Vec<Type> = vec![];
-
-            if let Some(text) = params.get(0) {
-                actual_types.push(text.borrow().to_type());
-
-                let text = text.borrow();
-
-                match &*text {
-                    Value::String(s) => Ok(Some(Value::I64(s.chars().count() as i64))),
-                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
-                }
-            } else {
-                Err(build_usage_error(fn_name, expected_types, actual_types))
-            }
-        };
-
-        let compile: LlvmCompileFn = |compiler, arguments, position| {
-            let err =
-                |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
-
-            let arg = arguments.get(0).ok_or_else(|| {
-                Box::new(CompilerError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("'str_len' expects exactly one argument."),
-                    position,
-                )) as Box<dyn IError>
-            })?;
-
-            compiler.visit_expression(&arg.value.value)?;
-            let str_value = compiler.read_last_value()?;
-
-            let str_ptr = match str_value {
-                LlvmValue::Str(ptr) => ptr,
-                other => {
-                    return Err(Box::new(CompilerError::at(
-                        ErrorSeverity::HIGH,
-                        format!("'str_len' expects a string, got '{:?}'.", other.to_type()),
-                        position,
-                    )))
-                }
-            };
-
-            let strlen_fn = compiler.libc().strlen_fn;
-            let length = compiler
-                .builder()
-                .build_call(strlen_fn, &[str_ptr.into()], "str.len")
-                .map_err(err)?
-                .try_as_basic_value()
-                .basic()
-                .expect("strlen should return a value")
-                .into_int_value();
-
-            compiler.set_last_value(LlvmValue::I64(length));
-            Ok(())
-        };
-
-        StdFunction {
-            params,
-            passed_by: vec![PassedBy::Value],
-            execute,
-            return_type: Type::I64,
-            type_check: None,
-            compile,
-        }
-    }
 }
 
 pub fn get_std_functions() -> HashMap<String, StdFunction> {
@@ -766,12 +620,12 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
     std_functions.insert("vector_stringify".to_owned(), vector_stringify());
     std_functions.insert("vector_push".to_owned(), vector_push());
     std_functions.insert("vector_size".to_owned(), vector_size());
-    std_functions.insert("sleep_ms".to_owned(), StdFunction::sleep_ms());
+    std_functions.insert("sleep_ms".to_owned(), sleep_ms());
     std_functions.insert("tcp_accept".to_owned(), StdFunction::tcp_accept());
     std_functions.insert("tcp_close".to_owned(), StdFunction::tcp_close());
     std_functions.insert("tcp_listen".to_owned(), StdFunction::tcp_listen());
     std_functions.insert("tcp_read".to_owned(), StdFunction::tcp_read());
     std_functions.insert("tcp_write".to_owned(), StdFunction::tcp_write());
-    std_functions.insert("str_len".to_owned(), StdFunction::str_len());
+    std_functions.insert("str_len".to_owned(), str_len());
     std_functions
 }

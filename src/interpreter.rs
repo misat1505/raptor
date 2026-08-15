@@ -47,6 +47,14 @@ impl<'a> Interpreter<'a> {
     }
 
     pub fn interpret(&mut self) -> Result<(), Box<dyn IError>> {
+        if let Some((name, function)) = self.program.extern_functions.iter().next() {
+            return Err(Box::new(InterpreterError::at(
+                ErrorSeverity::HIGH,
+                format!("Extern function `{}` cannot be used in interpretation mode.", name),
+                function.position,
+            )));
+        }
+
         self.visit_program(self.program)
     }
 
@@ -977,6 +985,7 @@ mod tests {
             statements: vec![],
             functions: HashMap::new(),
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         }
     }
 
@@ -1660,6 +1669,7 @@ mod tests {
             statements: vec![],
             std_functions: HashMap::new(),
             functions,
+            extern_functions: HashMap::new(),
         };
         let mut interpreter = Interpreter::new(&program);
         assert!(interpreter.visit_statement(&ast).is_ok());
@@ -1802,6 +1812,7 @@ mod tests {
                 if_block: test_node!(Block(vec![test_node!(Statement::Break),])),
                 else_block: None,
             })],
+            extern_functions: HashMap::new(),
         };
 
         let mut interpreter = Interpreter::new(&program);
@@ -1833,6 +1844,7 @@ mod tests {
                 if_block: test_node!(Block(vec![test_node!(Statement::Return(None)),])),
                 else_block: None,
             })],
+            extern_functions: HashMap::new(),
         };
 
         let mut interpreter = Interpreter::new(&program);
@@ -1984,6 +1996,7 @@ mod tests {
                 if_block: test_node!(Block(vec![test_node!(Statement::Continue),])),
                 else_block: None,
             })],
+            extern_functions: HashMap::new(),
         };
 
         let mut interpreter = Interpreter::new(&program);
@@ -2169,6 +2182,7 @@ mod tests {
             statements: vec![],
             std_functions: HashMap::new(),
             functions,
+            extern_functions: HashMap::new(),
         };
         let mut interpreter = Interpreter::new(&program);
         assert!(interpreter.visit_statement(&ast).is_err());
@@ -2212,6 +2226,7 @@ mod tests {
             statements: vec![],
             std_functions: HashMap::new(),
             functions,
+            extern_functions: HashMap::new(),
         };
         let mut interpreter = Interpreter::new(&program);
         let _ = interpreter.stack.declare_variable("y", Rc::new(RefCell::new(Value::I64(5))));

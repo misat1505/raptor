@@ -69,6 +69,8 @@ pub enum TokenCategory {
     StringValue,
     I64Value,
     F64Value,
+
+    Extern,
 }
 
 impl Debug for TokenCategory {
@@ -132,6 +134,7 @@ impl Debug for TokenCategory {
             StringValue => "str value",
             I64Value => "i64 value",
             F64Value => "f64 value",
+            Extern => "extern",
         };
 
         Ok(write!(f, "{}", text)?)

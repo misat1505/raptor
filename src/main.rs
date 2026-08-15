@@ -62,6 +62,7 @@ Options:
     --compile       Compile the source file instead of interpreting it
     --run           After compiling, build and run the resulting executable
                     (implies --compile)
+    --link <FILE>   Link an additional object file (compilation mode only)
     -O0             No optimization (default)
     -O1             Basic optimization
     -O2             Default optimization
@@ -112,17 +113,25 @@ fn build_object_file(ir_path: &str, obj_path: &str) -> Result<(), String> {
     run_command(&llc, &[ir_path, "-filetype=obj", "-o", obj_path], "llc")
 }
 
-fn link_executable(obj_path: &str, exe_path: &str) -> Result<(), String> {
+fn link_executable(obj_path: &str, exe_path: &str, ffi_objects: &[String]) -> Result<(), String> {
     let clang = format!("clang-{}", LLVM_VERSION);
-    run_command(&clang, &[obj_path, "-o", exe_path, "-no-pie"], "clang")
+
+    let mut args: Vec<String> = vec![obj_path.to_string(), "-o".to_string(), exe_path.to_string(), "-no-pie".to_string()];
+
+    for ffi_object in ffi_objects {
+        args.push(ffi_object.clone());
+    }
+
+    let args: Vec<&str> = args.iter().map(|arg| arg.as_str()).collect();
+
+    run_command(&clang, &args, "clang")
 }
 
-fn build_executable(ir_path: &str, obj_path: &str, exe_path: &str) -> Result<(), String> {
+fn build_executable(ir_path: &str, obj_path: &str, exe_path: &str, ffi_objects: &[String]) -> Result<(), String> {
     build_object_file(ir_path, obj_path)?;
-    link_executable(obj_path, exe_path)?;
+    link_executable(obj_path, exe_path, ffi_objects)?;
     Ok(())
 }
-
 fn run_executable(exe_path: &str) -> Result<i32, String> {
     let path = if exe_path.starts_with('.') || exe_path.contains('/') || exe_path.contains('\\') {
         exe_path.to_string()
@@ -141,12 +150,14 @@ fn main() {
     let mut is_compile = false;
     let mut should_run = false;
     let mut opt_level: Option<OptimizationLevel> = None;
+    let mut link_objects: Vec<String> = Vec::new();
 
     let args: Vec<String> = args().collect();
 
     let mut path: Option<String> = None;
 
-    for arg in args.iter().skip(1) {
+    let mut arg_iter = args.iter().skip(1);
+    while let Some(arg) = arg_iter.next() {
         match arg.as_str() {
             "-h" | "--help" => {
                 usage();
@@ -164,6 +175,18 @@ fn main() {
             "--run" => {
                 is_compile = true;
                 should_run = true;
+            }
+
+            "--link" => {
+                let object = match arg_iter.next() {
+                    Some(object) => object,
+                    None => {
+                        eprintln!("Error: --link requires a file.");
+                        exit(1);
+                    }
+                };
+
+                link_objects.push(object.to_string());
             }
 
             "-O0" => {
@@ -222,8 +245,8 @@ fn main() {
     let reader = LazyStreamReader::new(code, Some(filename));
 
     let lexer_options = LexerOptions {
-        max_comment_length: 100,
-        max_identifier_length: 20,
+        max_comment_length: 500,
+        max_identifier_length: 100,
     };
 
     let lexer = match Lexer::new(reader, lexer_options, on_warning) {
@@ -295,7 +318,7 @@ fn main() {
 
         println!("Wrote LLVM IR to '{}'.", ir_path);
 
-        if let Err(err) = build_executable(&ir_path, &obj_path, &exe_path) {
+        if let Err(err) = build_executable(&ir_path, &obj_path, &exe_path, &link_objects) {
             eprintln!("{}", err);
             exit(1);
         }

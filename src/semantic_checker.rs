@@ -189,6 +189,73 @@ impl<'a> SemanticChecker<'a> {
                     return;
                 }
 
+                // extern function
+                if let Some(function_declaration) = self.program.extern_functions.get(name) {
+                    let parameters = &function_declaration.value.parameters;
+
+                    if arguments.len() != parameters.len() {
+                        self.errors.push(Box::new(SemanticCheckerError::expected_found(
+                            ErrorSeverity::HIGH,
+                            format!("invalid number of arguments for function `{}`", name),
+                            parameters.len().to_string(),
+                            arguments.len().to_string(),
+                            *position,
+                        )));
+                    }
+
+                    for idx in 0..arguments.len() {
+                        let argument = &arguments[idx];
+
+                        self.visit_expression(&argument.value.value);
+                        let actual_type = self.read_last_result().ok();
+
+                        if let Some(parameter) = parameters.get(idx) {
+                            if argument.value.passed_by != parameter.value.passed_by {
+                                self.errors.push(Box::new(SemanticCheckerError::expected_found(
+                                    ErrorSeverity::HIGH,
+                                    format!(
+                                        "parameter `{}` in extern function `{}` passed by the wrong mode",
+                                        parameter.value.identifier.value, name
+                                    ),
+                                    format!("{:?}", parameter.value.passed_by),
+                                    format!("{:?}", argument.value.passed_by),
+                                    argument.position,
+                                )));
+                            }
+
+                            if parameter.value.passed_by == PassedBy::Reference && !Self::is_valid_reference_expression(&argument.value.value.value) {
+                                self.errors.push(Box::new(SemanticCheckerError::at(
+                                    ErrorSeverity::HIGH,
+                                    format!(
+                                        "parameter `{}` in extern function `{}` must be a variable or index expression when passed by reference",
+                                        parameter.value.identifier.value, name
+                                    ),
+                                    argument.position,
+                                )));
+                            }
+
+                            if let Some(actual) = &actual_type {
+                                if parameter.value.parameter_type.value != *actual {
+                                    self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
+                                        ErrorSeverity::HIGH,
+                                        format!(
+                                            "parameter `{}` in extern function `{}` has the wrong type",
+                                            parameter.value.identifier.value, name
+                                        ),
+                                        &parameter.value.parameter_type.value,
+                                        actual,
+                                        argument.position,
+                                    )));
+                                }
+                            }
+                        }
+                    }
+
+                    self.last_result = Some(function_declaration.value.return_type.value.clone());
+
+                    return;
+                }
+
                 // user function
                 if let Some(function_declaration) = self.program.functions.get(name) {
                     let parameters = &function_declaration.value.parameters;
@@ -803,6 +870,7 @@ mod tests {
             statements: vec![],
             functions: HashMap::new(),
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         }
     }
 
@@ -1150,6 +1218,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         program.statements.push(node!(Statement::FunctionCall {
@@ -1188,6 +1257,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         program.statements.push(node!(Statement::FunctionCall {
@@ -1218,6 +1288,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         program.statements.push(node!(Statement::FunctionCall {
@@ -1251,6 +1322,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         program.statements.push(node!(Statement::FunctionCall {
@@ -1287,6 +1359,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         program.statements.push(node!(Statement::Declaration {
@@ -1335,6 +1408,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         assert!(run_check(&program).is_empty());
@@ -1355,6 +1429,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         let errors = run_check(&program);
@@ -1371,6 +1446,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         assert!(run_check(&program).is_empty());
@@ -1411,6 +1487,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         let errors = run_check(&program);
@@ -1436,6 +1513,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         let errors = run_check(&program);
@@ -1461,6 +1539,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
 
         assert!(run_check(&program).is_empty());
@@ -1661,6 +1740,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
         program.statements.push(node!(Statement::Declaration {
             var_type: node!(Type::I64),
@@ -1691,6 +1771,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
         program.statements.push(node!(Statement::Declaration {
             var_type: node!(Type::I64),
@@ -1726,6 +1807,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
         program.statements.push(node!(Statement::Declaration {
             var_type: node!(Type::I64),
@@ -1751,6 +1833,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
         let errors = run_check(&program);
         assert!(errors.iter().any(|e| e.contains("wrong return type")));
@@ -1765,6 +1848,7 @@ mod tests {
             statements: vec![],
             functions,
             std_functions: HashMap::new(),
+            extern_functions: HashMap::new(),
         };
         assert!(run_check(&program).is_empty());
     }

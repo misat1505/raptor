@@ -1,0 +1,57 @@
+# This will work without RaptorClearBackground, because Raptor currently
+# does not support C structs or values smaller than 64 bits in FFI.
+#
+# cargo run -- --compile --run -O3 --link <path_to_libraylib.a> --link-arg -lm --link-arg -lX11 examples/raylib.rp
+#
+# If you want to use ClearBackground, you need a small C wrapper because
+# raylib's Color type is a 4-byte struct, while Raptor currently passes
+# only 64-bit values through FFI.
+#
+# Create the following C program:
+#
+# #include <stdint.h>
+# #include "<path_to_raylib.h>"
+#
+# void RaptorClearBackground(int64_t r, int64_t g, int64_t b, int64_t a)
+# {
+#   Color color = {
+#       (unsigned char)r,
+#       (unsigned char)g,
+#       (unsigned char)b,
+#       (unsigned char)a
+#   };
+#
+#   ClearBackground(color);
+# }
+#
+# Compile it to an object file:
+#
+# clang-18 -c wrapper.c -o wrapper.o
+#
+# Then run the script with the additional object file:
+#
+# cargo run -- --compile --run -O3 \
+#   --link <path_to_libraylib.a> \
+#   --link <path_to_wrapper.o> \
+#   --link-arg -lm \
+#   --link-arg -lX11 \
+#   examples/raylib.rp
+
+extern fn InitWindow(i64 x, i64 y, str name): void;
+extern fn WindowShouldClose(): bool;
+extern fn BeginDrawing(): void;
+extern fn EndDrawing(): void;
+extern fn CloseWindow(): void;
+extern fn RaptorClearBackground(i64 r, i64 g, i64 b, i64 a): void;
+
+InitWindow(800, 600, "Raylib from Raptor");
+
+while (!WindowShouldClose()) {
+    BeginDrawing();
+
+    RaptorClearBackground(255, 0, 0, 255);
+
+    EndDrawing();
+}
+
+CloseWindow();

@@ -2,7 +2,8 @@ use std::{collections::HashMap, rc::Rc, unreachable, vec};
 
 use crate::{
     ast::{
-        Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, Type,
+        Argument, Block, Expression, ExternFunctionDeclaration, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement,
+        SwitchCase, SwitchExpression, Type,
     },
     errors::{ErrorSeverity, IError, ParserError},
     lexer::ILexer,
@@ -43,24 +44,40 @@ impl<L: ILexer> IParser<L> for Parser<L> {
     }
 
     fn parse(&mut self) -> Result<Program, Box<dyn IError>> {
-        // program = { function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" };
+        // program = { function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" };
 
         let mut statements: Vec<Node<Statement>> = vec![];
         let mut functions: HashMap<String, Rc<Node<FunctionDeclaration>>> = HashMap::new();
         let std_functions = get_std_functions();
+        let mut extern_functions: HashMap<String, Rc<Node<ExternFunctionDeclaration>>> = HashMap::new();
 
         loop {
             if let Some(statement) = self.parse_program_statement()? {
                 statements.push(statement);
             } else if let Some(function_declaration) = self.parse_function_declaration()? {
                 let function_name = function_declaration.value.identifier.value.clone();
-                if functions.contains_key(&function_name) || std_functions.contains_key(&function_name) {
+                if functions.contains_key(&function_name)
+                    || std_functions.contains_key(&function_name)
+                    || extern_functions.contains_key(&function_name)
+                {
                     return Err(Box::new(ParserError::new(
                         ErrorSeverity::HIGH,
                         format!("Redeclaration of function '{}'.\nAt: {:?}.", function_name, function_declaration.position),
                     )));
                 }
                 functions.insert(function_name, Rc::new(function_declaration));
+            } else if let Some(function_declaration) = self.parse_extern_function_declaration()? {
+                let function_name = function_declaration.value.identifier.value.clone();
+                if functions.contains_key(&function_name)
+                    || std_functions.contains_key(&function_name)
+                    || extern_functions.contains_key(&function_name)
+                {
+                    return Err(Box::new(ParserError::new(
+                        ErrorSeverity::HIGH,
+                        format!("Redeclaration of function '{}'.\nAt: {:?}.", function_name, function_declaration.position),
+                    )));
+                }
+                extern_functions.insert(function_name, Rc::new(function_declaration));
             } else {
                 break;
             }
@@ -72,6 +89,7 @@ impl<L: ILexer> IParser<L> for Parser<L> {
             statements,
             functions,
             std_functions,
+            extern_functions,
         };
         Ok(program)
     }
@@ -158,7 +176,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_function_declaration(&mut self) -> Result<Option<Node<FunctionDeclaration>>, Box<dyn IError>> {
-        // function_declaration = “fn”, identifier, "(", parameters, ")", “:”, type | “void”, statement_block;
+        // function_declaration = "fn", identifier, "(", parameters, ")", ":", type | "void", statement_block;
         let fn_token = try_consume_token!(self, TokenCategory::Fn);
 
         let identifier = self
@@ -190,6 +208,38 @@ impl<L: ILexer> Parser<L> {
         Ok(Some(node))
     }
 
+    fn parse_extern_function_declaration(&mut self) -> Result<Option<Node<ExternFunctionDeclaration>>, Box<dyn IError>> {
+        // function_declaration = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", ";";
+        let extern_token = try_consume_token!(self, TokenCategory::Extern);
+        let _ = self.consume_must_be(TokenCategory::Fn)?;
+
+        let identifier = self
+            .parse_identifier()?
+            .ok_or_else(|| self.create_parser_error(String::from("Couldn't create identifier while parsing extern function declaration.")))?;
+
+        let _ = self.consume_must_be(TokenCategory::ParenOpen)?;
+        let parameters = self.parse_parameters()?;
+        let _ = self.consume_must_be(TokenCategory::ParenClose)?;
+        let _ = self.consume_must_be(TokenCategory::Colon)?;
+        let return_type = match self.parse_type() {
+            Ok(Some(t)) => t,
+            _ => self.void_type_or_error()?,
+        };
+
+        let _ = self.consume_must_be(TokenCategory::Semicolon)?;
+
+        let node = Node {
+            value: ExternFunctionDeclaration {
+                identifier,
+                parameters,
+                return_type,
+            },
+            position: extern_token.position,
+        };
+
+        Ok(Some(node))
+    }
+
     fn parse_parameters(&mut self) -> Result<Vec<Node<Parameter>>, Box<dyn IError>> {
         // parameters = [ parameter, { ",", parameter } ];
         let expression = match self.parse_parameter()? {
@@ -209,7 +259,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_parameter(&mut self) -> Result<Option<Node<Parameter>>, Box<dyn IError>> {
-        // parameter = [“&”], type, identifier, [ "=", expression ];
+        // parameter = ["&"], type, identifier, [ "=", expression ];
         let position = self.current_token().position;
         let passed_by = match self.consume_if_matches(TokenCategory::Reference)? {
             Some(_) => PassedBy::Reference,
@@ -233,7 +283,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_for_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // for_statement = "for", "(", [ declaration ], “;”, expression, “;”, [ identifier, "=", expression ], ")", statement_block;
+        // for_statement = "for", "(", [ declaration ], ";", expression, ";", [ identifier, "=", expression ], ")", statement_block;
         let for_token = try_consume_token!(self, TokenCategory::For);
 
         let _ = self.consume_must_be(TokenCategory::ParenOpen)?;
@@ -686,7 +736,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_argument(&mut self) -> Result<Option<Node<Argument>>, Box<dyn IError>> {
-        // argument = [“&”], expression;
+        // argument = ["&"], expression;
         let passed_by = match self.consume_if_matches(TokenCategory::Reference)? {
             Some(_) => PassedBy::Reference,
             None => PassedBy::Value,
@@ -704,7 +754,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_expression(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
-        // expression = concatenation_term { “||”, concatenation_term };
+        // expression = concatenation_term { "||", concatenation_term };
         let mut left_side = try_consume!(self, parse_concatenation_term);
 
         let mut current_token = self.current_token();
@@ -725,7 +775,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_concatenation_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
-        // concatenation_term = relation_term, { “&&”, relation_term };
+        // concatenation_term = relation_term, { "&&", relation_term };
         let mut left_side = try_consume!(self, parse_relation_term);
 
         let mut current_token = self.current_token();
@@ -843,7 +893,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_casted_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
-        // casted_term = unary_term, [ “as”, type ];
+        // casted_term = unary_term, [ "as", type ];
         let unary_term = try_consume!(self, parse_unary_term);
 
         let position = unary_term.position.clone();
@@ -1007,7 +1057,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_switch_expressions(&mut self) -> Result<Vec<Node<SwitchExpression>>, Box<dyn IError>> {
-        // switch_expressions = switch_expression, { “,”, switch_expression };
+        // switch_expressions = switch_expression, { ",", switch_expression };
         let mut switch_expressions: Vec<Node<SwitchExpression>> = vec![];
         let mut expression = match self.parse_switch_expression()? {
             Some(t) => t,

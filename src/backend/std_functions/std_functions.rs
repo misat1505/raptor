@@ -17,6 +17,7 @@ use crate::{
     backend::{
         interpreter::Value,
         llvm::{compiler::Compiler, LlvmValue},
+        type_utils::type_accepts_value,
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
@@ -821,7 +822,7 @@ impl StdFunction {
                             {
                                 let value_ref = value.borrow();
 
-                                if !inner.accepts(&value_ref) {
+                                if !type_accepts_value(inner, &value_ref) {
                                     return Err(build_usage_error(fn_name, expected_types, actual_types));
                                 }
                             }

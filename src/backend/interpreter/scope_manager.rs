@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    backend::interpreter::value::Value,
+    backend::{interpreter::value::Value, type_utils::type_accepts_value},
     common::errors::{ErrorSeverity, ScopeManagerError},
 };
 
@@ -100,7 +100,7 @@ impl<'a> Scope<'a> {
                 let mut prev_val_borrow = prev_val.borrow_mut();
                 let new_val_borrow = value.borrow();
 
-                if prev_val_borrow.to_type().accepts(&new_val_borrow) {
+                if type_accepts_value(&prev_val_borrow.to_type(), &new_val_borrow) {
                     *prev_val_borrow = new_val_borrow.clone();
                     Ok(())
                 } else {

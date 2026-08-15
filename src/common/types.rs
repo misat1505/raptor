@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-use crate::backend::interpreter::Value;
-
 #[derive(Clone, PartialEq)]
 pub enum Type {
     Bool,
@@ -29,19 +27,6 @@ impl Debug for Type {
 }
 
 impl Type {
-    pub fn accepts(&self, value: &Value) -> bool {
-        match (self, value) {
-            (Type::Bool, Value::Bool(_)) => true,
-            (Type::F64, Value::F64(_)) => true,
-            (Type::I64, Value::I64(_)) => true,
-            (Type::Str, Value::String(_)) => true,
-
-            (Type::Vector(_), Value::Vector { kind, .. }) => *self == **kind,
-
-            _ => false,
-        }
-    }
-
     pub fn is_compatible(&self, other: &Type) -> bool {
         match (self, other) {
             (Type::Any, _) | (_, Type::Any) => true,

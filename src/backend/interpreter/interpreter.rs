@@ -1,8 +1,11 @@
 use std::{cell::RefCell, rc::Rc, vec};
 
 use crate::{
-    backend::interpreter::{alu::ALU, stack::Stack, value::Value},
-    backend::std_functions::std_functions::StdFunction,
+    backend::{
+        interpreter::{alu::ALU, stack::Stack, value::Value},
+        std_functions::std_functions::StdFunction,
+        type_utils::type_accepts_value,
+    },
     common::{
         errors::{ComputationError, ErrorSeverity, IError, InterpreterError},
         position::Position,
@@ -685,7 +688,7 @@ impl<'a> Interpreter<'a> {
             let param_name = &parameter.value.identifier.value;
             let value = &self.last_arguments[idx];
 
-            if !desired_type.accepts(&value.borrow()) {
+            if type_accepts_value(desired_type, &value.borrow()) {
                 self.stack.pop_stack_frame();
 
                 return Err(Box::new(InterpreterError::expected_found(
@@ -738,7 +741,7 @@ impl<'a> Interpreter<'a> {
         match &self.last_result {
             None if function_declaration.return_type.value == Type::Void => {}
 
-            Some(value) if function_declaration.return_type.value.accepts(value) => {}
+            Some(value) if type_accepts_value(&function_declaration.return_type.value, value) => {}
 
             result => {
                 let result_type = match result {

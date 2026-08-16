@@ -27,7 +27,7 @@ impl<L: ILexer> Parser<L> {
         Ok(arguments)
     }
 
-    fn parse_argument(&mut self) -> Result<Option<Node<Argument>>, Box<dyn IError>> {
+    pub fn parse_argument(&mut self) -> Result<Option<Node<Argument>>, Box<dyn IError>> {
         // argument = ["&"], expression;
         let passed_by = match self.consume_if_matches(TokenCategory::Reference)? {
             Some(_) => PassedBy::Reference,

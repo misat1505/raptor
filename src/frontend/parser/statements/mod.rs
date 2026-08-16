@@ -8,3 +8,6 @@ pub mod if_statement;
 pub mod return_statement;
 pub mod switch_statement;
 pub mod while_statement;
+
+#[cfg(test)]
+mod tests;

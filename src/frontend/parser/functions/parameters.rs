@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -28,7 +27,7 @@ impl<L: ILexer> Parser<L> {
         Ok(parameters)
     }
 
-    fn parse_parameter(&mut self) -> Result<Option<Node<Parameter>>, Box<dyn IError>> {
+    pub fn parse_parameter(&mut self) -> Result<Option<Node<Parameter>>, Box<dyn IError>> {
         // parameter = ["&"], type, identifier, [ "=", expression ];
         let position = self.current_token().position;
         let passed_by = match self.consume_if_matches(TokenCategory::Reference)? {

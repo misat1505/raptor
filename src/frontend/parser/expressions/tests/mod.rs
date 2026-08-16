@@ -10,6 +10,3 @@ pub mod multiplicative_term;
 pub mod relation_term;
 pub mod unary_term;
 pub mod vector_literal;
-
-#[cfg(test)]
-mod tests;

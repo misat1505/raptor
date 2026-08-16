@@ -9,11 +9,12 @@ mod functions;
 mod misc;
 mod program;
 mod statements;
+
 #[cfg(test)]
 mod tests;
 
 pub struct Parser<L: ILexer> {
-    pub lexer: L,
+    lexer: L,
 }
 
 pub trait IParser<L: ILexer> {

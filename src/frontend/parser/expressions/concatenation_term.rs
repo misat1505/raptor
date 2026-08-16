@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_concatenation_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_concatenation_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // concatenation_term = relation_term, { "&&", relation_term };
         let mut left_side = try_consume!(self, parse_relation_term);
 

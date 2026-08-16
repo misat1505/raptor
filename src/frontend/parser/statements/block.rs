@@ -11,7 +11,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_statement_block(&mut self) -> Result<Option<Node<Block>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_statement_block(&mut self) -> Result<Option<Node<Block>>, Box<dyn IError>> {
         // statement_block = ("{", {statement}, "}") | statement;
         if let Some(stmt) = self.parse_statement()? {
             return Ok(Some(Node {

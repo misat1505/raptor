@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_multiplicative_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_multiplicative_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // multiplicative_term = casted_term, { ("*" | "/" | "%"), casted_term };
         let mut left_side = try_consume!(self, parse_casted_term);
 

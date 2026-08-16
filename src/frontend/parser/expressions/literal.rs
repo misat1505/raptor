@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_literal(&mut self) -> Result<Option<Node<Literal>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_literal(&mut self) -> Result<Option<Node<Literal>>, Box<dyn IError>> {
         let token = self.current_token();
         let position = token.position;
 

@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_casted_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_casted_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // casted_term = unary_term, [ "as", type ];
         let unary_term = try_consume!(self, parse_unary_term);
 

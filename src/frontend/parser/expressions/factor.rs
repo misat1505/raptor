@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_factor(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_factor(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // factor = literal | ( "(", expression, ")" ) | vector_literal | identifier_or_call;
         if let Ok(Some(literal)) = self.parse_literal() {
             let node = Node {

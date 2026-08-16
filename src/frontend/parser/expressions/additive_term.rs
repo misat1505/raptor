@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_additive_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_additive_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // additive_term = multiplicative_term , { ("+" | "-"), multiplicative_term };
         let mut left_side = try_consume!(self, parse_multiplicative_term);
 

@@ -12,7 +12,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_switch_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_switch_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         // switch_statement = "switch", "(", switch_expressions, ")", "{", {switch_case}, "}";
         let switch_token = try_consume_token!(self, TokenCategory::Switch);
 
@@ -41,7 +41,7 @@ impl<L: ILexer> Parser<L> {
         Ok(Some(node))
     }
 
-    pub fn parse_switch_expressions(&mut self) -> Result<Vec<Node<SwitchExpression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_switch_expressions(&mut self) -> Result<Vec<Node<SwitchExpression>>, Box<dyn IError>> {
         // switch_expressions = switch_expression, { ",", switch_expression };
         let mut switch_expressions: Vec<Node<SwitchExpression>> = vec![];
         let mut expression = match self.parse_switch_expression()? {
@@ -60,7 +60,7 @@ impl<L: ILexer> Parser<L> {
         Ok(switch_expressions)
     }
 
-    pub fn parse_switch_expression(&mut self) -> Result<Option<Node<SwitchExpression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_switch_expression(&mut self) -> Result<Option<Node<SwitchExpression>>, Box<dyn IError>> {
         // switch_expression = expression, [ ":", identifier ];
         let expression = try_consume!(self, parse_expression);
 
@@ -76,7 +76,7 @@ impl<L: ILexer> Parser<L> {
         Ok(Some(node))
     }
 
-    pub fn parse_switch_case(&mut self) -> Result<Option<Node<SwitchCase>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_switch_case(&mut self) -> Result<Option<Node<SwitchCase>>, Box<dyn IError>> {
         // switch_case = "(", expression, ")", "->", statement_block;
         let paren_open_token = try_consume_token!(self, TokenCategory::ParenOpen);
 

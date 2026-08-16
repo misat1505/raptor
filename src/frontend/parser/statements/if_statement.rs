@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_if_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_if_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         // if_statement = "if", "(", expression, ")", statement_block, [ "else", statement_block ];
         let if_token = try_consume_token!(self, TokenCategory::If);
 

@@ -12,7 +12,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_program(&mut self) -> Result<Program, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_program(&mut self) -> Result<Program, Box<dyn IError>> {
         // program = { function_declaration | extern_function_declaration | assign_or_call
         //           | if_statement | for_statement | while_statement | switch_statement
         //           | declaration, ";" };
@@ -71,7 +71,7 @@ impl<L: ILexer> Parser<L> {
         })
     }
 
-    pub fn parse_program_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_program_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         // program_statement = assign_or_call | if_statement | for_statement | while_statement
         //                    | switch_statement | declaration, ";";
         let generators = [
@@ -92,7 +92,7 @@ impl<L: ILexer> Parser<L> {
         Ok(None)
     }
 
-    pub fn parse_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         let generators = [
             Self::parse_assign_or_call,
             Self::parse_if_statement,

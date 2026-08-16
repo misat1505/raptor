@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_arguments(&mut self) -> Result<Vec<Node<Argument>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_arguments(&mut self) -> Result<Vec<Node<Argument>>, Box<dyn IError>> {
         // arguments = [ argument, {",", argument} ];
         let expression = match self.parse_argument()? {
             Some(t) => t,
@@ -27,7 +27,7 @@ impl<L: ILexer> Parser<L> {
         Ok(arguments)
     }
 
-    pub fn parse_argument(&mut self) -> Result<Option<Node<Argument>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_argument(&mut self) -> Result<Option<Node<Argument>>, Box<dyn IError>> {
         // argument = ["&"], expression;
         let passed_by = match self.consume_if_matches(TokenCategory::Reference)? {
             Some(_) => PassedBy::Reference,

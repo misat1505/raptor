@@ -1,19 +1,13 @@
-
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, ParserError},
         types::Type,
     },
-    frontend::{
-        ast::Node,
-        lexer::lexer::ILexer,
-        parser::Parser,
-        tokens::TokenCategory,
-    },
+    frontend::{ast::Node, lexer::lexer::ILexer, parser::Parser, tokens::TokenCategory},
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_type(&mut self) -> Result<Option<Node<Type>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_type(&mut self) -> Result<Option<Node<Type>>, Box<dyn IError>> {
         let token = self.current_token();
 
         let mut result = match token.category {
@@ -38,7 +32,7 @@ impl<L: ILexer> Parser<L> {
         }))
     }
 
-    pub fn void_type_or_error(&mut self) -> Result<Node<Type>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn void_type_or_error(&mut self) -> Result<Node<Type>, Box<dyn IError>> {
         match self.consume_if_matches(TokenCategory::Void)? {
             Some(token) => Ok(Node {
                 value: Type::Void,

@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_expression(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_expression(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // expression = concatenation_term { "||", concatenation_term };
         let mut left_side = try_consume!(self, parse_concatenation_term);
 

@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_identifier_or_call(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_identifier_or_call(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // identifier_or_call = identifier, [ "(", arguments, ")" ], { "[", expression, "]" }
         let identifier = try_consume!(self, parse_identifier);
 

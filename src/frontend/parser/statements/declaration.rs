@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         // declaration = type, identifier, [ "=", expression ];
         let declaration_type = try_consume!(self, parse_type);
 
@@ -34,7 +33,7 @@ impl<L: ILexer> Parser<L> {
         Ok(Some(node))
     }
 
-    pub fn parse_variable_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_variable_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         let decl = try_consume!(self, parse_declaration);
 
         self.consume_must_be(TokenCategory::Semicolon)?;

@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_vector_literal(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_vector_literal(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // vector_literal = "[", [ expression, { ",", expression } ], "]";
         let open_bracket_token = try_consume_token!(self, TokenCategory::BracketOpen);
 

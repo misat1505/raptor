@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_continue_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_continue_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         // continue_statement = "continue", ";";
         let token = try_consume_token!(self, TokenCategory::Continue);
 

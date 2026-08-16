@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_relation_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_relation_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // relation_term = additive_term, [ relation_operands, additive_term ];
         let left_side = try_consume!(self, parse_additive_term);
 

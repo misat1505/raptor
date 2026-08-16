@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::{ErrorSeverity, IError, ParserError},
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_identifier(&mut self) -> Result<Option<Node<String>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_identifier(&mut self) -> Result<Option<Node<String>>, Box<dyn IError>> {
         let token = try_consume_token!(self, TokenCategory::Identifier);
 
         if let TokenValue::String(name) = token.value {

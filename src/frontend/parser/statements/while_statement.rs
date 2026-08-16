@@ -1,4 +1,3 @@
-
 use crate::{
     common::errors::IError,
     frontend::{
@@ -10,7 +9,7 @@ use crate::{
 };
 
 impl<L: ILexer> Parser<L> {
-    pub fn parse_while_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+    pub(in crate::frontend::parser) fn parse_while_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         // while_statement = "while", "(", expression, ")", statement_block;
         let if_token = try_consume_token!(self, TokenCategory::While);
 

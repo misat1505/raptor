@@ -8,7 +8,7 @@ use crate::{
         visitor::Visitor,
     },
     frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression},
-    semantic::{static_checker_stack::StaticCheckerStack, type_alu::TypeALU},
+    semantic::{stack::stack::StaticCheckerStack, type_alu::TypeALU},
 };
 
 enum FunctionCallType<'a> {

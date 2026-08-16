@@ -1,7 +1,7 @@
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::{
-    backend::interpreter::{scope_manager::ScopeManager, value::Value},
+    backend::interpreter::{alu::value::Value, scope_manager::ScopeManager},
     common::errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
 };
 
@@ -81,7 +81,7 @@ impl<'a> Stack<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{backend::interpreter::value::Value, common::errors::IError};
+    use crate::{backend::interpreter::alu::value::Value, common::errors::IError};
 
     #[test]
     fn test_stack_push_pop_frame() {

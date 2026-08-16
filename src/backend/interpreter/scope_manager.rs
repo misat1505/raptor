@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    backend::{interpreter::value::Value, type_utils::type_accepts_value},
+    backend::{interpreter::alu::value::Value, type_utils::type_accepts_value},
     common::errors::{ErrorSeverity, ScopeManagerError},
 };
 

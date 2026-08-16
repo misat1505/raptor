@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc, vec};
 
 use crate::{
     backend::{
-        interpreter::{alu::ALU, stack::Stack, value::Value},
+        interpreter::{alu::value::Value, alu::ALU, stack::Stack},
         std_functions::std_functions::StdFunction,
         type_utils::type_accepts_value,
     },

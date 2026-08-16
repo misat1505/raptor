@@ -1,7 +1,7 @@
 use crate::{
     common::errors::IError,
     frontend::{
-        ast::{Expression, ExternFunctionDeclaration, FunctionDeclaration, Node, Program, Statement},
+        ast::{Expression, Node},
         lexer::lexer::ILexer,
         parser::{core::try_consume, Parser},
         tokens::TokenCategory,

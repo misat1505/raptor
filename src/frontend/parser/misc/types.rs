@@ -1,13 +1,11 @@
-use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    backend::std_functions::std_functions::get_std_functions,
     common::{
         errors::{ErrorSeverity, IError, ParserError},
         types::Type,
     },
     frontend::{
-        ast::{ExternFunctionDeclaration, FunctionDeclaration, Node, Program, Statement},
+        ast::Node,
         lexer::lexer::ILexer,
         parser::Parser,
         tokens::TokenCategory,

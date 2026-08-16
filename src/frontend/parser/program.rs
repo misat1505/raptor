@@ -13,9 +13,9 @@ use crate::{
 
 impl<L: ILexer> Parser<L> {
     pub fn parse_program(&mut self) -> Result<Program, Box<dyn IError>> {
-        /// program = { function_declaration | extern_function_declaration | assign_or_call
-        ///           | if_statement | for_statement | while_statement | switch_statement
-        ///           | declaration, ";" };
+        // program = { function_declaration | extern_function_declaration | assign_or_call
+        //           | if_statement | for_statement | while_statement | switch_statement
+        //           | declaration, ";" };
         let mut statements: Vec<Node<Statement>> = vec![];
         let mut functions: HashMap<String, Rc<Node<FunctionDeclaration>>> = HashMap::new();
         let std_functions = get_std_functions();
@@ -72,8 +72,8 @@ impl<L: ILexer> Parser<L> {
     }
 
     pub fn parse_program_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        /// program_statement = assign_or_call | if_statement | for_statement | while_statement
-        ///                    | switch_statement | declaration, ";";
+        // program_statement = assign_or_call | if_statement | for_statement | while_statement
+        //                    | switch_statement | declaration, ";";
         let generators = [
             Self::parse_assign_or_call,
             Self::parse_if_statement,

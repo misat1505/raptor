@@ -1,12 +1,8 @@
 use crate::frontend::parser::tests::{create_token, LexerMock};
-use crate::{
-    common::types::Type,
-    frontend::{
-        ast::{Block, Expression, Literal, Statement, SwitchCase, SwitchExpression},
-        parser::{tests::test_node, IParser, Parser},
+use crate::frontend::{
+        parser::{IParser, Parser},
         tokens::{TokenCategory, TokenValue},
-    },
-};
+    };
 
 #[test]
 fn parse_identifier() {

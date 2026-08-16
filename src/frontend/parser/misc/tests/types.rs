@@ -2,8 +2,7 @@ use crate::frontend::parser::tests::{create_token, LexerMock};
 use crate::{
     common::types::Type,
     frontend::{
-        ast::{Block, Expression, Literal, Statement, SwitchCase, SwitchExpression},
-        parser::{tests::test_node, IParser, Parser},
+        parser::{IParser, Parser},
         tokens::{TokenCategory, TokenValue},
     },
 };

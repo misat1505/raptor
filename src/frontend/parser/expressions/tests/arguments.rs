@@ -1,12 +1,9 @@
 use crate::frontend::parser::tests::{create_token, LexerMock};
-use crate::{
-    common::types::Type,
-    frontend::{
-        ast::{Argument, Block, Expression, Literal, PassedBy, Statement, SwitchCase, SwitchExpression},
+use crate::frontend::{
+        ast::{Argument, Expression, Literal, PassedBy},
         parser::{tests::test_node, IParser, Parser},
         tokens::{TokenCategory, TokenValue},
-    },
-};
+    };
 
 #[test]
 fn parse_arguments_comma_end() {

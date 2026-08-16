@@ -1,12 +1,9 @@
 use crate::frontend::parser::tests::{create_token, LexerMock};
-use crate::{
-    common::types::Type,
-    frontend::{
-        ast::{Block, Expression, Literal, Statement, SwitchCase, SwitchExpression},
+use crate::frontend::{
+        ast::{Expression, Literal, Statement},
         parser::{tests::test_node, IParser, Parser},
         tokens::{TokenCategory, TokenValue},
-    },
-};
+    };
 
 #[test]
 fn parse_assign_or_call_fail() {

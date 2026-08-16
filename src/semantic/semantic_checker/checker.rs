@@ -1,0 +1,100 @@
+use crate::{
+    common::{
+        errors::{ErrorSeverity, IError, SemanticCheckerError},
+        types::Type,
+        visitor::Visitor,
+    },
+    frontend::ast::{Expression, Node, Program},
+    semantic::stack::stack::StaticCheckerStack,
+};
+
+pub struct SemanticChecker<'a> {
+    pub(in crate::semantic::semantic_checker) program: &'a Program,
+    pub(in crate::semantic::semantic_checker) stack: StaticCheckerStack<'a>,
+    pub(in crate::semantic::semantic_checker) last_result: Option<Type>,
+    pub errors: Vec<Box<dyn IError>>,
+    pub(in crate::semantic::semantic_checker) current_function_return_type: Option<Type>,
+}
+
+impl<'a> SemanticChecker<'a> {
+    pub fn new(program: &'a Program) -> Result<Self, Box<dyn IError>> {
+        let errors: Vec<Box<dyn IError>> = vec![];
+        let stack = StaticCheckerStack::new();
+        Ok(Self {
+            program,
+            errors,
+            stack,
+            last_result: None,
+            current_function_return_type: None,
+        })
+    }
+
+    pub fn check(&mut self) {
+        let _ = self.visit_program(self.program);
+    }
+
+    pub(in crate::semantic::semantic_checker) fn read_last_result(&mut self) -> Result<Type, Box<dyn IError>> {
+        match self.last_result.take() {
+            Some(t) => Ok(t),
+            None => {
+                let error = SemanticCheckerError::new(ErrorSeverity::HIGH, String::from("No type produced where it is needed."));
+                Err(Box::new(error))
+            }
+        }
+    }
+
+    pub(in crate::semantic::semantic_checker) fn evaluate_binary_op<F>(
+        &mut self,
+        lhs: &'a Box<Node<Expression>>,
+        rhs: &'a Box<Node<Expression>>,
+        op: F,
+    ) -> Result<(), Box<dyn IError>>
+    where
+        F: Fn(Type, Type) -> Result<Type, SemanticCheckerError>,
+    {
+        self.visit_expression(lhs)?;
+        let left_value = self.read_last_result();
+        self.visit_expression(rhs)?;
+        let right_value = self.read_last_result();
+
+        match (left_value, right_value) {
+            (Ok(l), Ok(r)) => match op(l, r) {
+                Ok(result_type) => self.last_result = Some(result_type),
+                Err(err) => {
+                    self.errors
+                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), lhs.position)));
+                    self.last_result = None;
+                }
+            },
+            _ => self.last_result = None,
+        }
+
+        Ok(())
+    }
+
+    pub(in crate::semantic::semantic_checker) fn evaluate_unary_op<F>(
+        &mut self,
+        value: &'a Box<Node<Expression>>,
+        op: F,
+    ) -> Result<(), Box<dyn IError>>
+    where
+        F: Fn(Type) -> Result<Type, SemanticCheckerError>,
+    {
+        self.visit_expression(value)?;
+        let computed_type = self.read_last_result();
+
+        match computed_type {
+            Ok(t) => match op(t) {
+                Ok(result_type) => self.last_result = Some(result_type),
+                Err(err) => {
+                    self.errors
+                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), value.position)));
+                    self.last_result = None;
+                }
+            },
+            Err(_) => self.last_result = None,
+        }
+
+        Ok(())
+    }
+}

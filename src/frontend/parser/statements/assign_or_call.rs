@@ -1,0 +1,238 @@
+use std::{collections::HashMap, rc::Rc};
+
+use crate::{
+    backend::std_functions::std_functions::get_std_functions,
+    common::errors::{ErrorSeverity, IError, ParserError},
+    frontend::{
+        ast::{Expression, ExternFunctionDeclaration, FunctionDeclaration, Node, Program, Statement},
+        lexer::lexer::ILexer,
+        parser::{core::try_consume, Parser},
+        tokens::TokenCategory,
+    },
+};
+
+impl<L: ILexer> Parser<L> {
+    pub fn parse_assign_or_call(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // assign_or_call = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")"), ";";
+        let node = self.parse_assign_or_call_without_semicolon()?;
+        if node.is_none() {
+            return Ok(None);
+        }
+
+        self.consume_must_be(TokenCategory::Semicolon)?;
+        Ok(node)
+    }
+
+    pub fn parse_assign_or_call_without_semicolon(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // assign_or_call = identifier, ( { "[", expression, "]" }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
+        let identifier = try_consume!(self, parse_identifier);
+        let position = identifier.position;
+
+        let mut indices: Vec<Node<Expression>> = vec![];
+        while self.consume_if_matches(TokenCategory::BracketOpen)?.is_some() {
+            let index_expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression inside '[]' index.")))?;
+            self.consume_must_be(TokenCategory::BracketClose)?;
+            indices.push(index_expr);
+        }
+
+        if self.consume_if_matches(TokenCategory::Assign)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let node = Node {
+                value: Statement::Assignment {
+                    identifier,
+                    value: expr,
+                    indices,
+                },
+                position,
+            };
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::PlusEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Addition(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::MinusEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Subtraction(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::TimesEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Multiplication(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::DivideEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Division(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::ModuloEquals)?.is_some() {
+            let expr = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing assignment.")))?;
+
+            let position = identifier.position;
+            let mut result = Node {
+                value: Expression::Variable(identifier.clone().value),
+                position,
+            };
+
+            for index in &indices {
+                result = Node {
+                    value: Expression::Index {
+                        collection: Box::new(result),
+                        index: Box::new(index.clone()),
+                    },
+                    position,
+                };
+            }
+
+            let value = Node {
+                value: Expression::Modulo(Box::new(result), Box::new(expr)),
+                position,
+            };
+
+            let node = Node {
+                value: Statement::Assignment { identifier, indices, value },
+                position,
+            };
+
+            return Ok(Some(node));
+        }
+
+        if self.consume_if_matches(TokenCategory::ParenOpen)?.is_some() {
+            let arguments = self.parse_arguments()?.into_iter().map(Box::new).collect();
+            let node = Node {
+                value: Statement::FunctionCall { identifier, arguments },
+                position,
+            };
+            self.consume_must_be(TokenCategory::ParenClose)?;
+            return Ok(Some(node));
+        }
+
+        Err(self.create_parser_error(String::from("Couldn't create assignment or call.")))
+    }
+}

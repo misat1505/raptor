@@ -18,7 +18,7 @@ use crate::{
             lazy_stream_reader::LazyStreamReader,
             lexer::{Lexer, LexerOptions},
         },
-        parser::parser::{IParser, Parser},
+        parser::{IParser, Parser},
     },
     semantic::semantic_checker::SemanticChecker,
 };

@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc, vec};
 
 use crate::{
     backend::{
-        interpreter::{alu::value::Value, alu::ALU, stack::Stack},
+        interpreter::{alu::value::Value, alu::ALU, stack::stack::Stack},
         std_functions::std_functions::StdFunction,
         type_utils::type_accepts_value,
     },
@@ -546,7 +546,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
 
 impl<'a> Interpreter<'a> {
     #[allow(dead_code)]
-    pub fn stack(&mut self) -> Stack<'_> {
+    pub(in crate::backend::interpreter) fn stack(&mut self) -> Stack<'_> {
         self.stack.clone()
     }
 

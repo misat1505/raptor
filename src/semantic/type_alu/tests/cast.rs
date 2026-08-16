@@ -1,6 +1,6 @@
 use crate::{
     common::{
-        errors::{ErrorSeverity, SemanticCheckerError},
+        errors::IError,
         types::Type,
     },
     semantic::type_alu::TypeALU,

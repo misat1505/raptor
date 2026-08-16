@@ -1,7 +1,3 @@
-use crate::common::{
-    errors::{ErrorSeverity, SemanticCheckerError},
-    types::Type,
-};
 
 pub mod arithmetic;
 pub mod cast;

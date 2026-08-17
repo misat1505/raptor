@@ -16,6 +16,9 @@ pub mod functions;
 pub mod statements;
 pub mod visitor;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, PartialEq)]
 pub(in crate::backend::interpreter::interpreter) enum AbortState {
     Break,

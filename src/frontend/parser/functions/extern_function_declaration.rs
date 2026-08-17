@@ -12,7 +12,7 @@ impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_extern_function_declaration(
         &mut self,
     ) -> Result<Option<Node<ExternFunctionDeclaration>>, Box<dyn IError>> {
-        // function_declaration = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
+        // extern_function_declaration = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
         let extern_token = try_consume_token!(self, TokenCategory::Extern);
         let _ = self.consume_must_be(TokenCategory::Fn)?;
 

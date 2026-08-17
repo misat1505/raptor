@@ -8,39 +8,25 @@ use std::{
     process::{exit, Command},
 };
 
-use errors::IError;
 use inkwell::{context::Context, OptimizationLevel};
-use lexer::Lexer;
-mod lazy_stream_reader;
-use lazy_stream_reader::LazyStreamReader;
 
 use crate::{
-    compiler::Compiler,
-    interpreter::Interpreter,
-    lexer::LexerOptions,
-    parser::{IParser, Parser},
-    semantic_checker::SemanticChecker,
+    backend::{interpreter::interpreter::Interpreter, llvm::compiler::Compiler},
+    common::errors::{ErrorSeverity, IError},
+    frontend::{
+        lexer::{
+            lazy_stream_reader::LazyStreamReader,
+            lexer::{Lexer, LexerOptions},
+        },
+        parser::{IParser, Parser},
+    },
+    semantic::semantic_checker::SemanticChecker,
 };
 
-mod alu;
-mod ast;
-mod compiler;
-mod errors;
-mod interpreter;
-mod lexer;
-mod libc_functions;
-mod llvm_alu;
-mod llvm_value;
-mod parser;
-mod scope_manager;
-mod semantic_checker;
-mod stack;
-mod static_checker_stack;
-mod std_functions;
-mod tokens;
-mod type_alu;
-mod value;
-mod visitor;
+mod backend;
+mod common;
+mod frontend;
+mod semantic;
 
 mod tests;
 
@@ -284,8 +270,8 @@ fn main() {
 
             for error in &semantic_checker.errors {
                 match error.get_severity() {
-                    errors::ErrorSeverity::HIGH => errors += 1,
-                    errors::ErrorSeverity::LOW => warnings += 1,
+                    ErrorSeverity::HIGH => errors += 1,
+                    ErrorSeverity::LOW => warnings += 1,
                 }
 
                 eprintln!("{}\n", error.message());

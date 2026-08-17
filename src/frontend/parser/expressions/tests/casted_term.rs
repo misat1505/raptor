@@ -1,0 +1,43 @@
+use crate::frontend::parser::tests::{create_token, LexerMock};
+use crate::{
+    common::types::Type,
+    frontend::{
+        ast::{Expression, Literal},
+        parser::{tests::test_node, IParser, Parser},
+        tokens::{TokenCategory, TokenValue},
+    },
+};
+
+#[test]
+fn parse_casted_term() {
+    let token_series = [
+        vec![
+            // 5 as str
+            create_token(TokenCategory::I64Value, TokenValue::I64(5)),
+            create_token(TokenCategory::As, TokenValue::Null),
+            create_token(TokenCategory::String, TokenValue::Null),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ],
+        vec![
+            // 5
+            create_token(TokenCategory::I64Value, TokenValue::I64(5)),
+            create_token(TokenCategory::ETX, TokenValue::Null),
+        ],
+    ];
+
+    let expected = [
+        Expression::Casting {
+            value: Box::new(test_node!(Expression::Literal(Literal::I64(5)))),
+            to_type: test_node!(Type::Str),
+        },
+        Expression::Literal(Literal::I64(5)),
+    ];
+
+    for (idx, series) in token_series.iter().enumerate() {
+        let mock_lexer = LexerMock::new(series.to_vec());
+        let mut parser = Parser::new(mock_lexer);
+
+        let node = parser.parse_casted_term().unwrap().unwrap();
+        assert_eq!(node.value, expected[idx]);
+    }
+}

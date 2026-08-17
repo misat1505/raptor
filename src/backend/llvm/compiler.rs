@@ -13,7 +13,7 @@ use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 
 use crate::common::position::Position;
 use crate::{
-    backend::llvm::{libc_functions::LibcFunctions, llvm_alu::LlvmAlu, llvm_value::LlvmValue},
+    backend::llvm::{libc_functions::LibcFunctions, llvm_alu::llvm_value::LlvmValue, llvm_alu::LlvmAlu},
     common::{
         errors::{CompilerError, ErrorSeverity, IError},
         types::Type,

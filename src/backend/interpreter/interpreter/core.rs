@@ -13,7 +13,7 @@ impl<'a> Interpreter<'a> {
                     Box::new(InterpreterError::at(
                         ErrorSeverity::HIGH,
                         String::from("No value produced where it is needed."),
-                        self.position,
+                        self.span,
                     ))
                 })()),
             }

@@ -4,7 +4,7 @@ use crate::{
     backend::interpreter::{stack::stack::Stack, Value},
     common::{
         errors::{ErrorSeverity, IError, InterpreterError},
-        position::Position,
+        span::Span,
         visitor::Visitor,
     },
     frontend::ast::Program,
@@ -31,7 +31,7 @@ pub struct Interpreter<'a> {
     pub(in crate::backend::interpreter::interpreter) stack: Stack<'a>,
     pub(in crate::backend::interpreter::interpreter) last_result: Option<Value>,
     pub(in crate::backend::interpreter::interpreter) abort_state: Option<AbortState>,
-    pub(in crate::backend::interpreter::interpreter) position: Position,
+    pub(in crate::backend::interpreter::interpreter) span: Span,
     pub(in crate::backend::interpreter::interpreter) last_arguments: Vec<Rc<RefCell<Value>>>,
 }
 
@@ -42,22 +42,17 @@ impl<'a> Interpreter<'a> {
             stack: Stack::new(),
             abort_state: None,
             last_result: None,
-            position: Position {
-                filename: None,
-                line: 0,
-                column: 0,
-                offset: 0,
-            },
+            span: Span::default(),
             last_arguments: vec![],
         }
     }
 
     pub fn interpret(&mut self) -> Result<(), Box<dyn IError>> {
         if let Some((name, function)) = self.program.extern_functions.iter().next() {
-            return Err(Box::new(InterpreterError::at(
+            return Err(Box::new(InterpreterError::new(
                 ErrorSeverity::HIGH,
                 format!("Extern function `{}` cannot be used in interpretation mode.", name),
-                function.position,
+                function.span,
             )));
         }
 

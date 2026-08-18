@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Expression, Node},
         lexer::lexer::ILexer,
@@ -13,7 +13,6 @@ impl<L: ILexer> Parser<L> {
         // casted_term = unary_term, [ "as", type ];
         let unary_term = try_consume!(self, parse_unary_term);
 
-        let position = unary_term.position.clone();
         match self.consume_if_matches(TokenCategory::As)? {
             Some(_) => {
                 let type_parsed = self
@@ -22,8 +21,8 @@ impl<L: ILexer> Parser<L> {
 
                 Ok(Some(Node {
                     value: Expression::Casting {
-                        value: Box::new(unary_term),
-                        to_type: type_parsed,
+                        value: Box::new(unary_term.clone()),
+                        to_type: type_parsed.clone(),
                     },
                     span: Span::new(unary_term.span.start(), type_parsed.span.end()),
                 }))

@@ -330,7 +330,7 @@ impl<'a> Interpreter<'a> {
         let computed_value = self.read_last_result()?;
 
         let boolean_value = computed_value
-            .try_into_bool(statement.span)
+            .try_into_bool(switch_case.span)
             .map_err(|_| self.condition_error(computed_value, "switch case"))?;
 
         if boolean_value {

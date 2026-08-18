@@ -53,7 +53,7 @@ impl<'a> SemanticChecker<'a> {
         op: F,
     ) -> Result<(), Box<dyn IError>>
     where
-        F: Fn(Type, Type) -> Result<Type, SemanticCheckerError>,
+        F: Fn(Type, Type, Span) -> Result<Type, SemanticCheckerError>,
     {
         self.visit_expression(lhs)?;
         let left_value = self.read_last_result(lhs.span);
@@ -62,7 +62,7 @@ impl<'a> SemanticChecker<'a> {
         let right_value = self.read_last_result(rhs.span);
 
         match (left_value, right_value) {
-            (Ok(l), Ok(r)) => match op(l, r) {
+            (Ok(l), Ok(r)) => match op(l, r, Span::new(lhs.span.start(), rhs.span.end())) {
                 Ok(result_type) => self.last_result = Some(result_type),
 
                 Err(err) => {
@@ -88,13 +88,13 @@ impl<'a> SemanticChecker<'a> {
         op: F,
     ) -> Result<(), Box<dyn IError>>
     where
-        F: Fn(Type) -> Result<Type, SemanticCheckerError>,
+        F: Fn(Type, Span) -> Result<Type, SemanticCheckerError>,
     {
         self.visit_expression(value)?;
         let computed_type = self.read_last_result(value.span);
 
         match computed_type {
-            Ok(t) => match op(t) {
+            Ok(t) => match op(t, value.span) {
                 Ok(result_type) => self.last_result = Some(result_type),
 
                 Err(err) => {

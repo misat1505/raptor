@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Expression, Node},
         lexer::lexer::ILexer,
@@ -21,10 +21,10 @@ impl<L: ILexer> Parser<L> {
             }));
         }
 
-        if let Some(token) = self.consume_if_matches(TokenCategory::Minus)? {
+        if self.consume_if_matches(TokenCategory::Minus)?.is_some() {
             let factor = self.parse_unary_term_factor()?;
             return Ok(Some(Node {
-                value: Expression::ArithmeticNegation(Box::new(factor)),
+                value: Expression::ArithmeticNegation(Box::new(factor.clone())),
                 span: Span::new(start_pos, factor.span.end()),
             }));
         }

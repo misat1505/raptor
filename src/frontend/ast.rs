@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug, rc::Rc};
 
 use crate::{
     backend::std_functions::std_functions::StdFunction,
-    common::{position::Position, span::Span, types::Type},
+    common::{span::Span, types::Type},
 };
 
 #[derive(Debug, Clone, PartialEq)]

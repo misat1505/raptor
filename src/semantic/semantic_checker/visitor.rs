@@ -18,7 +18,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         }
 
         for (_name, function) in &program.functions {
-            self.stack.push_stack_frame()?;
+            self.stack.push_stack_frame().map_err(|err| Box::new(err));
 
             self.current_function_return_type = Some(function.value.return_type.value.clone());
 

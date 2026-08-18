@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Node, Parameter, PassedBy},
         lexer::lexer::ILexer,
@@ -44,7 +44,7 @@ impl<L: ILexer> Parser<L> {
             value: Parameter {
                 passed_by,
                 parameter_type,
-                identifier,
+                identifier: identifier.clone(),
             },
             span: Span::new(start_pos, identifier.span.end()),
         };

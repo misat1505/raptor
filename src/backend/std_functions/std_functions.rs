@@ -15,7 +15,6 @@ use crate::{
     },
     common::{
         errors::{ErrorSeverity, IError, StdFunctionError},
-        position::Position,
         span::Span,
         types::Type,
     },

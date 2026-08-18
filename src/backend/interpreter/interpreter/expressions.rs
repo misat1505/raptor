@@ -45,7 +45,7 @@ impl<'a> Interpreter<'a> {
             Expression::Literal(literal) => self.visit_literal(literal)?,
             Expression::Vector(vector) => self.visit_vector_literal(vector)?,
             Expression::Variable(variable) => self.visit_variable(variable, expression.span)?,
-            Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments, span)?,
+            Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments, expression.span)?,
             Expression::Index { collection, index } => self.eval_index(collection, index)?,
         }
 

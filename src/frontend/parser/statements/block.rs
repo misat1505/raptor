@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Block, Node, Statement},
         lexer::lexer::ILexer,

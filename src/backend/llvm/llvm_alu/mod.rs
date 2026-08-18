@@ -8,11 +8,8 @@ mod unary;
 use inkwell::builder::BuilderError;
 
 use crate::backend::llvm::llvm_alu::llvm_value::LlvmValue;
+use crate::common::errors::{CompilerError, ErrorSeverity, IError};
 use crate::common::span::Span;
-use crate::common::{
-    errors::{CompilerError, ErrorSeverity, IError},
-    position::Position,
-};
 
 pub struct LlvmAlu;
 

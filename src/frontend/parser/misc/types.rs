@@ -1,6 +1,7 @@
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, ParserError},
+        span::Span,
         types::Type,
     },
     frontend::{ast::Node, lexer::lexer::ILexer, parser::Parser, tokens::TokenCategory},

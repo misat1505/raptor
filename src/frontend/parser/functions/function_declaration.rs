@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{FunctionDeclaration, Node},
         lexer::lexer::ILexer,
@@ -34,7 +34,7 @@ impl<L: ILexer> Parser<L> {
                 identifier,
                 parameters,
                 return_type,
-                block,
+                block: block.clone(),
             },
             span: Span::new(fn_token.span.start(), block.span.end()),
         };

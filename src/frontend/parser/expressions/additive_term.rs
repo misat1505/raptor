@@ -22,7 +22,7 @@ impl<L: ILexer> Parser<L> {
 
             let mut expression_type = Expression::Addition(Box::new(left_side.clone()), Box::new(right_side.clone()));
             if current_token.category == TokenCategory::Minus {
-                expression_type = Expression::Subtraction(Box::new(left_side), Box::new(right_side))
+                expression_type = Expression::Subtraction(Box::new(left_side.clone()), Box::new(right_side.clone()))
             }
             left_side = Node {
                 value: expression_type,

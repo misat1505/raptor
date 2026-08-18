@@ -11,7 +11,6 @@ use crate::{
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_literal(&mut self) -> Result<Option<Node<Literal>>, Box<dyn IError>> {
         let token = self.current_token();
-        let position = token.span;
 
         let literal = match (token.category, token.value) {
             (TokenCategory::True, _) => Literal::True,
@@ -24,7 +23,10 @@ impl<L: ILexer> Parser<L> {
 
         let _ = self.next_token();
 
-        let node = Node { value: literal, span };
+        let node = Node {
+            value: literal,
+            span: token.span,
+        };
         Ok(Some(node))
     }
 }

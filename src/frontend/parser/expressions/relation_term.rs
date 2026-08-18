@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Expression, Node},
         lexer::lexer::ILexer,
@@ -33,7 +33,7 @@ impl<L: ILexer> Parser<L> {
             .ok_or_else(|| self.create_parser_error(String::from("Couldn't create additive term while parsing relation term.")))?;
 
         let box_l = Box::new(left_side.clone());
-        let box_r = Box::new(right_side);
+        let box_r = Box::new(right_side.clone());
 
         let expr = match current_token.category {
             TokenCategory::Equal => Expression::Equal(box_l, box_r),

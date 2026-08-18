@@ -176,7 +176,7 @@ pub fn vector_push() -> StdFunction {
             )) as Box<dyn IError>
         })?;
 
-        let element_size = LlvmValue::element_byte_size(&inner_type, i64_type)?;
+        let element_size = LlvmValue::element_byte_size(&inner_type, i64_type, span)?;
 
         let needs_grow = compiler
             .builder()

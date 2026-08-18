@@ -1,7 +1,6 @@
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, SemanticCheckerError},
-        span::Span,
         types::Type,
         visitor::Visitor,
     },

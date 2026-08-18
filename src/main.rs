@@ -23,10 +23,10 @@ use crate::{
     semantic::semantic_checker::SemanticChecker,
 };
 
-mod backend;
-mod common;
-mod frontend;
-mod semantic;
+use raptor_lib::backend;
+use raptor_lib::common;
+use raptor_lib::frontend;
+use raptor_lib::semantic;
 
 mod tests;
 

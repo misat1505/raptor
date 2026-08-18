@@ -1,6 +1,8 @@
 use crate::{
     common::{
         errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
+        position::Position,
+        span::Span,
         types::Type,
     },
     semantic::stack::stack_frame::StaticCheckerStackFrame,
@@ -58,8 +60,16 @@ impl<'a> StaticCheckerStack<'a> {
 
     pub(in crate::semantic) fn push_stack_frame(&mut self) -> Result<(), StackOverflowError> {
         if self.0.len() == 500 {
-            return Err(StackOverflowError::new(ErrorSeverity::HIGH, String::from("Stack overflow.")));
+            return Err(StackOverflowError::new(
+                ErrorSeverity::HIGH,
+                String::from("Stack overflow."),
+                Span::new(
+                    Position::new(0, 0, 0, Some("<stack_overflow>")),
+                    Position::new(0, 0, 0, Some("<stack_overflow>")),
+                ),
+            ));
         }
+
         self.0.push(StaticCheckerStackFrame::new());
         Ok(())
     }
@@ -80,24 +90,26 @@ impl<'a> StaticCheckerStack<'a> {
         }
     }
 
-    pub(in crate::semantic) fn get_variable(&mut self, name: &'a str) -> Result<&Type, ScopeManagerError> {
+    pub(in crate::semantic) fn get_variable(&mut self, name: &'a str, span: Span) -> Result<&Type, ScopeManagerError> {
         match self.0.last_mut() {
-            Some(last_frame) => last_frame.scope_manager.get_variable(name),
+            Some(last_frame) => last_frame.scope_manager.get_variable(name, span),
             None => unreachable!("Scope stack is empty"),
         }
     }
 
-    pub(in crate::semantic) fn assign_variable(&mut self, name: &'a str, value: Type) -> Result<(), ScopeManagerError> {
+    pub(in crate::semantic) fn assign_variable(&mut self, name: &'a str, value: Type, span: Span) -> Result<(), ScopeManagerError> {
         if let Some(last_frame) = self.0.last_mut() {
-            last_frame.scope_manager.assign_variable(name, value)?;
+            last_frame.scope_manager.assign_variable(name, value, span)?;
         }
+
         Ok(())
     }
 
-    pub(in crate::semantic) fn declare_variable(&mut self, name: &'a str, value: Type) -> Result<(), ScopeManagerError> {
+    pub(in crate::semantic) fn declare_variable(&mut self, name: &'a str, value: Type, span: Span) -> Result<(), ScopeManagerError> {
         if let Some(last_frame) = self.0.last_mut() {
-            last_frame.scope_manager.declare_variable(name, value)?;
+            last_frame.scope_manager.declare_variable(name, value, span)?;
         }
+
         Ok(())
     }
 }

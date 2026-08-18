@@ -1,6 +1,7 @@
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, SemanticCheckerError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -20,6 +21,7 @@ impl<'a> SemanticChecker<'a> {
     pub fn new(program: &'a Program) -> Result<Self, Box<dyn IError>> {
         let errors: Vec<Box<dyn IError>> = vec![];
         let stack = StaticCheckerStack::new();
+
         Ok(Self {
             program,
             errors,
@@ -33,11 +35,12 @@ impl<'a> SemanticChecker<'a> {
         let _ = self.visit_program(self.program);
     }
 
-    pub(in crate::semantic::semantic_checker) fn read_last_result(&mut self) -> Result<Type, Box<dyn IError>> {
+    pub(in crate::semantic::semantic_checker) fn read_last_result(&mut self, span: Span) -> Result<Type, Box<dyn IError>> {
         match self.last_result.take() {
             Some(t) => Ok(t),
             None => {
-                let error = SemanticCheckerError::new(ErrorSeverity::HIGH, String::from("No type produced where it is needed."));
+                let error = SemanticCheckerError::at(ErrorSeverity::HIGH, String::from("No type produced where it is needed."), span);
+
                 Err(Box::new(error))
             }
         }
@@ -53,19 +56,26 @@ impl<'a> SemanticChecker<'a> {
         F: Fn(Type, Type) -> Result<Type, SemanticCheckerError>,
     {
         self.visit_expression(lhs)?;
-        let left_value = self.read_last_result();
+        let left_value = self.read_last_result(lhs.span);
+
         self.visit_expression(rhs)?;
-        let right_value = self.read_last_result();
+        let right_value = self.read_last_result(rhs.span);
 
         match (left_value, right_value) {
             (Ok(l), Ok(r)) => match op(l, r) {
                 Ok(result_type) => self.last_result = Some(result_type),
+
                 Err(err) => {
-                    self.errors
-                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), lhs.position)));
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        err.message(),
+                        Span::new(lhs.span.start(), rhs.span.end()),
+                    )));
+
                     self.last_result = None;
                 }
             },
+
             _ => self.last_result = None,
         }
 
@@ -81,17 +91,20 @@ impl<'a> SemanticChecker<'a> {
         F: Fn(Type) -> Result<Type, SemanticCheckerError>,
     {
         self.visit_expression(value)?;
-        let computed_type = self.read_last_result();
+        let computed_type = self.read_last_result(value.span);
 
         match computed_type {
             Ok(t) => match op(t) {
                 Ok(result_type) => self.last_result = Some(result_type),
+
                 Err(err) => {
                     self.errors
-                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), value.position)));
+                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), value.span)));
+
                     self.last_result = None;
                 }
             },
+
             Err(_) => self.last_result = None,
         }
 

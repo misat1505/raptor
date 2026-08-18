@@ -24,7 +24,24 @@
         "extensions": [
           ".rp"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/rp-light.svg",
+          "dark": "./icons/rp-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "raptor",
+        "scopeName": "source.rp",
+        "path": "./syntaxes/rp.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "raptor",
+        "path": "./snippets/rp.json"
       }
     ],
     "configuration": {

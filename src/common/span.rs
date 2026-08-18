@@ -18,4 +18,8 @@ impl Span {
     pub fn end(&self) -> Position {
         self.end
     }
+
+    pub fn join(start: Span, end: Span) -> Span {
+        Span::new(start.start(), end.end())
+    }
 }

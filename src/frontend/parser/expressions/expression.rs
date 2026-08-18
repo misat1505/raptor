@@ -23,7 +23,7 @@ impl<L: ILexer> Parser<L> {
             let expression_type = Expression::Alternative(Box::new(left_side.clone()), Box::new(right_side.clone()));
             left_side = Node {
                 value: expression_type,
-                position: current_token.position,
+                span: Span::new(left_side.span.start(), right_side.span.end()),
             };
             current_token = self.current_token();
         }

@@ -25,7 +25,7 @@ impl<L: ILexer> Parser<L> {
                         value: Box::new(unary_term),
                         to_type: type_parsed,
                     },
-                    position,
+                    span: Span::new(unary_term.span.start(), type_parsed.span.end()),
                 }))
             }
             None => Ok(Some(unary_term)),

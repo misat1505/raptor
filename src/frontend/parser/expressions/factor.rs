@@ -14,7 +14,7 @@ impl<L: ILexer> Parser<L> {
         if let Ok(Some(literal)) = self.parse_literal() {
             let node = Node {
                 value: Expression::Literal(literal.value),
-                position: literal.position,
+                span: literal.span,
             };
             return Ok(Some(node));
         }

@@ -11,11 +11,13 @@ use crate::{
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_unary_term(&mut self) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
         // unary_term = [ ("-", "!") ], factor;
+        let start_pos = self.current_token().span.start();
+
         if let Some(token) = self.consume_if_matches(TokenCategory::Negate)? {
             let factor = self.parse_unary_term_factor()?;
             return Ok(Some(Node {
                 value: Expression::BooleanNegation(Box::new(factor)),
-                position: token.position,
+                span: Span::new(start_pos, token.span.end()),
             }));
         }
 
@@ -23,7 +25,7 @@ impl<L: ILexer> Parser<L> {
             let factor = self.parse_unary_term_factor()?;
             return Ok(Some(Node {
                 value: Expression::ArithmeticNegation(Box::new(factor)),
-                position: token.position,
+                span: Span::new(start_pos, factor.span.end()),
             }));
         }
 

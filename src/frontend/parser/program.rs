@@ -32,7 +32,8 @@ impl<L: ILexer> Parser<L> {
                 {
                     return Err(Box::new(ParserError::new(
                         ErrorSeverity::HIGH,
-                        format!("Redeclaration of function '{}'.\nAt: {:?}.", function_name, function_declaration.position),
+                        format!("Redeclaration of function '{}'.", function_name),
+                        function_declaration.span,
                     )));
                 }
                 functions.insert(function_name, Rc::new(function_declaration));
@@ -51,7 +52,8 @@ impl<L: ILexer> Parser<L> {
                 {
                     return Err(Box::new(ParserError::new(
                         ErrorSeverity::HIGH,
-                        format!("Redeclaration of function '{}'.\nAt: {:?}.", function_name, function_declaration.position),
+                        format!("Redeclaration of function '{}'.", function_name),
+                        function_declaration.span,
                     )));
                 }
 

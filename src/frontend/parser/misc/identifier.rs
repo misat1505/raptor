@@ -15,7 +15,7 @@ impl<L: ILexer> Parser<L> {
         if let TokenValue::String(name) = token.value {
             let node = Node {
                 value: name,
-                position: token.position,
+                span: token.span,
             };
             return Ok(Some(node));
         }
@@ -24,7 +24,7 @@ impl<L: ILexer> Parser<L> {
             "Wrong token value type".to_string(),
             "str".to_string(),
             format!("{:?}", token.category),
-            token.position,
+            token.span,
         )))
     }
 }

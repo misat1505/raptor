@@ -47,7 +47,7 @@ impl<L: ILexer> Parser<L> {
 
         let node = Node {
             value: expr,
-            position: left_side.position,
+            span: Span::new(left_side.span.start(), right_side.span.end()),
         };
         Ok(Some(node))
     }

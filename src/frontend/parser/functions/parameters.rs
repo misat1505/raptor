@@ -29,7 +29,7 @@ impl<L: ILexer> Parser<L> {
 
     pub(in crate::frontend::parser) fn parse_parameter(&mut self) -> Result<Option<Node<Parameter>>, Box<dyn IError>> {
         // parameter = ["&"], type, identifier, [ "=", expression ];
-        let position = self.current_token().position;
+        let start_pos = self.current_token().span.start();
         let passed_by = match self.consume_if_matches(TokenCategory::Reference)? {
             Some(_) => PassedBy::Reference,
             None => PassedBy::Value,
@@ -46,7 +46,7 @@ impl<L: ILexer> Parser<L> {
                 parameter_type,
                 identifier,
             },
-            position,
+            span: Span::new(start_pos, identifier.span.end()),
         };
         Ok(Some(node))
     }

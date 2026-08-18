@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Expression, Node},
         lexer::lexer::ILexer,
@@ -26,7 +26,7 @@ impl<L: ILexer> Parser<L> {
             }
             left_side = Node {
                 value: expression_type,
-                position: current_token.position,
+                span: Span::new(left_side.span.start(), right_side.span.end()),
             };
             current_token = self.current_token();
         }

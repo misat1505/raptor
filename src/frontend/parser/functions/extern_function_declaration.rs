@@ -38,7 +38,7 @@ impl<L: ILexer> Parser<L> {
             None
         };
 
-        let _ = self.consume_must_be(TokenCategory::Semicolon)?;
+        let semicolon_token = self.consume_must_be(TokenCategory::Semicolon)?;
 
         let node = Node {
             value: ExternFunctionDeclaration {
@@ -47,7 +47,7 @@ impl<L: ILexer> Parser<L> {
                 return_type,
                 alias,
             },
-            position: extern_token.position,
+            span: Span::new(extern_token.span.start(), semicolon_token.span.end()),
         };
 
         Ok(Some(node))

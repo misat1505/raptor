@@ -2,13 +2,13 @@ use std::{collections::HashMap, fmt::Debug, rc::Rc};
 
 use crate::{
     backend::std_functions::std_functions::StdFunction,
-    common::{position::Position, types::Type},
+    common::{position::Position, span::Span, types::Type},
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node<T> {
     pub value: T,
-    pub position: Position,
+    pub span: Span,
 }
 
 type BNode<T> = Box<Node<T>>;

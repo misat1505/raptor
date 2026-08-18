@@ -36,7 +36,7 @@ impl<L: ILexer> Parser<L> {
                 return_type,
                 block,
             },
-            position: fn_token.position,
+            span: Span::new(fn_token.span.start(), block.span.end()),
         };
 
         Ok(Some(node))

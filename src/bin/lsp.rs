@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::Cursor;
 use std::thread_local;
 
@@ -6,8 +7,10 @@ use raptor_lib::common::errors::{ErrorSeverity, IError};
 use raptor_lib::frontend::lexer::lazy_stream_reader::LazyStreamReader;
 use raptor_lib::frontend::lexer::lexer::{Lexer, LexerOptions};
 use raptor_lib::frontend::parser::{IParser, Parser};
+use raptor_lib::frontend::tokens::{TokenCategory, TokenValue};
 use raptor_lib::semantic::semantic_checker::checker::SemanticChecker;
 
+use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result as LspResult;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
@@ -24,6 +27,39 @@ fn on_warning(warning: Box<dyn IError>) {
 
 struct Backend {
     client: Client,
+    documents: Mutex<HashMap<Url, String>>,
+}
+
+fn std_function_completions() -> Vec<CompletionItem> {
+    let functions = [
+        "print",
+        "println",
+        "input",
+        "read_file",
+        "write_file",
+        "append_file",
+        "delete_file",
+        "exists_file",
+        "tcp_accept",
+        "tcp_close",
+        "tcp_listen",
+        "tcp_read",
+        "tcp_write",
+        "str_len",
+        "sleep_ms",
+        "vector_push",
+        "vector_size",
+        "vector_stringify",
+    ];
+
+    functions
+        .iter()
+        .map(|name| CompletionItem {
+            label: name.to_string(),
+            kind: Some(CompletionItemKind::FUNCTION),
+            ..Default::default()
+        })
+        .collect()
 }
 
 #[tower_lsp::async_trait]
@@ -49,19 +85,46 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.validate(params.text_document.uri, params.text_document.text).await;
+        let uri = params.text_document.uri;
+        let text = params.text_document.text;
+
+        self.documents.lock().await.insert(uri.clone(), text.clone());
+
+        self.validate(uri, text).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         if let Some(change) = params.content_changes.into_iter().last() {
-            self.validate(params.text_document.uri, change.text).await;
+            let uri = params.text_document.uri;
+            let text = change.text;
+
+            self.documents.lock().await.insert(uri.clone(), text.clone());
+
+            self.validate(uri, text).await;
         }
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         if let Some(text) = params.text {
-            self.validate(params.text_document.uri, text).await;
+            let uri = params.text_document.uri;
+
+            self.documents.lock().await.insert(uri.clone(), text.clone());
+
+            self.validate(uri, text).await;
         }
+    }
+
+    async fn completion(&self, params: CompletionParams) -> LspResult<Option<CompletionResponse>> {
+        let uri = params.text_document_position.text_document.uri;
+
+        let source = self.documents.lock().await.get(&uri).cloned().unwrap_or_default();
+
+        let mut items = keyword_completions();
+
+        items.extend(std_function_completions());
+        items.extend(identifier_completions(&source));
+
+        Ok(Some(CompletionResponse::Array(items)))
     }
 }
 
@@ -134,6 +197,64 @@ fn analyze(source: &str) -> Vec<Diagnostic> {
     diagnostics
 }
 
+fn keyword_completions() -> Vec<CompletionItem> {
+    let keywords = [
+        "for", "while", "if", "else", "as", "fn", "true", "false", "return", "switch", "break", "continue", "import", "extern",
+    ];
+    let types = ["bool", "str", "i64", "f64", "void"];
+
+    let mut items: Vec<CompletionItem> = keywords
+        .iter()
+        .map(|kw| CompletionItem {
+            label: kw.to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            ..Default::default()
+        })
+        .collect();
+
+    items.extend(types.iter().map(|ty| CompletionItem {
+        label: ty.to_string(),
+        kind: Some(CompletionItemKind::TYPE_PARAMETER),
+        ..Default::default()
+    }));
+
+    items
+}
+
+fn identifier_completions(source: &str) -> Vec<CompletionItem> {
+    let cursor = Cursor::new(source.as_bytes().to_vec());
+    let reader = LazyStreamReader::new(cursor, Some("current"));
+    let lexer_options = LexerOptions {
+        max_comment_length: 500,
+        max_identifier_length: 100,
+    };
+
+    let mut names = std::collections::HashSet::new();
+
+    if let Ok(mut lexer) = Lexer::new(reader, lexer_options, |_| {}) {
+        while let Ok(token) = lexer.generate_token() {
+            // dopasuj do realnego API lexera
+            if token.category == TokenCategory::Identifier {
+                if let TokenValue::String(name) = &token.value {
+                    names.insert(name.clone());
+                }
+            }
+            if token.category == TokenCategory::ETX {
+                break;
+            }
+        }
+    }
+
+    names
+        .into_iter()
+        .map(|name| CompletionItem {
+            label: name,
+            kind: Some(CompletionItemKind::VARIABLE),
+            ..Default::default()
+        })
+        .collect()
+}
+
 fn parse_position_from_message(message: &str) -> (Option<(u32, u32)>, String) {
     let ansi_re = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
     let clean = ansi_re.replace_all(message, "").to_string();
@@ -174,6 +295,9 @@ async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::new(|client| Backend { client });
+    let (service, socket) = LspService::new(|client| Backend {
+        client,
+        documents: Mutex::new(HashMap::new()),
+    });
     Server::new(stdin, stdout, socket).serve(service).await;
 }

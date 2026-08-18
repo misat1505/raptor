@@ -10,6 +10,7 @@ use crate::{
     },
     common::{
         errors::{ErrorSeverity, StdFunctionError},
+        span::Span,
         types::Type,
     },
     frontend::ast::PassedBy,
@@ -17,7 +18,7 @@ use crate::{
 
 pub fn append_file() -> StdFunction {
     let params = vec![Type::Str, Type::Str];
-    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+    let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "append_file";
         let expected_types = vec![Type::Str, Type::Str];
         let mut actual_types: Vec<Type> = vec![];
@@ -32,23 +33,31 @@ pub fn append_file() -> StdFunction {
                         Value::String(con) => match OpenOptions::new().append(true).create(true).open(path) {
                             Ok(mut file) => match write!(file, "{}", con) {
                                 Ok(_) => Ok(None),
-                                Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to append to file."))),
+                                Err(_) => Err(StdFunctionError::new(
+                                    ErrorSeverity::HIGH,
+                                    String::from("Failed to append to file."),
+                                    span,
+                                )),
                             },
-                            Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to append to file."))),
+                            Err(_) => Err(StdFunctionError::new(
+                                ErrorSeverity::HIGH,
+                                String::from("Failed to append to file."),
+                                span,
+                            )),
                         },
-                        _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                        _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
                     },
-                    _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                    _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
                 }
             } else {
-                Err(build_usage_error(fn_name, expected_types, actual_types))
+                Err(build_usage_error(fn_name, expected_types, actual_types, span))
             }
         } else {
-            Err(build_usage_error(fn_name, expected_types, actual_types))
+            Err(build_usage_error(fn_name, expected_types, actual_types, span))
         }
     };
 
-    let compile: LlvmCompileFn = |compiler, arguments, position| compile_write_or_append(compiler, arguments, "ab", position);
+    let compile: LlvmCompileFn = |compiler, arguments, span| compile_write_or_append(compiler, arguments, "ab", span);
 
     StdFunction {
         params,

@@ -8,6 +8,7 @@ use crate::{
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -23,14 +24,15 @@ fn stringify_value(value: &Value) -> String {
         Value::Vector { values, .. } => {
             let values = values.borrow().iter().map(|v| stringify_value(&v.borrow())).collect::<Vec<String>>();
 
-            return format!("[{}]", values.join(", "));
+            format!("[{}]", values.join(", "))
         }
     }
 }
 
 pub fn vector_stringify() -> StdFunction {
     let params = vec![Type::Vector(Box::new(Type::Void))];
-    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+
+    let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "vector_stringify";
         let expected_types = vec![Type::Vector(Box::new(Type::Void))];
         let mut actual_types: Vec<Type> = vec![];
@@ -41,13 +43,11 @@ pub fn vector_stringify() -> StdFunction {
             let vector = vector.borrow();
 
             match &*vector {
-                Value::Vector { .. } => {
-                    return Ok(Some(Value::String(stringify_value(&vector))));
-                }
-                _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                Value::Vector { .. } => Ok(Some(Value::String(stringify_value(&vector)))),
+                _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
-            Err(build_usage_error(fn_name, expected_types, actual_types))
+            Err(build_usage_error(fn_name, expected_types, actual_types, span))
         }
     };
 
@@ -57,12 +57,12 @@ pub fn vector_stringify() -> StdFunction {
         _ => Err(String::from("vector_stringify expects exactly 1 argument.")),
     };
 
-    let compile: LlvmCompileFn = |compiler, arguments, position| {
+    let compile: LlvmCompileFn = |compiler, arguments, span| {
         let vector_arg = arguments.get(0).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'vector_stringify' expects exactly one argument."),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
 
@@ -75,12 +75,12 @@ pub fn vector_stringify() -> StdFunction {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     format!("'vector_stringify' expects a vector, got '{:?}'.", other.to_type()),
-                    position,
+                    span,
                 )))
             }
         };
 
-        let result = compiler.build_vector_to_string(vector_ptr, &inner_type, position)?;
+        let result = compiler.build_vector_to_string(vector_ptr, &inner_type, span)?;
         compiler.set_last_value(LlvmValue::Str(result));
 
         Ok(())
@@ -88,10 +88,10 @@ pub fn vector_stringify() -> StdFunction {
 
     StdFunction {
         params,
-        execute,
         passed_by: vec![PassedBy::Value],
         return_type: Type::Str,
         type_check: Some(type_check),
         compile,
+        execute,
     }
 }

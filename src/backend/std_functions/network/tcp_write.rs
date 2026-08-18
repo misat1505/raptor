@@ -10,6 +10,7 @@ use crate::{
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -19,10 +20,9 @@ use crate::{
 pub fn tcp_write() -> StdFunction {
     let params = vec![Type::I64, Type::Str];
 
-    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+    let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "tcp_write";
         let expected_types = vec![Type::I64, Type::Str];
-
         let mut actual_types: Vec<Type> = vec![];
 
         let handle_param = params.get(0);
@@ -41,48 +41,48 @@ pub fn tcp_write() -> StdFunction {
                     let stream = streams
                         .as_mut()
                         .and_then(|m| m.get_mut(stream_handle))
-                        .ok_or_else(|| StdFunctionError::new(ErrorSeverity::HIGH, format!("Invalid stream handle {}", stream_handle)))?;
+                        .ok_or_else(|| StdFunctionError::new(ErrorSeverity::HIGH, format!("Invalid stream handle {}", stream_handle), span))?;
 
                     stream
                         .write_all(payload.as_bytes())
-                        .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Write failed: {}", e)))?;
+                        .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Write failed: {}", e), span))?;
 
                     Ok(None)
                 }
-                _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
-            Err(build_usage_error(fn_name, expected_types, actual_types))
+            Err(build_usage_error(fn_name, expected_types, actual_types, span))
         }
     };
 
-    let compile: LlvmCompileFn = |compiler, arguments, position| {
-        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+    let compile: LlvmCompileFn = |compiler, arguments, span| {
+        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
         let fd_arg = arguments.get(0).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'tcp_write' expects exactly two arguments."),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
+
         let data_arg = arguments.get(1).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'tcp_write' expects exactly two arguments."),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
 
         compiler.visit_expression(&fd_arg.value.value)?;
-        let fd = compiler.read_last_value()?.into_i64_value(position)?;
+        let fd = compiler.read_last_value()?.into_i64_value(span)?;
 
         compiler.visit_expression(&data_arg.value.value)?;
-        let data_ptr = compiler.read_last_value()?.into_str_value(position)?;
+        let data_ptr = compiler.read_last_value()?.into_str_value(span)?;
 
         let context = compiler.context();
         let i32_type = context.i32_type();
-        let i64_type = context.i64_type();
 
         let fd_i32 = compiler.builder().build_int_truncate(fd, i32_type, "fd.i32").map_err(err)?;
 
@@ -106,7 +106,6 @@ pub fn tcp_write() -> StdFunction {
             )
             .map_err(err)?;
 
-        let _ = i64_type;
         Ok(())
     };
 

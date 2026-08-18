@@ -13,6 +13,7 @@ use crate::{
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -22,10 +23,9 @@ use crate::{
 pub fn tcp_accept() -> StdFunction {
     let params = vec![Type::I64];
 
-    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+    let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "tcp_accept";
         let expected_types = vec![Type::I64];
-
         let mut actual_types: Vec<Type> = vec![];
 
         if let Some(handle) = params.get(0) {
@@ -39,11 +39,11 @@ pub fn tcp_accept() -> StdFunction {
                     let listener = listeners
                         .as_ref()
                         .and_then(|m| m.get(listener_handle))
-                        .ok_or_else(|| StdFunctionError::new(ErrorSeverity::HIGH, format!("Invalid listener handle {}", listener_handle)))?;
+                        .ok_or_else(|| StdFunctionError::new(ErrorSeverity::HIGH, format!("Invalid listener handle {}", listener_handle), span))?;
 
                     let (stream, _addr) = listener
                         .accept()
-                        .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Accept failed: {}", e)))?;
+                        .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Accept failed: {}", e), span))?;
 
                     drop(listeners);
 
@@ -52,26 +52,26 @@ pub fn tcp_accept() -> StdFunction {
 
                     Ok(Some(Value::I64(new_handle)))
                 }
-                _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
-            Err(build_usage_error(fn_name, expected_types, actual_types))
+            Err(build_usage_error(fn_name, expected_types, actual_types, span))
         }
     };
 
-    let compile: LlvmCompileFn = |compiler, arguments, position| {
-        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+    let compile: LlvmCompileFn = |compiler, arguments, span| {
+        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
         let arg = arguments.get(0).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'tcp_accept' expects exactly one argument."),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
 
         compiler.visit_expression(&arg.value.value)?;
-        let listener_fd = compiler.read_last_value()?.into_i64_value(position)?;
+        let listener_fd = compiler.read_last_value()?.into_i64_value(span)?;
 
         let context = compiler.context();
         let i32_type = context.i32_type();
@@ -97,6 +97,7 @@ pub fn tcp_accept() -> StdFunction {
             .builder()
             .build_int_z_extend(client_fd, context.i64_type(), "fd.i64")
             .map_err(err)?;
+
         compiler.set_last_value(LlvmValue::I64(client_fd_i64));
         Ok(())
     };

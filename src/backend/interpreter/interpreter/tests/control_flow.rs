@@ -3,7 +3,7 @@ use std::{assert_eq, cell::RefCell, collections::HashMap, rc::Rc, vec};
 use super::{create_interpreter, setup_program, test_node};
 use crate::{
     backend::interpreter::{alu::value::Value, interpreter::Interpreter},
-    common::{types::Type, visitor::Visitor},
+    common::{span::Span, types::Type, visitor::Visitor},
     frontend::ast::{Block, Expression, FunctionDeclaration, Literal, Node, Program, Statement, SwitchCase, SwitchExpression},
 };
 
@@ -41,11 +41,13 @@ fn for_loop() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("total", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("total", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_ok());
     assert_eq!(
-        interpreter.stack.get_variable("total").unwrap().clone(),
+        interpreter.stack.get_variable("total", Span::default()).unwrap().clone(),
         Rc::new(RefCell::new(Value::I64(15)))
     );
 }
@@ -84,12 +86,16 @@ fn for_loop_second_variant() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("total", Rc::new(RefCell::new(Value::I64(0))));
-    let _ = interpreter.stack.declare_variable("i", Rc::new(RefCell::new(Value::I64(1))));
+    let _ = interpreter
+        .stack
+        .declare_variable("total", Rc::new(RefCell::new(Value::I64(0))), Span::default());
+    let _ = interpreter
+        .stack
+        .declare_variable("i", Rc::new(RefCell::new(Value::I64(1))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_ok());
     assert_eq!(
-        interpreter.stack.get_variable("total").unwrap().clone(),
+        interpreter.stack.get_variable("total", Span::default()).unwrap().clone(),
         Rc::new(RefCell::new(Value::I64(15)))
     );
 }
@@ -137,11 +143,16 @@ fn for_loop_with_break() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("i", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("i", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_ok());
     assert_eq!(interpreter.abort_state, None);
-    assert_eq!(interpreter.stack.get_variable("i").unwrap().clone(), Rc::new(RefCell::new(Value::I64(5))));
+    assert_eq!(
+        interpreter.stack.get_variable("i", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(5)))
+    );
 }
 
 #[test]
@@ -188,12 +199,14 @@ fn for_loop_with_continue() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("total", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("total", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_ok());
     // 0+1+3+4 = 8 (pomija i == 2)
     assert_eq!(
-        interpreter.stack.get_variable("total").unwrap().clone(),
+        interpreter.stack.get_variable("total", Span::default()).unwrap().clone(),
         Rc::new(RefCell::new(Value::I64(8)))
     );
     assert_eq!(interpreter.abort_state, None);
@@ -252,16 +265,20 @@ fn create_test_switch_case() -> Node<Statement> {
 fn switch_enters() {
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(12))));
     let _ = interpreter
         .stack
-        .declare_variable("result", Rc::new(RefCell::new(Value::default_value(&Type::I64).unwrap())));
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(12))), Span::default());
+    let _ = interpreter.stack.declare_variable(
+        "result",
+        Rc::new(RefCell::new(Value::default_value(&Type::I64, Span::default()).unwrap())),
+        Span::default(),
+    );
 
     let switch_case = &create_test_switch_case();
     let _ = interpreter.visit_statement(switch_case);
 
     assert_eq!(
-        interpreter.stack.get_variable("result").unwrap().clone(),
+        interpreter.stack.get_variable("result", Span::default()).unwrap().clone(),
         Rc::new(RefCell::new(Value::I64(15)))
     );
     assert_eq!(interpreter.abort_state, None);
@@ -271,16 +288,20 @@ fn switch_enters() {
 fn switch_breaks() {
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(3))));
     let _ = interpreter
         .stack
-        .declare_variable("result", Rc::new(RefCell::new(Value::default_value(&Type::I64).unwrap())));
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(3))), Span::default());
+    let _ = interpreter.stack.declare_variable(
+        "result",
+        Rc::new(RefCell::new(Value::default_value(&Type::I64, Span::default()).unwrap())),
+        Span::default(),
+    );
 
     let switch_case = &create_test_switch_case();
     let _ = interpreter.visit_statement(switch_case);
 
     assert_eq!(
-        interpreter.stack.get_variable("result").unwrap().clone(),
+        interpreter.stack.get_variable("result", Span::default()).unwrap().clone(),
         Rc::new(RefCell::new(Value::I64(10)))
     );
     assert_eq!(interpreter.abort_state, None);
@@ -290,16 +311,20 @@ fn switch_breaks() {
 fn switch_no_entry() {
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(2137))));
     let _ = interpreter
         .stack
-        .declare_variable("result", Rc::new(RefCell::new(Value::default_value(&Type::I64).unwrap())));
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(2137))), Span::default());
+    let _ = interpreter.stack.declare_variable(
+        "result",
+        Rc::new(RefCell::new(Value::default_value(&Type::I64, Span::default()).unwrap())),
+        Span::default(),
+    );
 
     let switch_case = &create_test_switch_case();
     let _ = interpreter.visit_statement(switch_case);
 
     assert_eq!(
-        interpreter.stack.get_variable("result").unwrap().clone(),
+        interpreter.stack.get_variable("result", Span::default()).unwrap().clone(),
         Rc::new(RefCell::new(Value::I64(0)))
     );
     assert_eq!(interpreter.abort_state, None);
@@ -353,7 +378,7 @@ fn break_called_outside_for_or_switch_in_function() {
         block: test_node!(Block(vec![test_node!(Statement::Break),])),
     };
 
-    assert!(interpreter.execute_function(&ast).is_err())
+    assert!(interpreter.execute_function(&ast, Span::default()).is_err())
 }
 
 #[test]
@@ -402,7 +427,7 @@ fn continue_called_outside_for_or_while_in_function() {
         block: test_node!(Block(vec![test_node!(Statement::Continue),])),
     };
 
-    assert!(interpreter.execute_function(&ast).is_err())
+    assert!(interpreter.execute_function(&ast, Span::default()).is_err())
 }
 
 #[test]
@@ -426,9 +451,14 @@ fn while_loop() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("i", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("i", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_ok());
-    assert_eq!(interpreter.stack.get_variable("i").unwrap().clone(), Rc::new(RefCell::new(Value::I64(5))));
+    assert_eq!(
+        interpreter.stack.get_variable("i", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(5))),
+    );
     assert_eq!(interpreter.abort_state, None);
 }

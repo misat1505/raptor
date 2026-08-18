@@ -1,26 +1,16 @@
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    common::position::Position,
     frontend::ast::{Block, FunctionDeclaration, Node, Parameter, Program},
     semantic::semantic_checker::SemanticChecker,
 };
-
-pub fn pos() -> Position {
-    Position {
-        filename: None,
-        line: 0,
-        column: 0,
-        offset: 0,
-    }
-}
 
 #[macro_export]
 macro_rules! node {
     ($value:expr) => {
         crate::frontend::ast::Node {
             value: $value,
-            position: crate::semantic::semantic_checker::tests::common::pos(),
+            span: crate::common::span::Span::default(),
         }
     };
 }

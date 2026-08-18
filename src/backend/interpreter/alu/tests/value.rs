@@ -2,10 +2,7 @@ use std::{assert_eq, cell::RefCell, rc::Rc, vec};
 
 use crate::{
     backend::interpreter::Value,
-    common::{
-        errors::IError,
-        types::Type,
-    },
+    common::{errors::IError, span::Span, types::Type},
 };
 
 #[test]
@@ -15,14 +12,14 @@ fn default_values() {
     let expected = [Value::Bool(false), Value::I64(0), Value::F64(0.0), Value::String(String::from(""))];
 
     for idx in 0..data.len() {
-        assert_eq!(Value::default_value(&data[idx]).unwrap(), expected[idx]);
+        assert_eq!(Value::default_value(&data[idx], Span::default()).unwrap(), expected[idx]);
     }
 }
 
 #[test]
 fn default_values_fail() {
     assert_eq!(
-        Value::default_value(&Type::Void).err().unwrap().message(),
+        Value::default_value(&Type::Void, Span::default()).err().unwrap().message(),
         String::from("Cannot create default value for type 'void'.")
     );
 }
@@ -40,16 +37,16 @@ fn value_to_type() {
 
 #[test]
 fn try_into_bool() {
-    assert_eq!(Value::Bool(true).try_into_bool().unwrap(), true);
+    assert_eq!(Value::Bool(true).try_into_bool(Span::default()).unwrap(), true);
     assert_eq!(
-        Value::I64(5).try_into_bool().err().unwrap().message(),
+        Value::I64(5).try_into_bool(Span::default()).err().unwrap().message(),
         String::from("Given value is not a boolean.")
     );
 }
 
 #[test]
 fn default_vector_value() {
-    let value = Value::default_value(&Type::Vector(Box::new(Type::I64))).unwrap();
+    let value = Value::default_value(&Type::Vector(Box::new(Type::I64)), Span::default()).unwrap();
 
     assert_eq!(
         value,
@@ -66,7 +63,7 @@ fn default_vector_preserves_inner_type() {
 
     for inner_type in types {
         let vector_type = Type::Vector(Box::new(inner_type.clone()));
-        let value = Value::default_value(&vector_type).unwrap();
+        let value = Value::default_value(&vector_type, Span::default()).unwrap();
 
         assert_eq!(value.to_type(), inner_type);
     }
@@ -74,7 +71,7 @@ fn default_vector_preserves_inner_type() {
 
 #[test]
 fn default_vector_is_empty() {
-    let value = Value::default_value(&Type::Vector(Box::new(Type::F64))).unwrap();
+    let value = Value::default_value(&Type::Vector(Box::new(Type::F64)), Span::default()).unwrap();
 
     match value {
         Value::Vector { kind, values } => {
@@ -87,7 +84,7 @@ fn default_vector_is_empty() {
 
 #[test]
 fn default_values_fail_for_unsupported_types() {
-    assert!(Value::default_value(&Type::Void).is_err());
+    assert!(Value::default_value(&Type::Void, Span::default()).is_err());
 }
 
 #[test]
@@ -127,28 +124,38 @@ fn value_to_type_does_not_depend_on_vector_contents() {
 
 #[test]
 fn try_into_bool_accepts_true() {
-    assert_eq!(Value::Bool(true).try_into_bool().unwrap(), true);
+    assert_eq!(Value::Bool(true).try_into_bool(Span::default()).unwrap(), true);
 }
 
 #[test]
 fn try_into_bool_accepts_false() {
-    assert_eq!(Value::Bool(false).try_into_bool().unwrap(), false);
+    assert_eq!(Value::Bool(false).try_into_bool(Span::default()).unwrap(), false);
 }
 
 #[test]
 fn try_into_bool_rejects_i64() {
-    assert_eq!(Value::I64(0).try_into_bool().err().unwrap().message(), "Given value is not a boolean.");
+    assert_eq!(
+        Value::I64(0).try_into_bool(Span::default()).err().unwrap().message(),
+        "Given value is not a boolean."
+    );
 }
 
 #[test]
 fn try_into_bool_rejects_f64() {
-    assert_eq!(Value::F64(0.0).try_into_bool().err().unwrap().message(), "Given value is not a boolean.");
+    assert_eq!(
+        Value::F64(0.0).try_into_bool(Span::default()).err().unwrap().message(),
+        "Given value is not a boolean."
+    );
 }
 
 #[test]
 fn try_into_bool_rejects_string() {
     assert_eq!(
-        Value::String(String::from("true")).try_into_bool().err().unwrap().message(),
+        Value::String(String::from("true"))
+            .try_into_bool(Span::default())
+            .err()
+            .unwrap()
+            .message(),
         "Given value is not a boolean."
     );
 }
@@ -160,7 +167,10 @@ fn try_into_bool_rejects_vector() {
         values: Rc::new(RefCell::new(vec![])),
     };
 
-    assert_eq!(value.try_into_bool().err().unwrap().message(), "Given value is not a boolean.");
+    assert_eq!(
+        value.try_into_bool(Span::default()).err().unwrap().message(),
+        "Given value is not a boolean."
+    );
 }
 
 #[test]

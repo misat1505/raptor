@@ -2,7 +2,7 @@ use std::{assert_eq, cell::RefCell, rc::Rc};
 
 use crate::{
     backend::interpreter::{stack::scope::Scope, Value},
-    common::errors::IError,
+    common::{errors::IError, span::Span},
 };
 
 #[test]
@@ -17,17 +17,17 @@ fn scope_variables() {
     let name = "x";
     let value = Rc::new(RefCell::new(Value::I64(5)));
 
-    let _ = scope.declare_variable(name, value.clone());
+    let _ = scope.declare_variable(name, value.clone(), Span::default());
     assert_eq!(scope.get_variable(name).unwrap().clone(), value);
     assert!(scope.get_variable("non-existent").is_none());
 
     let new_value = Rc::new(RefCell::new(Value::I64(0)));
-    let _ = scope.assign_variable(name, new_value.clone());
+    let _ = scope.assign_variable(name, new_value.clone(), Span::default());
     assert_eq!(scope.get_variable(name).unwrap().clone(), new_value);
 
     assert_eq!(
         scope
-            .assign_variable("y", Rc::new(RefCell::new(Value::Bool(true))))
+            .assign_variable("y", Rc::new(RefCell::new(Value::Bool(true))), Span::default())
             .err()
             .unwrap()
             .message(),

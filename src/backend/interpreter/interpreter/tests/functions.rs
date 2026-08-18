@@ -3,7 +3,7 @@ use std::{assert_eq, cell::RefCell, collections::HashMap, rc::Rc, vec};
 use super::{create_interpreter, setup_program, test_node};
 use crate::{
     backend::interpreter::{alu::value::Value, interpreter::Interpreter},
-    common::{types::Type, visitor::Visitor},
+    common::{span::Span, types::Type, visitor::Visitor},
     frontend::ast::{Argument, Block, Expression, FunctionDeclaration, Literal, Node, Parameter, PassedBy, Program, Statement},
 };
 
@@ -79,7 +79,7 @@ fn bad_arg_type() {
 
     interpreter.last_arguments = vec![Rc::new(RefCell::new(Value::F64(3.2)))];
 
-    assert!(interpreter.execute_function(&ast).is_err())
+    assert!(interpreter.execute_function(&ast, Span::default()).is_err())
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn bad_return_type() {
         ))))),])),
     };
 
-    assert!(interpreter.execute_function(&ast).is_err())
+    assert!(interpreter.execute_function(&ast, Span::default()).is_err())
 }
 
 #[test]
@@ -195,8 +195,13 @@ fn call_function_by_reference() {
         extern_functions: HashMap::new(),
     };
     let mut interpreter = Interpreter::new(&program);
-    let _ = interpreter.stack.declare_variable("y", Rc::new(RefCell::new(Value::I64(5))));
+    let _ = interpreter
+        .stack
+        .declare_variable("y", Rc::new(RefCell::new(Value::I64(5))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_ok());
-    assert_eq!(interpreter.stack.get_variable("y").unwrap().clone(), Rc::new(RefCell::new(Value::I64(6))));
+    assert_eq!(
+        interpreter.stack.get_variable("y", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(6)))
+    );
 }

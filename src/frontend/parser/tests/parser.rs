@@ -84,7 +84,7 @@ fn parse_program_redeclared_function_fails() {
     let mut parser = Parser::new(mock_lexer);
 
     let err = parser.parse().unwrap_err();
-    assert_eq!(err.message(), format!("Redeclaration of function 'add'.\nAt: {:?}.", default_position()));
+    assert_eq!(err.message(), format!("Redeclaration of function 'add'."));
 }
 
 #[test]
@@ -106,8 +106,5 @@ fn parse_program_function_shadows_std_function_fails() {
     let mut parser = Parser::new(mock_lexer);
 
     let err = parser.parse().unwrap_err();
-    assert_eq!(
-        err.message(),
-        format!("Redeclaration of function 'print'.\nAt: {:?}.", default_position())
-    );
+    assert_eq!(err.message(), format!("Redeclaration of function 'print'."));
 }

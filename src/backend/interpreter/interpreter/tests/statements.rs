@@ -3,7 +3,7 @@ use std::{assert_eq, cell::RefCell, rc::Rc, vec};
 use super::{create_interpreter, setup_program, test_node};
 use crate::{
     backend::interpreter::alu::value::Value,
-    common::{types::Type, visitor::Visitor},
+    common::{span::Span, types::Type, visitor::Visitor},
     frontend::ast::{Argument, Block, Expression, Literal, PassedBy, Statement},
 };
 
@@ -20,7 +20,10 @@ fn declare_variable() {
     let mut interpreter = create_interpreter(&program);
 
     let _ = interpreter.visit_statement(&ast);
-    assert_eq!(interpreter.stack.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(5))));
+    assert_eq!(
+        interpreter.stack.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(5)))
+    );
 }
 
 #[test]
@@ -36,7 +39,10 @@ fn declare_variable_with_default_value() {
     let mut interpreter = create_interpreter(&program);
 
     let _ = interpreter.visit_statement(&ast);
-    assert_eq!(interpreter.stack.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(0))));
+    assert_eq!(
+        interpreter.stack.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(0)))
+    );
 }
 
 #[test]
@@ -66,7 +72,10 @@ fn redeclare_variable_fails() {
     let mut interpreter = create_interpreter(&program);
 
     let _ = interpreter.visit_statement(&ast);
-    assert_eq!(interpreter.stack.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(0))));
+    assert_eq!(
+        interpreter.stack.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(0)))
+    );
 
     assert!(interpreter.visit_statement(&ast).is_err());
 }
@@ -117,10 +126,15 @@ fn assigns_to_variable() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_ok());
-    assert_eq!(interpreter.stack.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(1))));
+    assert_eq!(
+        interpreter.stack.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(1)))
+    );
 }
 
 #[test]
@@ -135,7 +149,9 @@ fn assigns_bad_type_fails() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_err());
 }
@@ -157,7 +173,9 @@ fn assign_with_none_value_fails() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_err());
 }
@@ -182,10 +200,15 @@ fn if_true_branch() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_ok());
-    assert_eq!(interpreter.stack.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(1))));
+    assert_eq!(
+        interpreter.stack.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(1)))
+    );
 }
 
 #[test]
@@ -208,10 +231,15 @@ fn if_false_branch() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_ok());
-    assert_eq!(interpreter.stack.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(2))));
+    assert_eq!(
+        interpreter.stack.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(2)))
+    );
 }
 
 #[test]
@@ -226,7 +254,9 @@ fn if_bad_condition_type_fails() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(0))));
+    let _ = interpreter
+        .stack
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(0))), Span::default());
 
     assert!(interpreter.visit_statement(&ast).is_err());
 }
@@ -253,6 +283,7 @@ fn assign_by_index() {
             kind: Box::new(Type::I64),
             values: values.clone(),
         })),
+        Span::default(),
     );
 
     assert!(interpreter.visit_statement(&ast).is_ok());

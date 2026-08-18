@@ -3,7 +3,7 @@ use std::{assert_eq, cell::RefCell, rc::Rc};
 use super::{create_interpreter, setup_program, test_node};
 use crate::{
     backend::interpreter::alu::value::Value,
-    common::{types::Type, visitor::Visitor},
+    common::{span::Span, types::Type, visitor::Visitor},
     frontend::ast::{Expression, Literal},
 };
 
@@ -276,7 +276,9 @@ fn interpret_variable() {
 
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
-    let _ = interpreter.stack.declare_variable("x", Rc::new(RefCell::new(Value::I64(5))));
+    let _ = interpreter
+        .stack
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(5))), Span::default());
 
     let _ = interpreter.visit_expression(&ast);
     assert_eq!(interpreter.last_result, exp);
@@ -305,6 +307,7 @@ fn index_into_vector() {
             kind: Box::new(Type::I64),
             values,
         })),
+        Span::default(),
     );
 
     let _ = interpreter.visit_expression(&ast);
@@ -328,6 +331,7 @@ fn index_out_of_bounds_fails() {
             kind: Box::new(Type::I64),
             values,
         })),
+        Span::default(),
     );
 
     assert!(interpreter.visit_expression(&ast).is_err());

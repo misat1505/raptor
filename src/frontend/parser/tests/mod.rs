@@ -6,6 +6,7 @@ use crate::{
     common::{
         errors::{ErrorSeverity, IError, LexerError},
         position::Position,
+        span::Span,
     },
     frontend::{
         lexer::lexer::ILexer,
@@ -35,7 +36,7 @@ impl ILexer for LexerMock {
 
     fn next(&mut self) -> Result<Token, Box<dyn IError>> {
         if self.tokens.is_empty() {
-            return Err(Box::new(LexerError::new(ErrorSeverity::HIGH, String::new())));
+            return Err(Box::new(LexerError::new(ErrorSeverity::HIGH, String::new(), Span::default())));
         }
         let next_token = self.tokens.remove(0);
         self.current_token = Some(next_token.clone());
@@ -56,7 +57,7 @@ pub fn create_token(category: TokenCategory, value: TokenValue) -> Token {
     Token {
         category,
         value,
-        position: default_position(),
+        span: Span::default(),
     }
 }
 
@@ -64,7 +65,7 @@ macro_rules! test_node {
     ($value:expr) => {
         crate::frontend::ast::Node {
             value: $value,
-            position: crate::frontend::parser::tests::default_position(),
+            span: crate::common::span::Span::default(),
         }
     };
 }

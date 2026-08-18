@@ -1,5 +1,5 @@
 use crate::{
-    common::{errors::IError, types::Type},
+    common::{errors::IError, span::Span, types::Type},
     semantic::stack::stack::StaticCheckerStack,
 };
 
@@ -16,26 +16,26 @@ fn stack_push_and_pop_stack_frame() {
 #[test]
 fn stack_declare_and_get_variable() {
     let mut stack = StaticCheckerStack::new();
-    assert!(stack.declare_variable("x", Type::Bool).is_ok());
-    assert_eq!(stack.get_variable("x").unwrap(), &Type::Bool);
+    assert!(stack.declare_variable("x", Type::Bool, Span::default()).is_ok());
+    assert_eq!(stack.get_variable("x", Span::default()).unwrap(), &Type::Bool);
 }
 
 #[test]
 fn stack_variables_isolated_between_frames() {
     let mut stack = StaticCheckerStack::new();
-    let _ = stack.declare_variable("x", Type::I64);
+    let _ = stack.declare_variable("x", Type::I64, Span::default());
     let _ = stack.push_stack_frame();
-    assert!(stack.get_variable("x").is_err());
+    assert!(stack.get_variable("x", Span::default()).is_err());
 }
 
 #[test]
 fn stack_push_scope_and_pop_scope() {
     let mut stack = StaticCheckerStack::new();
     stack.push_scope();
-    let _ = stack.declare_variable("x", Type::I64);
-    assert!(stack.get_variable("x").is_ok());
+    let _ = stack.declare_variable("x", Type::I64, Span::default());
+    assert!(stack.get_variable("x", Span::default()).is_ok());
     stack.pop_scope();
-    assert!(stack.get_variable("x").is_err());
+    assert!(stack.get_variable("x", Span::default()).is_err());
 }
 
 #[test]
@@ -214,17 +214,17 @@ fn stack_frame_scope_and_loop_state_are_independent() {
     let mut stack = StaticCheckerStack::new();
 
     stack.push_scope();
-    stack.declare_variable("x", Type::I64).unwrap();
+    stack.declare_variable("x", Type::I64, Span::default()).unwrap();
     stack.enter_breakable();
     stack.enter_continuable();
 
-    assert!(stack.get_variable("x").is_ok());
+    assert!(stack.get_variable("x", Span::default()).is_ok());
     assert!(stack.is_in_breakable());
     assert!(stack.is_in_continuable());
 
     stack.pop_scope();
 
-    assert!(stack.get_variable("x").is_err());
+    assert!(stack.get_variable("x", Span::default()).is_err());
     assert!(stack.is_in_breakable());
     assert!(stack.is_in_continuable());
 }
@@ -233,10 +233,10 @@ fn stack_frame_scope_and_loop_state_are_independent() {
 fn stack_assignment_uses_current_frame_only() {
     let mut stack = StaticCheckerStack::new();
 
-    stack.declare_variable("x", Type::I64).unwrap();
+    stack.declare_variable("x", Type::I64, Span::default()).unwrap();
     stack.push_stack_frame().unwrap();
 
-    assert!(stack.assign_variable("x", Type::I64).is_err());
+    assert!(stack.assign_variable("x", Type::I64, Span::default()).is_err());
 }
 
 #[test]
@@ -244,12 +244,12 @@ fn stack_new_frame_has_empty_scope_manager() {
     let mut stack = StaticCheckerStack::new();
 
     stack.push_scope();
-    stack.declare_variable("x", Type::I64).unwrap();
+    stack.declare_variable("x", Type::I64, Span::default()).unwrap();
 
     stack.push_stack_frame().unwrap();
 
     assert_eq!(stack.0.last().unwrap().scope_manager.len(), 1);
-    assert!(stack.get_variable("x").is_err());
+    assert!(stack.get_variable("x", Span::default()).is_err());
 }
 
 #[test]

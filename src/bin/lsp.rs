@@ -15,8 +15,6 @@ use tower_lsp::jsonrpc::Result as LspResult;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
-use regex::Regex;
-
 thread_local! {
     static LEXER_WARNINGS: RefCell<Vec<Box<dyn IError>>> = RefCell::new(Vec::new());
 }
@@ -255,37 +253,19 @@ fn identifier_completions(source: &str) -> Vec<CompletionItem> {
         .collect()
 }
 
-fn parse_position_from_message(message: &str) -> (Option<(u32, u32)>, String) {
-    let ansi_re = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
-    let clean = ansi_re.replace_all(message, "").to_string();
-
-    let pos_re = Regex::new(r"-->.*?:(\d+):(\d+)").unwrap();
-    let position = pos_re.captures(&clean).map(|caps| {
-        let line: u32 = caps[1].parse().unwrap_or(1);
-        let col: u32 = caps[2].parse().unwrap_or(1);
-        (line, col)
-    });
-
-    (position, clean)
-}
-
 fn error_to_diagnostic(err: &dyn IError, severity: DiagnosticSeverity) -> Diagnostic {
-    let (pos, clean_message) = parse_position_from_message(&err.message());
+    let span = err.get_span();
 
-    let range = match pos {
-        Some((line, col)) => {
-            let l = line.saturating_sub(1);
-            let c = col.saturating_sub(1);
-            Range::new(Position::new(l, c), Position::new(l, c + 1))
-        }
-        None => Range::new(Position::new(0, 0), Position::new(0, 1)),
-    };
+    let range = Range::new(
+        Position::new(span.start().line - 1, span.start().column - 1),
+        Position::new(span.end().line - 1, span.end().column - 1),
+    );
 
     Diagnostic {
         range,
         severity: Some(severity),
         source: Some("raptor".to_string()),
-        message: clean_message,
+        message: err.message(),
         ..Default::default()
     }
 }

@@ -12,12 +12,15 @@ impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_assign_or_call(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         // assign_or_call = identifier, ( { "[", expression, "]" }, "=", expression | "(", arguments, ")"), ";";
         let node = self.parse_assign_or_call_without_semicolon()?;
-        if node.is_none() {
-            return Ok(None);
-        }
 
-        self.consume_must_be(TokenCategory::Semicolon)?;
-        Ok(node)
+        match node {
+            None => Ok(None),
+            Some(mut n) => {
+                self.consume_must_be(TokenCategory::Semicolon)?;
+                n.span = Span::new(n.span.start(), self.current_token().span.end());
+                Ok(Some(n))
+            }
+        }
     }
 
     pub(in crate::frontend::parser) fn parse_assign_or_call_without_semicolon(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {

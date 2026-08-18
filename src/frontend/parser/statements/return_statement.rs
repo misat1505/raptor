@@ -16,12 +16,9 @@ impl<L: ILexer> Parser<L> {
 
         let returned_value = self.parse_expression()?;
 
-        let semicolon = self.consume_must_be(TokenCategory::Semicolon)?;
+        let _ = self.consume_must_be(TokenCategory::Semicolon)?;
 
-        let end = returned_value
-            .as_ref()
-            .map(|value| value.span.end())
-            .unwrap_or_else(|| semicolon.span.end());
+        let end = self.current_token().span.end();
 
         let node = Node {
             value: Statement::Return(returned_value),

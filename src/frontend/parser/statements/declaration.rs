@@ -38,9 +38,11 @@ impl<L: ILexer> Parser<L> {
     }
 
     pub(in crate::frontend::parser) fn parse_variable_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        let decl = try_consume!(self, parse_declaration);
+        let mut decl = try_consume!(self, parse_declaration);
 
         self.consume_must_be(TokenCategory::Semicolon)?;
+
+        decl.span = Span::new(decl.span.start(), self.current_token().span.end());
 
         Ok(Some(decl))
     }

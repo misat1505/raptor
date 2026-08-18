@@ -2,6 +2,7 @@ use std::{cell::RefCell, rc::Rc, vec};
 
 use crate::common::{
     errors::{ComputationError, ErrorSeverity},
+    span::Span,
     types::Type,
 };
 
@@ -18,7 +19,7 @@ pub enum Value {
 }
 
 impl Value {
-    pub(in crate::backend) fn default_value(var_type: &Type) -> Result<Value, ComputationError> {
+    pub(in crate::backend) fn default_value(var_type: &Type, span: Span) -> Result<Value, ComputationError> {
         match var_type {
             Type::Bool => Ok(Value::Bool(false)),
             Type::I64 => Ok(Value::I64(0)),
@@ -31,6 +32,7 @@ impl Value {
             other => Err(ComputationError::new(
                 ErrorSeverity::HIGH,
                 format!("Cannot create default value for type '{:?}'.", other),
+                span,
             )),
         }
     }
@@ -45,10 +47,14 @@ impl Value {
         }
     }
 
-    pub(in crate::backend) fn try_into_bool(&self) -> Result<bool, ComputationError> {
+    pub(in crate::backend) fn try_into_bool(&self, span: Span) -> Result<bool, ComputationError> {
         match self {
             Value::Bool(bool) => Ok(*bool),
-            _ => Err(ComputationError::new(ErrorSeverity::HIGH, String::from("Given value is not a boolean."))),
+            _ => Err(ComputationError::new(
+                ErrorSeverity::HIGH,
+                String::from("Given value is not a boolean."),
+                span,
+            )),
         }
     }
 }

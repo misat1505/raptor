@@ -13,6 +13,7 @@ pub trait IError: Debug {
     fn at(level: ErrorSeverity, summary: String, span: Span) -> Self
     where
         Self: Sized;
+    fn get_stderr_message(&self) -> String;
 }
 
 #[derive(Debug, Clone)]
@@ -59,8 +60,7 @@ macro_rules! define_error {
 
             fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, span: Span) -> Self {
                 let message = format!(
-                    "{}: {}\n  --> {}\n  expected: {}\n  found:    {}",
-                    severity_to_string(&level),
+                    "{}\n  --> {}\n  expected: {}\n  found:    {}",
                     summary,
                     format!("{} -> {}", span.start().location(), span.end().location()),
                     expected,
@@ -71,13 +71,17 @@ macro_rules! define_error {
 
             fn at(level: ErrorSeverity, summary: String, span: Span) -> Self {
                 let message = format!(
-                    "{}: {}\n  --> {}",
-                    severity_to_string(&level),
+                    "{}\n  --> {}",
                     summary,
                     format!("{} -> {}", span.start().location(), span.end().location()),
                 );
 
                 $name::new(level, message, span)
+            }
+
+            fn get_stderr_message(&self) -> String {
+                let message = format!("{}: {}", severity_to_string(&self._level), self._message);
+                message
             }
         }
     };

@@ -33,7 +33,7 @@ mod tests;
 const LLVM_VERSION: &str = "18";
 
 fn on_warning(warning: Box<dyn IError>) {
-    eprintln!("{}", warning.message());
+    eprintln!("{}", warning.get_stderr_message());
 }
 
 fn usage() {
@@ -238,7 +238,7 @@ fn main() {
     let lexer = match Lexer::new(reader, lexer_options, on_warning) {
         Ok(lexer) => lexer,
         Err(err) => {
-            eprintln!("{}", err.message());
+            eprintln!("{}", err.get_stderr_message());
             exit(1);
         }
     };
@@ -248,7 +248,7 @@ fn main() {
     let program = match parser.parse() {
         Ok(p) => p,
         Err(err) => {
-            eprintln!("{}", err.message());
+            eprintln!("{}", err.get_stderr_message());
             exit(1);
         }
     };
@@ -257,7 +257,7 @@ fn main() {
         let mut semantic_checker = match SemanticChecker::new(&program) {
             Ok(checker) => checker,
             Err(err) => {
-                eprintln!("{}", err.message());
+                eprintln!("{}", err.get_stderr_message());
                 exit(1);
             }
         };
@@ -274,7 +274,7 @@ fn main() {
                     ErrorSeverity::LOW => warnings += 1,
                 }
 
-                eprintln!("{}\n", error.message());
+                eprintln!("{}\n", error.get_stderr_message());
             }
 
             eprintln!("Static analysis finished with {} errors, {} warnings.", errors, warnings);
@@ -288,17 +288,17 @@ fn main() {
         let context = Context::create();
         let mut compiler = Compiler::new(&program, &context);
         if let Err(err) = compiler.compile() {
-            eprintln!("{}", err.message());
+            eprintln!("{}", err.get_stderr_message());
             exit(1);
         }
         if let Some(level) = opt_level {
             if let Err(err) = compiler.optimize(level) {
-                eprintln!("{}", err.message());
+                eprintln!("{}", err.get_stderr_message());
                 exit(1);
             }
         }
         if let Err(err) = compiler.write_ir_to_file(&ir_path) {
-            eprintln!("{}", err.message());
+            eprintln!("{}", err.get_stderr_message());
             exit(1);
         }
 
@@ -324,7 +324,7 @@ fn main() {
         let mut interpreter = Interpreter::new(&program);
 
         if let Err(err) = interpreter.interpret() {
-            eprintln!("{}", err.message());
+            eprintln!("{}", err.get_stderr_message());
             exit(1);
         }
     }

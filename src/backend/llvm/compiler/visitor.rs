@@ -4,12 +4,10 @@ use crate::{
     backend::llvm::llvm_alu::llvm_value::LlvmValue,
     common::{
         errors::{CompilerError, ErrorSeverity, IError},
-        position::Position,
+        span::Span,
         types::Type,
     },
-    frontend::ast::{
-        Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression,
-    },
+    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression},
 };
 
 /// Jedyne miejsce w projekcie z `impl Visitor for Compiler` — Rust nie pozwala
@@ -78,7 +76,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 let string_value = self
                     .builder
                     .build_global_string_ptr(value.as_str(), "str")
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), self.position)) as Box<dyn IError>)?;
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), self.span)) as Box<dyn IError>)?;
 
                 self.last_value = Some(LlvmValue::Str(string_value.as_pointer_value()));
 
@@ -101,24 +99,24 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         Err(Box::new(CompilerError::at(
             ErrorSeverity::HIGH,
             String::from("Compiling vector literals is not yet supported."),
-            self.position,
+            self.span,
         )))
     }
 
-    fn visit_variable(&mut self, variable: &'a String, position: Position) -> Result<(), Box<dyn IError>> {
+    fn visit_variable(&mut self, variable: &'a String, span: Span) -> Result<(), Box<dyn IError>> {
         let (ptr, var_type) = self.get_variable(variable.as_str())?;
         let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type, self.context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Compiling variables of type '{:?}' is not yet supported.", var_type),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
 
         let raw_value = self
             .builder
             .build_load(llvm_type, ptr, variable.as_str())
-            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
         self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &var_type));
 

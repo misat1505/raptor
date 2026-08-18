@@ -8,7 +8,7 @@ use crate::{
     backend::llvm::llvm_alu::llvm_value::LlvmValue,
     common::{
         errors::{CompilerError, ErrorSeverity, IError},
-        position::Position,
+        span::Span,
         types::Type,
     },
     frontend::ast::{Argument, Expression, FunctionDeclaration, Node, PassedBy},
@@ -24,6 +24,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             for parameter in &function_decl.parameters {
                 let param_type: BasicMetadataTypeEnum = match parameter.value.passed_by {
                     PassedBy::Reference => self.context.ptr_type(AddressSpace::default()).into(),
+
                     PassedBy::Value => {
                         let llvm_type = LlvmValue::type_to_basic_type_enum(&parameter.value.parameter_type.value, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
@@ -32,7 +33,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                     "Compiling parameters of type '{:?}' is not yet supported.",
                                     parameter.value.parameter_type.value
                                 ),
-                                parameter.position,
+                                parameter.span,
                             )) as Box<dyn IError>
                         })?;
 
@@ -45,12 +46,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
             let fn_type = match &function_decl.return_type.value {
                 Type::Void => self.context.void_type().fn_type(&param_types, false),
+
                 return_type => {
                     let llvm_return_type = LlvmValue::type_to_basic_type_enum(return_type, self.context).ok_or_else(|| {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
                             format!("Compiling functions returning '{:?}' is not yet supported.", return_type),
-                            function_decl.return_type.position,
+                            function_decl.return_type.span,
                         )) as Box<dyn IError>
                     })?;
 
@@ -59,6 +61,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             };
 
             let function = self.module.add_function(name, fn_type, None);
+
             self.functions.insert(name.clone(), function);
         }
 
@@ -83,7 +86,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                     "Compiling extern parameters of type '{:?}' is not yet supported.",
                                     parameter.value.parameter_type.value
                                 ),
-                                parameter.position,
+                                parameter.span,
                             )) as Box<dyn IError>
                         })?;
 
@@ -102,7 +105,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
                             format!("Compiling extern functions returning '{:?}' is not yet supported.", return_type),
-                            function_decl.return_type.position,
+                            function_decl.return_type.span,
                         )) as Box<dyn IError>
                     })?;
 
@@ -110,15 +113,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
             };
 
-            // Symbol LLVM musi być prawdziwą nazwą funkcji w bibliotece C (np. "InitWindow"),
-            // niezależnie od tego, jak program się do niej odwołuje w kodzie źródłowym (alias, np. "init_window").
+            // Symbol LLVM musi być prawdziwą nazwą funkcji w bibliotece C
+            // (np. "InitWindow"), niezależnie od aliasu używanego w źródle.
             let symbol_name = function_decl.identifier.value.as_str();
 
             let function = self.module.add_function(symbol_name, fn_type, None);
 
-            // Klucz w mapie `functions` to `name` z `program.extern_functions`, czyli już
-            // alias.unwrap_or(identifier) — dokładnie to, po czym `build_function_call`
-            // będzie szukać tej funkcji, gdy user napisze `init_window(...)` w kodzie.
+            // Klucz pozostaje aliasem używanym przez build_function_call.
             self.functions.insert(name.clone(), function);
         }
 
@@ -144,12 +145,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         function_decl: &'a FunctionDeclaration,
     ) -> Result<(), Box<dyn IError>> {
         let entry_block = self.context.append_basic_block(function, "entry");
+
         self.builder.position_at_end(entry_block);
 
         let saved_variables = std::mem::take(&mut self.variables);
 
         for (index, parameter) in function_decl.parameters.iter().enumerate() {
             let identifier = parameter.value.identifier.value.as_str();
+
             let param_type = &parameter.value.parameter_type.value;
 
             let param_value = function
@@ -162,25 +165,25 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
                             format!("Compiling parameters of type '{:?}' is not yet supported.", param_type),
-                            parameter.position,
+                            parameter.span,
                         )) as Box<dyn IError>
                     })?;
 
-                    // kopiujemy wartość parametru do lokalnego alloca, żeby dało się ją przypisywać jak zwykłą zmienną
                     let ptr = self
                         .builder
                         .build_alloca(llvm_type, identifier)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), parameter.position)) as Box<dyn IError>)?;
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), parameter.span)) as Box<dyn IError>)?;
 
                     self.builder
                         .build_store(ptr, param_value)
-                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), parameter.position)) as Box<dyn IError>)?;
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), parameter.span)) as Box<dyn IError>)?;
 
                     self.variables.insert(identifier.to_string(), (ptr, param_type.clone()));
                 }
 
                 PassedBy::Reference => {
                     let ptr = param_value.into_pointer_value();
+
                     self.variables.insert(identifier.to_string(), (ptr, param_type.clone()));
                 }
             }
@@ -194,20 +197,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             match &function_decl.return_type.value {
                 Type::Void => {
                     self.builder.build_return(None).map_err(|err| {
-                        Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            err.to_string(),
-                            function_decl.return_type.position,
-                        )) as Box<dyn IError>
+                        Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), function_decl.return_type.span)) as Box<dyn IError>
                     })?;
                 }
+
                 _ => {
                     self.builder.build_unreachable().map_err(|err| {
-                        Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            err.to_string(),
-                            function_decl.return_type.position,
-                        )) as Box<dyn IError>
+                        Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), function_decl.return_type.span)) as Box<dyn IError>
                     })?;
                 }
             }
@@ -222,7 +218,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         &mut self,
         identifier: &'a Node<String>,
         arguments: &'a Vec<Box<Node<Argument>>>,
-        position: Position,
+        span: Span,
     ) -> Result<(), Box<dyn IError>> {
         let name = identifier.value.as_str();
 
@@ -230,7 +226,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Compiling calls to '{}' is not yet supported.", name),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
 
@@ -240,13 +236,16 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             match argument.value.passed_by {
                 PassedBy::Value => {
                     self.visit_expression(&argument.value.value)?;
+
                     let value = self.read_last_value()?;
 
                     let value = match value {
                         LlvmValue::Vector(ptr, inner) => {
-                            let copy_ptr = self.build_shallow_copy_vector(ptr, &inner, position)?;
+                            let copy_ptr = self.build_shallow_copy_vector(ptr, &inner, span)?;
+
                             LlvmValue::Vector(copy_ptr, inner)
                         }
+
                         other => other,
                     };
 
@@ -255,6 +254,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                 PassedBy::Reference => {
                     let ptr = self.resolve_reference(&argument.value.value)?;
+
                     compiled_args.push(ptr.into());
                 }
             }
@@ -263,7 +263,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let call_site = self
             .builder
             .build_call(function, &compiled_args, "call")
-            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
         let return_type = if let Some(function) = self.program.functions.get(name) {
             &function.value.return_type.value
@@ -273,7 +273,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             return Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Unknown function '{}'.", name),
-                position,
+                span,
             )));
         };
 
@@ -292,13 +292,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         match &expression.value {
             Expression::Variable(name) => {
                 let (ptr, _) = self.get_variable(name.as_str())?;
+
                 Ok(ptr)
             }
 
             other => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Cannot pass expression '{:?}' by reference.", other),
-                expression.position,
+                expression.span,
             ))),
         }
     }

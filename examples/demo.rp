@@ -63,3 +63,5 @@ fn main(): void {
 }
 
 main();
+
+u8 x = 5 as u8;

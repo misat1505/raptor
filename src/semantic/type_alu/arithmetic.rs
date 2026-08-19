@@ -10,7 +10,16 @@ use crate::{
 impl TypeALU {
     pub(in crate::semantic) fn check_numeric_operation(t1: Type, t2: Type, op_name: &str, span: Span) -> Result<Type, SemanticCheckerError> {
         match (t1, t2) {
+            (Type::I8, Type::I8) => Ok(Type::I8),
+            (Type::I16, Type::I16) => Ok(Type::I16),
+            (Type::I32, Type::I32) => Ok(Type::I32),
             (Type::I64, Type::I64) => Ok(Type::I64),
+
+            (Type::U8, Type::U8) => Ok(Type::U8),
+            (Type::U16, Type::U16) => Ok(Type::U16),
+            (Type::U32, Type::U32) => Ok(Type::U32),
+            (Type::U64, Type::U64) => Ok(Type::U64),
+
             (Type::F64, Type::F64) => Ok(Type::F64),
             (a, b) => Err(SemanticCheckerError::new(
                 ErrorSeverity::HIGH,
@@ -22,7 +31,16 @@ impl TypeALU {
 
     pub(in crate::semantic) fn add(t1: Type, t2: Type, span: Span) -> Result<Type, SemanticCheckerError> {
         match (t1, t2) {
+            (Type::I8, Type::I8) => Ok(Type::I8),
+            (Type::I16, Type::I16) => Ok(Type::I16),
+            (Type::I32, Type::I32) => Ok(Type::I32),
             (Type::I64, Type::I64) => Ok(Type::I64),
+
+            (Type::U8, Type::U8) => Ok(Type::U8),
+            (Type::U16, Type::U16) => Ok(Type::U16),
+            (Type::U32, Type::U32) => Ok(Type::U32),
+            (Type::U64, Type::U64) => Ok(Type::U64),
+
             (Type::F64, Type::F64) => Ok(Type::F64),
             (Type::Str, Type::Str) => Ok(Type::Str),
             (a, b) => Err(SemanticCheckerError::new(
@@ -47,7 +65,15 @@ impl TypeALU {
 
     pub(in crate::semantic) fn modulo(t1: Type, t2: Type, span: Span) -> Result<Type, SemanticCheckerError> {
         match (t1, t2) {
+            (Type::I8, Type::I8) => Ok(Type::I8),
+            (Type::I16, Type::I16) => Ok(Type::I16),
+            (Type::I32, Type::I32) => Ok(Type::I32),
             (Type::I64, Type::I64) => Ok(Type::I64),
+
+            (Type::U8, Type::U8) => Ok(Type::U8),
+            (Type::U16, Type::U16) => Ok(Type::U16),
+            (Type::U32, Type::U32) => Ok(Type::U32),
+            (Type::U64, Type::U64) => Ok(Type::U64),
             (a, b) => Err(SemanticCheckerError::new(
                 ErrorSeverity::HIGH,
                 format!("Cannot perform modulo between values of type '{:?}' and '{:?}'.", a, b),

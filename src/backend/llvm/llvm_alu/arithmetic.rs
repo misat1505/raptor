@@ -1,5 +1,5 @@
-use inkwell::builder::Builder;
 use inkwell::values::PointerValue;
+use inkwell::{builder::Builder, values::IntValue};
 
 use crate::{
     backend::llvm::{libc_functions::LibcFunctions, llvm_alu::llvm_value::LlvmValue, llvm_alu::LlvmAlu},
@@ -60,6 +60,44 @@ impl LlvmAlu {
         Ok(LlvmValue::Str(buf))
     }
 
+    fn char_to_string<'ctx>(
+        builder: &Builder<'ctx>,
+        libc: &LibcFunctions<'ctx>,
+        ch: IntValue<'ctx>,
+        span: Span,
+    ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let i64_type = ch.get_type().get_context().i64_type();
+
+        // char + '\0'
+        let size = i64_type.const_int(2, false);
+
+        let malloc_call = builder
+            .build_call(libc.malloc_fn, &[size.into()], "char_str_buf")
+            .map_err(|err| Self::map_err(err, span))?;
+
+        let buf = malloc_call
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+
+        builder.build_store(buf, ch).map_err(|err| Self::map_err(err, span))?;
+
+        let one = i64_type.const_int(1, false);
+
+        let null_ptr = unsafe {
+            builder
+                .build_gep(ch.get_type(), buf, &[one], "char_str_null")
+                .map_err(|err| Self::map_err(err, span))?
+        };
+
+        let zero = ch.get_type().const_zero();
+
+        builder.build_store(null_ptr, zero).map_err(|err| Self::map_err(err, span))?;
+
+        Ok(buf)
+    }
+
     pub fn add<'ctx>(
         builder: &Builder<'ctx>,
         libc: &LibcFunctions<'ctx>,
@@ -112,6 +150,22 @@ impl LlvmAlu {
                 .build_float_add(l, r, "addtmp")
                 .map(LlvmValue::F64)
                 .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::Char(l), LlvmValue::Char(r)) => {
+                let left_str = Self::char_to_string(builder, libc, l, span)?;
+                let right_str = Self::char_to_string(builder, libc, r, span)?;
+                Self::concat_strings(builder, libc, left_str, right_str, span)
+            }
+
+            (LlvmValue::Str(l), LlvmValue::Char(r)) => {
+                let right_str = Self::char_to_string(builder, libc, r, span)?;
+                Self::concat_strings(builder, libc, l, right_str, span)
+            }
+
+            (LlvmValue::Char(l), LlvmValue::Str(r)) => {
+                let left_str = Self::char_to_string(builder, libc, l, span)?;
+                Self::concat_strings(builder, libc, left_str, r, span)
+            }
 
             (LlvmValue::Str(l), LlvmValue::Str(r)) => Self::concat_strings(builder, libc, l, r, span),
 

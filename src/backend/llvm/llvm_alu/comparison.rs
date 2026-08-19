@@ -169,6 +169,11 @@ impl LlvmAlu {
                     .map_err(|err| Self::map_err(err, span))
             }
 
+            (LlvmValue::Char(l), LlvmValue::Char(r)) => builder
+                .build_int_compare(IntPredicate::EQ, l, r, "char_equal")
+                .map(LlvmValue::Bool)
+                .map_err(|err| Self::map_err(err, span)),
+
             (l, r) => Err(Self::type_error("equal", l, r, span)),
         }
     }
@@ -202,6 +207,11 @@ impl LlvmAlu {
                     .map(LlvmValue::Bool)
                     .map_err(|err| Self::map_err(err, span))
             }
+
+            (LlvmValue::Char(l), LlvmValue::Char(r)) => builder
+                .build_int_compare(IntPredicate::NE, l, r, "char_not_equal")
+                .map(LlvmValue::Bool)
+                .map_err(|err| Self::map_err(err, span)),
 
             (l, r) => Err(Self::type_error("not equal", l, r, span)),
         }

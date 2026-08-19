@@ -288,6 +288,30 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Ok(buf)
             }
 
+            (Type::Char, LlvmValue::Char(v)) => {
+                // char -> C string: [char, '\0']
+                let buf_size = i64_type.const_int(2, false);
+
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "char.buf")
+                    .map_err(&err)?;
+
+                self.builder.build_store(buf, *v).map_err(&err)?;
+
+                // char -> i8* + 1
+                let nul_ptr = unsafe {
+                    self.builder
+                        .build_gep(self.context.i8_type(), buf, &[i64_type.const_int(1, false)], "char.nul.ptr")
+                        .map_err(&err)?
+                };
+
+                // '\0'
+                self.builder.build_store(nul_ptr, self.context.i8_type().const_zero()).map_err(&err)?;
+
+                Ok(buf)
+            }
+
             (Type::Bool, LlvmValue::Bool(v)) => {
                 let true_str = self
                     .builder

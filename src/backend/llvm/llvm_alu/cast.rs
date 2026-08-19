@@ -288,6 +288,9 @@ impl LlvmAlu {
                 .map(LlvmValue::F64)
                 .map_err(|err| Self::map_err(err, span)),
 
+            // char -> str
+            (LlvmValue::Char(value), Type::Str) => Self::char_to_str(builder, libc, value, span),
+
             // -----------------------------------------------------------------
             // Unsupported
             // -----------------------------------------------------------------
@@ -302,6 +305,22 @@ impl LlvmAlu {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    fn char_to_str<'ctx>(
+        builder: &Builder<'ctx>,
+        libc: &LibcFunctions<'ctx>,
+        value: IntValue<'ctx>,
+        span: Span,
+    ) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
+        let context = Self::context(builder);
+        let i32_type = context.i32_type();
+
+        let promoted = builder
+            .build_int_z_extend(value, i32_type, "char_to_int")
+            .map_err(|err| Self::map_err(err, span))?;
+
+        Self::int_to_str_via_snprintf(builder, libc, promoted, "%c", span)
+    }
 
     fn context<'ctx>(builder: &Builder<'ctx>) -> inkwell::context::ContextRef<'ctx> {
         builder

@@ -8,10 +8,20 @@ use crate::common::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    I8(i8),
+    I16(i16),
+    I32(i32),
     I64(i64),
+
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+
     F64(f64),
     String(String),
     Bool(bool),
+
     Vector {
         kind: Box<Type>,
         values: Rc<RefCell<Vec<Rc<RefCell<Value>>>>>,
@@ -22,13 +32,25 @@ impl Value {
     pub(in crate::backend) fn default_value(var_type: &Type, span: Span) -> Result<Value, ComputationError> {
         match var_type {
             Type::Bool => Ok(Value::Bool(false)),
+
+            Type::I8 => Ok(Value::I8(0)),
+            Type::I16 => Ok(Value::I16(0)),
+            Type::I32 => Ok(Value::I32(0)),
             Type::I64 => Ok(Value::I64(0)),
+
+            Type::U8 => Ok(Value::U8(0)),
+            Type::U16 => Ok(Value::U16(0)),
+            Type::U32 => Ok(Value::U32(0)),
+            Type::U64 => Ok(Value::U64(0)),
+
             Type::F64 => Ok(Value::F64(0.0)),
             Type::Str => Ok(Value::String("".to_owned())),
+
             Type::Vector(inner) => Ok(Value::Vector {
                 kind: Box::new((**inner).clone()),
                 values: Rc::new(RefCell::new(vec![])),
             }),
+
             other => Err(ComputationError::new(
                 ErrorSeverity::HIGH,
                 format!("Cannot create default value for type '{:?}'.", other),
@@ -40,9 +62,20 @@ impl Value {
     pub(in crate::backend) fn to_type(&self) -> Type {
         match self {
             Value::Bool(_) => Type::Bool,
-            Value::F64(_) => Type::F64,
+
+            Value::I8(_) => Type::I8,
+            Value::I16(_) => Type::I16,
+            Value::I32(_) => Type::I32,
             Value::I64(_) => Type::I64,
+
+            Value::U8(_) => Type::U8,
+            Value::U16(_) => Type::U16,
+            Value::U32(_) => Type::U32,
+            Value::U64(_) => Type::U64,
+
+            Value::F64(_) => Type::F64,
             Value::String(_) => Type::Str,
+
             Value::Vector { kind, .. } => kind.as_ref().clone(),
         }
     }
@@ -50,6 +83,7 @@ impl Value {
     pub(in crate::backend) fn try_into_bool(&self, span: Span) -> Result<bool, ComputationError> {
         match self {
             Value::Bool(bool) => Ok(*bool),
+
             _ => Err(ComputationError::new(
                 ErrorSeverity::HIGH,
                 String::from("Given value is not a boolean."),

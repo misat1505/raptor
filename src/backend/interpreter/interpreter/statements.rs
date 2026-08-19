@@ -72,7 +72,17 @@ impl<'a> Interpreter<'a> {
                 };
 
                 match (&var_type.value, &computed_value) {
-                    (Type::I64, Value::I64(_)) | (Type::F64, Value::F64(_)) | (Type::Str, Value::String(_)) | (Type::Bool, Value::Bool(_)) => {}
+                    (Type::I8, Value::I8(_))
+                    | (Type::I16, Value::I16(_))
+                    | (Type::I32, Value::I32(_))
+                    | (Type::I64, Value::I64(_))
+                    | (Type::U8, Value::U8(_))
+                    | (Type::U16, Value::U16(_))
+                    | (Type::U32, Value::U32(_))
+                    | (Type::U64, Value::U64(_))
+                    | (Type::F64, Value::F64(_))
+                    | (Type::Str, Value::String(_))
+                    | (Type::Bool, Value::Bool(_)) => {}
 
                     (Type::Vector(declared_inner), Value::Vector { values, .. }) => {
                         for value in values.borrow().iter() {

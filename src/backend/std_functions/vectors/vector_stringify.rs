@@ -17,10 +17,20 @@ use crate::{
 
 fn stringify_value(value: &Value) -> String {
     match value {
+        Value::I8(v) => v.to_string(),
+        Value::I16(v) => v.to_string(),
+        Value::I32(v) => v.to_string(),
         Value::I64(v) => v.to_string(),
+
+        Value::U8(v) => v.to_string(),
+        Value::U16(v) => v.to_string(),
+        Value::U32(v) => v.to_string(),
+        Value::U64(v) => v.to_string(),
+
         Value::F64(v) => v.to_string(),
         Value::String(v) => format!("\"{}\"", v),
         Value::Bool(v) => v.to_string(),
+
         Value::Vector { values, .. } => {
             let values = values.borrow().iter().map(|v| stringify_value(&v.borrow())).collect::<Vec<String>>();
 

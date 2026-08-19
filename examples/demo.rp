@@ -64,4 +64,8 @@ fn main(): void {
 
 main();
 
-u8 x = 5 as u8;
+u8 x = 200 as u8;
+x += 55 as u8;
+println(x as str);
+u8[] arr = [1 as u8, 2 as u8, 3 as u8];
+println(vector_stringify(arr));

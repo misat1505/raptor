@@ -1,1 +1,3 @@
 char c = 'a';
+str text = 'a' + c;
+str text2 = "hello" + c;

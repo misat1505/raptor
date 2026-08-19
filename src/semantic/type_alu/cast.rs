@@ -46,6 +46,9 @@ impl TypeALU {
             (Type::Bool, Type::Str) => Ok(Type::Str),
             (Type::Str, Type::Bool) => Ok(Type::Bool),
 
+            // Char <-> Str
+            (Type::Char, Type::Str) => Ok(Type::Str),
+
             // Same type
             (value, target_type) if value == *target_type => Ok(value),
 

@@ -43,6 +43,9 @@ impl TypeALU {
 
             (Type::F64, Type::F64) => Ok(Type::F64),
             (Type::Str, Type::Str) => Ok(Type::Str),
+            (Type::Char, Type::Char) => Ok(Type::Str),
+            (Type::Str, Type::Char) => Ok(Type::Str),
+            (Type::Char, Type::Str) => Ok(Type::Str),
             (a, b) => Err(SemanticCheckerError::new(
                 ErrorSeverity::HIGH,
                 format!("Cannot perform addition between values of type '{:?}' and '{:?}'.", a, b),

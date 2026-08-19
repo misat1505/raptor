@@ -5,7 +5,6 @@ mod program;
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, LexerError},
-        position::Position,
         span::Span,
     },
     frontend::{
@@ -41,15 +40,6 @@ impl ILexer for LexerMock {
         let next_token = self.tokens.remove(0);
         self.current_token = Some(next_token.clone());
         Ok(next_token)
-    }
-}
-
-pub fn default_position() -> Position {
-    Position {
-        filename: None,
-        line: 0,
-        column: 0,
-        offset: 0,
     }
 }
 

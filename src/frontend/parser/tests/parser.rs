@@ -1,4 +1,4 @@
-use super::{create_token, default_position, test_node, LexerMock};
+use super::{create_token, test_node, LexerMock};
 use crate::{
     common::types::Type,
     frontend::{

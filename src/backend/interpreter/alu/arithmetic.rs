@@ -68,6 +68,9 @@ impl ALU {
             (Value::U64(a), Value::U64(b)) => Self::check_int_operation(&val1, &val2, || a.checked_add(*b).map(Value::U64), "addition", span),
             (Value::F64(_), Value::F64(_)) => Self::check_float_operation(&val1, &val2, |a, b| a + b, "addition", span),
             (Value::String(a), Value::String(b)) => Ok(Value::String(a.clone() + b)),
+            (Value::Char(a), Value::Char(b)) => Ok(Value::String(format!("{}{}", a, b))),
+            (Value::Char(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
+            (Value::String(a), Value::Char(b)) => Ok(Value::String(format!("{}{}", a, b))),
             (a, b) => Err(ComputationError::new(
                 ErrorSeverity::HIGH,
                 format!(

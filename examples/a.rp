@@ -1,3 +1,12 @@
 char c = 'a';
 str text = 'a' + c;
 str text2 = "hello" + c;
+
+println(c as str);
+println(text);
+println(text2);
+
+char[] chars = ['a', 'b', 'c'];
+println(vector_stringify(chars));
+chars[1] = 'o';
+println(vector_stringify(chars));

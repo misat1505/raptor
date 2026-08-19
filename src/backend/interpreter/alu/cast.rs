@@ -192,6 +192,9 @@ impl ALU {
             (Value::U32(value), target_type) => Self::cast_unsigned_integer(value as u128, target_type, span),
             (Value::U64(value), target_type) => Self::cast_unsigned_integer(value as u128, target_type, span),
 
+            // Char -> Str
+            (Value::Char(c), Type::Str) => Ok(Value::String(String::from(c))),
+
             // Same type
             (value, target_type) if value.to_type() == *target_type => Ok(value),
 

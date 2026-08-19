@@ -104,6 +104,7 @@ impl ALU {
             (Value::F64(a), Value::F64(b)) => Ok(Value::Bool(a == b)),
             (Value::String(a), Value::String(b)) => Ok(Value::Bool(a == b)),
             (Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a == b)),
+            (Value::Char(a), Value::Char(b)) => Ok(Value::Bool(a == b)),
 
             (a, b) => Err(Self::comparison_error(a, b, "equal", span)),
         }
@@ -124,6 +125,7 @@ impl ALU {
             (Value::F64(a), Value::F64(b)) => Ok(Value::Bool(a != b)),
             (Value::String(a), Value::String(b)) => Ok(Value::Bool(a != b)),
             (Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a != b)),
+            (Value::Char(a), Value::Char(b)) => Ok(Value::Bool(a != b)),
 
             (a, b) => Err(Self::comparison_error(a, b, "not equal", span)),
         }

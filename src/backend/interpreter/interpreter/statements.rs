@@ -82,6 +82,7 @@ impl<'a> Interpreter<'a> {
                     | (Type::U64, Value::U64(_))
                     | (Type::F64, Value::F64(_))
                     | (Type::Str, Value::String(_))
+                    | (Type::Char, Value::Char(_))
                     | (Type::Bool, Value::Bool(_)) => {}
 
                     (Type::Vector(declared_inner), Value::Vector { values, .. }) => {

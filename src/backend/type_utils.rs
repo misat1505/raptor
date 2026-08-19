@@ -17,6 +17,7 @@ pub fn type_accepts_value(ty: &Type, value: &Value) -> bool {
         (Type::U64, Value::U64(_)) => true,
 
         (Type::Str, Value::String(_)) => true,
+        (Type::Char, Value::Char(_)) => true,
 
         (Type::Vector(_), Value::Vector { kind, .. }) => *ty == **kind,
 

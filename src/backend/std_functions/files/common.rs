@@ -2,7 +2,7 @@ use crate::{
     backend::llvm::compiler::Compiler,
     common::{
         errors::{CompilerError, ErrorSeverity, IError},
-        position::Position,
+        span::Span,
         visitor::Visitor,
     },
     frontend::ast::{Argument, Node},
@@ -12,30 +12,26 @@ pub fn compile_write_or_append<'a, 'ctx>(
     compiler: &mut Compiler<'a, 'ctx>,
     arguments: &'a Vec<Box<Node<Argument>>>,
     mode_str: &str,
-    position: Position,
+    span: Span,
 ) -> Result<(), Box<dyn IError>> {
-    let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+    let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
     let path_arg = arguments.get(0).ok_or_else(|| {
         Box::new(CompilerError::at(
             ErrorSeverity::HIGH,
             String::from("Expected a file path argument."),
-            position,
+            span,
         )) as Box<dyn IError>
     })?;
-    let content_arg = arguments.get(1).ok_or_else(|| {
-        Box::new(CompilerError::at(
-            ErrorSeverity::HIGH,
-            String::from("Expected a content argument."),
-            position,
-        )) as Box<dyn IError>
-    })?;
+    let content_arg = arguments
+        .get(1)
+        .ok_or_else(|| Box::new(CompilerError::at(ErrorSeverity::HIGH, String::from("Expected a content argument."), span)) as Box<dyn IError>)?;
 
     compiler.visit_expression(&path_arg.value.value)?;
-    let path_ptr = compiler.read_last_value()?.into_str_value(position)?;
+    let path_ptr = compiler.read_last_value()?.into_str_value(span)?;
 
     compiler.visit_expression(&content_arg.value.value)?;
-    let content_ptr = compiler.read_last_value()?.into_str_value(position)?;
+    let content_ptr = compiler.read_last_value()?.into_str_value(span)?;
 
     let mode = compiler
         .builder()

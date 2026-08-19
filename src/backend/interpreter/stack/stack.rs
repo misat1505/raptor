@@ -2,7 +2,10 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     backend::interpreter::{stack::stack_frame::StackFrame, Value},
-    common::errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
+    common::{
+        errors::{ErrorSeverity, ScopeManagerError, StackOverflowError},
+        span::Span,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -13,10 +16,11 @@ impl<'a> Stack<'a> {
         Stack(vec![StackFrame::new()])
     }
 
-    pub(in crate::backend::interpreter) fn push_stack_frame(&mut self) -> Result<(), StackOverflowError> {
+    pub(in crate::backend::interpreter) fn push_stack_frame(&mut self, span: Span) -> Result<(), StackOverflowError> {
         if self.0.len() == 500 {
-            return Err(StackOverflowError::new(ErrorSeverity::HIGH, String::from("Stack overflow.")));
+            return Err(StackOverflowError::new(ErrorSeverity::HIGH, String::from("Stack overflow."), span));
         }
+
         self.0.push(StackFrame::new());
         Ok(())
     }
@@ -37,24 +41,36 @@ impl<'a> Stack<'a> {
         }
     }
 
-    pub(in crate::backend::interpreter) fn get_variable(&mut self, name: &'a str) -> Result<&Rc<RefCell<Value>>, ScopeManagerError> {
+    pub(in crate::backend::interpreter) fn get_variable(&mut self, name: &'a str, span: Span) -> Result<&Rc<RefCell<Value>>, ScopeManagerError> {
         match self.0.last_mut() {
-            Some(last_frame) => last_frame.scope_manager.get_variable(name),
+            Some(last_frame) => last_frame.scope_manager.get_variable(name, span),
             None => unreachable!("Scope stack is empty"),
         }
     }
 
-    pub(in crate::backend::interpreter) fn assign_variable(&mut self, name: &'a str, value: Rc<RefCell<Value>>) -> Result<(), ScopeManagerError> {
+    pub(in crate::backend::interpreter) fn assign_variable(
+        &mut self,
+        name: &'a str,
+        value: Rc<RefCell<Value>>,
+        span: Span,
+    ) -> Result<(), ScopeManagerError> {
         if let Some(last_frame) = self.0.last_mut() {
-            last_frame.scope_manager.assign_variable(name, value)?;
+            last_frame.scope_manager.assign_variable(name, value, span)?;
         }
+
         Ok(())
     }
 
-    pub(in crate::backend::interpreter) fn declare_variable(&mut self, name: &'a str, value: Rc<RefCell<Value>>) -> Result<(), ScopeManagerError> {
+    pub(in crate::backend::interpreter) fn declare_variable(
+        &mut self,
+        name: &'a str,
+        value: Rc<RefCell<Value>>,
+        span: Span,
+    ) -> Result<(), ScopeManagerError> {
         if let Some(last_frame) = self.0.last_mut() {
-            last_frame.scope_manager.declare_variable(name, value)?;
+            last_frame.scope_manager.declare_variable(name, value, span)?;
         }
+
         Ok(())
     }
 }

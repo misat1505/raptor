@@ -13,7 +13,7 @@ impl<L: ILexer> Parser<L> {
         // identifier_or_call = identifier, [ "(", arguments, ")" ], { "[", expression, "]" }
         let identifier = try_consume!(self, parse_identifier);
 
-        let position = identifier.position;
+        let span = identifier.span;
 
         let mut result = match self.consume_if_matches(TokenCategory::ParenOpen)? {
             Some(_) => {
@@ -32,11 +32,14 @@ impl<L: ILexer> Parser<L> {
             let _ = self.consume_must_be(TokenCategory::BracketClose)?;
 
             result = Expression::Index {
-                collection: Box::new(Node { value: result, position }),
+                collection: Box::new(Node {
+                    value: result,
+                    span: index_expr.span,
+                }),
                 index: Box::new(index_expr),
             };
         }
 
-        Ok(Some(Node { value: result, position }))
+        Ok(Some(Node { value: result, span }))
     }
 }

@@ -2,7 +2,10 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     backend::{interpreter::Value, type_utils::type_accepts_value},
-    common::errors::{ErrorSeverity, ScopeManagerError},
+    common::{
+        errors::{ErrorSeverity, ScopeManagerError},
+        span::Span,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -23,10 +26,16 @@ impl<'a> Scope<'a> {
         &mut self,
         name: &'a str,
         value: Rc<RefCell<Value>>,
+        span: Span,
     ) -> Result<(), ScopeManagerError> {
         let current_value_option = self.get_variable(name);
+
         match current_value_option {
-            None => Err(ScopeManagerError::new(ErrorSeverity::HIGH, format!("Variable '{}' not declared.", name))),
+            None => Err(ScopeManagerError::new(
+                ErrorSeverity::HIGH,
+                format!("Variable '{}' not declared.", name),
+                span,
+            )),
 
             Some(prev_val) => {
                 let mut prev_val_borrow = prev_val.borrow_mut();
@@ -44,6 +53,7 @@ impl<'a> Scope<'a> {
                             name,
                             prev_val_borrow.to_type()
                         ),
+                        span,
                     ))
                 }
             }
@@ -54,11 +64,13 @@ impl<'a> Scope<'a> {
         &mut self,
         name: &'a str,
         value: Rc<RefCell<Value>>,
+        span: Span,
     ) -> Result<(), ScopeManagerError> {
         match self.get_variable(name) {
             Some(_) => Err(ScopeManagerError::new(
                 ErrorSeverity::HIGH,
                 format!("Cannot redeclare variable '{}'.", name),
+                span,
             )),
             None => {
                 self.variables.insert(name, value);

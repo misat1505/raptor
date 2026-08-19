@@ -8,6 +8,7 @@ use crate::{
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -17,7 +18,7 @@ use crate::{
 pub fn vector_size() -> StdFunction {
     let params = vec![Type::Vector(Box::new(Type::Void))];
 
-    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+    let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "vector_size";
         let expected_types = vec![Type::Vector(Box::new(Type::Void))];
 
@@ -34,10 +35,10 @@ pub fn vector_size() -> StdFunction {
                     Ok(Some(Value::I64(borrowed.len() as i64)))
                 }
 
-                _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
-            Err(build_usage_error(fn_name, expected_types, actual_types))
+            Err(build_usage_error(fn_name, expected_types, actual_types, span))
         }
     };
 
@@ -47,14 +48,14 @@ pub fn vector_size() -> StdFunction {
         _ => Err(String::from("vector_size expects exactly 1 argument.")),
     };
 
-    let compile: LlvmCompileFn = |compiler, arguments, position| {
-        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+    let compile: LlvmCompileFn = |compiler, arguments, span| {
+        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
         let vector_arg = arguments.get(0).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'vector_size' expects exactly one argument."),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
 
@@ -69,7 +70,7 @@ pub fn vector_size() -> StdFunction {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     format!("'vector_size' expects a vector, got '{:?}'.", other.to_type()),
-                    position,
+                    span,
                 )))
             }
         };

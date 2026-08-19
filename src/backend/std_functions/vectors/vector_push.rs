@@ -11,6 +11,7 @@ use crate::{
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -20,7 +21,7 @@ use crate::{
 pub fn vector_push() -> StdFunction {
     let params = vec![Type::Vector(Box::new(Type::Void)), Type::Void];
 
-    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+    let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "vector_push";
         let expected_types = vec![Type::Vector(Box::new(Type::Void)), Type::Void];
 
@@ -39,21 +40,22 @@ pub fn vector_push() -> StdFunction {
                             let value_ref = value.borrow();
 
                             if !type_accepts_value(inner, &value_ref) {
-                                return Err(build_usage_error(fn_name, expected_types, actual_types));
+                                return Err(build_usage_error(fn_name, expected_types, actual_types, span));
                             }
                         }
 
                         values.borrow_mut().push(Rc::clone(value));
 
-                        return Ok(None);
+                        Ok(None)
+                    } else {
+                        Err(build_usage_error(fn_name, expected_types, actual_types, span))
                     }
-                    Err(build_usage_error(fn_name, expected_types, actual_types))
                 }
 
-                _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
-            Err(build_usage_error(fn_name, expected_types, actual_types))
+            Err(build_usage_error(fn_name, expected_types, actual_types, span))
         }
     };
 
@@ -69,14 +71,14 @@ pub fn vector_push() -> StdFunction {
         _ => Err(String::from("vector_push expects exactly 2 arguments.")),
     };
 
-    let compile: LlvmCompileFn = |compiler, arguments, position| {
-        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+    let compile: LlvmCompileFn = |compiler, arguments, span| {
+        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
         let err_arity = || {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'vector_push' expects exactly 2 arguments."),
-                position,
+                span,
             )) as Box<dyn IError>
         };
 
@@ -89,7 +91,7 @@ pub fn vector_push() -> StdFunction {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     format!("'vector_push' expects a variable as its first argument, got '{:?}'.", other),
-                    position,
+                    span,
                 )))
             }
         };
@@ -101,7 +103,7 @@ pub fn vector_push() -> StdFunction {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     format!("'vector_push' expects a vector, got '{:?}'.", other),
-                    position,
+                    span,
                 )))
             }
         };
@@ -117,7 +119,7 @@ pub fn vector_push() -> StdFunction {
                     inner_type,
                     pushed_value.to_type()
                 ),
-                position,
+                span,
             )));
         }
 
@@ -143,10 +145,12 @@ pub fn vector_push() -> StdFunction {
             .builder()
             .build_struct_gep(struct_type, struct_ptr, 0, "vector.data")
             .map_err(err)?;
+
         let length_field = compiler
             .builder()
             .build_struct_gep(struct_type, struct_ptr, 1, "vector.length")
             .map_err(err)?;
+
         let capacity_field = compiler
             .builder()
             .build_struct_gep(struct_type, struct_ptr, 2, "vector.capacity")
@@ -157,6 +161,7 @@ pub fn vector_push() -> StdFunction {
             .build_load(i64_type, length_field, "vector.length.old")
             .map_err(err)?
             .into_int_value();
+
         let old_capacity = compiler
             .builder()
             .build_load(i64_type, capacity_field, "vector.capacity.old")
@@ -167,10 +172,11 @@ pub fn vector_push() -> StdFunction {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
-        let element_size = LlvmValue::element_byte_size(&inner_type, i64_type)?;
+
+        let element_size = LlvmValue::element_byte_size(&inner_type, i64_type, span)?;
 
         let needs_grow = compiler
             .builder()
@@ -186,6 +192,7 @@ pub fn vector_push() -> StdFunction {
             .map_err(err)?;
 
         compiler.builder().position_at_end(grow_block);
+
         let old_data = compiler
             .builder()
             .build_load(ptr_type, data_field, "vector.data.old")
@@ -196,10 +203,12 @@ pub fn vector_push() -> StdFunction {
             .builder()
             .build_int_compare(inkwell::IntPredicate::EQ, old_capacity, i64_type.const_int(0, false), "cap.is_zero")
             .map_err(err)?;
+
         let doubled = compiler
             .builder()
             .build_int_mul(old_capacity, i64_type.const_int(2, false), "cap.doubled")
             .map_err(err)?;
+
         let new_capacity = compiler
             .builder()
             .build_select(is_zero, i64_type.const_int(1, false), doubled, "cap.new")
@@ -210,6 +219,7 @@ pub fn vector_push() -> StdFunction {
             .builder()
             .build_int_mul(new_capacity, element_size, "vector.bytes.new")
             .map_err(err)?;
+
         let new_data = compiler
             .builder()
             .build_call(compiler.libc().realloc_fn, &[old_data.into(), new_bytes.into()], "vector.realloc")
@@ -220,7 +230,9 @@ pub fn vector_push() -> StdFunction {
             .into_pointer_value();
 
         compiler.builder().build_store(data_field, new_data).map_err(err)?;
+
         compiler.builder().build_store(capacity_field, new_capacity).map_err(err)?;
+
         compiler.builder().build_unconditional_branch(merge_block).map_err(err)?;
 
         compiler.builder().position_at_end(merge_block);
@@ -237,6 +249,7 @@ pub fn vector_push() -> StdFunction {
                 .build_gep(element_llvm_type, current_data, &[old_length], "vector.push.elem")
                 .map_err(err)?
         };
+
         compiler
             .builder()
             .build_store(elem_ptr, pushed_value.as_basic_value_enum())
@@ -246,6 +259,7 @@ pub fn vector_push() -> StdFunction {
             .builder()
             .build_int_add(old_length, i64_type.const_int(1, false), "vector.length.new")
             .map_err(err)?;
+
         compiler.builder().build_store(length_field, new_length).map_err(err)?;
 
         Ok(())

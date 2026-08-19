@@ -1,0 +1,79 @@
+{
+  "name": "raptor-lang",
+  "displayName": "Raptor Language Support",
+  "description": "Language support for Raptor (.rp) via LSP",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:raptor"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "raptor",
+        "aliases": [
+          "Raptor",
+          "raptor"
+        ],
+        "extensions": [
+          ".rp"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/rp-light.svg",
+          "dark": "./icons/rp-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "raptor",
+        "scopeName": "source.rp",
+        "path": "./syntaxes/rp.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "raptor",
+        "path": "./snippets/rp.json"
+      }
+    ],
+    "configuration": {
+      "title": "Raptor",
+      "properties": {
+        "raptor.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Ścieżka do binarki lsp. W trybie WSL (raptor.useWsl=true) podaj ścieżkę linuksową, np. /mnt/c/.../target/release/lsp."
+        },
+        "raptor.useWsl": {
+          "type": "boolean",
+          "default": true,
+          "description": "Odpalaj serwer LSP przez 'wsl.exe -e' (binarka zbudowana natywnie w WSL, bez cross-kompilacji)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./",
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "build": "npm run compile && vsce package --allow-missing-repository",
+    "install:package": "code --install-extension raptor-lang-0.0.1.vsix"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.2",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,29 @@
+use crate::common::position::Position;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Span {
+    start: Position,
+    end: Position,
+}
+
+impl Span {
+    pub fn new(start: Position, end: Position) -> Span {
+        Span { start, end }
+    }
+
+    pub fn start(&self) -> Position {
+        self.start
+    }
+
+    pub fn end(&self) -> Position {
+        self.end
+    }
+
+    pub fn join(start: Span, end: Span) -> Span {
+        Span::new(start.start(), end.end())
+    }
+
+    pub fn default() -> Span {
+        Span::new(Position::new(0, 0, 0, None), Position::new(0, 0, 0, None))
+    }
+}

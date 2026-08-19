@@ -2,10 +2,8 @@ use std::assert_eq;
 
 use crate::backend::interpreter::alu::ALU;
 use crate::common::errors::IError;
-use crate::{
-    backend::interpreter::alu::value::Value,
-    common::types::Type,
-};
+use crate::common::span::Span;
+use crate::{backend::interpreter::alu::value::Value, common::types::Type};
 
 #[test]
 fn cast_to_type() {
@@ -42,7 +40,7 @@ fn cast_to_type() {
     for idx in 0..data.len() {
         let (init, to_type) = &data[idx];
         let exp = &expected[idx];
-        assert_eq!(ALU::cast_to_type(init.clone(), to_type).unwrap(), *exp);
+        assert_eq!(ALU::cast_to_type(init.clone(), to_type, Span::default()).unwrap(), *exp);
     }
 }
 
@@ -55,7 +53,7 @@ fn cast_to_type_fail() {
 
     for (val, to_type) in data {
         assert_eq!(
-            ALU::cast_to_type(val, &to_type).err().unwrap().message(),
+            ALU::cast_to_type(val, &to_type, Span::default()).err().unwrap().message(),
             format!("Cannot cast String 'abc' to '{:?}'.", to_type)
         );
     }
@@ -64,22 +62,28 @@ fn cast_to_type_fail() {
 #[test]
 fn cast_bool_to_other_types() {
     assert_eq!(
-        ALU::cast_to_type(Value::Bool(true), &Type::Str).unwrap(),
+        ALU::cast_to_type(Value::Bool(true), &Type::Str, Span::default()).unwrap(),
         Value::String(String::from("true"))
     );
     assert_eq!(
-        ALU::cast_to_type(Value::Bool(false), &Type::Str).unwrap(),
+        ALU::cast_to_type(Value::Bool(false), &Type::Str, Span::default()).unwrap(),
         Value::String(String::from("false"))
     );
-    assert_eq!(ALU::cast_to_type(Value::Bool(true), &Type::I64).unwrap(), Value::I64(1));
-    assert_eq!(ALU::cast_to_type(Value::Bool(false), &Type::I64).unwrap(), Value::I64(0));
-    assert_eq!(ALU::cast_to_type(Value::Bool(true), &Type::F64).unwrap(), Value::F64(1.0));
-    assert_eq!(ALU::cast_to_type(Value::Bool(false), &Type::F64).unwrap(), Value::F64(0.0));
+    assert_eq!(ALU::cast_to_type(Value::Bool(true), &Type::I64, Span::default()).unwrap(), Value::I64(1));
+    assert_eq!(ALU::cast_to_type(Value::Bool(false), &Type::I64, Span::default()).unwrap(), Value::I64(0));
+    assert_eq!(
+        ALU::cast_to_type(Value::Bool(true), &Type::F64, Span::default()).unwrap(),
+        Value::F64(1.0)
+    );
+    assert_eq!(
+        ALU::cast_to_type(Value::Bool(false), &Type::F64, Span::default()).unwrap(),
+        Value::F64(0.0)
+    );
 }
 
 #[test]
 fn cast_to_type_unsupported_combination_fails() {
-    let result = ALU::cast_to_type(Value::I64(1), &Type::I64);
+    let result = ALU::cast_to_type(Value::I64(1), &Type::I64, Span::default());
     assert!(result.is_err());
     assert_eq!(result.err().unwrap().message(), String::from("Cannot cast 'I64(1)' to 'i64'."));
 }

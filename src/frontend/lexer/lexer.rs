@@ -8,6 +8,7 @@ use crate::{
     common::{
         errors::{ErrorSeverity, IError, LexerError},
         position::Position,
+        span::Span,
     },
     frontend::{
         lexer::lazy_stream_reader::{ILazyStreamReader, LazyStreamReader, ETX},
@@ -30,7 +31,10 @@ pub struct Lexer {
     imported_paths: Vec<String>,
     import_stack: Vec<String>,
     current: Option<Token>,
+
+    // Początek aktualnie generowanego tokena.
     position: Position,
+
     options: LexerOptions,
     on_warning: fn(warning: Box<dyn IError>),
 }
@@ -52,6 +56,7 @@ impl Lexer {
         on_warning: fn(warning: Box<dyn IError>),
     ) -> Result<Self, Box<dyn IError>> {
         let position = src.position().clone();
+
         let mut lexer = Lexer {
             src: vec![Box::new(src)],
             imported_paths: vec![String::from(position.filename.unwrap_or("<input>"))],
@@ -75,6 +80,7 @@ impl Lexer {
         on_warning: fn(warning: Box<dyn IError>),
     ) -> Result<Self, Box<dyn IError>> {
         let position = src.position().clone();
+
         let lexer = Lexer {
             src: vec![Box::new(src)],
             imported_paths: vec![String::from(position.filename.unwrap_or("<input>"))],
@@ -88,6 +94,17 @@ impl Lexer {
         Ok(lexer)
     }
 
+    /// Tworzy span aktualnie generowanego tokena.
+    ///
+    /// `self.position` jest początkiem tokena, natomiast pozycja
+    /// readera wskazuje miejsce, do którego lexer doszedł.
+    fn current_span(&self) -> Span {
+        let start = self.position.clone();
+        let end = self.src.last().unwrap().position().clone();
+
+        Span::new(start, end)
+    }
+
     fn token_text(token: &Token) -> String {
         match &token.value {
             TokenValue::F64(value) => value.to_string(),
@@ -98,11 +115,12 @@ impl Lexer {
     }
 
     fn consume_must_be(&mut self, category: TokenCategory) -> Result<Token, Box<dyn IError>> {
-        let position = self.position.clone();
+        let span = self.current_span();
+
         let current_token = self
             .current
             .take()
-            .ok_or_else(|| Box::new(LexerError::at(ErrorSeverity::HIGH, "Expected a token".to_string(), position)) as Box<dyn IError>)?;
+            .ok_or_else(|| Box::new(LexerError::at(ErrorSeverity::HIGH, "Expected a token".to_string(), span)) as Box<dyn IError>)?;
 
         if current_token.category == category {
             self.generate_token()?;
@@ -114,7 +132,7 @@ impl Lexer {
             "Unexpected token".to_string(),
             format!("{:?}", category),
             Self::token_text(&current_token),
-            current_token.position,
+            current_token.span,
         )))
     }
 
@@ -128,24 +146,27 @@ impl Lexer {
                 return Err(Box::new(LexerError::expected_found(
                     ErrorSeverity::HIGH,
                     "Unexpected token value".to_string(),
-                    format!("string"),
+                    "string".to_string(),
                     format!("{:?}", v),
-                    path_token.position,
-                )))
+                    path_token.span,
+                )));
             }
         };
 
-        let is_in_import_stack = self.import_stack.iter().find(|v| **v == path).is_some();
+        let is_in_import_stack = self.import_stack.iter().any(|v| *v == path);
+
         if is_in_import_stack {
             let import_stack = self.import_stack.join("\n    ↓\n    ");
+
             return Err(Box::new(LexerError::at(
                 ErrorSeverity::HIGH,
                 format!("Cyclic import detected:\n    {}\n    ↓\n    {}\n\n", import_stack, path),
-                path_token.position,
+                path_token.span,
             )));
         }
 
-        let is_already_imported = self.imported_paths.iter().find(|v| **v == path).is_some();
+        let is_already_imported = self.imported_paths.iter().any(|v| *v == path);
+
         if !is_already_imported {
             let file = match File::open(path.as_str()) {
                 Ok(f) => f,
@@ -153,13 +174,15 @@ impl Lexer {
                     return Err(Box::new(LexerError::at(
                         ErrorSeverity::HIGH,
                         format!("File '{}' not found.", path),
-                        path_token.position,
+                        path_token.span,
                     )));
                 }
             };
 
             let code = BufReader::new(file);
+
             let filename: &'static str = Box::leak(path.clone().into_boxed_str());
+
             self.src.push(Box::new(LazyStreamReader::new(code, Some(filename))));
 
             self.import_stack.push(path.clone());
@@ -167,6 +190,7 @@ impl Lexer {
         }
 
         let _ = self.src.last_mut().unwrap().next();
+
         self.consume_must_be(TokenCategory::Semicolon)
     }
 
@@ -174,14 +198,18 @@ impl Lexer {
         if self.src.len() > 1 {
             self.src.pop();
             self.import_stack.pop();
+
             return self.generate_token();
         }
-        return Ok(self.current.clone().unwrap());
+
+        Ok(self.current.clone().unwrap())
     }
 
     #[allow(irrefutable_let_patterns)]
     pub fn generate_token(&mut self) -> Result<Token, Box<dyn IError>> {
         self.skip_whitespaces();
+
+        // Zapamiętujemy początek tokena.
         self.position = self.src.last().unwrap().position().clone();
 
         let result_methods = [
@@ -200,11 +228,16 @@ impl Lexer {
                         self.current = Some(token);
                         return self.import_file();
                     }
+
                     TokenCategory::ETX => {
                         self.current = Some(token);
                         return self.handle_etx();
                     }
-                    TokenCategory::Comment => return self.generate_token(),
+
+                    TokenCategory::Comment => {
+                        return self.generate_token();
+                    }
+
                     _ => {
                         self.current = Some(token.clone());
                         return Ok(token);
@@ -213,7 +246,7 @@ impl Lexer {
             }
         }
 
-        Err(self.create_lexer_error(String::from("Unexpected token")))
+        Err(self.create_lexer_error("Unexpected token".to_string()))
     }
 
     fn skip_whitespaces(&mut self) {
@@ -224,39 +257,51 @@ impl Lexer {
 
     fn try_generating_comment(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
         let current_char = self.src.last().unwrap().current();
+
         if *current_char != '#' {
             return Ok(None);
         }
 
         let mut comment = String::new();
+
         while let Ok(current) = self.src.last_mut().unwrap().next() {
             if *current == '\n' || *current == ETX {
                 break;
             }
+
             if (comment.len() as u32) == self.options.max_comment_length {
                 return Err(self.create_lexer_error(format!("Comment too long. Max comment length: {}", self.options.max_comment_length)));
             }
+
             comment.push(*current);
         }
 
         Ok(Some(Token {
             category: TokenCategory::Comment,
             value: TokenValue::String(comment),
-            position: self.position,
+            span: self.current_span(),
         }))
     }
 
     fn try_generating_sign(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
         let current_char = self.src.last().unwrap().current();
+
         match SIGNS.get(current_char) {
             None => Ok(None),
+
             Some(token_category) => {
+                let span_start = self.position.clone();
+
+                let _ = self.src.last_mut().unwrap().next();
+
+                let span = Span::new(span_start, self.src.last().unwrap().position().clone());
+
                 let token = Token {
                     category: token_category.clone(),
                     value: TokenValue::Null,
-                    position: self.position,
+                    span,
                 };
-                let _ = self.src.last_mut().unwrap().next();
+
                 Ok(Some(token))
             }
         }
@@ -264,6 +309,7 @@ impl Lexer {
 
     fn try_generating_operator(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
         let current_char = self.src.last().unwrap().current();
+
         let token = match current_char {
             '+' => Some(self.extend_to_next('=', TokenCategory::Plus, TokenCategory::PlusEquals)),
             '-' => Some(self.extend_minus()),
@@ -278,214 +324,276 @@ impl Lexer {
             '|' => Some(self.extend_to_next_or_warning('|', TokenCategory::Or)),
             _ => None,
         };
+
         Ok(token)
     }
 
-    // this is not used but might be helpful in the future
     #[allow(dead_code)]
     fn single_char(&mut self, category: TokenCategory) -> Token {
+        let start = self.position.clone();
+
         let _ = self.src.last_mut().unwrap().next();
+
+        let end = self.src.last().unwrap().position().clone();
+
         Token {
             category,
             value: TokenValue::Null,
-            position: self.position,
+            span: Span::new(start, end),
         }
     }
 
     fn extend_to_next(&mut self, char_to_search: char, not_found: TokenCategory, found: TokenCategory) -> Token {
+        let start = self.position.clone();
+
         let next_char = self.src.last_mut().unwrap().next().unwrap();
+
         if *next_char == char_to_search {
             let _ = self.src.last_mut().unwrap().next();
+
             return Token {
                 category: found,
                 value: TokenValue::Null,
-                position: self.position,
+                span: Span::new(start, self.src.last().unwrap().position().clone()),
             };
         }
-        return Token {
+
+        Token {
             category: not_found,
             value: TokenValue::Null,
-            position: self.position,
-        };
+            span: Span::new(start, self.src.last().unwrap().position().clone()),
+        }
     }
 
     fn extend_to_next_or_warning(&mut self, char_to_search: char, found: TokenCategory) -> Token {
+        let start = self.position.clone();
+
         let next_char = self.src.last_mut().unwrap().next().unwrap();
+
         if *next_char == char_to_search {
             let _ = self.src.last_mut().unwrap().next();
         } else {
-            (self.on_warning)(Box::new(LexerError::new(
+            let span = Span::new(start.clone(), self.src.last().unwrap().position().clone());
+
+            (self.on_warning)(Box::new(LexerError::at(
                 ErrorSeverity::LOW,
-                self.prepare_warning_message(format!("Expected '{}'", char_to_search)),
+                self.prepare_warning_message_without_span(format!("Expected '{}'", char_to_search)),
+                span,
             )));
         }
-        return Token {
+
+        Token {
             category: found,
             value: TokenValue::Null,
-            position: self.position,
-        };
+            span: Span::new(start, self.src.last().unwrap().position().clone()),
+        }
     }
 
     fn extend_minus(&mut self) -> Token {
+        let start = self.position.clone();
+
         let next_char = self.src.last_mut().unwrap().next().unwrap();
+
         if *next_char == '>' {
             let _ = self.src.last_mut().unwrap().next();
+
             return Token {
                 category: TokenCategory::Arrow,
                 value: TokenValue::Null,
-                position: self.position,
+                span: Span::new(start, self.src.last().unwrap().position().clone()),
             };
         }
+
         if *next_char == '=' {
             let _ = self.src.last_mut().unwrap().next();
+
             return Token {
                 category: TokenCategory::MinusEquals,
                 value: TokenValue::Null,
-                position: self.position,
+                span: Span::new(start, self.src.last().unwrap().position().clone()),
             };
         }
+
         Token {
             category: TokenCategory::Minus,
             value: TokenValue::Null,
-            position: self.position,
+            span: Span::new(start, self.src.last().unwrap().position().clone()),
         }
     }
 
     fn try_generating_string(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
+        let start = self.position.clone();
+
         let mut current_char = self.src.last().unwrap().current().clone();
+
         if current_char != '"' {
             return Ok(None);
         }
+
         let mut created_string = String::new();
+
         current_char = self.src.last_mut().unwrap().next().unwrap().clone();
+
         while current_char != '"' {
-            // escaping
             if current_char == '\\' {
                 let next_char = self.src.last_mut().unwrap().next().unwrap().clone();
+
                 match ESCAPES.get(&next_char) {
                     Some(char) => {
                         created_string.push(*char);
                         current_char = *self.src.last_mut().unwrap().next().unwrap();
                         continue;
                     }
+
                     None => {
-                        (self.on_warning)(Box::new(LexerError::new(
-                            ErrorSeverity::LOW,
-                            self.prepare_warning_message(format!("Invalid escape symbol detected '\\{}'", next_char)),
-                        )));
-                        let default_escape = '\\';
-                        created_string.push(default_escape);
+                        let warning_text = format!("Invalid escape symbol detected '\\{}'", next_char);
+                        let span = Span::new(start.clone(), self.src.last().unwrap().position().clone());
+
+                        (self.on_warning)(Box::new(LexerError::at(ErrorSeverity::LOW, warning_text, span)));
+
+                        created_string.push('\\');
                         current_char = next_char;
+
                         continue;
                     }
                 }
             }
+
             if current_char == '\n' {
-                return Err(self.create_lexer_error(String::from("Unexpected newline in string")));
+                return Err(self.create_lexer_error("Unexpected newline in string".to_string()));
             }
+
             if current_char == ETX {
-                (self.on_warning)(Box::new(LexerError::new(
-                    ErrorSeverity::LOW,
-                    self.prepare_warning_message(String::from("String not closed")),
-                )));
+                let span = Span::new(start.clone(), self.src.last().unwrap().position().clone());
+
+                (self.on_warning)(Box::new(LexerError::at(ErrorSeverity::LOW, "String not closed".to_string(), span)));
+
                 return Ok(Some(Token {
                     category: TokenCategory::StringValue,
                     value: TokenValue::String(created_string),
-                    position: self.position,
+                    span: Span::new(start, self.src.last().unwrap().position().clone()),
                 }));
             }
+
             created_string.push(current_char);
+
             current_char = self.src.last_mut().unwrap().next().unwrap().clone();
         }
-        // consume next "
+
+        // consume closing "
         let _ = self.src.last_mut().unwrap().next();
+
         Ok(Some(Token {
             category: TokenCategory::StringValue,
             value: TokenValue::String(created_string),
-            position: self.position,
+            span: Span::new(start, self.src.last().unwrap().position().clone()),
         }))
     }
 
     fn try_generating_number(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
+        let start = self.position.clone();
+
         let mut current_char = self.src.last().unwrap().current().clone();
+
         if !current_char.is_ascii_digit() {
             return Ok(None);
         }
 
         let mut decimal = 0;
+
         if current_char != '0' {
             (decimal, _) = self.parse_integer()?;
         } else {
             let next_char = self.src.last_mut().unwrap().next().unwrap();
+
             if next_char.is_ascii_digit() {
-                return Err(self.create_lexer_error(String::from("Cannot prefix number with 0's.")));
+                return Err(self.create_lexer_error("Cannot prefix number with 0's.".to_string()));
             }
         }
 
         current_char = self.src.last().unwrap().current().clone();
+
         if current_char != '.' {
             return Ok(Some(Token {
                 category: TokenCategory::I64Value,
                 value: TokenValue::I64(decimal),
-                position: self.position,
+                span: Span::new(start, self.src.last().unwrap().position().clone()),
             }));
         }
 
         let _ = self.src.last_mut().unwrap().next();
+
         let (fraction, fraction_length) = self.parse_integer()?;
+
         let float_value = Self::merge_to_float(decimal, fraction, fraction_length);
+
         Ok(Some(Token {
             category: TokenCategory::F64Value,
             value: TokenValue::F64(float_value),
-            position: self.position,
+            span: Span::new(start, self.src.last().unwrap().position().clone()),
         }))
     }
 
     fn parse_integer(&mut self) -> Result<(i64, i64), Box<dyn IError>> {
         let mut current_char = self.src.last().unwrap().current();
+
         let mut length = 0;
         let mut total: i64 = 0;
 
         loop {
             if current_char.is_ascii_digit() {
                 let digit = *current_char as i64 - '0' as i64;
+
                 total = total
                     .checked_mul(10)
-                    .ok_or_else(|| self.create_lexer_error(String::from("Overflow occurred while parsing integer")))?;
+                    .ok_or_else(|| self.create_lexer_error("Overflow occurred while parsing integer".to_string()))?;
+
                 total = total
                     .checked_add(digit)
-                    .ok_or_else(|| self.create_lexer_error(String::from("Overflow occurred while parsing integer")))?;
+                    .ok_or_else(|| self.create_lexer_error("Overflow occurred while parsing integer".to_string()))?;
+
                 length += 1;
+
                 current_char = self.src.last_mut().unwrap().next().unwrap();
+
                 continue;
             }
 
             if *current_char == '\'' {
                 let next_char = self.src.last_mut().unwrap().next().unwrap();
+
                 if !next_char.is_ascii_digit() {
-                    return Err(self.create_lexer_error(String::from("Digit separator ' must be placed between two digits")));
+                    return Err(self.create_lexer_error("Digit separator ' must be placed between two digits".to_string()));
                 }
+
                 current_char = next_char;
+
                 continue;
             }
 
             break;
         }
+
         Ok((total, length))
     }
 
     fn merge_to_float(decimal: i64, fraction: i64, fraction_length: i64) -> f64 {
         let fraction_value = fraction as f64 / f64::powi(10.0, fraction_length as i32);
-        let float_value = decimal as f64 + fraction_value;
-        float_value
+
+        decimal as f64 + fraction_value
     }
 
     fn try_creating_identifier_or_keyword(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
+        let start = self.position.clone();
+
         let mut current_char = self.src.last().unwrap().current().clone();
+
         if !current_char.is_ascii_alphabetic() {
             return Ok(None);
         }
+
         let mut created_string = String::new();
+
         while current_char.is_ascii_digit() || current_char.is_ascii_alphabetic() || current_char == '_' {
             if (created_string.len() as u32) == self.options.max_identifier_length {
                 return Err(self.create_lexer_error(format!(
@@ -493,32 +601,39 @@ impl Lexer {
                     self.options.max_identifier_length
                 )));
             }
+
             created_string.push(current_char);
+
             current_char = self.src.last_mut().unwrap().next().unwrap().clone();
         }
+
+        let span = Span::new(start, self.src.last().unwrap().position().clone());
+
         match KEYWORDS.get(created_string.as_str()) {
             Some(category) => Ok(Some(Token {
                 category: category.clone(),
                 value: TokenValue::Null,
-                position: self.position,
+                span,
             })),
+
             None => Ok(Some(Token {
                 category: TokenCategory::Identifier,
                 value: TokenValue::String(created_string),
-                position: self.position,
+                span,
             })),
         }
     }
 
     fn create_lexer_error(&mut self, text: String) -> Box<dyn IError> {
-        let position = self.src.last().unwrap().position();
-        Box::new(LexerError::at(ErrorSeverity::HIGH, text, position))
+        let end = self.src.last().unwrap().position().clone();
+
+        let span = Span::new(self.position.clone(), end);
+
+        Box::new(LexerError::at(ErrorSeverity::HIGH, text, span))
     }
 
-    fn prepare_warning_message(&self, text: String) -> String {
-        let position = self.src.last().unwrap().position();
-        let error = LexerError::at(ErrorSeverity::LOW, text, position);
-        return error.message();
+    fn prepare_warning_message_without_span(&self, text: String) -> String {
+        text
     }
 }
 
@@ -534,7 +649,6 @@ static SIGNS: phf::Map<char, TokenCategory> = phf_map! {
     ','     => TokenCategory::Comma,
     '\u{2}' => TokenCategory::STX,
     '\u{3}' => TokenCategory::ETX,
-
 };
 
 static KEYWORDS: phf::Map<&'static str, TokenCategory> = phf_map! {

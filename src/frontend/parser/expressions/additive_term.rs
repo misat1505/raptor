@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Expression, Node},
         lexer::lexer::ILexer,
@@ -22,11 +22,11 @@ impl<L: ILexer> Parser<L> {
 
             let mut expression_type = Expression::Addition(Box::new(left_side.clone()), Box::new(right_side.clone()));
             if current_token.category == TokenCategory::Minus {
-                expression_type = Expression::Subtraction(Box::new(left_side), Box::new(right_side))
+                expression_type = Expression::Subtraction(Box::new(left_side.clone()), Box::new(right_side.clone()))
             }
             left_side = Node {
                 value: expression_type,
-                position: current_token.position,
+                span: Span::new(left_side.span.start(), right_side.span.end()),
             };
             current_token = self.current_token();
         }

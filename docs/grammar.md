@@ -8,15 +8,20 @@
 
 **extern_function_declaration** = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
 
-```
+```text
 extern fn InitWindow(i64 x, i64 y, str name): void as init_window;
+extern fn PrintValue(i64 value): void as print_value;
 ```
 
 **function_declaration** = “fn”, identifier, "(", parameters, ")", “:”, type | “void”, statement_block;
 
-```
+```text
 fn is_prime(i64 x, &i64 total_iters): bool {
     return true;
+}
+
+fn add(i64 a, i64 b): i64 {
+    return a + b;
 }
 ```
 
@@ -32,42 +37,56 @@ fn is_prime(i64 x, &i64 total_iters): bool {
 
 **assign_or_call** = assign_or_call_without_semicolon, ";";
 
-```
+```text
 x = 5;
 my_fun(5, 2);
+
 x[0][0] = 10;
 x[1][0] += 2;
-```
 
+result = add(10, 20);
+```
 
 **declaration** = type, identifier, [ "=", expression ];
 
-```
+```text
 bool is_valid = true;
+i64 counter = 0;
+f64 result = 10.5;
+str message = "Hello, Raptor!";
 ```
 
 **if_statement** = "if", "(", expression, ")", statement_block, [ "else", statement_block ];
 
-```
-if (x == 5) {} else {}
+```text
+if (x == 5) {
+    println("x is five.");
+} else {
+    println("x is not five.");
+}
 ```
 
 **for_statement** = "for", "(", [ declaration ], “;”, expression, “;”, [ assign_or_call_without_semicolon ], ")", statement_block;
 
-```
-for (i64 i = 0; i < 10; i = i + 1) {}
+```text
+for (i64 i = 0; i < 10; i = i + 1) {
+    println(i as str);
+}
 ```
 
 **while_statement** = "while", "(", expression, ")", statement_block
 
-```
+```text
 while (x < 5) {
-  x += 1;
+    x += 1;
 }
 ```
 
-```
-i64 i = 0
+A `for` loop may also omit its initialization and increment expressions:
+
+```text
+i64 i = 0;
+
 for (; i < 10 ;) {
     i = i + 1;
 }
@@ -75,19 +94,19 @@ for (; i < 10 ;) {
 
 **break_statement** = "break", ";";
 
-```
+```text
 break;
 ```
 
 **continue_statement** = "continue", ";";
 
-```
+```text
 continue;
 ```
 
 **return_statement** = "return", [ expression ], ";";
 
-```
+```text
 return a + 2 * b;
 ```
 
@@ -95,87 +114,112 @@ return a + 2 * b;
 
 **arguments** = [ argument, {",", argument} ];
 
+```text
+a + 2
+&b
+c
 ```
-a + 2, &b, c
+
+Multiple arguments are separated by commas:
+
+```text
+calculate(a + 2, &b, c);
 ```
 
 **expression** = concatenation_term { “||”, concatenation_term };
 
-```
+```text
 a == b && b || c
 ```
 
 **concatenation_term** = relation_term, { “&&”, relation_term };
 
-```
+```text
 a == b && b
 ```
 
 **relation_term** = additive_term, [ relation_operands, additive_term ];
 
-```
+```text
 x == y
+x >= y
 ```
 
 **additive_term** = multiplicative_term , { ("+" | "-"), multiplicative_term };
 
-```
+```text
 1 + (1 + 2) / (2 + 3)
+x + 10 - y
 ```
 
-**multiplicative_term** = casted_term, { ("\*" | "/" | "%"), casted_term };
+**multiplicative_term** = casted_term, { ("*" | "/" | "%"), casted_term };
 
-```
+```text
 (1 + 2) / (2 + 3)
+x * 10 % 3
 ```
 
 **casted_term** = unary_term, [ “as”, type ];
 
-```
+```text
 (x + add(2, 2)) as f64
-2 as i64                # 2
-2 as f64                # 2.0
-2 as str                # “2”
--2 as str               # "-2"
-2 as bool               # true
-0 as bool               # false
-“123” as i64            # 123
-“fdsfs” as i64          # error
-“” as bool              # false
-“a” as bool             # true
+
+2 as i64      # 2
+2 as f64      # 2.0
+2 as str      # "2"
+-2 as str     # "-2"
+2 as bool     # true
+0 as bool     # false
+
+"123" as i64  # 123
+"fdsfs" as i64 # error
+
+"" as bool    # false
+"a" as bool   # true
 ```
 
 **unary_term** = [ ("-", "!") ], factor;
 
-```
+```text
 -2
 -(x + 5)
+
 !true
+!(x == 5)
 ```
 
 **factor** = literal | ( "(", expression, ")" ) | identifier_or_call | vector_literal;
 
-```
+```text
 5
+2.2
 (2.2 + 3 as f64)
+
 x
 fun(5)
 ```
 
 **vector_literal** = "[", [ expression, { ",", expression } ], "]";
 
-```
+```text
 []
+
 [1, 2, 3]
+
 ["hello", "world"]
-[[1,2], [3,4]]
+
+[
+    [1, 2],
+    [3, 4]
+]
 ```
 
 **identifier_or_call** = identifier, [ "(", arguments, ")" ], { "[", expression, "]" };
 
-```
+```text
 x
 fun(5)
+
 x[0][0]
 fun(5)[0][0]
 ```
@@ -184,8 +228,10 @@ fun(5)[0][0]
 
 **identifier** = letter, {character};
 
-```
+```text
 super_variable_123
+counter
+result_value
 ```
 
 **switch_statement** = "switch", "(", switch_expressions, ")", "{", {switch_case}, "}";
@@ -196,14 +242,15 @@ super_variable_123
 
 **switch_case** = "(", expression, ")", "->", statement_block;
 
-```
+```text
 switch (x: temp1, y: temp2) {
     (x < 5 && temp2 < 5) -> {
-      print("Less than 5.");
+        print("Less than 5.");
     }
+
     (temp1 < 10 && y < 10) -> {
-      print("Less than 10.");
-      break;
+        print("Less than 10.");
+        break;
     }
 }
 ```
@@ -222,127 +269,48 @@ switch (x: temp1, y: temp2) {
 
 **integer_literal** = ( non_zero_digit, {digit} ) | “0”;
 
-```
-1, 12, 10, 0
+```text
+1
+12
+10
+0
 ```
 
 **float_literal** = integer_literal, ".", {digit}
 
-```
-1.0, 1.2, 10.0, 0.0, 0.00001;
+```text
+1.0
+1.2
+10.0
+0.0
+0.00001
 ```
 
 **string_literal** = “\””, {unicode_character - “\””}, “\””;
 
 **boolean_literal** = “true” | “false”;
 
-**character** = "a" - "z" | "A" - "Z" | "0" - "9" | "\_";
+**character** = "a" - "z" | "A" - "Z" | "0" - "9" | "_";
 
 **unicode_character** = (all unicode characters)
 
 ## Operator priority
 
-<table>
-  <tr>
-   <td>operator
-   </td>
-   <td>priority
-   </td>
-  </tr>
-  <tr>
-   <td>- (number negetion)
-   </td>
-   <td>7
-   </td>
-  </tr>
-  <tr>
-   <td>!
-   </td>
-   <td>7
-   </td>
-  </tr>
-  <tr>
-   <td>as
-   </td>
-   <td>6
-   </td>
-  </tr>
-  <tr>
-   <td>*
-   </td>
-   <td>5
-   </td>
-  </tr>
-  <tr>
-   <td>/
-   </td>
-   <td>5
-   </td>
-  </tr>
-   <tr>
-   <td>%
-   </td>
-   <td>5
-   </td>
-  </tr>
-  <tr>
-   <td>+
-   </td>
-   <td>4
-   </td>
-  </tr>
-  <tr>
-   <td>- (subtraction)
-   </td>
-   <td>4
-   </td>
-  </tr>
-  <tr>
-   <td>>
-   </td>
-   <td>3
-   </td>
-  </tr>
-  <tr>
-   <td>>=
-   </td>
-   <td>3
-   </td>
-  </tr>
-  <tr>
-   <td><
-   </td>
-   <td>3
-   </td>
-  </tr>
-  <tr>
-   <td><=
-   </td>
-   <td>3
-   </td>
-  </tr>
-  <tr>
-   <td>==
-   </td>
-   <td>3
-   </td>
-  </tr>
-  <tr>
-   <td>!=
-   </td>
-   <td>3
-   </td>
-  </tr>
-  <tr>
-   <td>&&
-   </td>
-   <td>2
-   </td>
-  </tr>
-  <tr>
-   <td>||
-   </td>
-   <td>1
-   </td>
-  </tr>
-</table>
+| Operator              | Priority |   |   |
+| --------------------- | -------: | - | - |
+| `-` (number negation) |        7 |   |   |
+| `!`                   |        7 |   |   |
+| `as`                  |        6 |   |   |
+| `*`                   |        5 |   |   |
+| `/`                   |        5 |   |   |
+| `%`                   |        5 |   |   |
+| `+`                   |        4 |   |   |
+| `-` (subtraction)     |        4 |   |   |
+| `>`                   |        3 |   |   |
+| `>=`                  |        3 |   |   |
+| `<`                   |        3 |   |   |
+| `<=`                  |        3 |   |   |
+| `==`                  |        3 |   |   |
+| `!=`                  |        3 |   |   |
+| `&&`                  |        2 |   |   |
+| `\|\|`                |        1 |   |   |

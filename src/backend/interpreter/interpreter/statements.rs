@@ -7,6 +7,7 @@ use crate::{
     },
     common::{
         errors::{ErrorSeverity, IError, InterpreterError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -23,17 +24,19 @@ impl<'a> Interpreter<'a> {
                     AbortState::Break => Err(Box::new(InterpreterError::at(
                         ErrorSeverity::HIGH,
                         String::from("Break called outside 'for' or 'switch'."),
-                        self.position,
+                        self.span,
                     ))),
+
                     AbortState::Continue => Err(Box::new(InterpreterError::at(
                         ErrorSeverity::HIGH,
                         String::from("Continue called outside 'for' or 'while'."),
-                        self.position,
+                        self.span,
                     ))),
+
                     AbortState::Return => Err(Box::new(InterpreterError::at(
                         ErrorSeverity::HIGH,
                         String::from("Return called outside a function."),
-                        self.position,
+                        self.span,
                     ))),
                 };
             }
@@ -45,7 +48,7 @@ impl<'a> Interpreter<'a> {
     pub(in crate::backend::interpreter::interpreter) fn exec_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
         match &statement.value {
             Statement::FunctionCall { identifier, arguments } => {
-                self.call_function(identifier, arguments)?;
+                self.call_function(identifier, arguments, statement.span)?;
             }
 
             Statement::Declaration { var_type, identifier, value } => {
@@ -59,13 +62,13 @@ impl<'a> Interpreter<'a> {
                             Box::new(InterpreterError::at(
                                 ErrorSeverity::HIGH,
                                 format!("Cannot declare variable '{}' with no value.", identifier.value),
-                                statement.position,
+                                statement.span,
                             )) as Box<dyn IError>
                         })?
                     }
 
-                    None => Value::default_value(&var_type.value)
-                        .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.position)) as Box<dyn IError>)?,
+                    None => Value::default_value(&var_type.value, statement.span)
+                        .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?,
                 };
 
                 match (&var_type.value, &computed_value) {
@@ -81,7 +84,7 @@ impl<'a> Interpreter<'a> {
                                     format!("Cannot assign value to vector '{}'.", identifier.value),
                                     format!("{:?}", declared_inner.as_ref()),
                                     format!("{:?}", actual_type),
-                                    statement.position,
+                                    statement.span,
                                 )));
                             }
                         }
@@ -102,14 +105,14 @@ impl<'a> Interpreter<'a> {
                             format!("Cannot assign value to variable '{}'.", identifier.value),
                             format!("{:?}", declared_type),
                             format!("{:?}", computed_value.to_type()),
-                            statement.position,
+                            statement.span,
                         )));
                     }
                 }
 
                 self.stack
-                    .declare_variable(identifier.value.as_str(), Rc::new(RefCell::new(computed_value)))
-                    .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.position)) as Box<dyn IError>)?;
+                    .declare_variable(identifier.value.as_str(), Rc::new(RefCell::new(computed_value)), statement.span)
+                    .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?;
             }
 
             Statement::Assignment { identifier, value, indices } => {
@@ -120,13 +123,13 @@ impl<'a> Interpreter<'a> {
                         Box::new(InterpreterError::at(
                             ErrorSeverity::HIGH,
                             format!("Cannot assign no value to variable '{}'.", identifier.value),
-                            statement.position,
+                            statement.span,
                         )) as Box<dyn IError>
                     })?;
 
                     self.stack
-                        .assign_variable(identifier.value.as_str(), Rc::new(RefCell::new(value)))
-                        .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.position)) as Box<dyn IError>)?;
+                        .assign_variable(identifier.value.as_str(), Rc::new(RefCell::new(value)), statement.span)
+                        .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?;
                 } else {
                     self.exec_index_assignment(identifier, indices, value)?;
                 }
@@ -142,7 +145,7 @@ impl<'a> Interpreter<'a> {
                 let computed_condition = self.read_last_result()?;
 
                 let boolean_value = computed_condition
-                    .try_into_bool()
+                    .try_into_bool(statement.span)
                     .map_err(|_| self.condition_error(computed_condition, "if statement"))?;
 
                 if boolean_value {
@@ -158,7 +161,7 @@ impl<'a> Interpreter<'a> {
                 let mut computed_condition = self.read_last_result()?;
 
                 let mut boolean_value = computed_condition
-                    .try_into_bool()
+                    .try_into_bool(statement.span)
                     .map_err(|_| self.condition_error(computed_condition, "while statement"))?;
 
                 while boolean_value {
@@ -170,9 +173,11 @@ impl<'a> Interpreter<'a> {
                                 self.abort_state = None;
                                 break;
                             }
+
                             AbortState::Return => {
                                 break;
                             }
+
                             AbortState::Continue => {
                                 self.abort_state = None;
                             }
@@ -184,7 +189,7 @@ impl<'a> Interpreter<'a> {
                     computed_condition = self.read_last_result()?;
 
                     boolean_value = computed_condition
-                        .try_into_bool()
+                        .try_into_bool(statement.span)
                         .map_err(|_| self.condition_error(computed_condition, "while statement"))?;
                 }
             }
@@ -206,7 +211,7 @@ impl<'a> Interpreter<'a> {
                 let mut computed_condition = self.read_last_result()?;
 
                 let mut boolean_value = computed_condition
-                    .try_into_bool()
+                    .try_into_bool(statement.span)
                     .map_err(|_| self.condition_error(computed_condition, "for statement"))?;
 
                 while boolean_value {
@@ -218,9 +223,11 @@ impl<'a> Interpreter<'a> {
                                 self.abort_state = None;
                                 break;
                             }
+
                             AbortState::Return => {
                                 break;
                             }
+
                             AbortState::Continue => {
                                 self.abort_state = None;
                             }
@@ -236,7 +243,7 @@ impl<'a> Interpreter<'a> {
                     computed_condition = self.read_last_result()?;
 
                     boolean_value = computed_condition
-                        .try_into_bool()
+                        .try_into_bool(statement.span)
                         .map_err(|_| self.condition_error(computed_condition, "for statement"))?;
                 }
 
@@ -259,9 +266,11 @@ impl<'a> Interpreter<'a> {
                                 self.abort_state = None;
                                 break;
                             }
+
                             AbortState::Return => {
                                 break;
                             }
+
                             AbortState::Continue => {
                                 break;
                             }
@@ -300,7 +309,7 @@ impl<'a> Interpreter<'a> {
         self.stack.push_scope();
 
         for statement in &block.value.0 {
-            if let Some(_) = self.abort_state {
+            if self.abort_state.is_some() {
                 break;
             }
 
@@ -321,7 +330,7 @@ impl<'a> Interpreter<'a> {
         let computed_value = self.read_last_result()?;
 
         let boolean_value = computed_value
-            .try_into_bool()
+            .try_into_bool(switch_case.span)
             .map_err(|_| self.condition_error(computed_value, "switch case"))?;
 
         if boolean_value {
@@ -341,8 +350,8 @@ impl<'a> Interpreter<'a> {
             let computed_value = self.read_last_result()?;
 
             self.stack
-                .declare_variable(alias.value.as_str(), Rc::new(RefCell::new(computed_value)))
-                .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), switch_expression.position)) as Box<dyn IError>)?;
+                .declare_variable(alias.value.as_str(), Rc::new(RefCell::new(computed_value)), switch_expression.span)
+                .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), switch_expression.span)) as Box<dyn IError>)?;
         }
 
         Ok(())
@@ -354,7 +363,7 @@ impl<'a> Interpreter<'a> {
             format!("Condition in '{}' has to evaluate to a valid boolean.", place),
             format!("{:?}", Type::Bool),
             format!("{:?}", value.to_type()),
-            self.position,
+            self.span,
         ))
     }
 
@@ -366,8 +375,8 @@ impl<'a> Interpreter<'a> {
     ) -> Result<(), Box<dyn IError>> {
         let var_ref = self
             .stack
-            .get_variable(identifier.value.as_str())
-            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), identifier.position)) as Box<dyn IError>)?;
+            .get_variable(identifier.value.as_str(), Span::new(identifier.span.start(), value.span.end()))
+            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), identifier.span)) as Box<dyn IError>)?;
 
         let (last_index_expr, earlier_indices) = indices.split_last().expect("parser guarantees at least one index in IndexAssignment");
 
@@ -380,7 +389,7 @@ impl<'a> Interpreter<'a> {
                     format!("Cannot index into variable '{}'.", identifier.value),
                     String::from("Vector"),
                     format!("{:?}", other.to_type()),
-                    identifier.position,
+                    identifier.span,
                 )));
             }
         };
@@ -396,7 +405,7 @@ impl<'a> Interpreter<'a> {
                 Box::new(InterpreterError::at(
                     ErrorSeverity::HIGH,
                     format!("Index {} out of bounds.", idx),
-                    index_expr.position,
+                    index_expr.span,
                 )) as Box<dyn IError>
             })?;
 
@@ -409,7 +418,7 @@ impl<'a> Interpreter<'a> {
                         String::from("Cannot index into this value."),
                         String::from("Vector"),
                         format!("{:?}", other.to_type()),
-                        index_expr.position,
+                        index_expr.span,
                     )));
                 }
             };
@@ -433,7 +442,7 @@ impl<'a> Interpreter<'a> {
             Box::new(InterpreterError::at(
                 ErrorSeverity::HIGH,
                 format!("Index {} out of bounds.", idx),
-                last_index_expr.position,
+                last_index_expr.span,
             )) as Box<dyn IError>
         })?;
 
@@ -449,9 +458,9 @@ impl<'a> Interpreter<'a> {
         match &expression.value {
             Expression::Variable(var_name) => self
                 .stack
-                .get_variable(var_name.as_str())
+                .get_variable(var_name.as_str(), expression.span)
                 .map(Rc::clone)
-                .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), expression.position)) as Box<dyn IError>),
+                .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), expression.span)) as Box<dyn IError>),
 
             Expression::Index { collection, index } => {
                 let collection_ref = self.resolve_reference(collection)?;
@@ -469,7 +478,7 @@ impl<'a> Interpreter<'a> {
                             String::from("Cannot index into this value."),
                             String::from("Vector"),
                             format!("{:?}", other.to_type()),
-                            collection.position,
+                            collection.span,
                         )));
                     }
                 };
@@ -480,7 +489,7 @@ impl<'a> Interpreter<'a> {
                     Box::new(InterpreterError::at(
                         ErrorSeverity::HIGH,
                         format!("Index {} out of bounds.", idx),
-                        index.position,
+                        index.span,
                     )) as Box<dyn IError>
                 })?;
 
@@ -490,7 +499,7 @@ impl<'a> Interpreter<'a> {
             _ => Err(Box::new(InterpreterError::at(
                 ErrorSeverity::HIGH,
                 String::from("Cannot pass this kind of expression by reference — expected a variable or indexed value."),
-                expression.position,
+                expression.span,
             ))),
         }
     }

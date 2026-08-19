@@ -1,4 +1,4 @@
-use crate::common::{position::Position, types::Type};
+use crate::common::{position::Position, span::Span, types::Type};
 use std::fmt::Debug;
 
 pub trait IError: Debug {
@@ -6,12 +6,14 @@ pub trait IError: Debug {
     #[allow(dead_code)]
     fn set_message(&mut self, text: String);
     fn get_severity(&self) -> ErrorSeverity;
-    fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, position: Position) -> Self
+    fn get_span(&self) -> Span;
+    fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, span: Span) -> Self
     where
         Self: Sized;
-    fn at(level: ErrorSeverity, summary: String, position: Position) -> Self
+    fn at(level: ErrorSeverity, summary: String, span: Span) -> Self
     where
         Self: Sized;
+    fn get_stderr_message(&self) -> String;
 }
 
 #[derive(Debug, Clone)]
@@ -26,13 +28,15 @@ macro_rules! define_error {
         pub struct $name {
             _message: String,
             _level: ErrorSeverity,
+            _span: Span,
         }
 
         impl $name {
-            pub fn new(level: ErrorSeverity, message: String) -> Self {
+            pub fn new(level: ErrorSeverity, message: String, span: Span) -> Self {
                 $name {
                     _message: message,
                     _level: level,
+                    _span: span,
                 }
             }
         }
@@ -50,22 +54,34 @@ macro_rules! define_error {
                 self._level.clone()
             }
 
-            fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, position: Position) -> Self {
+            fn get_span(&self) -> Span {
+                self._span
+            }
+
+            fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, span: Span) -> Self {
                 let message = format!(
-                    "{}: {}\n  --> {}\n  expected: {}\n  found:    {}",
-                    severity_to_string(&level),
+                    "{}\n  --> {}\n  expected: {}\n  found:    {}",
                     summary,
-                    position.location(),
+                    format!("{} -> {}", span.start().location(), span.end().location()),
                     expected,
                     found
                 );
-                $name::new(level, message)
+                $name::new(level, message, span)
             }
 
-            fn at(level: ErrorSeverity, summary: String, position: Position) -> Self {
-                let message = format!("{}: {}\n  --> {}", severity_to_string(&level), summary, position.location());
+            fn at(level: ErrorSeverity, summary: String, span: Span) -> Self {
+                let message = format!(
+                    "{}\n  --> {}",
+                    summary,
+                    format!("{} -> {}", span.start().location(), span.end().location()),
+                );
 
-                $name::new(level, message)
+                $name::new(level, message, span)
+            }
+
+            fn get_stderr_message(&self) -> String {
+                let message = format!("{}: {}", severity_to_string(&self._level), self._message);
+                message
             }
         }
     };
@@ -104,7 +120,7 @@ pub fn severity_to_string(severity: &ErrorSeverity) -> String {
 }
 
 impl SemanticCheckerError {
-    pub fn type_mismatch(level: ErrorSeverity, summary: String, expected: &Type, found: &Type, position: Position) -> Self {
-        Self::expected_found(level, summary, format!("{:?}", expected), format!("{:?}", found), position)
+    pub fn type_mismatch(level: ErrorSeverity, summary: String, expected: &Type, found: &Type, span: Span) -> Self {
+        Self::expected_found(level, summary, format!("{:?}", expected), format!("{:?}", found), span)
     }
 }

@@ -6,7 +6,7 @@ use crate::{
     backend::llvm::llvm_alu::llvm_value::LlvmValue,
     common::{
         errors::{CompilerError, ErrorSeverity, IError},
-        position::Position,
+        span::Span,
     },
     frontend::ast::{Node, SwitchCase, SwitchExpression},
 };
@@ -15,20 +15,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub(in crate::backend::llvm::compiler) fn branch_if_no_terminator(
         &mut self,
         target: BasicBlock<'ctx>,
-        position: Position,
+        span: Span,
     ) -> Result<(), Box<dyn IError>> {
         let current_block = self.builder.get_insert_block().expect("builder should be positioned inside a block");
 
         if current_block.get_terminator().is_none() {
             self.builder
                 .build_unconditional_branch(target)
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
         }
 
         Ok(())
     }
 
-    pub(in crate::backend::llvm::compiler) fn find_break_target(&self, position: Position) -> Result<BasicBlock<'ctx>, Box<dyn IError>> {
+    pub(in crate::backend::llvm::compiler) fn find_break_target(&self, span: Span) -> Result<BasicBlock<'ctx>, Box<dyn IError>> {
         self.control_stack
             .iter()
             .rev()
@@ -40,24 +40,24 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     String::from("'break' used outside of a loop or switch."),
-                    position,
+                    span,
                 )) as Box<dyn IError>
             })
     }
 
-    pub(in crate::backend::llvm::compiler) fn find_continue_target(&self, position: Position) -> Result<BasicBlock<'ctx>, Box<dyn IError>> {
+    pub(in crate::backend::llvm::compiler) fn find_continue_target(&self, span: Span) -> Result<BasicBlock<'ctx>, Box<dyn IError>> {
         self.control_stack
             .iter()
             .rev()
             .find_map(|frame| match frame {
                 ControlFrame::Loop { continue_block, .. } => Some(*continue_block),
-                ControlFrame::Switch { .. } => None, // passes through continue
+                ControlFrame::Switch { .. } => None,
             })
             .ok_or_else(|| {
                 Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     String::from("'continue' used outside of a loop."),
-                    position,
+                    span,
                 )) as Box<dyn IError>
             })
     }
@@ -77,22 +77,23 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let value = self.read_last_value()?;
 
                 let var_type = value.to_type();
+
                 let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type, self.context).ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
                         format!("Compiling switch bindings of type '{:?}' is not yet supported.", var_type),
-                        switch_expr.position,
+                        switch_expr.span,
                     )) as Box<dyn IError>
                 })?;
 
                 let ptr = self
                     .builder
                     .build_alloca(llvm_type, alias.value.as_str())
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), switch_expr.position)) as Box<dyn IError>)?;
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), switch_expr.span)) as Box<dyn IError>)?;
 
                 self.builder
                     .build_store(ptr, value.as_basic_value_enum())
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), switch_expr.position)) as Box<dyn IError>)?;
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), switch_expr.span)) as Box<dyn IError>)?;
 
                 self.variables.insert(alias.value.clone(), (ptr, var_type));
             }
@@ -112,15 +113,18 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             };
 
             self.visit_expression(&case.value.condition)?;
-            let cond_value = self.read_last_value()?.into_int_value(case.position)?;
+
+            let cond_value = self.read_last_value()?.into_int_value(case.span)?;
 
             self.builder
                 .build_conditional_branch(cond_value, case_block, next_check_block)
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), case.position)) as Box<dyn IError>)?;
+                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), case.span)) as Box<dyn IError>)?;
 
             self.builder.position_at_end(case_block);
+
             self.visit_block(&case.value.block)?;
-            self.branch_if_no_terminator(next_check_block, case.position)?;
+
+            self.branch_if_no_terminator(next_check_block, case.span)?;
 
             self.builder.position_at_end(next_check_block);
         }

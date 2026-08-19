@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Expression, Node},
         lexer::lexer::ILexer,
@@ -24,15 +24,15 @@ impl<L: ILexer> Parser<L> {
                 .ok_or_else(|| self.create_parser_error(String::from("Couldn't create casted term while parsing multiplicative term.")))?;
 
             let expression_type = match current_token.category {
-                TokenCategory::Multiply => Expression::Multiplication(Box::new(left_side), Box::new(right_side)),
-                TokenCategory::Divide => Expression::Division(Box::new(left_side), Box::new(right_side)),
-                TokenCategory::Modulo => Expression::Modulo(Box::new(left_side), Box::new(right_side)),
+                TokenCategory::Multiply => Expression::Multiplication(Box::new(left_side.clone()), Box::new(right_side.clone())),
+                TokenCategory::Divide => Expression::Division(Box::new(left_side.clone()), Box::new(right_side.clone())),
+                TokenCategory::Modulo => Expression::Modulo(Box::new(left_side.clone()), Box::new(right_side.clone())),
                 _ => unreachable!(),
             };
 
             left_side = Node {
                 value: expression_type,
-                position: current_token.position,
+                span: Span::new(left_side.span.start(), right_side.span.end()),
             };
             current_token = self.current_token();
         }

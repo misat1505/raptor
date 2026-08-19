@@ -15,19 +15,19 @@ use crate::{
     },
     common::{
         errors::{ErrorSeverity, IError, StdFunctionError},
-        position::Position,
+        span::Span,
         types::Type,
     },
     frontend::ast::{Argument, Node, PassedBy},
 };
 
-pub type LlvmCompileFn = for<'a, 'ctx> fn(&mut Compiler<'a, 'ctx>, &'a Vec<Box<Node<Argument>>>, Position) -> Result<(), Box<dyn IError>>;
+pub type LlvmCompileFn = for<'a, 'ctx> fn(&mut Compiler<'a, 'ctx>, &'a Vec<Box<Node<Argument>>>, Span) -> Result<(), Box<dyn IError>>;
 
 #[derive(Debug, Clone)]
 pub struct StdFunction {
     pub params: Vec<Type>,
     pub passed_by: Vec<PassedBy>,
-    pub execute: fn(&Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, StdFunctionError>,
+    pub execute: fn(&Vec<Rc<RefCell<Value>>>, span: Span) -> Result<Option<Value>, StdFunctionError>,
     pub return_type: Type,
     pub type_check: Option<fn(&[Type]) -> Result<Type, String>>,
     pub compile: LlvmCompileFn,
@@ -43,7 +43,7 @@ pub fn format_types(types: &[Type]) -> String {
     types.iter().map(|t| format!("{:?}", t)).collect::<Vec<String>>().join(", ")
 }
 
-pub fn build_usage_error(fn_name: &str, expected_types: Vec<Type>, actual_types: Vec<Type>) -> StdFunctionError {
+pub fn build_usage_error(fn_name: &str, expected_types: Vec<Type>, actual_types: Vec<Type>, span: Span) -> StdFunctionError {
     let message = format!(
         "\nInvalid usage of built-in function '{}'.\nExpected signature: {}({})\nProvided types: {}({})",
         fn_name,
@@ -52,7 +52,7 @@ pub fn build_usage_error(fn_name: &str, expected_types: Vec<Type>, actual_types:
         fn_name,
         format_types(&actual_types)
     );
-    StdFunctionError::new(ErrorSeverity::HIGH, message)
+    StdFunctionError::new(ErrorSeverity::HIGH, message, span)
 }
 
 pub fn get_std_functions() -> HashMap<String, StdFunction> {

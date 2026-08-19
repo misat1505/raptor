@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Argument, Node, PassedBy},
         lexer::lexer::ILexer,
@@ -29,6 +29,7 @@ impl<L: ILexer> Parser<L> {
 
     pub(in crate::frontend::parser) fn parse_argument(&mut self) -> Result<Option<Node<Argument>>, Box<dyn IError>> {
         // argument = ["&"], expression;
+        let start_pos = self.current_token().span.start();
         let passed_by = match self.consume_if_matches(TokenCategory::Reference)? {
             Some(_) => PassedBy::Reference,
             None => PassedBy::Value,
@@ -39,9 +40,10 @@ impl<L: ILexer> Parser<L> {
             value: expression.clone(),
             passed_by,
         };
+
         Ok(Some(Node {
             value: argument,
-            position: expression.position,
+            span: Span::new(start_pos, expression.span.end()),
         }))
     }
 }

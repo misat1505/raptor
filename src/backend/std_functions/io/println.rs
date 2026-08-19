@@ -7,6 +7,7 @@ use crate::{
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -15,31 +16,35 @@ use crate::{
 
 pub fn println() -> StdFunction {
     let params = vec![Type::Str];
-    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+    let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "println";
         let expected_types = vec![Type::Str];
         let mut actual_types: Vec<Type> = vec![];
+
         if let Some(value) = params.get(0) {
             actual_types.push(value.borrow().to_type());
             let value = value.borrow();
+
             match &*value {
                 Value::String(text) => {
                     println!("{}", text);
                     Ok(None)
                 }
-                _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
-            Err(build_usage_error(fn_name, expected_types, actual_types))
+            Err(build_usage_error(fn_name, expected_types, actual_types, span))
         }
     };
 
-    let compile: LlvmCompileFn = |compiler, arguments, position| {
+    let compile: LlvmCompileFn = |compiler, arguments, span| {
+        let err = |err: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>;
+
         let arg = arguments.get(0).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'println' expects exactly one argument."),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
 
@@ -48,10 +53,7 @@ pub fn println() -> StdFunction {
 
         let printf_fn = compiler.libc().printf_fn;
 
-        let format_str = compiler
-            .builder()
-            .build_global_string_ptr("%s\n", "fmt")
-            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+        let format_str = compiler.builder().build_global_string_ptr("%s\n", "fmt").map_err(err)?;
 
         compiler
             .builder()
@@ -60,7 +62,7 @@ pub fn println() -> StdFunction {
                 &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
                 "printf_call",
             )
-            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>)?;
+            .map_err(err)?;
 
         Ok(())
     };

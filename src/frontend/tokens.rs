@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::common::position::Position;
+use crate::common::span::Span;
 
 #[derive(PartialEq, Clone)]
 pub enum TokenCategory {
@@ -153,5 +153,5 @@ pub enum TokenValue {
 pub struct Token {
     pub category: TokenCategory,
     pub value: TokenValue,
-    pub position: Position,
+    pub span: Span,
 }

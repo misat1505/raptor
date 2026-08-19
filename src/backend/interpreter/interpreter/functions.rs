@@ -11,7 +11,7 @@ use crate::{
     },
     common::{
         errors::{ErrorSeverity, IError, InterpreterError},
-        position::Position,
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -22,24 +22,23 @@ impl<'a> Interpreter<'a> {
     pub(in crate::backend::interpreter::interpreter) fn execute_std_function(
         std_function: &StdFunction,
         arguments: &Vec<Rc<RefCell<Value>>>,
-        position: Position,
+        span: Span,
     ) -> Result<Option<Value>, Box<dyn IError>> {
-        (std_function.execute)(arguments)
-            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), position)) as Box<dyn IError>)
+        (std_function.execute)(arguments, span)
+            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), span)) as Box<dyn IError>)
     }
 
     pub(in crate::backend::interpreter::interpreter) fn call_function(
         &mut self,
         identifier: &Node<String>,
         arguments: &'a Vec<Box<Node<Argument>>>,
+        span: Span,
     ) -> Result<(), Box<dyn IError>> {
         let name = identifier.value.as_str();
 
         let mut args: Vec<Rc<RefCell<Value>>> = vec![];
 
         for arg in arguments {
-            self.position = arg.position;
-
             match arg.value.passed_by {
                 PassedBy::Value => {
                     self.visit_expression(&arg.value.value)?;
@@ -49,12 +48,15 @@ impl<'a> Interpreter<'a> {
                     match value {
                         Value::Vector { ref kind, ref values } => {
                             let shallow_copy = Rc::new(RefCell::new(values.borrow().iter().map(Rc::clone).collect::<Vec<_>>()));
+
                             let shallow_copy_vector = Value::Vector {
                                 kind: kind.clone(),
                                 values: shallow_copy,
                             };
+
                             args.push(Rc::new(RefCell::new(shallow_copy_vector)));
                         }
+
                         _ => args.push(Rc::new(RefCell::new(value))),
                     }
                 }
@@ -77,11 +79,11 @@ impl<'a> Interpreter<'a> {
                     format!("invalid number of arguments for function `{}`", name),
                     std_function.params.len().to_string(),
                     arguments.len().to_string(),
-                    identifier.position,
+                    span,
                 )));
             }
 
-            if let Some(return_value) = Self::execute_std_function(std_function, &self.last_arguments, identifier.position)? {
+            if let Some(return_value) = Self::execute_std_function(std_function, &self.last_arguments, span)? {
                 self.last_result = Some(return_value);
             }
 
@@ -101,11 +103,11 @@ impl<'a> Interpreter<'a> {
                     format!("invalid number of arguments for function `{}`", name),
                     expected_arguments.to_string(),
                     arguments.len().to_string(),
-                    identifier.position,
+                    span,
                 )));
             }
 
-            self.execute_function(&function_declaration.value)?;
+            self.execute_function(&function_declaration.value, span)?;
 
             if let Some(AbortState::Return) = self.abort_state {
                 self.abort_state = None;
@@ -121,32 +123,28 @@ impl<'a> Interpreter<'a> {
         Err(Box::new(InterpreterError::at(
             ErrorSeverity::HIGH,
             format!("use of undeclared function `{}`", name),
-            identifier.position,
+            span,
         )))
     }
 
     pub(in crate::backend::interpreter::interpreter) fn execute_function(
         &mut self,
         function_declaration: &'a FunctionDeclaration,
+        span: Span,
     ) -> Result<(), Box<dyn IError>> {
         let name = function_declaration.identifier.value.as_str();
-
         let statements = &function_declaration.block.value.0;
 
-        self.stack.push_stack_frame().map_err(|err| {
-            Box::new(InterpreterError::at(
-                ErrorSeverity::HIGH,
-                err.message(),
-                function_declaration.identifier.position,
-            )) as Box<dyn IError>
-        })?;
+        self.stack
+            .push_stack_frame(span)
+            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), span)) as Box<dyn IError>)?;
 
         for idx in 0..self.last_arguments.len() {
             let parameter = function_declaration.parameters.get(idx).ok_or_else(|| {
                 Box::new(InterpreterError::at(
                     ErrorSeverity::HIGH,
                     format!("Invalid parameter index {} while calling function '{}'.", idx, name),
-                    function_declaration.identifier.position,
+                    span,
                 )) as Box<dyn IError>
             })?;
 
@@ -162,13 +160,13 @@ impl<'a> Interpreter<'a> {
                     format!("Function '{}' parameter '{}': wrong argument type.", name, param_name),
                     format!("{:?}", desired_type),
                     format!("{:?}", value.borrow().to_type()),
-                    parameter.position,
+                    parameter.span,
                 )));
             }
 
             self.stack
-                .declare_variable(param_name.as_str(), Rc::clone(value))
-                .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), parameter.position)) as Box<dyn IError>)?;
+                .declare_variable(param_name.as_str(), Rc::clone(value), span)
+                .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), parameter.span)) as Box<dyn IError>)?;
         }
 
         for statement in statements {
@@ -187,18 +185,20 @@ impl<'a> Interpreter<'a> {
                         return Err(Box::new(InterpreterError::at(
                             ErrorSeverity::HIGH,
                             String::from("Break called outside 'for' or 'switch'."),
-                            statement.position,
+                            statement.span,
                         )));
                     }
+
                     AbortState::Continue => {
                         self.stack.pop_stack_frame();
 
                         return Err(Box::new(InterpreterError::at(
                             ErrorSeverity::HIGH,
                             String::from("Continue called outside 'for' or 'while'."),
-                            statement.position,
+                            statement.span,
                         )));
                     }
+
                     _ => {}
                 }
             }
@@ -222,7 +222,7 @@ impl<'a> Interpreter<'a> {
                     format!("Bad return type from function '{}'.", name),
                     format!("{:?}", function_declaration.return_type.value),
                     format!("{:?}", result_type),
-                    function_declaration.return_type.position,
+                    function_declaration.return_type.span,
                 )));
             }
         }

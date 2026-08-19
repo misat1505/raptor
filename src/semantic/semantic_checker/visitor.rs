@@ -1,38 +1,43 @@
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, SemanticCheckerError},
-        position::Position,
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
     frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression},
-    semantic::semantic_checker::{functions::FunctionCallType, SemanticChecker},
+    semantic::semantic_checker::{checker::HoverInfo, functions::FunctionCallType, SemanticChecker},
 };
 
 impl<'a> Visitor<'a> for SemanticChecker<'a> {
     #![allow(unused_must_use)]
+
     fn visit_program(&mut self, program: &'a Program) -> Result<(), Box<dyn IError>> {
         for statement in &program.statements {
-            self.visit_statement(&statement);
+            self.visit_statement(statement);
         }
 
         for (_name, function) in &program.functions {
-            self.stack.push_stack_frame();
+            self.stack.push_stack_frame().map_err(|err| Box::new(err));
+
             self.current_function_return_type = Some(function.value.return_type.value.clone());
 
             for param in &function.value.parameters {
                 let param_name = &param.value.identifier.value;
                 let param_type = &param.value.parameter_type.value;
-                if let Err(err) = self.stack.declare_variable(param_name, param_type.clone()) {
+
+                if let Err(err) = self.stack.declare_variable(param_name, param_type.clone(), param.span) {
                     self.errors
-                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), function.position)));
+                        .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), param.span)));
                 }
             }
+
             self.visit_block(&function.value.block);
 
             self.current_function_return_type = None;
             self.stack.pop_stack_frame();
         }
+
         Ok(())
     }
 
@@ -58,21 +63,24 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
     }
 
     fn visit_argument(&mut self, argument: &'a Node<Argument>) -> Result<(), Box<dyn IError>> {
-        self.visit_expression(&argument.value.value);
+        self.visit_expression(&argument.value.value)?;
         Ok(())
     }
 
     fn visit_block(&mut self, block: &'a Node<Block>) -> Result<(), Box<dyn IError>> {
         self.stack.push_scope();
+
         for statement in &block.value.0 {
             self.visit_statement(statement);
         }
+
         self.stack.pop_scope();
+
         Ok(())
     }
 
     fn visit_parameter(&mut self, parameter: &'a Node<Parameter>) -> Result<(), Box<dyn IError>> {
-        self.visit_type(&parameter.value.parameter_type);
+        self.visit_type(&parameter.value.parameter_type)?;
         Ok(())
     }
 
@@ -93,21 +101,29 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             Literal::F64(_) => Type::F64,
             Literal::I64(_) => Type::I64,
             Literal::String(_) => Type::Str,
-            Literal::False => Type::Bool,
-            Literal::True => Type::Bool,
+            Literal::False | Literal::True => Type::Bool,
         };
 
         self.last_result = Some(t);
         Ok(())
     }
 
-    fn visit_variable(&mut self, variable: &'a String, position: Position) -> Result<(), Box<dyn IError>> {
-        let value = self.stack.get_variable(variable.as_str()).map_err(|err| {
-            let error = SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), position);
+    fn visit_variable(&mut self, variable: &'a String, span: Span) -> Result<(), Box<dyn IError>> {
+        let value = self.stack.get_variable(variable.as_str(), span).map_err(|err| {
+            let error = SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), span);
+
             self.errors.push(Box::new(error.clone()));
-            Box::new(error.clone()) as Box<dyn IError>
+
+            Box::new(error) as Box<dyn IError>
         })?;
+
+        self.hovers.push(HoverInfo {
+            contents: format!("```raptor\n{:?} {}\n```", value, variable),
+            span,
+        });
+
         self.last_result = Some(value.clone());
+
         Ok(())
     }
 
@@ -116,24 +132,41 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
         for expression in vector {
             self.visit_expression(expression)?;
-            if let Ok(t) = self.read_last_result() {
+
+            if let Ok(t) = self.read_last_result(expression.span) {
                 match &element_type {
-                    None => element_type = Some(t),
+                    None => {
+                        element_type = Some(t);
+                    }
+
                     Some(expected) if *expected != t => {
                         self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                             ErrorSeverity::HIGH,
                             String::from("vector elements have mismatched types"),
                             expected,
                             &t,
-                            expression.position,
+                            expression.span,
                         )));
                     }
+
                     _ => {}
                 }
             }
         }
 
-        self.last_result = Some(Type::Vector(Box::new(element_type.unwrap_or(Type::Void))));
+        let vector_type = Type::Vector(Box::new(element_type.unwrap_or(Type::Void)));
+
+        if let (Some(first), Some(last)) = (vector.first(), vector.last()) {
+            let span = Span::new(first.span.start(), last.span.end());
+
+            self.hovers.push(HoverInfo {
+                contents: format!("```raptor\n{:?}\n```", vector_type),
+                span,
+            });
+        }
+
+        self.last_result = Some(vector_type);
+
         Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Expression, Node},
         lexer::lexer::ILexer,
@@ -26,11 +26,11 @@ impl<L: ILexer> Parser<L> {
                 expressions.push(Box::new(expression));
             }
         }
-        let _ = self.consume_must_be(TokenCategory::BracketClose)?;
+        let close_bracket_token = self.consume_must_be(TokenCategory::BracketClose)?;
 
         let node = Node {
             value: Expression::Vector(expressions),
-            position: open_bracket_token.position,
+            span: Span::new(open_bracket_token.span.start(), close_bracket_token.span.end()),
         };
         Ok(Some(node))
     }

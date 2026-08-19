@@ -11,6 +11,7 @@ use crate::{
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -20,10 +21,9 @@ use crate::{
 pub fn tcp_listen() -> StdFunction {
     let params = vec![Type::I64];
 
-    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+    let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "tcp_listen";
         let expected_types = vec![Type::I64];
-
         let mut actual_types: Vec<Type> = vec![];
 
         if let Some(port) = params.get(0) {
@@ -34,33 +34,33 @@ pub fn tcp_listen() -> StdFunction {
             match &*port {
                 Value::I64(p) => {
                     let listener = TcpListener::bind(format!("0.0.0.0:{}", p))
-                        .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Cannot bind to port {}: {}", p, e)))?;
+                        .map_err(|e| StdFunctionError::new(ErrorSeverity::HIGH, format!("Cannot bind to port {}: {}", p, e), span))?;
 
                     let handle = next_handle();
                     LISTENERS.lock().unwrap().get_or_insert_with(HashMap::new).insert(handle, listener);
 
                     Ok(Some(Value::I64(handle)))
                 }
-                _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
-            Err(build_usage_error(fn_name, expected_types, actual_types))
+            Err(build_usage_error(fn_name, expected_types, actual_types, span))
         }
     };
 
-    let compile: LlvmCompileFn = |compiler, arguments, position| {
-        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+    let compile: LlvmCompileFn = |compiler, arguments, span| {
+        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
         let arg = arguments.get(0).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'tcp_listen' expects exactly one argument."),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
 
         compiler.visit_expression(&arg.value.value)?;
-        let port = compiler.read_last_value()?.into_i64_value(position)?;
+        let port = compiler.read_last_value()?.into_i64_value(span)?;
 
         let context = compiler.context();
         let i16_type = context.i16_type();
@@ -88,20 +88,25 @@ pub fn tcp_listen() -> StdFunction {
 
         // budujemy sockaddr_in (16 bajtów) na stosie
         let sockaddr_type = context.struct_type(&[i16_type.into(), i16_type.into(), i32_type.into(), i8_type.array_type(8).into()], false);
+
         let sockaddr_ptr = compiler.builder().build_alloca(sockaddr_type, "sockaddr").map_err(err)?;
 
         let family_field = compiler
             .builder()
             .build_struct_gep(sockaddr_type, sockaddr_ptr, 0, "sockaddr.family")
             .map_err(err)?;
+
         compiler.builder().build_store(family_field, i16_type.const_int(2, false)).map_err(err)?; // AF_INET
 
-        // port trzeba zapisać w big-endian (htons) — port ma zakres 0-65535, więc rzutujemy na i16 po zamianie bajtów
+        // port trzeba zapisać w big-endian (htons)
+        // — port ma zakres 0-65535, więc rzutujemy na i16 po zamianie bajtów
         let port_i32 = compiler.builder().build_int_truncate(port, i32_type, "port.i32").map_err(err)?;
+
         let port_lo = compiler
             .builder()
             .build_and(port_i32, i32_type.const_int(0xFF, false), "port.lo")
             .map_err(err)?;
+
         let port_hi = compiler
             .builder()
             .build_right_shift(
@@ -114,6 +119,7 @@ pub fn tcp_listen() -> StdFunction {
                 "port.hi",
             )
             .map_err(err)?;
+
         let port_be = compiler
             .builder()
             .build_or(
@@ -125,24 +131,28 @@ pub fn tcp_listen() -> StdFunction {
                 "port.be",
             )
             .map_err(err)?;
+
         let port_be_i16 = compiler.builder().build_int_truncate(port_be, i16_type, "port.be.i16").map_err(err)?;
 
         let port_field = compiler
             .builder()
             .build_struct_gep(sockaddr_type, sockaddr_ptr, 1, "sockaddr.port")
             .map_err(err)?;
+
         compiler.builder().build_store(port_field, port_be_i16).map_err(err)?;
 
         let addr_field = compiler
             .builder()
             .build_struct_gep(sockaddr_type, sockaddr_ptr, 2, "sockaddr.addr")
             .map_err(err)?;
+
         compiler.builder().build_store(addr_field, i32_type.const_int(0, false)).map_err(err)?; // INADDR_ANY
 
         let zero_field = compiler
             .builder()
             .build_struct_gep(sockaddr_type, sockaddr_ptr, 3, "sockaddr.zero")
             .map_err(err)?;
+
         compiler
             .builder()
             .build_store(zero_field, i8_type.array_type(8).const_zero())
@@ -165,6 +175,7 @@ pub fn tcp_listen() -> StdFunction {
             .map_err(err)?;
 
         let fd_i64 = compiler.builder().build_int_z_extend(fd, context.i64_type(), "fd.i64").map_err(err)?;
+
         compiler.set_last_value(LlvmValue::I64(fd_i64));
         Ok(())
     };

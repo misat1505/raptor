@@ -7,7 +7,6 @@ use crate::{
     },
     common::{
         errors::{ComputationError, ErrorSeverity, IError, InterpreterError},
-        position::Position,
         types::Type,
         visitor::Visitor,
     },
@@ -22,8 +21,8 @@ impl<'a> Interpreter<'a> {
 
                 let computed_value = self.read_last_result()?;
 
-                let value = ALU::cast_to_type(computed_value, &to_type.value)
-                    .map_err(|err| Box::new(ComputationError::at(ErrorSeverity::HIGH, err.message(), expression.position)) as Box<dyn IError>)?;
+                let value = ALU::cast_to_type(computed_value, &to_type.value, self.span)
+                    .map_err(|err| Box::new(ComputationError::at(ErrorSeverity::HIGH, err.message(), self.span)) as Box<dyn IError>)?;
 
                 self.last_result = Some(value);
             }
@@ -45,9 +44,8 @@ impl<'a> Interpreter<'a> {
             Expression::NotEqual(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, ALU::not_equal)?,
             Expression::Literal(literal) => self.visit_literal(literal)?,
             Expression::Vector(vector) => self.visit_vector_literal(vector)?,
-            Expression::Variable(variable) => self.visit_variable(variable, expression.position)?,
-            Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments)?,
-
+            Expression::Variable(variable) => self.visit_variable(variable, expression.span)?,
+            Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments, expression.span)?,
             Expression::Index { collection, index } => self.eval_index(collection, index)?,
         }
 
@@ -94,12 +92,12 @@ impl<'a> Interpreter<'a> {
     pub(in crate::backend::interpreter::interpreter) fn eval_variable(
         &mut self,
         variable: &'a String,
-        position: Position,
+        span: crate::common::span::Span,
     ) -> Result<(), Box<dyn IError>> {
         let value = self
             .stack
-            .get_variable(variable.as_str())
-            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), position)) as Box<dyn IError>)?;
+            .get_variable(variable.as_str(), span)
+            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), span)) as Box<dyn IError>)?;
 
         self.last_result = Some(value.borrow().clone());
 
@@ -124,7 +122,7 @@ impl<'a> Interpreter<'a> {
                     String::from("Cannot index into this value."),
                     String::from("Vector"),
                     format!("{:?}", other.to_type()),
-                    collection.position,
+                    collection.span,
                 )));
             }
         };
@@ -142,7 +140,7 @@ impl<'a> Interpreter<'a> {
                     String::from("Array index must be a non-negative i64."),
                     String::from("I64"),
                     format!("{:?}", other.to_type()),
-                    index.position,
+                    index.span,
                 )));
             }
         };
@@ -153,7 +151,7 @@ impl<'a> Interpreter<'a> {
             Box::new(InterpreterError::at(
                 ErrorSeverity::HIGH,
                 format!("Index {} out of bounds.", idx),
-                index.position,
+                index.span,
             )) as Box<dyn IError>
         })?;
 
@@ -171,14 +169,14 @@ impl<'a> Interpreter<'a> {
                 String::from("Array index must be a non-negative i64."),
                 String::from("I64"),
                 format!("{:?}", other.to_type()),
-                self.position,
+                self.span,
             ))),
         }
     }
 
     fn evaluate_binary_op<F>(&mut self, lhs: &'a Box<Node<Expression>>, rhs: &'a Box<Node<Expression>>, op: F) -> Result<(), Box<dyn IError>>
     where
-        F: Fn(Value, Value) -> Result<Value, ComputationError>,
+        F: Fn(Value, Value, crate::common::span::Span) -> Result<Value, ComputationError>,
     {
         self.visit_expression(lhs)?;
         let left_value = self.read_last_result()?;
@@ -186,8 +184,8 @@ impl<'a> Interpreter<'a> {
         self.visit_expression(rhs)?;
         let right_value = self.read_last_result()?;
 
-        let value = op(left_value, right_value)
-            .map_err(|err| Box::new(ComputationError::at(ErrorSeverity::HIGH, err.message(), self.position)) as Box<dyn IError>)?;
+        let value = op(left_value, right_value, self.span)
+            .map_err(|err| Box::new(ComputationError::at(ErrorSeverity::HIGH, err.message(), self.span)) as Box<dyn IError>)?;
 
         self.last_result = Some(value);
 
@@ -196,13 +194,13 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_unary_op<F>(&mut self, value: &'a Box<Node<Expression>>, op: F) -> Result<(), Box<dyn IError>>
     where
-        F: Fn(Value) -> Result<Value, ComputationError>,
+        F: Fn(Value, crate::common::span::Span) -> Result<Value, ComputationError>,
     {
         self.visit_expression(value)?;
         let computed_value = self.read_last_result()?;
 
-        let value =
-            op(computed_value).map_err(|err| Box::new(ComputationError::at(ErrorSeverity::HIGH, err.message(), self.position)) as Box<dyn IError>)?;
+        let value = op(computed_value, self.span)
+            .map_err(|err| Box::new(ComputationError::at(ErrorSeverity::HIGH, err.message(), self.span)) as Box<dyn IError>)?;
 
         self.last_result = Some(value);
 

@@ -17,6 +17,7 @@ use inkwell::types::{FloatType, IntType};
 use inkwell::values::{FunctionValue, PointerValue};
 
 use crate::common::position::Position;
+use crate::common::span::Span;
 use crate::{
     backend::llvm::{libc_functions::LibcFunctions, llvm_alu::llvm_value::LlvmValue},
     common::{
@@ -52,7 +53,7 @@ pub struct Compiler<'a, 'ctx> {
 
     last_value: Option<LlvmValue<'ctx>>,
 
-    position: Position,
+    span: Span,
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
@@ -60,6 +61,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let module = context.create_module("main_module");
         let builder = context.create_builder();
         let libc = LibcFunctions::new(context, &module);
+
+        let position = Position::new(0, 0, 0, None);
+
+        let span = Span::new(position, position);
 
         Compiler {
             program,
@@ -72,12 +77,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             control_stack: vec![],
             variables: HashMap::new(),
             last_value: None,
-            position: Position {
-                filename: None,
-                line: 0,
-                column: 0,
-                offset: 0,
-            },
+            span,
         }
     }
 
@@ -98,7 +98,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("No value produced where it is needed."),
-                self.position,
+                self.span,
             )) as Box<dyn IError>
         })
     }
@@ -116,7 +116,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Undeclared variable '{}'.", name),
-                self.position,
+                self.span,
             )) as Box<dyn IError>
         })
     }
@@ -137,7 +137,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.last_value = Some(value);
     }
 
-    pub(in crate::backend::llvm::compiler) fn builder_err(position: Position) -> impl Fn(inkwell::builder::BuilderError) -> Box<dyn IError> {
-        move |err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), position)) as Box<dyn IError>
+    pub(in crate::backend::llvm::compiler) fn builder_err(span: Span) -> impl Fn(inkwell::builder::BuilderError) -> Box<dyn IError> {
+        move |err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>
     }
 }

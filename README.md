@@ -5,6 +5,11 @@ Raptor is a custom interpreted and compiled programming language written in Rust
 It is a strongly and statically typed language with mutable variables, scoped execution,
 functions, references, multidimensional vectors, type conversions, and structured control flow.
 
+The project provides **two executables**:
+
+* `raptor` — the Raptor compiler and interpreter
+* `lsp` — the Language Server Protocol (LSP) server for editor integration
+
 ## Language pipeline
 
 ```text
@@ -39,10 +44,35 @@ Source ─────────►│    Lexer     │
 The semantic checker performs **type checking** and other static validation before the
 program is interpreted or compiled, unless `--unsafe` is explicitly used.
 
+## Executables
+
+### `raptor`
+
+The `raptor` executable is the main Raptor command-line tool. It provides both the
+interpreter and compiler.
+
+It can:
+
+* interpret Raptor source files;
+* compile Raptor programs to native executables;
+* compile and immediately run programs;
+* control compiler optimization levels;
+* optionally skip semantic checking with `--unsafe`.
+
+### `lsp`
+
+The `lsp` executable is the Raptor Language Server Protocol implementation.
+
+It provides language-server functionality for editors and IDEs that support LSP,
+allowing Raptor source files to be integrated with development environments.
+
+The LSP server is a separate executable from the `raptor` compiler/interpreter.
+
 ## Documentation
 
 | Component        | Documentation                                        |
 | ---------------- | ---------------------------------------------------- |
+| Grammar          | [docs/grammar.md](docs/grammar.md)                   |
 | Lexer            | [docs/lexer.md](docs/lexer.md)                       |
 | Parser           | [docs/parser.md](docs/parser.md)                     |
 | Semantic Checker | [docs/semantic-checker.md](docs/semantic-checker.md) |
@@ -51,24 +81,55 @@ program is interpreted or compiled, unless `--unsafe` is explicitly used.
 
 ## Quick start
 
-### Build Raptor
+### Build the project
 
-Build the project in release mode:
+The project contains two executable targets: `raptor` and `lsp`.
+
+Build both in release mode:
 
 ```bash
 cargo build --release
 ```
 
-The Raptor executable will be available at:
+The resulting executables will be available at:
+
+```text
+target/release/raptor
+target/release/lsp
+```
+
+### Build only `raptor`
+
+```bash
+cargo build --release --bin raptor
+```
+
+The executable will be available at:
 
 ```text
 target/release/raptor
 ```
 
-### Run a program with the interpreter
+### Build only `lsp`
 
 ```bash
-./target/release/raptor basic.rp
+cargo build --release --bin lsp
+```
+
+The executable will be available at:
+
+```text
+target/release/lsp
+```
+
+## Running Raptor programs
+
+### Run a program with the interpreter
+
+The default behavior of `raptor` is to interpret a Raptor source file:
+
+```bash
+./target/release/raptor examples/basic.rp
 ```
 
 ### Compile a program
@@ -76,38 +137,77 @@ target/release/raptor
 Use `--compile` to compile a Raptor source file to a native executable:
 
 ```bash
-./target/release/raptor --compile basic.rp
+./target/release/raptor --compile examples/basic.rp
 ```
 
 Generated compilation artifacts are written to `build/`.
 
 ### Compile and run a program
 
-Use `--run` to compile the program and immediately execute the resulting executable:
+Use `--run` to compile the program and immediately execute the resulting native
+executable:
 
 ```bash
-./target/release/raptor --run basic.rp
+./target/release/raptor --run examples/basic.rp
 ```
 
 `--run` implies `--compile`.
 
-For development, `cargo run` can still be used as a convenient alternative, for example:
+The same operation can also be written explicitly as:
 
 ```bash
-cargo run -- basic.rp
-cargo run -- --compile basic.rp
-cargo run -- --run basic.rp
+./target/release/raptor --compile --run examples/basic.rp
 ```
 
-However, the recommended way to run Raptor locally is to build it once in release mode
-and invoke the resulting executable directly:
+## Development
+
+During development, `cargo run` can be used to run either executable directly.
+
+### Run the interpreter
+
+```bash
+cargo run --bin raptor -- examples/basic.rp
+```
+
+### Compile a program
+
+```bash
+cargo run --bin raptor -- --compile examples/basic.rp
+```
+
+### Compile and run a program
+
+```bash
+cargo run --bin raptor -- --run examples/basic.rp
+```
+
+### Run the LSP server
+
+```bash
+cargo run --bin lsp
+```
+
+For normal local usage, it is recommended to build the project once in release mode:
 
 ```bash
 cargo build --release
+```
+
+Then use the generated executables directly:
+
+```bash
 ./target/release/raptor --run examples/basic.rp
 ```
 
-### CLI options
+or:
+
+```bash
+./target/release/lsp
+```
+
+## CLI options
+
+The `raptor` executable supports the following options:
 
 ```text
 -h, --help      Show help
@@ -121,6 +221,9 @@ cargo build --release
 ```
 
 The compiler writes generated artifacts to `build/`.
+
+The `lsp` executable is a separate LSP server and does not use the `raptor` command-line
+interface described above.
 
 ## Example program
 
@@ -195,10 +298,11 @@ fn main(): void {
 main();
 ```
 
-Save the program as `examples/demo.rp` and run it with:
+Save the program as `examples/demo.rp`.
+
+Run it using the interpreter:
 
 ```bash
-cargo build --release
 ./target/release/raptor examples/demo.rp
 ```
 
@@ -211,7 +315,7 @@ Or compile it to a native executable:
 To compile and immediately execute it:
 
 ```bash
-./target/release/raptor --compile --run examples/demo.rp
+./target/release/raptor --run examples/demo.rp
 ```
 
 ## Language overview
@@ -261,27 +365,9 @@ Different pipeline stages report different classes of errors.
 
 See the individual component documentation for examples and details.
 
-## Project structure
-
-```text
-src/
-├── lexer
-├── parser
-├── semantic_checker
-├── interpreter
-├── compiler
-├── ast
-├── errors
-├── scope_manager
-├── stack
-├── value
-├── tokens
-└── ...
-```
-
 ## Testing
 
-Run the test suite with:
+Run the complete test suite with:
 
 ```bash
 cargo test
@@ -292,7 +378,7 @@ language pipeline.
 
 ## LLVM
 
-The native compilation pipeline currently targets LLVM 18 and invokes:
+The native compilation pipeline currently targets **LLVM 18** and invokes:
 
 ```text
 llc-18
@@ -300,3 +386,105 @@ clang-18
 ```
 
 These tools must be available on `PATH` when using `--compile` or `--run`.
+
+The LLVM toolchain is only required for native compilation. Running a program through
+the interpreter does not require the native compilation step.
+
+## Cargo targets
+
+The project defines the following Cargo targets:
+
+```toml
+[lib]
+name = "raptor_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "raptor"
+path = "src/main.rs"
+
+[[bin]]
+name = "lsp"
+path = "src/bin/lsp.rs"
+```
+
+This means the project builds:
+
+* `raptor` — compiler/interpreter CLI;
+* `lsp` — Language Server Protocol server;
+* `raptor_lib` — shared library crate.
+
+Build both executables with:
+
+```bash
+cargo build --release
+```
+
+Build only the compiler/interpreter:
+
+```bash
+cargo build --release --bin raptor
+```
+
+Build only the LSP server:
+
+```bash
+cargo build --release --bin lsp
+```
+
+## Summary
+
+Raptor consists of a library and two executable targets:
+
+```text
+┌─────────────────────┐
+│       raptor        │
+│                     │
+│  Interpreter        │
+│  Compiler           │
+│  CLI                │
+└─────────────────────┘
+
+┌─────────────────────┐
+│         lsp         │
+│                     │
+│  Language Server    │
+│  Protocol (LSP)     │
+└─────────────────────┘
+
+┌─────────────────────┐
+│     raptor_lib      │
+│                     │
+│   Raptor library    │
+└─────────────────────┘
+```
+
+Build the complete project:
+
+```bash
+cargo build --release
+```
+
+Run a Raptor program:
+
+```bash
+./target/release/raptor program.rp
+```
+
+Compile a Raptor program:
+
+```bash
+./target/release/raptor --compile program.rp
+```
+
+Compile and run a Raptor program:
+
+```bash
+./target/release/raptor --run program.rp
+```
+
+Start the LSP server:
+
+```bash
+./target/release/lsp
+```

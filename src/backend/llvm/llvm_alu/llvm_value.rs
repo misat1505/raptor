@@ -3,7 +3,7 @@ use inkwell::types::{BasicTypeEnum, IntType, StructType};
 use inkwell::values::{BasicValueEnum, FloatValue, IntValue, PointerValue};
 use inkwell::AddressSpace;
 
-use crate::common::position::Position;
+use crate::common::span::Span;
 use crate::common::{
     errors::{CompilerError, ErrorSeverity, IError},
     types::Type,
@@ -39,13 +39,13 @@ impl<'ctx> LlvmValue<'ctx> {
         }
     }
 
-    pub fn into_int_value(self, position: Position) -> Result<IntValue<'ctx>, Box<dyn IError>> {
+    pub fn into_int_value(self, span: Span) -> Result<IntValue<'ctx>, Box<dyn IError>> {
         match self {
             LlvmValue::Bool(v) => Ok(v),
             other => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Expected a boolean condition, got '{:?}'.", other.to_type()),
-                position,
+                span,
             ))),
         }
     }
@@ -78,7 +78,7 @@ impl<'ctx> LlvmValue<'ctx> {
         context.struct_type(&[ptr_type.into(), i64_type.into(), i64_type.into()], false)
     }
 
-    pub fn element_byte_size(inner_type: &Type, i64_type: IntType<'ctx>) -> Result<inkwell::values::IntValue<'ctx>, Box<dyn IError>> {
+    pub fn element_byte_size(inner_type: &Type, i64_type: IntType<'ctx>, span: Span) -> Result<inkwell::values::IntValue<'ctx>, Box<dyn IError>> {
         let size: u64 = match inner_type {
             Type::I64 => 8,
             Type::F64 => 8,
@@ -89,30 +89,31 @@ impl<'ctx> LlvmValue<'ctx> {
                 return Err(Box::new(CompilerError::new(
                     ErrorSeverity::HIGH,
                     format!("Compiling vectors of type '{:?}' is not yet supported.", other),
+                    span,
                 )))
             }
         };
         Ok(i64_type.const_int(size, false))
     }
 
-    pub fn into_i64_value(self, position: Position) -> Result<IntValue<'ctx>, Box<dyn IError>> {
+    pub fn into_i64_value(self, span: Span) -> Result<IntValue<'ctx>, Box<dyn IError>> {
         match self {
             LlvmValue::I64(v) => Ok(v),
             other => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Expected an i64 index, got '{:?}'.", other.to_type()),
-                position,
+                span,
             )) as Box<dyn IError>),
         }
     }
 
-    pub fn into_str_value(self, position: Position) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+    pub fn into_str_value(self, span: Span) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
         match self {
             LlvmValue::Str(v) => Ok(v),
             other => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Expected a string, got '{:?}'.", other.to_type()),
-                position,
+                span,
             )) as Box<dyn IError>),
         }
     }

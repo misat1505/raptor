@@ -1,6 +1,7 @@
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, ParserError},
+        span::Span,
         types::Type,
     },
     frontend::{ast::Node, lexer::lexer::ILexer, parser::Parser, tokens::TokenCategory},
@@ -26,9 +27,11 @@ impl<L: ILexer> Parser<L> {
             result = Type::Vector(Box::new(result));
         }
 
+        let end_pos = self.current_token().span.start();
+
         Ok(Some(Node {
             value: result,
-            position: token.position,
+            span: Span::new(token.span.start(), end_pos),
         }))
     }
 
@@ -36,7 +39,7 @@ impl<L: ILexer> Parser<L> {
         match self.consume_if_matches(TokenCategory::Void)? {
             Some(token) => Ok(Node {
                 value: Type::Void,
-                position: token.position,
+                span: token.span,
             }),
             None => {
                 return Err(Box::new(ParserError::expected_found(
@@ -44,7 +47,7 @@ impl<L: ILexer> Parser<L> {
                     "Bad return type".to_string(),
                     "'i64', 'f64', 'bool', 'str', or 'void'".to_string(),
                     format!("{:?}", self.current_token().category),
-                    self.current_token().position,
+                    self.current_token().span,
                 )));
             }
         }

@@ -1,8 +1,9 @@
 use std::assert_eq;
 
+use crate::backend::interpreter::alu::value::Value;
 use crate::backend::interpreter::alu::ALU;
 use crate::common::errors::IError;
-use crate::backend::interpreter::alu::value::Value;
+use crate::common::span::Span;
 
 #[test]
 fn add() {
@@ -16,21 +17,21 @@ fn add() {
 
     for idx in 0..data.len() {
         let (val1, val2) = &data[idx];
-        assert_eq!(ALU::add(val1.clone(), val2.clone()).unwrap(), expected[idx]);
+        assert_eq!(ALU::add(val1.clone(), val2.clone(), Span::default()).unwrap(), expected[idx]);
     }
 }
 
 #[test]
 fn add_fail() {
     assert_eq!(
-        ALU::add(Value::I64(6532475327647647762), Value::I64(6532475327647647762))
+        ALU::add(Value::I64(6532475327647647762), Value::I64(6532475327647647762), Span::default())
             .err()
             .unwrap()
             .message(),
         String::from("Overflow occurred when performing addition on i64s.")
     );
     assert_eq!(
-        ALU::add(Value::I64(1), Value::F64(2.0)).err().unwrap().message(),
+        ALU::add(Value::I64(1), Value::F64(2.0), Span::default()).err().unwrap().message(),
         String::from("Cannot perform addition between values of type 'i64' and 'f64'.")
     );
 }
@@ -43,25 +44,25 @@ fn subtract() {
 
     for idx in 0..data.len() {
         let (val1, val2) = &data[idx];
-        assert_eq!(ALU::subtract(val1.clone(), val2.clone()).unwrap(), expected[idx]);
+        assert_eq!(ALU::subtract(val1.clone(), val2.clone(), Span::default()).unwrap(), expected[idx]);
     }
 }
 
 #[test]
 fn subtract_fail() {
     assert_eq!(
-        ALU::subtract(Value::I64(-6532475327647647762), Value::I64(6532475327647647762))
+        ALU::subtract(Value::I64(-6532475327647647762), Value::I64(6532475327647647762), Span::default())
             .err()
             .unwrap()
             .message(),
         String::from("Overflow occurred when performing subtraction on i64s.")
     );
     assert_eq!(
-        ALU::subtract(Value::I64(1), Value::F64(2.0)).err().unwrap().message(),
+        ALU::subtract(Value::I64(1), Value::F64(2.0), Span::default()).err().unwrap().message(),
         String::from("Cannot perform subtraction between values of type 'i64' and 'f64'.")
     );
     assert_eq!(
-        ALU::subtract(Value::String(String::from("a")), Value::String(String::from("a")))
+        ALU::subtract(Value::String(String::from("a")), Value::String(String::from("a")), Span::default())
             .err()
             .unwrap()
             .message(),
@@ -77,25 +78,28 @@ fn multiplication() {
 
     for idx in 0..data.len() {
         let (val1, val2) = &data[idx];
-        assert_eq!(ALU::multiplication(val1.clone(), val2.clone()).unwrap(), expected[idx]);
+        assert_eq!(ALU::multiplication(val1.clone(), val2.clone(), Span::default()).unwrap(), expected[idx]);
     }
 }
 
 #[test]
 fn multiplication_fail() {
     assert_eq!(
-        ALU::multiplication(Value::I64(6532475327647647762), Value::I64(6532475327647647762))
+        ALU::multiplication(Value::I64(6532475327647647762), Value::I64(6532475327647647762), Span::default())
             .err()
             .unwrap()
             .message(),
         String::from("Overflow occurred when performing multiplication on i64s.")
     );
     assert_eq!(
-        ALU::multiplication(Value::I64(1), Value::F64(2.0)).err().unwrap().message(),
+        ALU::multiplication(Value::I64(1), Value::F64(2.0), Span::default())
+            .err()
+            .unwrap()
+            .message(),
         String::from("Cannot perform multiplication between values of type 'i64' and 'f64'.")
     );
     assert_eq!(
-        ALU::multiplication(Value::String(String::from("a")), Value::String(String::from("a")))
+        ALU::multiplication(Value::String(String::from("a")), Value::String(String::from("a")), Span::default())
             .err()
             .unwrap()
             .message(),
@@ -111,22 +115,25 @@ fn division() {
 
     for idx in 0..data.len() {
         let (val1, val2) = &data[idx];
-        assert_eq!(ALU::division(val1.clone(), val2.clone()).unwrap(), expected[idx]);
+        assert_eq!(ALU::division(val1.clone(), val2.clone(), Span::default()).unwrap(), expected[idx]);
     }
 }
 
 #[test]
 fn division_fail() {
     assert_eq!(
-        ALU::division(Value::I64(6532475327647647762), Value::I64(0)).err().unwrap().message(),
+        ALU::division(Value::I64(6532475327647647762), Value::I64(0), Span::default())
+            .err()
+            .unwrap()
+            .message(),
         String::from("Overflow occurred when performing division on i64s.")
     );
     assert_eq!(
-        ALU::division(Value::I64(1), Value::F64(2.0)).err().unwrap().message(),
+        ALU::division(Value::I64(1), Value::F64(2.0), Span::default()).err().unwrap().message(),
         String::from("Cannot perform division between values of type 'i64' and 'f64'.")
     );
     assert_eq!(
-        ALU::division(Value::String(String::from("a")), Value::String(String::from("a")))
+        ALU::division(Value::String(String::from("a")), Value::String(String::from("a")), Span::default())
             .err()
             .unwrap()
             .message(),
@@ -146,22 +153,22 @@ fn modulo() {
 
     for idx in 0..data.len() {
         let (val1, val2) = &data[idx];
-        assert_eq!(ALU::modulo(val1.clone(), val2.clone()).unwrap(), expected[idx]);
+        assert_eq!(ALU::modulo(val1.clone(), val2.clone(), Span::default()).unwrap(), expected[idx]);
     }
 }
 
 #[test]
 fn modulo_fail() {
     assert_eq!(
-        ALU::modulo(Value::I64(1), Value::I64(0)).err().unwrap().message(),
+        ALU::modulo(Value::I64(1), Value::I64(0), Span::default()).err().unwrap().message(),
         String::from("Overflow occurred when performing modulo on i64s.")
     );
     assert_eq!(
-        ALU::modulo(Value::I64(1), Value::F64(2.0)).err().unwrap().message(),
+        ALU::modulo(Value::I64(1), Value::F64(2.0), Span::default()).err().unwrap().message(),
         String::from("Cannot perform modulo between values of type 'i64' and 'f64'.")
     );
     assert_eq!(
-        ALU::modulo(Value::F64(1.0), Value::F64(2.0)).err().unwrap().message(),
+        ALU::modulo(Value::F64(1.0), Value::F64(2.0), Span::default()).err().unwrap().message(),
         String::from("Cannot perform modulo between values of type 'f64' and 'f64'.")
     );
 }
@@ -169,11 +176,11 @@ fn modulo_fail() {
 #[test]
 fn division_float_edge_cases() {
     assert_eq!(
-        ALU::division(Value::F64(1.0), Value::F64(0.0)).err().unwrap().message(),
+        ALU::division(Value::F64(1.0), Value::F64(0.0), Span::default()).err().unwrap().message(),
         String::from("Invalid result when performing division on f64s.")
     );
     assert_eq!(
-        ALU::division(Value::F64(0.0), Value::F64(0.0)).err().unwrap().message(),
+        ALU::division(Value::F64(0.0), Value::F64(0.0), Span::default()).err().unwrap().message(),
         String::from("Invalid result when performing division on f64s.")
     );
 }

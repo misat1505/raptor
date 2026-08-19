@@ -1,6 +1,6 @@
 use crate::{
     backend::interpreter::interpreter::Interpreter,
-    common::{errors::IError, position::Position, types::Type, visitor::Visitor},
+    common::{errors::IError, span::Span, types::Type, visitor::Visitor},
     frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression},
 };
 
@@ -10,12 +10,12 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
     }
 
     fn visit_expression(&mut self, expression: &'a Node<Expression>) -> Result<(), Box<dyn IError>> {
-        self.position = expression.position;
+        self.span = expression.span;
         self.eval_expression(expression)
     }
 
     fn visit_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
-        self.position = statement.position;
+        self.span = statement.span;
         self.exec_statement(statement)
     }
 
@@ -53,7 +53,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
         self.eval_vector_literal(expressions)
     }
 
-    fn visit_variable(&mut self, variable: &'a String, position: Position) -> Result<(), Box<dyn IError>> {
-        self.eval_variable(variable, position)
+    fn visit_variable(&mut self, variable: &'a String, span: Span) -> Result<(), Box<dyn IError>> {
+        self.eval_variable(variable, span)
     }
 }

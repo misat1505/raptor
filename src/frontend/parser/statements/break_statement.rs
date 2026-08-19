@@ -1,5 +1,5 @@
 use crate::{
-    common::errors::IError,
+    common::{errors::IError, span::Span},
     frontend::{
         ast::{Node, Statement},
         lexer::lexer::ILexer,
@@ -11,13 +11,16 @@ use crate::{
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_break_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
         // break_statement = "break", ";";
+
         let token = try_consume_token!(self, TokenCategory::Break);
 
-        let _ = self.consume_must_be(TokenCategory::Semicolon)?;
+        let semicolon = self.consume_must_be(TokenCategory::Semicolon)?;
+
         let node = Node {
             value: Statement::Break,
-            position: token.position,
+            span: Span::new(token.span.start(), semicolon.span.end()),
         };
+
         Ok(Some(node))
     }
 }

@@ -1,11 +1,8 @@
 use std::{assert_eq, cell::RefCell, rc::Rc};
 
 use crate::{
-    backend::interpreter::{
-        stack::scope_manager::ScopeManager,
-        Value,
-    },
-    common::errors::IError,
+    backend::interpreter::{stack::scope_manager::ScopeManager, Value},
+    common::{errors::IError, span::Span},
 };
 
 #[test]
@@ -34,33 +31,51 @@ fn manages_variables() {
 
     let mut manager = ScopeManager::new();
 
-    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))));
-    assert_eq!(manager.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(1))));
+    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))), Span::default());
+    assert_eq!(
+        manager.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(1)))
+    );
 
     manager.push_scope();
-    assert_eq!(manager.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(1))));
+    assert_eq!(
+        manager.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(1)))
+    );
 
-    let _ = manager.assign_variable("x", Rc::new(RefCell::new(Value::I64(5))));
-    assert_eq!(manager.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(5))));
+    let _ = manager.assign_variable("x", Rc::new(RefCell::new(Value::I64(5))), Span::default());
+    assert_eq!(
+        manager.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(5)))
+    );
 
-    let _ = manager.declare_variable("y", Rc::new(RefCell::new(Value::I64(2))));
-    assert_eq!(manager.get_variable("y").unwrap().clone(), Rc::new(RefCell::new(Value::I64(2))));
+    let _ = manager.declare_variable("y", Rc::new(RefCell::new(Value::I64(2))), Span::default());
+    assert_eq!(
+        manager.get_variable("y", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(2)))
+    );
 
     manager.pop_scope();
-    assert_eq!(manager.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(5))));
     assert_eq!(
-        manager.get_variable("y").err().unwrap().message(),
+        manager.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(5)))
+    );
+    assert_eq!(
+        manager.get_variable("y", Span::default()).err().unwrap().message(),
         String::from("Variable 'y' not declared in this scope.")
     );
 
     manager.push_scope();
     assert_eq!(
-        manager.get_variable("y").err().unwrap().message(),
+        manager.get_variable("y", Span::default()).err().unwrap().message(),
         String::from("Variable 'y' not declared in this scope.")
     );
 
-    let _ = manager.declare_variable("y", Rc::new(RefCell::new(Value::I64(3))));
-    assert_eq!(manager.get_variable("y").unwrap().clone(), Rc::new(RefCell::new(Value::I64(3))));
+    let _ = manager.declare_variable("y", Rc::new(RefCell::new(Value::I64(3))), Span::default());
+    assert_eq!(
+        manager.get_variable("y", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(3))),
+    );
 
     manager.pop_scope();
 }
@@ -69,10 +84,10 @@ fn manages_variables() {
 fn bad_assign_type() {
     let mut manager = ScopeManager::new();
 
-    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))));
+    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))), Span::default());
     assert_eq!(
         manager
-            .assign_variable("x", Rc::new(RefCell::new(Value::Bool(true))))
+            .assign_variable("x", Rc::new(RefCell::new(Value::Bool(true))), Span::default())
             .err()
             .unwrap()
             .message(),
@@ -84,10 +99,10 @@ fn bad_assign_type() {
 fn doesnt_allow_redeclare() {
     let mut manager = ScopeManager::new();
 
-    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))));
+    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))), Span::default());
     assert_eq!(
         manager
-            .declare_variable("x", Rc::new(RefCell::new(Value::I64(6))))
+            .declare_variable("x", Rc::new(RefCell::new(Value::I64(6))), Span::default())
             .err()
             .unwrap()
             .message(),
@@ -116,7 +131,7 @@ fn scope_manager_assign_undeclared_variable_fails() {
 
     assert_eq!(
         manager
-            .assign_variable("x", Rc::new(RefCell::new(Value::I64(1))))
+            .assign_variable("x", Rc::new(RefCell::new(Value::I64(1))), Span::default())
             .err()
             .unwrap()
             .message(),
@@ -130,19 +145,22 @@ fn disallows_shadowing_variable_from_outer_scope() {
     // { i64 x = 2; } <- should fail, shadowing not allowed
     let mut manager = ScopeManager::new();
 
-    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))));
+    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))), Span::default());
 
     manager.push_scope();
     assert_eq!(
         manager
-            .declare_variable("x", Rc::new(RefCell::new(Value::I64(2))))
+            .declare_variable("x", Rc::new(RefCell::new(Value::I64(2))), Span::default())
             .err()
             .unwrap()
             .message(),
         String::from("Cannot redeclare variable 'x'.")
     );
 
-    assert_eq!(manager.get_variable("x").unwrap().clone(), Rc::new(RefCell::new(Value::I64(1))));
+    assert_eq!(
+        manager.get_variable("x", Span::default()).unwrap().clone(),
+        Rc::new(RefCell::new(Value::I64(1))),
+    );
 }
 
 #[test]
@@ -155,7 +173,7 @@ fn popping_last_remaining_scope_breaks_declare_invariant() {
 
     assert_eq!(
         manager
-            .declare_variable("x", Rc::new(RefCell::new(Value::I64(1))))
+            .declare_variable("x", Rc::new(RefCell::new(Value::I64(1))), Span::default())
             .err()
             .unwrap()
             .message(),
@@ -166,12 +184,12 @@ fn popping_last_remaining_scope_breaks_declare_invariant() {
 #[test]
 fn popping_last_remaining_scope_makes_get_variable_fail() {
     let mut manager = ScopeManager::new();
-    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))));
+    let _ = manager.declare_variable("x", Rc::new(RefCell::new(Value::I64(1))), Span::default());
 
     manager.pop_scope();
 
     assert_eq!(
-        manager.get_variable("x").err().unwrap().message(),
+        manager.get_variable("x", Span::default()).err().unwrap().message(),
         String::from("Variable 'x' not declared in this scope.")
     );
 }

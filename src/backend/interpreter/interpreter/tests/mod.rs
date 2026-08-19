@@ -5,16 +5,7 @@ mod statements;
 
 use std::collections::HashMap;
 
-use crate::{backend::interpreter::interpreter::Interpreter, common::position::Position, frontend::ast::Program};
-
-pub(super) fn default_position() -> Position {
-    Position {
-        filename: None,
-        line: 0,
-        column: 0,
-        offset: 0,
-    }
-}
+use crate::{backend::interpreter::interpreter::Interpreter, frontend::ast::Program};
 
 pub(super) fn setup_program() -> Program {
     Program {
@@ -33,7 +24,7 @@ macro_rules! test_node {
     ($value:expr) => {
         crate::frontend::ast::Node {
             value: $value,
-            position: crate::backend::interpreter::interpreter::tests::default_position(),
+            span: crate::common::span::Span::default(),
         }
     };
 }

@@ -8,6 +8,7 @@ use crate::{
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
@@ -17,10 +18,9 @@ use crate::{
 pub fn str_len() -> StdFunction {
     let params = vec![Type::Str];
 
-    let execute = |params: &Vec<Rc<RefCell<Value>>>| -> Result<Option<Value>, StdFunctionError> {
+    let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "str_len";
         let expected_types = vec![Type::Str];
-
         let mut actual_types: Vec<Type> = vec![];
 
         if let Some(text) = params.get(0) {
@@ -30,21 +30,21 @@ pub fn str_len() -> StdFunction {
 
             match &*text {
                 Value::String(s) => Ok(Some(Value::I64(s.chars().count() as i64))),
-                _ => Err(build_usage_error(fn_name, expected_types, actual_types)),
+                _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
-            Err(build_usage_error(fn_name, expected_types, actual_types))
+            Err(build_usage_error(fn_name, expected_types, actual_types, span))
         }
     };
 
-    let compile: LlvmCompileFn = |compiler, arguments, position| {
-        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), position)) as Box<dyn IError>;
+    let compile: LlvmCompileFn = |compiler, arguments, span| {
+        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
         let arg = arguments.get(0).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'str_len' expects exactly one argument."),
-                position,
+                span,
             )) as Box<dyn IError>
         })?;
 
@@ -57,7 +57,7 @@ pub fn str_len() -> StdFunction {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     format!("'str_len' expects a string, got '{:?}'.", other.to_type()),
-                    position,
+                    span,
                 )))
             }
         };

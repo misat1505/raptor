@@ -4,8 +4,8 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Expression, Node, PassedBy, Statement},
-    semantic::semantic_checker::SemanticChecker,
+    frontend::ast::{Expression, Node, Parameter, PassedBy, Statement},
+    semantic::semantic_checker::{checker::HoverInfo, SemanticChecker},
 };
 
 pub(in crate::semantic::semantic_checker) enum FunctionCallType<'a> {
@@ -114,6 +114,22 @@ impl<'a> SemanticChecker<'a> {
                         }
                     }
 
+                    let params_str = std_function
+                        .params
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, t)| {
+                            let by_ref = std_function.passed_by.get(idx) == Some(&PassedBy::Reference);
+                            format!("{}{:?}", if by_ref { "&" } else { "" }, t)
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    self.hovers.push(HoverInfo {
+                        contents: format!("```raptor\nfn {}({}): {:?}\n```", name, params_str, std_function.return_type),
+                        span: identifier.span,
+                    });
+
                     return;
                 }
 
@@ -180,6 +196,16 @@ impl<'a> SemanticChecker<'a> {
                     }
 
                     self.last_result = Some(function_declaration.value.return_type.value.clone());
+
+                    self.hovers.push(HoverInfo {
+                        contents: format!(
+                            "```raptor\nextern fn {}({}): {:?};\n```",
+                            name,
+                            format_parameters(parameters),
+                            function_declaration.value.return_type.value
+                        ),
+                        span: identifier.span,
+                    });
 
                     return;
                 }
@@ -248,6 +274,16 @@ impl<'a> SemanticChecker<'a> {
 
                     self.last_result = Some(function_declaration.value.return_type.value.clone());
 
+                    self.hovers.push(HoverInfo {
+                        contents: format!(
+                            "```raptor\nfn {}({}): {:?}\n```",
+                            name,
+                            format_parameters(parameters),
+                            function_declaration.value.return_type.value
+                        ),
+                        span: identifier.span,
+                    });
+
                     return;
                 }
 
@@ -260,4 +296,15 @@ impl<'a> SemanticChecker<'a> {
             _ => {}
         }
     }
+}
+
+fn format_parameters(parameters: &[Node<Parameter>]) -> String {
+    parameters
+        .iter()
+        .map(|p| {
+            let by_ref = if p.value.passed_by == PassedBy::Reference { "&" } else { "" };
+            format!("{}{:?} {}", by_ref, p.value.parameter_type.value, p.value.identifier.value)
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }

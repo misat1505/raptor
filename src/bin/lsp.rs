@@ -4,11 +4,12 @@ use std::io::Cursor;
 use std::thread_local;
 
 use raptor_lib::common::errors::{ErrorSeverity, IError};
+use raptor_lib::common::span::Span;
 use raptor_lib::frontend::lexer::lazy_stream_reader::LazyStreamReader;
 use raptor_lib::frontend::lexer::lexer::{Lexer, LexerOptions};
 use raptor_lib::frontend::parser::{IParser, Parser};
 use raptor_lib::frontend::tokens::{TokenCategory, TokenValue};
-use raptor_lib::semantic::semantic_checker::checker::SemanticChecker;
+use raptor_lib::semantic::semantic_checker::checker::{HoverInfo, SemanticChecker};
 
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result as LspResult;
@@ -23,9 +24,14 @@ fn on_warning(warning: Box<dyn IError>) {
     LEXER_WARNINGS.with(|w| w.borrow_mut().push(warning));
 }
 
+struct DocumentState {
+    text: String,
+    hovers: Vec<HoverInfo>,
+}
+
 struct Backend {
     client: Client,
-    documents: Mutex<HashMap<Url, String>>,
+    documents: Mutex<HashMap<Url, DocumentState>>,
 }
 
 fn std_function_completions() -> Vec<CompletionItem> {
@@ -83,39 +89,25 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        let uri = params.text_document.uri;
-        let text = params.text_document.text;
-
-        self.documents.lock().await.insert(uri.clone(), text.clone());
-
-        self.validate(uri, text).await;
+        self.validate(params.text_document.uri, params.text_document.text).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         if let Some(change) = params.content_changes.into_iter().last() {
-            let uri = params.text_document.uri;
-            let text = change.text;
-
-            self.documents.lock().await.insert(uri.clone(), text.clone());
-
-            self.validate(uri, text).await;
+            self.validate(params.text_document.uri, change.text).await;
         }
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         if let Some(text) = params.text {
-            let uri = params.text_document.uri;
-
-            self.documents.lock().await.insert(uri.clone(), text.clone());
-
-            self.validate(uri, text).await;
+            self.validate(params.text_document.uri, text).await;
         }
     }
 
     async fn completion(&self, params: CompletionParams) -> LspResult<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
 
-        let source = self.documents.lock().await.get(&uri).cloned().unwrap_or_default();
+        let source = self.documents.lock().await.get(&uri).map(|doc| doc.text.clone()).unwrap_or_default();
 
         let mut items = keyword_completions();
 
@@ -124,22 +116,45 @@ impl LanguageServer for Backend {
 
         Ok(Some(CompletionResponse::Array(items)))
     }
+
+    async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        let documents = self.documents.lock().await;
+
+        let Some(doc) = documents.get(&uri) else {
+            return Ok(None);
+        };
+
+        let best = doc
+            .hovers
+            .iter()
+            .filter(|h| span_contains_position(&h.span, position))
+            .min_by_key(|h| span_len(&h.span));
+
+        Ok(best.map(|h| Hover {
+            contents: HoverContents::Scalar(MarkedString::String(h.contents.clone())),
+            range: Some(span_to_range(&h.span)),
+        }))
+    }
 }
 
 impl Backend {
     async fn validate(&self, uri: Url, text: String) {
-        let diagnostics = analyze(&text);
+        let (diagnostics, hovers) = analyze(&text);
+
+        self.documents.lock().await.insert(uri.clone(), DocumentState { text, hovers });
+
         self.client.publish_diagnostics(uri, diagnostics, None).await;
     }
 }
 
-fn analyze(source: &str) -> Vec<Diagnostic> {
+fn analyze(source: &str) -> (Vec<Diagnostic>, Vec<HoverInfo>) {
     let mut diagnostics = Vec::new();
 
-    // Czyścimy bufor warningów przed każdym przebiegiem
     LEXER_WARNINGS.with(|w| w.borrow_mut().clear());
 
-    // --- LEXER ---
     let cursor = Cursor::new(source.as_bytes().to_vec());
     let reader = LazyStreamReader::new(cursor, Some("current"));
 
@@ -152,7 +167,7 @@ fn analyze(source: &str) -> Vec<Diagnostic> {
         Ok(lexer) => lexer,
         Err(err) => {
             diagnostics.push(error_to_diagnostic(err.as_ref(), DiagnosticSeverity::ERROR));
-            return diagnostics;
+            return (diagnostics, vec![]);
         }
     };
 
@@ -162,23 +177,21 @@ fn analyze(source: &str) -> Vec<Diagnostic> {
         }
     });
 
-    // --- PARSER ---
     let mut parser = Parser::new(lexer);
 
     let program = match parser.parse() {
         Ok(program) => program,
         Err(err) => {
             diagnostics.push(error_to_diagnostic(err.as_ref(), DiagnosticSeverity::ERROR));
-            return diagnostics;
+            return (diagnostics, vec![]);
         }
     };
 
-    // --- SEMANTIC CHECKER ---
     let mut semantic_checker = match SemanticChecker::new(&program) {
         Ok(checker) => checker,
         Err(err) => {
             diagnostics.push(error_to_diagnostic(err.as_ref(), DiagnosticSeverity::ERROR));
-            return diagnostics;
+            return (diagnostics, vec![]);
         }
     };
 
@@ -192,7 +205,7 @@ fn analyze(source: &str) -> Vec<Diagnostic> {
         diagnostics.push(error_to_diagnostic(error.as_ref(), severity));
     }
 
-    diagnostics
+    (diagnostics, semantic_checker.hovers)
 }
 
 fn keyword_completions() -> Vec<CompletionItem> {
@@ -231,7 +244,6 @@ fn identifier_completions(source: &str) -> Vec<CompletionItem> {
 
     if let Ok(mut lexer) = Lexer::new(reader, lexer_options, |_| {}) {
         while let Ok(token) = lexer.generate_token() {
-            // dopasuj do realnego API lexera
             if token.category == TokenCategory::Identifier {
                 if let TokenValue::String(name) = &token.value {
                     names.insert(name.clone());
@@ -255,11 +267,7 @@ fn identifier_completions(source: &str) -> Vec<CompletionItem> {
 
 fn error_to_diagnostic(err: &dyn IError, severity: DiagnosticSeverity) -> Diagnostic {
     let span = err.get_span();
-
-    let range = Range::new(
-        Position::new(span.start().line - 1, span.start().column - 1),
-        Position::new(span.end().line - 1, span.end().column - 1),
-    );
+    let range = span_to_range(&span);
 
     Diagnostic {
         range,
@@ -268,6 +276,25 @@ fn error_to_diagnostic(err: &dyn IError, severity: DiagnosticSeverity) -> Diagno
         message: err.message(),
         ..Default::default()
     }
+}
+
+fn span_to_range(span: &Span) -> Range {
+    Range::new(
+        Position::new(span.start().line - 1, span.start().column - 1),
+        Position::new(span.end().line - 1, span.end().column - 1),
+    )
+}
+
+fn span_contains_position(span: &Span, pos: Position) -> bool {
+    let range = span_to_range(span);
+    (pos.line > range.start.line || (pos.line == range.start.line && pos.character >= range.start.character))
+        && (pos.line < range.end.line || (pos.line == range.end.line && pos.character <= range.end.character))
+}
+
+fn span_len(span: &Span) -> (u32, u32) {
+    let start = (span.start().line, span.start().column);
+    let end = (span.end().line, span.end().column);
+    (end.0.saturating_sub(start.0), end.1.saturating_sub(start.1))
 }
 
 #[tokio::main]

@@ -9,23 +9,28 @@ use crate::{
     semantic::stack::stack::StaticCheckerStack,
 };
 
+#[derive(Debug, Clone)]
+pub struct HoverInfo {
+    pub span: Span,
+    pub contents: String,
+}
+
 pub struct SemanticChecker<'a> {
     pub(in crate::semantic::semantic_checker) program: &'a Program,
     pub(in crate::semantic::semantic_checker) stack: StaticCheckerStack<'a>,
     pub(in crate::semantic::semantic_checker) last_result: Option<Type>,
     pub errors: Vec<Box<dyn IError>>,
+    pub hovers: Vec<HoverInfo>,
     pub(in crate::semantic::semantic_checker) current_function_return_type: Option<Type>,
 }
 
 impl<'a> SemanticChecker<'a> {
     pub fn new(program: &'a Program) -> Result<Self, Box<dyn IError>> {
-        let errors: Vec<Box<dyn IError>> = vec![];
-        let stack = StaticCheckerStack::new();
-
         Ok(Self {
             program,
-            errors,
-            stack,
+            errors: vec![],
+            hovers: vec![],
+            stack: StaticCheckerStack::new(),
             last_result: None,
             current_function_return_type: None,
         })

@@ -6,7 +6,7 @@ use crate::{
         visitor::Visitor,
     },
     frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression},
-    semantic::semantic_checker::{functions::FunctionCallType, SemanticChecker},
+    semantic::semantic_checker::{checker::HoverInfo, functions::FunctionCallType, SemanticChecker},
 };
 
 impl<'a> Visitor<'a> for SemanticChecker<'a> {
@@ -48,23 +48,14 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
     fn visit_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
         match statement.value {
             Statement::FunctionCall { .. } => self.check_function_call(FunctionCallType::Statement(statement)),
-
             Statement::Declaration { .. } => self.check_declaration(statement)?,
-
             Statement::Assignment { .. } => self.check_assignment(statement)?,
-
             Statement::Conditional { .. } => self.check_conditional(statement)?,
-
             Statement::WhileLoop { .. } => self.check_while_loop(statement)?,
-
             Statement::ForLoop { .. } => self.check_for_loop(statement)?,
-
             Statement::Switch { .. } => self.check_switch(statement)?,
-
             Statement::Return { .. } => self.check_return(statement)?,
-
             Statement::Break { .. } => self.check_break(statement)?,
-
             Statement::Continue { .. } => self.check_continue(statement)?,
         }
 
@@ -126,6 +117,11 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             Box::new(error) as Box<dyn IError>
         })?;
 
+        self.hovers.push(HoverInfo {
+            contents: format!("```raptor\n{:?} {}\n```", value, variable),
+            span,
+        });
+
         self.last_result = Some(value.clone());
 
         Ok(())
@@ -158,7 +154,18 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             }
         }
 
-        self.last_result = Some(Type::Vector(Box::new(element_type.unwrap_or(Type::Void))));
+        let vector_type = Type::Vector(Box::new(element_type.unwrap_or(Type::Void)));
+
+        if let (Some(first), Some(last)) = (vector.first(), vector.last()) {
+            let span = Span::new(first.span.start(), last.span.end());
+
+            self.hovers.push(HoverInfo {
+                contents: format!("```raptor\n{:?}\n```", vector_type),
+                span,
+            });
+        }
+
+        self.last_result = Some(vector_type);
 
         Ok(())
     }

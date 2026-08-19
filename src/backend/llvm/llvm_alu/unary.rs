@@ -26,14 +26,31 @@ impl LlvmAlu {
         span: Span,
     ) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         match value {
-            LlvmValue::I64(v) => builder
-                .build_int_neg(v, "negtmp")
+            LlvmValue::I8(value) => builder
+                .build_int_neg(value, "i8_neg")
+                .map(LlvmValue::I8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            LlvmValue::I16(value) => builder
+                .build_int_neg(value, "i16_neg")
+                .map(LlvmValue::I16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            LlvmValue::I32(value) => builder
+                .build_int_neg(value, "i32_neg")
+                .map(LlvmValue::I32)
+                .map_err(|err| Self::map_err(err, span)),
+
+            LlvmValue::I64(value) => builder
+                .build_int_neg(value, "i64_neg")
                 .map(LlvmValue::I64)
                 .map_err(|err| Self::map_err(err, span)),
-            LlvmValue::F64(v) => builder
-                .build_float_neg(v, "negtmp")
+
+            LlvmValue::F64(value) => builder
+                .build_float_neg(value, "f64_neg")
                 .map(LlvmValue::F64)
                 .map_err(|err| Self::map_err(err, span)),
+
             other => Err(Self::unary_type_error("arithmetic negation", other, span)),
         }
     }

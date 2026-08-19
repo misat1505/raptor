@@ -34,15 +34,9 @@ impl LlvmAlu {
             .expect("strlen should return a value")
             .into_int_value();
 
-        let sum_len = builder
-            .build_int_add(len_l, len_r, "concat_len")
-            .map_err(|err| Self::map_err(err, span))?;
-
-        // +1 for terminating '\0'
-        let one = len_l.get_type().const_int(1, false);
-
         let total_len = builder
-            .build_int_add(sum_len, one, "concat_total_len")
+            .build_int_add(len_l, len_r, "concat_len")
+            .and_then(|sum_len| builder.build_int_add(sum_len, len_l.get_type().const_int(1, false), "concat_total_len"))
             .map_err(|err| Self::map_err(err, span))?;
 
         let malloc_call = builder
@@ -74,9 +68,44 @@ impl LlvmAlu {
         span: Span,
     ) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         match (left, right) {
+            (LlvmValue::I8(l), LlvmValue::I8(r)) => builder
+                .build_int_add(l, r, "addtmp")
+                .map(LlvmValue::I8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I16(l), LlvmValue::I16(r)) => builder
+                .build_int_add(l, r, "addtmp")
+                .map(LlvmValue::I16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I32(l), LlvmValue::I32(r)) => builder
+                .build_int_add(l, r, "addtmp")
+                .map(LlvmValue::I32)
+                .map_err(|err| Self::map_err(err, span)),
+
             (LlvmValue::I64(l), LlvmValue::I64(r)) => builder
                 .build_int_add(l, r, "addtmp")
                 .map(LlvmValue::I64)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U8(l), LlvmValue::U8(r)) => builder
+                .build_int_add(l, r, "addtmp")
+                .map(LlvmValue::U8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U16(l), LlvmValue::U16(r)) => builder
+                .build_int_add(l, r, "addtmp")
+                .map(LlvmValue::U16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U32(l), LlvmValue::U32(r)) => builder
+                .build_int_add(l, r, "addtmp")
+                .map(LlvmValue::U32)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U64(l), LlvmValue::U64(r)) => builder
+                .build_int_add(l, r, "addtmp")
+                .map(LlvmValue::U64)
                 .map_err(|err| Self::map_err(err, span)),
 
             (LlvmValue::F64(l), LlvmValue::F64(r)) => builder
@@ -98,9 +127,44 @@ impl LlvmAlu {
         span: Span,
     ) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         match (left, right) {
+            (LlvmValue::I8(l), LlvmValue::I8(r)) => builder
+                .build_int_sub(l, r, "subtmp")
+                .map(LlvmValue::I8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I16(l), LlvmValue::I16(r)) => builder
+                .build_int_sub(l, r, "subtmp")
+                .map(LlvmValue::I16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I32(l), LlvmValue::I32(r)) => builder
+                .build_int_sub(l, r, "subtmp")
+                .map(LlvmValue::I32)
+                .map_err(|err| Self::map_err(err, span)),
+
             (LlvmValue::I64(l), LlvmValue::I64(r)) => builder
                 .build_int_sub(l, r, "subtmp")
                 .map(LlvmValue::I64)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U8(l), LlvmValue::U8(r)) => builder
+                .build_int_sub(l, r, "subtmp")
+                .map(LlvmValue::U8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U16(l), LlvmValue::U16(r)) => builder
+                .build_int_sub(l, r, "subtmp")
+                .map(LlvmValue::U16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U32(l), LlvmValue::U32(r)) => builder
+                .build_int_sub(l, r, "subtmp")
+                .map(LlvmValue::U32)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U64(l), LlvmValue::U64(r)) => builder
+                .build_int_sub(l, r, "subtmp")
+                .map(LlvmValue::U64)
                 .map_err(|err| Self::map_err(err, span)),
 
             (LlvmValue::F64(l), LlvmValue::F64(r)) => builder
@@ -120,9 +184,44 @@ impl LlvmAlu {
         span: Span,
     ) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         match (left, right) {
+            (LlvmValue::I8(l), LlvmValue::I8(r)) => builder
+                .build_int_mul(l, r, "multmp")
+                .map(LlvmValue::I8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I16(l), LlvmValue::I16(r)) => builder
+                .build_int_mul(l, r, "multmp")
+                .map(LlvmValue::I16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I32(l), LlvmValue::I32(r)) => builder
+                .build_int_mul(l, r, "multmp")
+                .map(LlvmValue::I32)
+                .map_err(|err| Self::map_err(err, span)),
+
             (LlvmValue::I64(l), LlvmValue::I64(r)) => builder
                 .build_int_mul(l, r, "multmp")
                 .map(LlvmValue::I64)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U8(l), LlvmValue::U8(r)) => builder
+                .build_int_mul(l, r, "multmp")
+                .map(LlvmValue::U8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U16(l), LlvmValue::U16(r)) => builder
+                .build_int_mul(l, r, "multmp")
+                .map(LlvmValue::U16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U32(l), LlvmValue::U32(r)) => builder
+                .build_int_mul(l, r, "multmp")
+                .map(LlvmValue::U32)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U64(l), LlvmValue::U64(r)) => builder
+                .build_int_mul(l, r, "multmp")
+                .map(LlvmValue::U64)
                 .map_err(|err| Self::map_err(err, span)),
 
             (LlvmValue::F64(l), LlvmValue::F64(r)) => builder
@@ -142,9 +241,44 @@ impl LlvmAlu {
         span: Span,
     ) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         match (left, right) {
+            (LlvmValue::I8(l), LlvmValue::I8(r)) => builder
+                .build_int_signed_div(l, r, "divtmp")
+                .map(LlvmValue::I8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I16(l), LlvmValue::I16(r)) => builder
+                .build_int_signed_div(l, r, "divtmp")
+                .map(LlvmValue::I16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I32(l), LlvmValue::I32(r)) => builder
+                .build_int_signed_div(l, r, "divtmp")
+                .map(LlvmValue::I32)
+                .map_err(|err| Self::map_err(err, span)),
+
             (LlvmValue::I64(l), LlvmValue::I64(r)) => builder
                 .build_int_signed_div(l, r, "divtmp")
                 .map(LlvmValue::I64)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U8(l), LlvmValue::U8(r)) => builder
+                .build_int_unsigned_div(l, r, "divtmp")
+                .map(LlvmValue::U8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U16(l), LlvmValue::U16(r)) => builder
+                .build_int_unsigned_div(l, r, "divtmp")
+                .map(LlvmValue::U16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U32(l), LlvmValue::U32(r)) => builder
+                .build_int_unsigned_div(l, r, "divtmp")
+                .map(LlvmValue::U32)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U64(l), LlvmValue::U64(r)) => builder
+                .build_int_unsigned_div(l, r, "divtmp")
+                .map(LlvmValue::U64)
                 .map_err(|err| Self::map_err(err, span)),
 
             (LlvmValue::F64(l), LlvmValue::F64(r)) => builder
@@ -164,9 +298,44 @@ impl LlvmAlu {
         span: Span,
     ) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         match (left, right) {
+            (LlvmValue::I8(l), LlvmValue::I8(r)) => builder
+                .build_int_signed_rem(l, r, "remtmp")
+                .map(LlvmValue::I8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I16(l), LlvmValue::I16(r)) => builder
+                .build_int_signed_rem(l, r, "remtmp")
+                .map(LlvmValue::I16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::I32(l), LlvmValue::I32(r)) => builder
+                .build_int_signed_rem(l, r, "remtmp")
+                .map(LlvmValue::I32)
+                .map_err(|err| Self::map_err(err, span)),
+
             (LlvmValue::I64(l), LlvmValue::I64(r)) => builder
                 .build_int_signed_rem(l, r, "remtmp")
                 .map(LlvmValue::I64)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U8(l), LlvmValue::U8(r)) => builder
+                .build_int_unsigned_rem(l, r, "remtmp")
+                .map(LlvmValue::U8)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U16(l), LlvmValue::U16(r)) => builder
+                .build_int_unsigned_rem(l, r, "remtmp")
+                .map(LlvmValue::U16)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U32(l), LlvmValue::U32(r)) => builder
+                .build_int_unsigned_rem(l, r, "remtmp")
+                .map(LlvmValue::U32)
+                .map_err(|err| Self::map_err(err, span)),
+
+            (LlvmValue::U64(l), LlvmValue::U64(r)) => builder
+                .build_int_unsigned_rem(l, r, "remtmp")
+                .map(LlvmValue::U64)
                 .map_err(|err| Self::map_err(err, span)),
 
             (l, r) => Err(Self::type_error("modulo", l, r, span)),

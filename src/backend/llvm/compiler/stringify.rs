@@ -83,6 +83,77 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let i64_type = self.context.i64_type();
 
         match (elem_type, &value) {
+            (Type::I8, LlvmValue::I8(v)) => {
+                let buf_size = i64_type.const_int(24, false);
+
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "num.buf")
+                    .map_err(&err)?;
+
+                // C variadic promotion: sub-i32 signed ints must be sign-extended to i32.
+                let promoted = self.builder.build_int_s_extend(*v, self.context.i32_type(), "i8.promote").map_err(&err)?;
+
+                let fmt = self.builder.build_global_string_ptr("%d", "fmt.i8").map_err(&err)?.as_pointer_value();
+
+                self.builder
+                    .build_call(
+                        self.libc.snprintf_fn,
+                        &[buf.into(), buf_size.into(), fmt.into(), promoted.into()],
+                        "snprintf.i8",
+                    )
+                    .map_err(&err)?;
+
+                Ok(buf)
+            }
+
+            (Type::I16, LlvmValue::I16(v)) => {
+                let buf_size = i64_type.const_int(24, false);
+
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "num.buf")
+                    .map_err(&err)?;
+
+                let promoted = self
+                    .builder
+                    .build_int_s_extend(*v, self.context.i32_type(), "i16.promote")
+                    .map_err(&err)?;
+
+                let fmt = self.builder.build_global_string_ptr("%d", "fmt.i16").map_err(&err)?.as_pointer_value();
+
+                self.builder
+                    .build_call(
+                        self.libc.snprintf_fn,
+                        &[buf.into(), buf_size.into(), fmt.into(), promoted.into()],
+                        "snprintf.i16",
+                    )
+                    .map_err(&err)?;
+
+                Ok(buf)
+            }
+
+            (Type::I32, LlvmValue::I32(v)) => {
+                let buf_size = i64_type.const_int(24, false);
+
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "num.buf")
+                    .map_err(&err)?;
+
+                let fmt = self.builder.build_global_string_ptr("%d", "fmt.i32").map_err(&err)?.as_pointer_value();
+
+                self.builder
+                    .build_call(
+                        self.libc.snprintf_fn,
+                        &[buf.into(), buf_size.into(), fmt.into(), (*v).into()],
+                        "snprintf.i32",
+                    )
+                    .map_err(&err)?;
+
+                Ok(buf)
+            }
+
             (Type::I64, LlvmValue::I64(v)) => {
                 let buf_size = i64_type.const_int(24, false);
 
@@ -98,6 +169,98 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         self.libc.snprintf_fn,
                         &[buf.into(), buf_size.into(), fmt.into(), (*v).into()],
                         "snprintf.i64",
+                    )
+                    .map_err(&err)?;
+
+                Ok(buf)
+            }
+
+            (Type::U8, LlvmValue::U8(v)) => {
+                let buf_size = i64_type.const_int(24, false);
+
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "num.buf")
+                    .map_err(&err)?;
+
+                // C variadic promotion: sub-i32 unsigned ints must be zero-extended to i32.
+                let promoted = self.builder.build_int_z_extend(*v, self.context.i32_type(), "u8.promote").map_err(&err)?;
+
+                let fmt = self.builder.build_global_string_ptr("%u", "fmt.u8").map_err(&err)?.as_pointer_value();
+
+                self.builder
+                    .build_call(
+                        self.libc.snprintf_fn,
+                        &[buf.into(), buf_size.into(), fmt.into(), promoted.into()],
+                        "snprintf.u8",
+                    )
+                    .map_err(&err)?;
+
+                Ok(buf)
+            }
+
+            (Type::U16, LlvmValue::U16(v)) => {
+                let buf_size = i64_type.const_int(24, false);
+
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "num.buf")
+                    .map_err(&err)?;
+
+                let promoted = self
+                    .builder
+                    .build_int_z_extend(*v, self.context.i32_type(), "u16.promote")
+                    .map_err(&err)?;
+
+                let fmt = self.builder.build_global_string_ptr("%u", "fmt.u16").map_err(&err)?.as_pointer_value();
+
+                self.builder
+                    .build_call(
+                        self.libc.snprintf_fn,
+                        &[buf.into(), buf_size.into(), fmt.into(), promoted.into()],
+                        "snprintf.u16",
+                    )
+                    .map_err(&err)?;
+
+                Ok(buf)
+            }
+
+            (Type::U32, LlvmValue::U32(v)) => {
+                let buf_size = i64_type.const_int(24, false);
+
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "num.buf")
+                    .map_err(&err)?;
+
+                let fmt = self.builder.build_global_string_ptr("%u", "fmt.u32").map_err(&err)?.as_pointer_value();
+
+                self.builder
+                    .build_call(
+                        self.libc.snprintf_fn,
+                        &[buf.into(), buf_size.into(), fmt.into(), (*v).into()],
+                        "snprintf.u32",
+                    )
+                    .map_err(&err)?;
+
+                Ok(buf)
+            }
+
+            (Type::U64, LlvmValue::U64(v)) => {
+                let buf_size = i64_type.const_int(24, false);
+
+                let buf = self
+                    .builder
+                    .build_array_malloc(self.context.i8_type(), buf_size, "num.buf")
+                    .map_err(&err)?;
+
+                let fmt = self.builder.build_global_string_ptr("%llu", "fmt.u64").map_err(&err)?.as_pointer_value();
+
+                self.builder
+                    .build_call(
+                        self.libc.snprintf_fn,
+                        &[buf.into(), buf_size.into(), fmt.into(), (*v).into()],
+                        "snprintf.u64",
                     )
                     .map_err(&err)?;
 

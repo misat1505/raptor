@@ -224,7 +224,7 @@ x[0][0]
 fun(5)[0][0]
 ```
 
-**literal** = integer_literal | float_literal | boolean_literal | string_literal;
+**literal** = integer_literal | float_literal | boolean_literal | string_literal | char_literal;
 
 **identifier** = letter, {character};
 
@@ -259,7 +259,7 @@ switch (x: temp1, y: temp2) {
 
 **letter** = "a" - "z" | "A" - "Z";
 
-**type** = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "str"), { "[]" };
+**type** = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str"), { "[]" };
 
 **relation_operands** = "==" | "<" | "<=" | ">" | ">=" | "!=";
 

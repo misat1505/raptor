@@ -55,6 +55,7 @@ pub enum TokenCategory {
     U64,
     F64,
     Void,
+    Char,
     // Others
     Assign,
     PlusEquals,
@@ -73,6 +74,7 @@ pub enum TokenCategory {
     Identifier,
     Comment,
     // Literals
+    CharValue,
     StringValue,
     I64Value,
     F64Value,
@@ -129,6 +131,7 @@ impl Debug for TokenCategory {
             U32 => "u32 type",
             U64 => "u64 type",
             F64 => "f64 type",
+            Char => "char type",
             Void => "void",
             Assign => "=",
             PlusEquals => "+=",
@@ -148,6 +151,7 @@ impl Debug for TokenCategory {
             StringValue => "str value",
             I64Value => "i64 value",
             F64Value => "f64 value",
+            CharValue => "char value",
             Extern => "extern",
         };
 
@@ -157,6 +161,7 @@ impl Debug for TokenCategory {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenValue {
+    Char(char),
     String(String),
     F64(f64),
     I64(i64),

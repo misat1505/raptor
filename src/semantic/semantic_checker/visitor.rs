@@ -101,6 +101,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             Literal::F64(_) => Type::F64,
             Literal::I64(_) => Type::I64,
             Literal::String(_) => Type::Str,
+            Literal::Char(_) => Type::Char,
             Literal::False | Literal::True => Type::Bool,
         };
 

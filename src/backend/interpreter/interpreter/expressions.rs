@@ -57,6 +57,7 @@ impl<'a> Interpreter<'a> {
             Literal::F64(value) => Value::F64(*value),
             Literal::I64(value) => Value::I64(*value),
             Literal::String(value) => Value::String(value.to_string()),
+            Literal::Char(value) => Value::Char(*value),
             Literal::False => Value::Bool(false),
             Literal::True => Value::Bool(true),
         };

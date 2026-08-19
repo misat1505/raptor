@@ -20,6 +20,7 @@ pub enum Value {
 
     F64(f64),
     String(String),
+    Char(char),
     Bool(bool),
 
     Vector {
@@ -75,6 +76,7 @@ impl Value {
 
             Value::F64(_) => Type::F64,
             Value::String(_) => Type::Str,
+            Value::Char(_) => Type::Char,
 
             Value::Vector { kind, .. } => kind.as_ref().clone(),
         }

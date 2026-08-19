@@ -18,6 +18,7 @@ impl<L: ILexer> Parser<L> {
             (TokenCategory::I64Value, TokenValue::I64(int)) => Literal::I64(int),
             (TokenCategory::F64Value, TokenValue::F64(float)) => Literal::F64(float),
             (TokenCategory::StringValue, TokenValue::String(string)) => Literal::String(string),
+            (TokenCategory::CharValue, TokenValue::Char(c)) => Literal::Char(c),
             _ => return Ok(None),
         };
 

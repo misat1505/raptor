@@ -29,6 +29,7 @@ fn stringify_value(value: &Value) -> String {
 
         Value::F64(v) => v.to_string(),
         Value::String(v) => format!("\"{}\"", v),
+        Value::Char(v) => format!("\'{}\'", v),
         Value::Bool(v) => v.to_string(),
 
         Value::Vector { values, .. } => {

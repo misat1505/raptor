@@ -4,6 +4,7 @@ use std::fmt::Debug;
 pub enum Type {
     Bool,
     Str,
+    Char,
     I8,
     I16,
     I32,
@@ -33,6 +34,7 @@ impl Debug for Type {
             Type::U64 => Ok(write!(f, "u64")?),
             Type::F64 => Ok(write!(f, "f64")?),
             Type::Str => Ok(write!(f, "str")?),
+            Type::Char => Ok(write!(f, "char")?),
             Type::Void => Ok(write!(f, "void")?),
             Type::Vector(inner) => write!(f, "{:?}[]", inner),
             Type::Any => Ok(write!(f, "any")?),

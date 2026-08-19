@@ -9,12 +9,13 @@ use crate::{
 
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_type(&mut self) -> Result<Option<Node<Type>>, Box<dyn IError>> {
-        // type = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "str"), { "[]" };
+        // type = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str"), { "[]" };
         let token = self.current_token();
 
         let mut result = match token.category {
             TokenCategory::Bool => Type::Bool,
             TokenCategory::String => Type::Str,
+            TokenCategory::Char => Type::Char,
             TokenCategory::I8 => Type::I8,
             TokenCategory::I16 => Type::I16,
             TokenCategory::I32 => Type::I32,

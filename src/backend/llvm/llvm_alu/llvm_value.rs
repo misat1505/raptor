@@ -23,6 +23,7 @@ pub enum LlvmValue<'ctx> {
 
     F64(FloatValue<'ctx>),
     Str(PointerValue<'ctx>),
+    Char(IntValue<'ctx>),
     Bool(IntValue<'ctx>),
 
     Vector(PointerValue<'ctx>, Box<Type>),
@@ -43,6 +44,7 @@ impl<'ctx> LlvmValue<'ctx> {
 
             LlvmValue::F64(_) => Type::F64,
             LlvmValue::Str(_) => Type::Str,
+            LlvmValue::Char(_) => Type::Char,
             LlvmValue::Bool(_) => Type::Bool,
 
             LlvmValue::Vector(_, inner) => Type::Vector(inner.clone()),
@@ -63,6 +65,7 @@ impl<'ctx> LlvmValue<'ctx> {
 
             LlvmValue::F64(v) => (*v).into(),
             LlvmValue::Str(v) => (*v).into(),
+            LlvmValue::Char(v) => (*v).into(),
             LlvmValue::Bool(v) => (*v).into(),
 
             LlvmValue::Vector(v, _) => (*v).into(),
@@ -96,6 +99,7 @@ impl<'ctx> LlvmValue<'ctx> {
             (Type::F64, BasicValueEnum::FloatValue(v)) => LlvmValue::F64(v),
 
             (Type::Str, BasicValueEnum::PointerValue(v)) => LlvmValue::Str(v),
+            (Type::Char, BasicValueEnum::IntValue(v)) => LlvmValue::Char(v),
 
             (Type::Bool, BasicValueEnum::IntValue(v)) => LlvmValue::Bool(v),
 
@@ -120,6 +124,7 @@ impl<'ctx> LlvmValue<'ctx> {
             Type::F64 => Some(context.f64_type().into()),
 
             Type::Str => Some(context.ptr_type(AddressSpace::default()).into()),
+            Type::Char => Some(context.i8_type().into()),
 
             Type::Bool => Some(context.bool_type().into()),
 
@@ -149,6 +154,7 @@ impl<'ctx> LlvmValue<'ctx> {
             Type::F64 => 8,
 
             Type::Bool => 1,
+            Type::Char => 1,
 
             Type::Str => 8,       // TODO: 64-bit platform only
             Type::Vector(_) => 8, // TODO: 64-bit platform only
@@ -201,5 +207,17 @@ impl<'ctx> LlvmValue<'ctx> {
                 | LlvmValue::U32(_)
                 | LlvmValue::U64(_)
         )
+    }
+
+    pub fn into_char_value(self, span: Span) -> Result<IntValue<'ctx>, Box<dyn IError>> {
+        match self {
+            LlvmValue::Char(v) => Ok(v),
+
+            other => Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Expected a char, got '{:?}'.", other.to_type()),
+                span,
+            ))),
+        }
     }
 }

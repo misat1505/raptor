@@ -72,6 +72,11 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.last_value = Some(LlvmValue::F64(const_value));
                 Ok(())
             }
+            Literal::Char(value) => {
+                let const_value = self.context.i8_type().const_int(*value as u64, false);
+                self.last_value = Some(LlvmValue::Char(const_value));
+                Ok(())
+            }
             Literal::String(value) => {
                 let string_value = self
                     .builder

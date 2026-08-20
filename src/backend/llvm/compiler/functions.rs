@@ -113,13 +113,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
             };
 
-            // Symbol LLVM musi być prawdziwą nazwą funkcji w bibliotece C
-            // (np. "InitWindow"), niezależnie od aliasu używanego w źródle.
             let symbol_name = function_decl.identifier.value.as_str();
 
             let function = self.module.add_function(symbol_name, fn_type, None);
 
-            // Klucz pozostaje aliasem używanym przez build_function_call.
             self.functions.insert(name.clone(), function);
         }
 

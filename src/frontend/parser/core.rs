@@ -80,6 +80,7 @@ impl<L: ILexer> Parser<L> {
             TokenValue::F64(value) => value.to_string(),
             TokenValue::I64(value) => value.to_string(),
             TokenValue::String(value) => value.clone(),
+            TokenValue::Char(value) => value.to_string(),
             TokenValue::Null => format!("{:?}", token.category),
         }
     }

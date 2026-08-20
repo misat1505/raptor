@@ -38,6 +38,8 @@ pub struct LibcFunctions<'ctx> {
     pub recv_fn: FunctionValue<'ctx>,
     pub send_fn: FunctionValue<'ctx>,
     pub close_fn: FunctionValue<'ctx>,
+    pub connect_fn: FunctionValue<'ctx>,
+    pub inet_addr_fn: FunctionValue<'ctx>,
 }
 
 impl<'ctx> LibcFunctions<'ctx> {
@@ -122,6 +124,16 @@ impl<'ctx> LibcFunctions<'ctx> {
             None,
         );
         let close_fn = module.add_function("close", i32_type.fn_type(&[i32_type.into()], false), None);
+        let connect_fn = module.add_function(
+            "connect",
+            i32_type.fn_type(&[i32_type.into(), str_type.into(), i32_type.into()], false),
+            None,
+        );
+        let inet_addr_fn = module.add_function(
+            "inet_addr",
+            i32_type.fn_type(&[str_type.into()], false), // in_addr_t (u32) - w LLVM IR to i32 bitowo
+            None,
+        );
 
         LibcFunctions {
             printf_fn,
@@ -152,6 +164,8 @@ impl<'ctx> LibcFunctions<'ctx> {
             remove_fn,
             send_fn,
             socket_fn,
+            connect_fn,
+            inet_addr_fn,
         }
     }
 }

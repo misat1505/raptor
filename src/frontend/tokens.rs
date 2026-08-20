@@ -45,9 +45,17 @@ pub enum TokenCategory {
     // Type keywords
     Bool,
     String,
+    I8,
+    I16,
+    I32,
     I64,
+    U8,
+    U16,
+    U32,
+    U64,
     F64,
     Void,
+    Char,
     // Others
     Assign,
     PlusEquals,
@@ -66,6 +74,7 @@ pub enum TokenCategory {
     Identifier,
     Comment,
     // Literals
+    CharValue,
     StringValue,
     I64Value,
     F64Value,
@@ -113,8 +122,16 @@ impl Debug for TokenCategory {
             Import => "import",
             Bool => "bool type",
             String => "str type",
+            I8 => "i8 type",
+            I16 => "i16 type",
+            I32 => "i32 type",
             I64 => "i64 type",
+            U8 => "u8 type",
+            U16 => "u16 type",
+            U32 => "u32 type",
+            U64 => "u64 type",
             F64 => "f64 type",
+            Char => "char type",
             Void => "void",
             Assign => "=",
             PlusEquals => "+=",
@@ -134,6 +151,7 @@ impl Debug for TokenCategory {
             StringValue => "str value",
             I64Value => "i64 value",
             F64Value => "f64 value",
+            CharValue => "char value",
             Extern => "extern",
         };
 
@@ -143,6 +161,7 @@ impl Debug for TokenCategory {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenValue {
+    Char(char),
     String(String),
     F64(f64),
     I64(i64),

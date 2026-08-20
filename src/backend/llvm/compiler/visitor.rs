@@ -10,11 +10,6 @@ use crate::{
     frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression},
 };
 
-/// Jedyne miejsce w projekcie z `impl Visitor for Compiler` — Rust nie pozwala
-/// implementować jednego trait-a dla typu w kilku osobnych blokach `impl`, więc
-/// `visit_expression`/`visit_statement` tylko delegują do `compile_expression`
-/// (expressions.rs) i `compile_statement` (statements.rs), gdzie faktycznie
-/// żyje ich logika.
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
     fn visit_program(&mut self, program: &'a Program) -> Result<(), Box<dyn IError>> {
         for statement in &program.statements {
@@ -72,13 +67,32 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
                 self.last_value = Some(LlvmValue::F64(const_value));
                 Ok(())
             }
+            Literal::Char(value) => {
+                let const_value = self.context.i8_type().const_int(*value as u64, false);
+                self.last_value = Some(LlvmValue::Char(const_value));
+                Ok(())
+            }
             Literal::String(value) => {
-                let string_value = self
-                    .builder
-                    .build_global_string_ptr(value.as_str(), "str")
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), self.span)) as Box<dyn IError>)?;
+                let err = Self::builder_err(self.span);
 
-                self.last_value = Some(LlvmValue::Str(string_value.as_pointer_value()));
+                let global = self.builder.build_global_string_ptr(value, "str.lit").map_err(&err)?;
+
+                let len = self.context.i64_type().const_int(value.len() as u64 + 1, false); // +1 na \0
+
+                let malloc_fn = self.libc.malloc_fn;
+
+                let heap_ptr = self
+                    .builder
+                    .build_call(malloc_fn, &[len.into()], "str.lit.heap")
+                    .map_err(&err)?
+                    .try_as_basic_value()
+                    .basic()
+                    .expect("malloc returns a pointer value")
+                    .into_pointer_value();
+
+                self.builder.build_memcpy(heap_ptr, 1, global.as_pointer_value(), 1, len).map_err(&err)?;
+
+                self.last_value = Some(LlvmValue::Str(heap_ptr));
 
                 Ok(())
             }

@@ -1,0 +1,34 @@
+fn tcp_read_all(i64 socket): str {
+    str result = "";
+    while (true) {
+        str chunk = tcp_read(socket);
+        if (str_len(chunk) == 0) {
+            break;
+        }
+        result += chunk;
+    }
+    return result;
+}
+
+fn main(): void {
+    str host = "localhost";
+    i64 port = 8080;
+
+    i64 sock = tcp_connect(host, port);
+
+    if (sock == -1) {
+        println("Failed to connect to " + host + ":" + port as str);
+        return;
+    }
+    
+    str request = "GET / HTTP/1.1\r\nHost: " + host + "\r\nConnection: close\r\n\r\n";
+    tcp_write(sock, request);
+
+    str response = tcp_read_all(sock);
+    tcp_close(sock);
+
+    println("Server response:");
+    println(response);
+}
+
+main();

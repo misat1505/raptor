@@ -86,7 +86,6 @@ pub fn tcp_listen() -> StdFunction {
             .expect("socket should return a value")
             .into_int_value();
 
-        // budujemy sockaddr_in (16 bajtów) na stosie
         let sockaddr_type = context.struct_type(&[i16_type.into(), i16_type.into(), i32_type.into(), i8_type.array_type(8).into()], false);
 
         let sockaddr_ptr = compiler.builder().build_alloca(sockaddr_type, "sockaddr").map_err(err)?;
@@ -98,8 +97,6 @@ pub fn tcp_listen() -> StdFunction {
 
         compiler.builder().build_store(family_field, i16_type.const_int(2, false)).map_err(err)?; // AF_INET
 
-        // port trzeba zapisać w big-endian (htons)
-        // — port ma zakres 0-65535, więc rzutujemy na i16 po zamianie bajtów
         let port_i32 = compiler.builder().build_int_truncate(port, i32_type, "port.i32").map_err(err)?;
 
         let port_lo = compiler

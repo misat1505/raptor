@@ -72,7 +72,18 @@ impl<'a> Interpreter<'a> {
                 };
 
                 match (&var_type.value, &computed_value) {
-                    (Type::I64, Value::I64(_)) | (Type::F64, Value::F64(_)) | (Type::Str, Value::String(_)) | (Type::Bool, Value::Bool(_)) => {}
+                    (Type::I8, Value::I8(_))
+                    | (Type::I16, Value::I16(_))
+                    | (Type::I32, Value::I32(_))
+                    | (Type::I64, Value::I64(_))
+                    | (Type::U8, Value::U8(_))
+                    | (Type::U16, Value::U16(_))
+                    | (Type::U32, Value::U32(_))
+                    | (Type::U64, Value::U64(_))
+                    | (Type::F64, Value::F64(_))
+                    | (Type::Str, Value::String(_))
+                    | (Type::Char, Value::Char(_))
+                    | (Type::Bool, Value::Bool(_)) => {}
 
                     (Type::Vector(declared_inner), Value::Vector { values, .. }) => {
                         for value in values.borrow().iter() {
@@ -376,56 +387,50 @@ impl<'a> Interpreter<'a> {
         let var_ref = self
             .stack
             .get_variable(identifier.value.as_str(), Span::new(identifier.span.start(), value.span.end()))
-            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), identifier.span)) as Box<dyn IError>)?;
+            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), identifier.span)) as Box<dyn IError>)?
+            .clone();
 
         let (last_index_expr, earlier_indices) = indices.split_last().expect("parser guarantees at least one index in IndexAssignment");
 
-        let mut current_values = match &*var_ref.borrow() {
-            Value::Vector { values, .. } => values.clone(),
-
-            other => {
-                return Err(Box::new(InterpreterError::expected_found(
-                    ErrorSeverity::HIGH,
-                    format!("Cannot index into variable '{}'.", identifier.value),
-                    String::from("Vector"),
-                    format!("{:?}", other.to_type()),
-                    identifier.span,
-                )));
-            }
-        };
+        let mut current_cell: Rc<RefCell<Value>> = var_ref;
 
         for index_expr in earlier_indices {
             self.visit_expression(index_expr)?;
 
             let idx = self.expect_index()?;
 
-            let borrowed = current_values.borrow();
+            let next_cell = {
+                let borrowed = current_cell.borrow();
 
-            let next_cell = borrowed.get(idx).ok_or_else(|| {
-                Box::new(InterpreterError::at(
-                    ErrorSeverity::HIGH,
-                    format!("Index {} out of bounds.", idx),
-                    index_expr.span,
-                )) as Box<dyn IError>
-            })?;
+                let values = match &*borrowed {
+                    Value::Vector { values, .. } => values.clone(),
 
-            let next_values = match &*next_cell.borrow() {
-                Value::Vector { values, .. } => values.clone(),
+                    other => {
+                        return Err(Box::new(InterpreterError::expected_found(
+                            ErrorSeverity::HIGH,
+                            String::from("Cannot index into this value."),
+                            String::from("Vector"),
+                            format!("{:?}", other.to_type()),
+                            index_expr.span,
+                        )));
+                    }
+                };
 
-                other => {
-                    return Err(Box::new(InterpreterError::expected_found(
-                        ErrorSeverity::HIGH,
-                        String::from("Cannot index into this value."),
-                        String::from("Vector"),
-                        format!("{:?}", other.to_type()),
-                        index_expr.span,
-                    )));
-                }
+                let borrowed_values = values.borrow();
+
+                borrowed_values
+                    .get(idx)
+                    .ok_or_else(|| {
+                        Box::new(InterpreterError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Index {} out of bounds.", idx),
+                            index_expr.span,
+                        )) as Box<dyn IError>
+                    })?
+                    .clone()
             };
 
-            drop(borrowed);
-
-            current_values = next_values;
+            current_cell = next_cell;
         }
 
         self.visit_expression(last_index_expr)?;
@@ -436,19 +441,65 @@ impl<'a> Interpreter<'a> {
 
         let new_value = self.read_last_result()?;
 
-        let mut borrowed = current_values.borrow_mut();
+        let mut borrowed = current_cell.borrow_mut();
 
-        let target_cell = borrowed.get_mut(idx).ok_or_else(|| {
-            Box::new(InterpreterError::at(
+        match &mut *borrowed {
+            Value::Vector { values, .. } => {
+                let mut vec_borrowed = values.borrow_mut();
+
+                let target_cell = vec_borrowed.get_mut(idx).ok_or_else(|| {
+                    Box::new(InterpreterError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Index {} out of bounds.", idx),
+                        last_index_expr.span,
+                    )) as Box<dyn IError>
+                })?;
+
+                *target_cell = Rc::new(RefCell::new(new_value));
+
+                Ok(())
+            }
+
+            Value::String(s) => {
+                let ch = match new_value {
+                    Value::Char(c) => c,
+
+                    other => {
+                        return Err(Box::new(InterpreterError::expected_found(
+                            ErrorSeverity::HIGH,
+                            String::from("Can only assign a `char` into a string index."),
+                            String::from("Char"),
+                            format!("{:?}", other.to_type()),
+                            value.span,
+                        )));
+                    }
+                };
+
+                let mut bytes = std::mem::take(s).into_bytes();
+
+                let byte = bytes.get_mut(idx).ok_or_else(|| {
+                    Box::new(InterpreterError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Index {} out of bounds.", idx),
+                        last_index_expr.span,
+                    )) as Box<dyn IError>
+                })?;
+
+                *byte = ch as u8;
+
+                *s = String::from_utf8(bytes).expect("byte-level char assignment should preserve valid ASCII/UTF-8");
+
+                Ok(())
+            }
+
+            other => Err(Box::new(InterpreterError::expected_found(
                 ErrorSeverity::HIGH,
-                format!("Index {} out of bounds.", idx),
+                String::from("Cannot index into this value."),
+                String::from("Vector or Str"),
+                format!("{:?}", other.to_type()),
                 last_index_expr.span,
-            )) as Box<dyn IError>
-        })?;
-
-        *target_cell = Rc::new(RefCell::new(new_value));
-
-        Ok(())
+            ))),
+        }
     }
 
     pub(in crate::backend::interpreter::interpreter) fn resolve_reference(

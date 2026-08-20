@@ -48,6 +48,7 @@ impl<'a> SemanticChecker<'a> {
 
             match current_type {
                 Type::Vector(inner) => current_type = *inner,
+                Type::Str => current_type = Type::Char,
 
                 other => {
                     self.errors.push(Box::new(SemanticCheckerError::at(
@@ -161,6 +162,9 @@ impl<'a> SemanticChecker<'a> {
                 match (collection_type, index_type) {
                     (Ok(Type::Vector(inner)), Ok(Type::I64)) => {
                         self.last_result = Some(*inner);
+                    }
+                    (Ok(Type::Str), Ok(Type::I64)) => {
+                        self.last_result = Some(Type::Char);
                     }
 
                     (Ok(other), Ok(Type::I64)) => {

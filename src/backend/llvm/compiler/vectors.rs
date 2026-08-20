@@ -102,8 +102,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .into_pointer_value();
 
         for (index, element) in elements.iter().enumerate() {
-            // element 0 mógł już zostać policzony wcześniej (np. do wywnioskowania inner_type) —
-            // wtedy nie liczymy go drugi raz, żeby nie zdublować efektów ubocznych (np. wywołań funkcji)
             let element_value = if index == 0 {
                 if let Some(value) = precomputed_first.clone() {
                     value
@@ -250,7 +248,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let element_size = LlvmValue::element_byte_size(inner_type, i64_type, span)?;
         let bytes = self.builder.build_int_mul(old_length, element_size, "copy.bytes").map_err(&err)?;
 
-        // dla pustego wektora (data == null) unikamy malloc(0)/memcpy z null jako src — to UB
         let new_data_alloca = self.builder.build_alloca(ptr_type, "copy.data.slot").map_err(&err)?;
         self.builder.build_store(new_data_alloca, ptr_type.const_null()).map_err(&err)?;
 
@@ -315,7 +312,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .builder
             .build_struct_gep(struct_type, new_struct_ptr, 2, "copy.dst.capacity")
             .map_err(&err)?;
-        self.builder.build_store(new_capacity_field, old_length).map_err(&err)?; // po kopii capacity == length
+        self.builder.build_store(new_capacity_field, old_length).map_err(&err)?;
 
         Ok(new_struct_ptr)
     }
@@ -338,12 +335,76 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let err = Self::builder_err(span);
         let struct_type = LlvmValue::vector_struct_type(self.context);
         let ptr_type = self.context.ptr_type(AddressSpace::default());
+        let i8_type = self.context.i8_type();
 
         let mut current_element_type = current_type.clone();
 
         for (i, index_expr) in indices.iter().enumerate() {
-            let inner_type = match &current_element_type {
-                Type::Vector(inner) => (**inner).clone(),
+            let is_last = i == indices.len() - 1;
+
+            match &current_element_type {
+                Type::Vector(inner) => {
+                    let inner_type = (**inner).clone();
+
+                    let data_field = self.builder.build_struct_gep(struct_type, current_ptr, 0, "idx.data").map_err(&err)?;
+
+                    let data = self
+                        .builder
+                        .build_load(ptr_type, data_field, "idx.data.val")
+                        .map_err(&err)?
+                        .into_pointer_value();
+
+                    self.visit_expression(index_expr)?;
+                    let index_value = self.read_last_value()?.into_i64_value(index_expr.span)?;
+
+                    let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                            index_expr.span,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    let element_ptr = unsafe {
+                        self.builder
+                            .build_gep(element_llvm_type, data, &[index_value], "idx.elem")
+                            .map_err(&err)?
+                    };
+
+                    if is_last {
+                        return Ok((element_ptr, inner_type));
+                    }
+
+                    current_ptr = self
+                        .builder
+                        .build_load(ptr_type, element_ptr, "idx.next")
+                        .map_err(&err)?
+                        .into_pointer_value();
+
+                    current_element_type = inner_type;
+                }
+
+                Type::Str => {
+                    self.visit_expression(index_expr)?;
+                    let index_value = self.read_last_value()?.into_i64_value(index_expr.span)?;
+
+                    let element_ptr = unsafe {
+                        self.builder
+                            .build_gep(i8_type, current_ptr, &[index_value], "idx.str.elem")
+                            .map_err(&err)?
+                    };
+
+                    if is_last {
+                        return Ok((element_ptr, Type::Char));
+                    }
+
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        String::from("Cannot index into type 'Char'."),
+                        index_expr.span,
+                    )) as Box<dyn IError>);
+                }
+
                 other => {
                     return Err(Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
@@ -351,44 +412,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         index_expr.span,
                     )) as Box<dyn IError>)
                 }
-            };
-
-            let data_field = self.builder.build_struct_gep(struct_type, current_ptr, 0, "idx.data").map_err(&err)?;
-
-            let data = self
-                .builder
-                .build_load(ptr_type, data_field, "idx.data.val")
-                .map_err(&err)?
-                .into_pointer_value();
-
-            self.visit_expression(index_expr)?;
-            let index_value = self.read_last_value()?.into_i64_value(index_expr.span)?;
-
-            let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
-                Box::new(CompilerError::at(
-                    ErrorSeverity::HIGH,
-                    format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
-                    index_expr.span,
-                )) as Box<dyn IError>
-            })?;
-
-            let element_ptr = unsafe {
-                self.builder
-                    .build_gep(element_llvm_type, data, &[index_value], "idx.elem")
-                    .map_err(&err)?
-            };
-
-            if i == indices.len() - 1 {
-                return Ok((element_ptr, inner_type));
             }
-
-            current_ptr = self
-                .builder
-                .build_load(ptr_type, element_ptr, "idx.next")
-                .map_err(&err)?
-                .into_pointer_value();
-
-            current_element_type = inner_type;
         }
 
         Err(Box::new(CompilerError::at(

@@ -13,7 +13,7 @@ extern fn InitWindow(i64 x, i64 y, str name): void as init_window;
 extern fn PrintValue(i64 value): void as print_value;
 ```
 
-**function_declaration** = “fn”, identifier, "(", parameters, ")", “:”, type | “void”, statement_block;
+**function_declaration** = "fn", identifier, "(", parameters, ")", ":", type | "void", statement_block;
 
 ```text
 fn is_prime(i64 x, &i64 total_iters): bool {
@@ -27,7 +27,7 @@ fn add(i64 a, i64 b): i64 {
 
 **parameters** = [ parameter, { ",", parameter } ];
 
-**parameter** = [“&”], type, identifier;
+**parameter** = ["&"], type, identifier;
 
 **statement_block** = ("{", {statement}, "}") | statement;
 
@@ -66,7 +66,7 @@ if (x == 5) {
 }
 ```
 
-**for_statement** = "for", "(", [ declaration ], “;”, expression, “;”, [ assign_or_call_without_semicolon ], ")", statement_block;
+**for_statement** = "for", "(", [ declaration ], ";", expression, ";", [ assign_or_call_without_semicolon ], ")", statement_block;
 
 ```text
 for (i64 i = 0; i < 10; i = i + 1) {
@@ -110,7 +110,7 @@ continue;
 return a + 2 * b;
 ```
 
-**argument** = [“&”], expression;
+**argument** = ["&"], expression;
 
 **arguments** = [ argument, {",", argument} ];
 
@@ -126,13 +126,13 @@ Multiple arguments are separated by commas:
 calculate(a + 2, &b, c);
 ```
 
-**expression** = concatenation_term { “||”, concatenation_term };
+**expression** = concatenation_term { "||", concatenation_term };
 
 ```text
 a == b && b || c
 ```
 
-**concatenation_term** = relation_term, { “&&”, relation_term };
+**concatenation_term** = relation_term, { "&&", relation_term };
 
 ```text
 a == b && b
@@ -159,7 +159,7 @@ x + 10 - y
 x * 10 % 3
 ```
 
-**casted_term** = unary_term, [ “as”, type ];
+**casted_term** = unary_term, [ "as", type ];
 
 ```text
 (x + add(2, 2)) as f64
@@ -224,7 +224,7 @@ x[0][0]
 fun(5)[0][0]
 ```
 
-**literal** = integer_literal | float_literal | boolean_literal | string_literal;
+**literal** = integer_literal | float_literal | boolean_literal | string_literal | char_literal;
 
 **identifier** = letter, {character};
 
@@ -238,7 +238,7 @@ result_value
 
 **switch_expression** = expression, [ ":", identifier ];
 
-**switch_expressions** = switch_expression, { “,”, switch_expression };
+**switch_expressions** = switch_expression, { ",", switch_expression };
 
 **switch_case** = "(", expression, ")", "->", statement_block;
 
@@ -259,15 +259,15 @@ switch (x: temp1, y: temp2) {
 
 **letter** = "a" - "z" | "A" - "Z";
 
-**type** = (“i64“| “f64” | “bool” | “str”), { "[]" };
+**type** = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str"), { "[]" };
 
 **relation_operands** = "==" | "<" | "<=" | ">" | ">=" | "!=";
 
-**digit** = "0" - “9”;
+**digit** = "0" - "9";
 
 **non_zero_digit** = "1" - "9";
 
-**integer_literal** = ( non_zero_digit, {digit} ) | “0”;
+**integer_literal** = ( non_zero_digit, {digit} ) | "0";
 
 ```text
 1
@@ -286,9 +286,9 @@ switch (x: temp1, y: temp2) {
 0.00001
 ```
 
-**string_literal** = “\””, {unicode_character - “\””}, “\””;
+**string_literal** = "\", {unicode_character - "\"}, "\";
 
-**boolean_literal** = “true” | “false”;
+**boolean_literal** = "true" | "false";
 
 **character** = "a" - "z" | "A" - "Z" | "0" - "9" | "_";
 

@@ -32,7 +32,6 @@ pub struct Lexer {
     import_stack: Vec<String>,
     current: Option<Token>,
 
-    // Początek aktualnie generowanego tokena.
     position: Position,
 
     options: LexerOptions,
@@ -94,10 +93,6 @@ impl Lexer {
         Ok(lexer)
     }
 
-    /// Tworzy span aktualnie generowanego tokena.
-    ///
-    /// `self.position` jest początkiem tokena, natomiast pozycja
-    /// readera wskazuje miejsce, do którego lexer doszedł.
     fn current_span(&self) -> Span {
         let start = self.position.clone();
         let end = self.src.last().unwrap().position().clone();
@@ -110,6 +105,7 @@ impl Lexer {
             TokenValue::F64(value) => value.to_string(),
             TokenValue::I64(value) => value.to_string(),
             TokenValue::String(value) => value.clone(),
+            TokenValue::Char(value) => value.to_string(),
             TokenValue::Null => format!("{:?}", token.category),
         }
     }
@@ -209,7 +205,6 @@ impl Lexer {
     pub fn generate_token(&mut self) -> Result<Token, Box<dyn IError>> {
         self.skip_whitespaces();
 
-        // Zapamiętujemy początek tokena.
         self.position = self.src.last().unwrap().position().clone();
 
         let result_methods = [
@@ -217,6 +212,7 @@ impl Lexer {
             Self::try_generating_operator,
             Self::try_generating_comment,
             Self::try_generating_string,
+            Self::try_generating_char,
             Self::try_generating_number,
             Self::try_creating_identifier_or_keyword,
         ];
@@ -419,6 +415,77 @@ impl Lexer {
             value: TokenValue::Null,
             span: Span::new(start, self.src.last().unwrap().position().clone()),
         }
+    }
+
+    fn try_generating_char(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
+        let start = self.position.clone();
+
+        let current_char = self.src.last().unwrap().current().clone();
+
+        if current_char != '\'' {
+            return Ok(None);
+        }
+
+        let mut next_char = self.src.last_mut().unwrap().next().unwrap().clone();
+
+        if next_char == '\'' {
+            let span = Span::new(start, self.src.last().unwrap().position().clone());
+            return Err(Box::new(LexerError::at(ErrorSeverity::HIGH, "Empty char literal".to_string(), span)));
+        }
+
+        if next_char == '\n' {
+            return Err(self.create_lexer_error("Unexpected newline in char literal".to_string()));
+        }
+
+        if next_char == ETX {
+            let span = Span::new(start, self.src.last().unwrap().position().clone());
+            return Err(Box::new(LexerError::at(
+                ErrorSeverity::HIGH,
+                "Unexpected end of file in char literal".to_string(),
+                span,
+            )));
+        }
+
+        let value: char;
+
+        if next_char == '\\' {
+            let escaped_char = self.src.last_mut().unwrap().next().unwrap().clone();
+
+            match ESCAPES.get(&escaped_char) {
+                Some(escaped) => {
+                    value = *escaped;
+                }
+                None => {
+                    let span = Span::new(start, self.src.last().unwrap().position().clone());
+                    return Err(Box::new(LexerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Invalid escape symbol detected '\\{}'", escaped_char),
+                        span,
+                    )));
+                }
+            }
+        } else {
+            value = next_char;
+        }
+
+        next_char = self.src.last_mut().unwrap().next().unwrap().clone();
+
+        if next_char != '\'' {
+            let span = Span::new(start, self.src.last().unwrap().position().clone());
+            return Err(Box::new(LexerError::at(
+                ErrorSeverity::HIGH,
+                "Char literal must contain exactly one character".to_string(),
+                span,
+            )));
+        }
+
+        let _ = self.src.last_mut().unwrap().next();
+
+        Ok(Some(Token {
+            category: TokenCategory::CharValue,
+            value: TokenValue::Char(value),
+            span: Span::new(start, self.src.last().unwrap().position().clone()),
+        }))
     }
 
     fn try_generating_string(&mut self) -> Result<Option<Token>, Box<dyn IError>> {
@@ -658,9 +725,17 @@ static KEYWORDS: phf::Map<&'static str, TokenCategory> = phf_map! {
     "if" => TokenCategory::If,
     "else" => TokenCategory::Else,
     "return" => TokenCategory::Return,
+    "i8" => TokenCategory::I8,
+    "i16" => TokenCategory::I16,
+    "i32" => TokenCategory::I32,
     "i64" => TokenCategory::I64,
+    "u8" => TokenCategory::U8,
+    "u16" => TokenCategory::U16,
+    "u32" => TokenCategory::U32,
+    "u64" => TokenCategory::U64,
     "f64" => TokenCategory::F64,
     "str" => TokenCategory::String,
+    "char" => TokenCategory::Char,
     "void" => TokenCategory::Void,
     "bool" => TokenCategory::Bool,
     "true" => TokenCategory::True,

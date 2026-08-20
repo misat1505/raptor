@@ -5,6 +5,9 @@ pub mod llvm_value;
 mod logical;
 mod unary;
 
+#[cfg(test)]
+mod tests;
+
 use inkwell::builder::BuilderError;
 
 use crate::backend::llvm::llvm_alu::llvm_value::LlvmValue;

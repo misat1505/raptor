@@ -1,15 +1,3 @@
-# Snake Online - KLIENT (raylib)
-#
-# Uruchom snake_server.rp, potem ten plik DWA RAZY w dwoch terminalach.
-# W jednej kopii ustaw PLAYER_ID = 0, w drugiej PLAYER_ID = 1.
-#
-# WAZNE: funkcje widza TYLKO parametry i lokalne zmienne, dlatego host/port/
-# player_id sa jawnie przekazywane do fetch_world/send_reset zamiast czytane
-# jako globalne wewnatrz tych funkcji.
-#
-# Build:
-# cargo run --bin raptor -- --compile --run -O3 --link <path_to_libraylib.a> --link -lm --link -lX11 snake_client.rp
-
 extern fn InitWindow(i64 x, i64 y, str name): void as init_window;
 extern fn WindowShouldClose(): bool as window_should_close;
 extern fn BeginDrawing(): void as begin_drawing;

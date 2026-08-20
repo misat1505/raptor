@@ -1,25 +1,9 @@
-# Snake Online - SERWER
-# Uruchom ten plik, potem odpal snake_client.rp dwa razy (z PLAYER_ID = 0 i PLAYER_ID = 1)
-#
-# WAZNE: funkcje w tym jezyku widza TYLKO swoje parametry i lokalne zmienne -
-# zaden odczyt/zapis do zmiennych globalnych z wnetrza funkcji. Dlatego:
-#  - stale (GRID_W, GRID_H) sa przekazywane jako argumenty
-#  - stan RNG jest przekazywany i zwracany jawnie: [x, y, nowy_rng_state]
-#  - caly ruch/kolizje/wzrost weza siedzi wprost w petli glownej (top-level),
-#    a nie w osobnej funkcji - bo ta logika MUSI mutowac wiele globalnych
-#    zmiennych naraz (snake0, snake1, score0, score1, apple, game_over)
-#
-# Protokol (surowy TCP, bez HTTP):
-#   klient -> serwer:  "INPUT <player_id> <dx> <dy>"   albo   "RESET"
-#   serwer -> klient:  "GAMEOVER:0|SCORE0:0|SCORE1:0|APPLE:x,y|SNAKE0:x,y;x,y;...|SNAKE1:x,y;..."
-
 fn rand_next(i64 state): i64 {
     i64 new_state = (state * 1103515245 + 12345) % 2147483648;
     if (new_state < 0) new_state = -new_state;
     return new_state;
 }
 
-# zwraca [wylosowana_wartosc, nowy_rng_state]
 fn rand_range(i64 state, i64 min, i64 max): i64[] {
     i64 new_state = rand_next(state);
     i64 value = min + (new_state % (max - min + 1));
@@ -77,12 +61,10 @@ fn serialize_world(bool game_over, i64 score0, i64 score1, &i64[] apple, &i64[][
         + "|SNAKE1:" + serialize_snake(&snake1);
 }
 
-# --- Stale (top-level, widoczne w petli glownej) ---
 i64 GRID_W = 30;
 i64 GRID_H = 20;
 i64 TICK_SPEED = 16;
 
-# --- Stan swiata (top-level) ---
 i64 rng_state = 12345;
 i64[][] snake0 = [[5, 10], [4, 10], [3, 10]];
 i64[][] snake1 = [[24, 10], [25, 10], [26, 10]];

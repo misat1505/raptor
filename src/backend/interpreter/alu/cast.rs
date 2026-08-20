@@ -102,18 +102,18 @@ impl ALU {
             }
 
             // Integer -> Bool
-            (Value::I8(value), Type::Bool) => Ok(Value::Bool(value != 0)),
-            (Value::I16(value), Type::Bool) => Ok(Value::Bool(value != 0)),
-            (Value::I32(value), Type::Bool) => Ok(Value::Bool(value != 0)),
-            (Value::I64(value), Type::Bool) => Ok(Value::Bool(value != 0)),
+            (Value::I8(value), Type::Bool) => Ok(Value::Bool(value > 0)),
+            (Value::I16(value), Type::Bool) => Ok(Value::Bool(value > 0)),
+            (Value::I32(value), Type::Bool) => Ok(Value::Bool(value > 0)),
+            (Value::I64(value), Type::Bool) => Ok(Value::Bool(value > 0)),
 
-            (Value::U8(value), Type::Bool) => Ok(Value::Bool(value != 0)),
-            (Value::U16(value), Type::Bool) => Ok(Value::Bool(value != 0)),
-            (Value::U32(value), Type::Bool) => Ok(Value::Bool(value != 0)),
-            (Value::U64(value), Type::Bool) => Ok(Value::Bool(value != 0)),
+            (Value::U8(value), Type::Bool) => Ok(Value::Bool(value > 0)),
+            (Value::U16(value), Type::Bool) => Ok(Value::Bool(value > 0)),
+            (Value::U32(value), Type::Bool) => Ok(Value::Bool(value > 0)),
+            (Value::U64(value), Type::Bool) => Ok(Value::Bool(value > 0)),
 
             // F64 -> Bool
-            (Value::F64(value), Type::Bool) => Ok(Value::Bool(value != 0.0)),
+            (Value::F64(value), Type::Bool) => Ok(Value::Bool(value > 0.0)),
 
             // String -> Integer
             (Value::String(string), Type::I8) => match string.parse::<i8>() {

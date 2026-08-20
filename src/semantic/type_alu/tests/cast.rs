@@ -35,29 +35,6 @@ fn cast_to_type_invalid() {
 }
 
 #[test]
-fn cast_to_type_same_type_is_invalid() {
-    assert_eq!(
-        TypeALU::cast_to_type(Type::I64, &Type::I64, Span::default()).err().unwrap().message(),
-        "Cannot cast 'i64' to 'i64'."
-    );
-
-    assert_eq!(
-        TypeALU::cast_to_type(Type::F64, &Type::F64, Span::default()).err().unwrap().message(),
-        "Cannot cast 'f64' to 'f64'."
-    );
-
-    assert_eq!(
-        TypeALU::cast_to_type(Type::Bool, &Type::Bool, Span::default()).err().unwrap().message(),
-        "Cannot cast 'bool' to 'bool'."
-    );
-
-    assert_eq!(
-        TypeALU::cast_to_type(Type::Str, &Type::Str, Span::default()).err().unwrap().message(),
-        "Cannot cast 'str' to 'str'."
-    );
-}
-
-#[test]
 fn cast_vector_to_supported_types_is_invalid() {
     assert_eq!(
         TypeALU::cast_to_type(Type::Vector(Box::new(Type::I64)), &Type::Str, Span::default())

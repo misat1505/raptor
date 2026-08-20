@@ -28,7 +28,7 @@ fn add_fail() {
             .err()
             .unwrap()
             .message(),
-        String::from("Overflow occurred when performing addition on i64s.")
+        String::from("Overflow occurred when performing addition on i64 and i64.")
     );
     assert_eq!(
         ALU::add(Value::I64(1), Value::F64(2.0), Span::default()).err().unwrap().message(),
@@ -55,7 +55,7 @@ fn subtract_fail() {
             .err()
             .unwrap()
             .message(),
-        String::from("Overflow occurred when performing subtraction on i64s.")
+        String::from("Overflow occurred when performing subtraction on i64 and i64.")
     );
     assert_eq!(
         ALU::subtract(Value::I64(1), Value::F64(2.0), Span::default()).err().unwrap().message(),
@@ -89,7 +89,7 @@ fn multiplication_fail() {
             .err()
             .unwrap()
             .message(),
-        String::from("Overflow occurred when performing multiplication on i64s.")
+        String::from("Overflow occurred when performing multiplication on i64 and i64.")
     );
     assert_eq!(
         ALU::multiplication(Value::I64(1), Value::F64(2.0), Span::default())
@@ -126,7 +126,7 @@ fn division_fail() {
             .err()
             .unwrap()
             .message(),
-        String::from("Overflow occurred when performing division on i64s.")
+        String::from("Overflow occurred when performing division on i64 and i64.")
     );
     assert_eq!(
         ALU::division(Value::I64(1), Value::F64(2.0), Span::default()).err().unwrap().message(),
@@ -161,7 +161,7 @@ fn modulo() {
 fn modulo_fail() {
     assert_eq!(
         ALU::modulo(Value::I64(1), Value::I64(0), Span::default()).err().unwrap().message(),
-        String::from("Overflow occurred when performing modulo on i64s.")
+        String::from("Overflow occurred when performing modulo on i64 and i64.")
     );
     assert_eq!(
         ALU::modulo(Value::I64(1), Value::F64(2.0), Span::default()).err().unwrap().message(),

@@ -177,7 +177,7 @@ impl LlvmAlu {
                 let zero = value.get_type().const_float(0.0);
 
                 builder
-                    .build_float_compare(FloatPredicate::ONE, value, zero, "f64_to_bool")
+                    .build_float_compare(FloatPredicate::OGT, value, zero, "f64_to_bool")
                     .map(LlvmValue::Bool)
                     .map_err(|err| Self::map_err(err, span))
             }
@@ -489,7 +489,7 @@ impl LlvmAlu {
     fn int_to_bool<'ctx>(builder: &Builder<'ctx>, value: IntValue<'ctx>, signed: bool, span: Span) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         let zero = value.get_type().const_zero();
 
-        let predicate = if signed { IntPredicate::NE } else { IntPredicate::NE };
+        let predicate = if signed { IntPredicate::SGT } else { IntPredicate::UGT };
 
         builder
             .build_int_compare(predicate, value, zero, "int_to_bool")
@@ -723,7 +723,7 @@ impl LlvmAlu {
             .expect("malloc should return a value")
             .into_pointer_value();
 
-        let format = builder.build_global_string_ptr("%f", "f64_fmt").map_err(|err| Self::map_err(err, span))?;
+        let format = builder.build_global_string_ptr("%g", "f64_fmt").map_err(|err| Self::map_err(err, span))?;
 
         builder
             .build_call(

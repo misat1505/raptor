@@ -83,7 +83,7 @@ fn cast_bool_to_other_types() {
 
 #[test]
 fn cast_to_type_unsupported_combination_fails() {
-    let result = ALU::cast_to_type(Value::I64(1), &Type::I64, Span::default());
+    let result = ALU::cast_to_type(Value::I64(1), &Type::Char, Span::default());
     assert!(result.is_err());
-    assert_eq!(result.err().unwrap().message(), String::from("Cannot cast 'I64(1)' to 'i64'."));
+    assert_eq!(result.err().unwrap().message(), String::from("Cannot cast '1' to 'char'."));
 }

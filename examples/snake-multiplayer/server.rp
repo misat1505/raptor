@@ -20,7 +20,6 @@ fn is_on_any_snake(&i64[][] snake0, &i64[][] snake1, i64 x, i64 y): bool {
     return false;
 }
 
-# zwraca [x, y, nowy_rng_state]
 fn spawn_apple(&i64[][] snake0, &i64[][] snake1, i64 rng_state, i64 grid_w, i64 grid_h): i64[] {
     i64[] rx = rand_range(rng_state, 0, grid_w - 1);
     i64 x = rx[0];
@@ -104,7 +103,7 @@ fn split_by_delim(str text, char delim): str[] {
     return segments;
 }
 
-for (;true;) {
+while (true) {
     i64 client = tcp_accept(listener);
     str request = tcp_read(client);
 

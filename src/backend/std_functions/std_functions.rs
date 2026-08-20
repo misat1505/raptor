@@ -7,7 +7,10 @@ use crate::{
         std_functions::{
             files::{append_file::append_file, delete_file::delete_file, exists_file::exists_file, read_file::read_file, write_file::write_file},
             io::{input::input, print::print, println::println},
-            network::{tcp_accept::tcp_accept, tcp_close::tcp_close, tcp_listen::tcp_listen, tcp_read::tcp_read, tcp_write::tcp_write},
+            network::{
+                tcp_accept::tcp_accept, tcp_close::tcp_close, tcp_connect::tcp_connect, tcp_listen::tcp_listen, tcp_read::tcp_read,
+                tcp_write::tcp_write,
+            },
             strings::str_len::str_len,
             time::sleep_ms::sleep_ms,
             vectors::{vector_push::vector_push, vector_size::vector_size, vector_stringify::vector_stringify},
@@ -73,6 +76,7 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
         ("tcp_read".into(), tcp_read()),
         ("tcp_write".into(), tcp_write()),
         ("tcp_close".into(), tcp_close()),
+        ("tcp_connect".into(), tcp_connect()),
         ("sleep_ms".into(), sleep_ms()),
         ("str_len".into(), str_len()),
     ])

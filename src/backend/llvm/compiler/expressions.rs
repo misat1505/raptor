@@ -58,8 +58,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         Ok(())
     }
 
-    /// Treść dawnego `Visitor::visit_expression`.
-    /// `visit_expression` w `visitor.rs` tylko woła tę metodę.
     pub(in crate::backend::llvm::compiler) fn compile_expression(&mut self, expression: &'a Node<Expression>) -> Result<(), Box<dyn IError>> {
         let span = expression.span;
 

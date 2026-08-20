@@ -102,8 +102,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .into_pointer_value();
 
         for (index, element) in elements.iter().enumerate() {
-            // element 0 mógł już zostać policzony wcześniej (np. do wywnioskowania inner_type) —
-            // wtedy nie liczymy go drugi raz, żeby nie zdublować efektów ubocznych (np. wywołań funkcji)
             let element_value = if index == 0 {
                 if let Some(value) = precomputed_first.clone() {
                     value
@@ -250,7 +248,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let element_size = LlvmValue::element_byte_size(inner_type, i64_type, span)?;
         let bytes = self.builder.build_int_mul(old_length, element_size, "copy.bytes").map_err(&err)?;
 
-        // dla pustego wektora (data == null) unikamy malloc(0)/memcpy z null jako src — to UB
         let new_data_alloca = self.builder.build_alloca(ptr_type, "copy.data.slot").map_err(&err)?;
         self.builder.build_store(new_data_alloca, ptr_type.const_null()).map_err(&err)?;
 
@@ -315,7 +312,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .builder
             .build_struct_gep(struct_type, new_struct_ptr, 2, "copy.dst.capacity")
             .map_err(&err)?;
-        self.builder.build_store(new_capacity_field, old_length).map_err(&err)?; // po kopii capacity == length
+        self.builder.build_store(new_capacity_field, old_length).map_err(&err)?;
 
         Ok(new_struct_ptr)
     }

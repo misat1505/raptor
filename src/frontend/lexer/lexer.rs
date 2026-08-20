@@ -32,7 +32,6 @@ pub struct Lexer {
     import_stack: Vec<String>,
     current: Option<Token>,
 
-    // Początek aktualnie generowanego tokena.
     position: Position,
 
     options: LexerOptions,
@@ -94,10 +93,6 @@ impl Lexer {
         Ok(lexer)
     }
 
-    /// Tworzy span aktualnie generowanego tokena.
-    ///
-    /// `self.position` jest początkiem tokena, natomiast pozycja
-    /// readera wskazuje miejsce, do którego lexer doszedł.
     fn current_span(&self) -> Span {
         let start = self.position.clone();
         let end = self.src.last().unwrap().position().clone();
@@ -210,7 +205,6 @@ impl Lexer {
     pub fn generate_token(&mut self) -> Result<Token, Box<dyn IError>> {
         self.skip_whitespaces();
 
-        // Zapamiętujemy początek tokena.
         self.position = self.src.last().unwrap().position().clone();
 
         let result_methods = [

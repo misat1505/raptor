@@ -22,14 +22,10 @@ impl LlvmAlu {
         span: Span,
     ) -> Result<LlvmValue<'ctx>, Box<dyn IError>> {
         match (value, to_type) {
-            // -----------------------------------------------------------------
             // Same type
-            // -----------------------------------------------------------------
             (value, target_type) if value.to_type() == *target_type => Ok(value),
 
-            // -----------------------------------------------------------------
             // Integer -> Integer
-            // -----------------------------------------------------------------
             (LlvmValue::I8(value), Type::I8) => Ok(LlvmValue::I8(value)),
             (LlvmValue::I8(value), Type::I16) => Self::int_extend_signed(builder, value, 16, span),
             (LlvmValue::I8(value), Type::I32) => Self::int_extend_signed(builder, value, 32, span),
@@ -70,9 +66,7 @@ impl LlvmAlu {
             (LlvmValue::I64(value), Type::U32) => Self::int_cast(builder, value, 32, false, span),
             (LlvmValue::I64(value), Type::U64) => Self::int_cast(builder, value, 64, false, span),
 
-            // -----------------------------------------------------------------
             // Unsigned integer -> Integer
-            // -----------------------------------------------------------------
             (LlvmValue::U8(value), Type::I8) => Self::int_cast(builder, value, 8, false, span),
             (LlvmValue::U8(value), Type::I16) => Self::int_extend_unsigned(builder, value, 16, span),
             (LlvmValue::U8(value), Type::I32) => Self::int_extend_unsigned(builder, value, 32, span),
@@ -113,9 +107,7 @@ impl LlvmAlu {
             (LlvmValue::U64(value), Type::U32) => Self::int_cast(builder, value, 32, false, span),
             (LlvmValue::U64(value), Type::U64) => Ok(LlvmValue::U64(value)),
 
-            // -----------------------------------------------------------------
             // Integer -> F64
-            // -----------------------------------------------------------------
             (LlvmValue::I8(value), Type::F64) => Self::signed_int_to_float(builder, value, span),
 
             (LlvmValue::I16(value), Type::F64) => Self::signed_int_to_float(builder, value, span),
@@ -132,9 +124,7 @@ impl LlvmAlu {
 
             (LlvmValue::U64(value), Type::F64) => Self::unsigned_int_to_float(builder, value, span),
 
-            // -----------------------------------------------------------------
             // F64 -> Integer
-            // -----------------------------------------------------------------
             (LlvmValue::F64(value), Type::I8) => Self::float_to_signed_int(builder, value, 8, span),
 
             (LlvmValue::F64(value), Type::I16) => Self::float_to_signed_int(builder, value, 16, span),
@@ -151,9 +141,7 @@ impl LlvmAlu {
 
             (LlvmValue::F64(value), Type::U64) => Self::float_to_unsigned_int(builder, value, 64, span),
 
-            // -----------------------------------------------------------------
             // Integer -> Bool
-            // -----------------------------------------------------------------
             (LlvmValue::I8(value), Type::Bool) => Self::int_to_bool(builder, value, true, span),
 
             (LlvmValue::I16(value), Type::Bool) => Self::int_to_bool(builder, value, true, span),
@@ -170,9 +158,7 @@ impl LlvmAlu {
 
             (LlvmValue::U64(value), Type::Bool) => Self::int_to_bool(builder, value, false, span),
 
-            // -----------------------------------------------------------------
             // F64 -> Bool
-            // -----------------------------------------------------------------
             (LlvmValue::F64(value), Type::Bool) => {
                 let zero = value.get_type().const_float(0.0);
 
@@ -182,9 +168,7 @@ impl LlvmAlu {
                     .map_err(|err| Self::map_err(err, span))
             }
 
-            // -----------------------------------------------------------------
             // String -> Integer
-            // -----------------------------------------------------------------
             (LlvmValue::Str(value), Type::I8) => Self::string_to_signed_int(builder, libc, value, 8, span),
 
             (LlvmValue::Str(value), Type::I16) => Self::string_to_signed_int(builder, libc, value, 16, span),
@@ -201,9 +185,7 @@ impl LlvmAlu {
 
             (LlvmValue::Str(value), Type::U64) => Self::string_to_unsigned_int(builder, libc, value, 64, span),
 
-            // -----------------------------------------------------------------
             // String -> F64
-            // -----------------------------------------------------------------
             (LlvmValue::Str(value), Type::F64) => {
                 let call = builder
                     .build_call(libc.atof_fn, &[value.into()], "atof_call")
@@ -214,9 +196,7 @@ impl LlvmAlu {
                 Ok(LlvmValue::F64(value))
             }
 
-            // -----------------------------------------------------------------
             // String -> Bool
-            // -----------------------------------------------------------------
             (LlvmValue::Str(value), Type::Bool) => {
                 let call = builder
                     .build_call(libc.strlen_fn, &[value.into()], "strlen_call")
@@ -232,9 +212,7 @@ impl LlvmAlu {
                     .map_err(|err| Self::map_err(err, span))
             }
 
-            // -----------------------------------------------------------------
             // Integer -> String
-            // -----------------------------------------------------------------
             (LlvmValue::I8(value), Type::Str) => Self::signed_int_to_str(builder, libc, value, 8, span),
 
             (LlvmValue::I16(value), Type::Str) => Self::signed_int_to_str(builder, libc, value, 16, span),
@@ -251,19 +229,13 @@ impl LlvmAlu {
 
             (LlvmValue::U64(value), Type::Str) => Self::unsigned_int_to_str(builder, libc, value, 64, span),
 
-            // -----------------------------------------------------------------
             // F64 -> String
-            // -----------------------------------------------------------------
             (LlvmValue::F64(value), Type::Str) => Self::float_to_str(builder, libc, value, span),
 
-            // -----------------------------------------------------------------
             // Bool -> String
-            // -----------------------------------------------------------------
             (LlvmValue::Bool(value), Type::Str) => Self::bool_to_str(builder, value, span),
 
-            // -----------------------------------------------------------------
             // Bool -> Integer
-            // -----------------------------------------------------------------
             (LlvmValue::Bool(value), Type::I8) => Self::bool_to_int(builder, value, 8, span),
 
             (LlvmValue::Bool(value), Type::I16) => Self::bool_to_int(builder, value, 16, span),
@@ -280,9 +252,7 @@ impl LlvmAlu {
 
             (LlvmValue::Bool(value), Type::U64) => Self::bool_to_int(builder, value, 64, span),
 
-            // -----------------------------------------------------------------
             // Bool -> F64
-            // -----------------------------------------------------------------
             (LlvmValue::Bool(value), Type::F64) => builder
                 .build_unsigned_int_to_float(value, Self::context(builder).f64_type(), "bool_to_f64")
                 .map(LlvmValue::F64)
@@ -295,9 +265,7 @@ impl LlvmAlu {
             (LlvmValue::Char(c), Type::U8) => Ok(LlvmValue::U8(c)),
             (LlvmValue::U8(val), Type::Char) => Ok(LlvmValue::Char(val)),
 
-            // -----------------------------------------------------------------
             // Unsupported
-            // -----------------------------------------------------------------
             (value, target_type) => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Cannot cast '{:?}' to '{:?}'.", value.to_type(), target_type),
@@ -306,9 +274,7 @@ impl LlvmAlu {
         }
     }
 
-    // -------------------------------------------------------------------------
     // Helpers
-    // -------------------------------------------------------------------------
 
     fn char_to_str<'ctx>(
         builder: &Builder<'ctx>,
@@ -338,7 +304,7 @@ impl LlvmAlu {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 "Integer type width cannot be zero.".to_string(),
-                Span::default(), // albo przekazany span
+                Span::default(),
             )) as Box<dyn IError>
         })?;
 
@@ -346,7 +312,7 @@ impl LlvmAlu {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Cannot create integer type: {}.", err),
-                Span::default(), // albo przekazany span
+                Span::default(),
             )) as Box<dyn IError>
         })
     }

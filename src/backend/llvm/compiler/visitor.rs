@@ -10,11 +10,6 @@ use crate::{
     frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression},
 };
 
-/// Jedyne miejsce w projekcie z `impl Visitor for Compiler` — Rust nie pozwala
-/// implementować jednego trait-a dla typu w kilku osobnych blokach `impl`, więc
-/// `visit_expression`/`visit_statement` tylko delegują do `compile_expression`
-/// (expressions.rs) i `compile_statement` (statements.rs), gdzie faktycznie
-/// żyje ich logika.
 impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
     fn visit_program(&mut self, program: &'a Program) -> Result<(), Box<dyn IError>> {
         for statement in &program.statements {

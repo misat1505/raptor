@@ -221,6 +221,39 @@ pub fn tcp_connect() -> StdFunction {
             .build_int_compare(inkwell::IntPredicate::SLT, connect_result, i32_type.const_zero(), "connect.failed")
             .map_err(err)?;
 
+        let current_block = compiler.builder().get_insert_block().ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                String::from("tcp_connect: no current basic block"),
+                span,
+            )) as Box<dyn IError>
+        })?;
+        let current_fn = current_block.get_parent().ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                String::from("tcp_connect: no parent function for current block"),
+                span,
+            )) as Box<dyn IError>
+        })?;
+
+        let close_block = compiler.context().append_basic_block(current_fn, "tcp_connect.close_on_error");
+        let continue_block = compiler.context().append_basic_block(current_fn, "tcp_connect.continue");
+
+        compiler
+            .builder()
+            .build_conditional_branch(is_error, close_block, continue_block)
+            .map_err(err)?;
+
+        compiler.builder().position_at_end(close_block);
+        let close_fn = compiler.libc().close_fn;
+        compiler
+            .builder()
+            .build_call(close_fn, &[fd.into()], "tcp_connect.close_on_error.call")
+            .map_err(err)?;
+        compiler.builder().build_unconditional_branch(continue_block).map_err(err)?;
+
+        compiler.builder().position_at_end(continue_block);
+
         let fd_i64 = compiler.builder().build_int_z_extend(fd, i64_type, "fd.i64").map_err(err)?;
         let neg_one = i64_type.const_int(u64::MAX, true);
 

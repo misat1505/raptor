@@ -1,0 +1,191 @@
+# Snake Online - KLIENT (raylib)
+#
+# Uruchom snake_server.rp, potem ten plik DWA RAZY w dwoch terminalach.
+# W jednej kopii ustaw PLAYER_ID = 0, w drugiej PLAYER_ID = 1.
+#
+# WAZNE: funkcje widza TYLKO parametry i lokalne zmienne, dlatego host/port/
+# player_id sa jawnie przekazywane do fetch_world/send_reset zamiast czytane
+# jako globalne wewnatrz tych funkcji.
+#
+# Build:
+# cargo run --bin raptor -- --compile --run -O3 --link <path_to_libraylib.a> --link -lm --link -lX11 snake_client.rp
+
+extern fn InitWindow(i64 x, i64 y, str name): void as init_window;
+extern fn WindowShouldClose(): bool as window_should_close;
+extern fn BeginDrawing(): void as begin_drawing;
+extern fn ClearBackground(i64 color): void as clear_background;
+extern fn EndDrawing(): void as end_drawing;
+extern fn CloseWindow(): void as close_window;
+extern fn SetTargetFPS(i64 fps): void as set_target_fps;
+extern fn DrawRectangle(i64 x, i64 y, i64 w, i64 h, i64 color): void as draw_rectangle;
+extern fn DrawText(str text, i64 x, i64 y, i64 font_size, i64 color): void as draw_text;
+extern fn IsKeyPressed(i64 key): bool as is_key_pressed;
+
+fn make_color(i64 r, i64 g, i64 b, i64 a): i64 {
+    return a * 256 * 256 * 256 + b * 256 * 256 + g * 256 + r;
+}
+
+fn tcp_read_all(i64 socket): str {
+    str result = "";
+    while (true) {
+        str chunk = tcp_read(socket);
+        if (str_len(chunk) == 0) break;
+        result += chunk;
+    }
+    return result;
+}
+
+fn split_by_delim(str text, char delim): str[] {
+    str[] segments = [];
+    str word = "";
+
+    for (i64 i = 0; i < str_len(text); i += 1) {
+        char c = text[i];
+        if (c == delim) {
+            vector_push(&segments, word);
+            word = "";
+        } else {
+            word += c;
+        }
+    }
+
+    vector_push(&segments, word);
+
+    return segments;
+}
+
+fn fetch_world(str host, i64 port, i64 player_id, i64 dx, i64 dy): str {
+    i64 sock = tcp_connect(host, port);
+    println("DEBUG player " + player_id as str + " sock=" + sock as str);
+    if (sock == -1) return "";
+    str msg = "INPUT " + player_id as str + " " + dx as str + " " + dy as str;
+    tcp_write(sock, msg);
+    str response = tcp_read_all(sock);
+    println("DEBUG player " + player_id as str + " response len=" + str_len(response) as str);
+    tcp_close(sock);
+    return response;
+}
+
+fn send_reset(str host, i64 port): void {
+    i64 sock = tcp_connect(host, port);
+    if (sock == -1) return;
+    tcp_write(sock, "RESET");
+    tcp_read_all(sock);
+    tcp_close(sock);
+}
+
+fn parse_coords(str s): i64[] {
+    str[] xy = split_by_delim(s, ',');
+    return [xy[0] as i64, xy[1] as i64];
+}
+
+fn parse_snake(str field): i64[][] {
+    str[] kv = split_by_delim(field, ':');
+    str[] cells = split_by_delim(kv[1], ';');
+    i64[][] result = [];
+    for (i64 i = 0; i < vector_size(&cells); i += 1) {
+        vector_push(&result, parse_coords(cells[i]));
+    }
+    return result;
+}
+
+fn draw_cell(i64 x, i64 y, i64 color): void {
+    i64 CELL_SIZE = 20;
+    draw_rectangle(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1, color);
+}
+
+i64 PLAYER_ID = 1;
+
+str SERVER_HOST = "localhost";
+i64 SERVER_PORT = 8080;
+
+i64 CELL_SIZE = 20;
+i64 GRID_W = 30;
+i64 GRID_H = 20;
+
+i64 KEY_RIGHT = 262;
+i64 KEY_LEFT = 263;
+i64 KEY_DOWN = 264;
+i64 KEY_UP = 265;
+i64 KEY_ENTER = 257;
+
+i64 COLOR_BG = make_color(24, 24, 24, 255);
+i64 COLOR_SNAKE_ME = make_color(0, 200, 60, 255);
+i64 COLOR_SNAKE_OTHER = make_color(60, 120, 220, 255);
+i64 COLOR_APPLE = make_color(220, 30, 30, 255);
+i64 COLOR_TEXT = make_color(255, 255, 255, 255);
+
+init_window(GRID_W * CELL_SIZE, GRID_H * CELL_SIZE, "Snake Online - Player " + (PLAYER_ID + 1) as str);
+set_target_fps(15);
+
+i64 dx = 1;
+i64 dy = 0;
+if (PLAYER_ID == 1) { dx = -1; dy = 0; }
+
+i64[][] snake0 = [];
+i64[][] snake1 = [];
+i64[] apple = [0, 0];
+i64 score0 = 0;
+i64 score1 = 0;
+bool game_over = false;
+
+while (!window_should_close()) {
+
+    if (!game_over) {
+        if (is_key_pressed(KEY_RIGHT) && dx != -1) { dx = 1; dy = 0; }
+        if (is_key_pressed(KEY_LEFT) && dx != 1) { dx = -1; dy = 0; }
+        if (is_key_pressed(KEY_UP) && dy != 1) { dx = 0; dy = -1; }
+        if (is_key_pressed(KEY_DOWN) && dy != -1) { dx = 0; dy = 1; }
+    }
+
+    if (game_over && is_key_pressed(KEY_ENTER)) {
+        send_reset(SERVER_HOST, SERVER_PORT);
+    }
+
+    str world = fetch_world(SERVER_HOST, SERVER_PORT, PLAYER_ID, dx, dy);
+
+    if (str_len(world) > 0) {
+        str[] fields = split_by_delim(world, '|');
+
+        str[] go_kv = split_by_delim(fields[0], ':');
+        game_over = (go_kv[1] as i64) == 1;
+
+        str[] s0_kv = split_by_delim(fields[1], ':');
+        score0 = s0_kv[1] as i64;
+
+        str[] s1_kv = split_by_delim(fields[2], ':');
+        score1 = s1_kv[1] as i64;
+
+        str[] apple_kv = split_by_delim(fields[3], ':');
+        apple = parse_coords(apple_kv[1]);
+
+        snake0 = parse_snake(fields[4]);
+        snake1 = parse_snake(fields[5]);
+    }
+
+    begin_drawing();
+    clear_background(COLOR_BG);
+
+    for (i64 i = 0; i < vector_size(&snake0); i += 1) {
+        i64 c = COLOR_SNAKE_OTHER;
+        if (PLAYER_ID == 0) c = COLOR_SNAKE_ME;
+        draw_cell(snake0[i][0], snake0[i][1], c);
+    }
+    for (i64 i = 0; i < vector_size(&snake1); i += 1) {
+        i64 c = COLOR_SNAKE_OTHER;
+        if (PLAYER_ID == 1) c = COLOR_SNAKE_ME;
+        draw_cell(snake1[i][0], snake1[i][1], c);
+    }
+    draw_cell(apple[0], apple[1], COLOR_APPLE);
+
+    draw_text("Player 1: " + score0 as str, 10, 5, 18, COLOR_TEXT);
+    draw_text("Player 2: " + score1 as str, 10, 25, 18, COLOR_TEXT);
+
+    if (game_over) {
+        draw_text("GAME OVER - ENTER to play again", 20, 190, 20, COLOR_TEXT);
+    }
+
+    end_drawing();
+}
+
+close_window();

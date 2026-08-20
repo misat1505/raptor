@@ -1,0 +1,234 @@
+# Snake Online - SERWER
+# Uruchom ten plik, potem odpal snake_client.rp dwa razy (z PLAYER_ID = 0 i PLAYER_ID = 1)
+#
+# WAZNE: funkcje w tym jezyku widza TYLKO swoje parametry i lokalne zmienne -
+# zaden odczyt/zapis do zmiennych globalnych z wnetrza funkcji. Dlatego:
+#  - stale (GRID_W, GRID_H) sa przekazywane jako argumenty
+#  - stan RNG jest przekazywany i zwracany jawnie: [x, y, nowy_rng_state]
+#  - caly ruch/kolizje/wzrost weza siedzi wprost w petli glownej (top-level),
+#    a nie w osobnej funkcji - bo ta logika MUSI mutowac wiele globalnych
+#    zmiennych naraz (snake0, snake1, score0, score1, apple, game_over)
+#
+# Protokol (surowy TCP, bez HTTP):
+#   klient -> serwer:  "INPUT <player_id> <dx> <dy>"   albo   "RESET"
+#   serwer -> klient:  "GAMEOVER:0|SCORE0:0|SCORE1:0|APPLE:x,y|SNAKE0:x,y;x,y;...|SNAKE1:x,y;..."
+
+fn rand_next(i64 state): i64 {
+    i64 new_state = (state * 1103515245 + 12345) % 2147483648;
+    if (new_state < 0) new_state = -new_state;
+    return new_state;
+}
+
+# zwraca [wylosowana_wartosc, nowy_rng_state]
+fn rand_range(i64 state, i64 min, i64 max): i64[] {
+    i64 new_state = rand_next(state);
+    i64 value = min + (new_state % (max - min + 1));
+    return [value, new_state];
+}
+
+fn is_on_any_snake(&i64[][] snake0, &i64[][] snake1, i64 x, i64 y): bool {
+    for (i64 i = 0; i < vector_size(&snake0); i += 1) {
+        if (snake0[i][0] == x && snake0[i][1] == y) return true;
+    }
+    for (i64 i = 0; i < vector_size(&snake1); i += 1) {
+        if (snake1[i][0] == x && snake1[i][1] == y) return true;
+    }
+    return false;
+}
+
+# zwraca [x, y, nowy_rng_state]
+fn spawn_apple(&i64[][] snake0, &i64[][] snake1, i64 rng_state, i64 grid_w, i64 grid_h): i64[] {
+    i64[] rx = rand_range(rng_state, 0, grid_w - 1);
+    i64 x = rx[0];
+    i64 state = rx[1];
+    i64[] ry = rand_range(state, 0, grid_h - 1);
+    i64 y = ry[0];
+    state = ry[1];
+
+    while (is_on_any_snake(&snake0, &snake1, x, y)) {
+        i64[] rx2 = rand_range(state, 0, grid_w - 1);
+        x = rx2[0];
+        state = rx2[1];
+        i64[] ry2 = rand_range(state, 0, grid_h - 1);
+        y = ry2[0];
+        state = ry2[1];
+    }
+
+    return [x, y, state];
+}
+
+fn serialize_snake(&i64[][] snake): str {
+    str result = "";
+    for (i64 i = 0; i < vector_size(&snake); i += 1) {
+        if (i > 0) result += ";";
+        result += snake[i][0] as str + "," + snake[i][1] as str;
+    }
+    return result;
+}
+
+fn serialize_world(bool game_over, i64 score0, i64 score1, &i64[] apple, &i64[][] snake0, &i64[][] snake1): str {
+    str go = "0";
+    if (game_over) go = "1";
+    return "GAMEOVER:" + go
+        + "|SCORE0:" + score0 as str
+        + "|SCORE1:" + score1 as str
+        + "|APPLE:" + apple[0] as str + "," + apple[1] as str
+        + "|SNAKE0:" + serialize_snake(&snake0)
+        + "|SNAKE1:" + serialize_snake(&snake1);
+}
+
+# --- Stale (top-level, widoczne w petli glownej) ---
+i64 GRID_W = 30;
+i64 GRID_H = 20;
+i64 TICK_SPEED = 16;
+
+# --- Stan swiata (top-level) ---
+i64 rng_state = 12345;
+i64[][] snake0 = [[5, 10], [4, 10], [3, 10]];
+i64[][] snake1 = [[24, 10], [25, 10], [26, 10]];
+i64 dx0 = 1;
+i64 dy0 = 0;
+i64 dx1 = -1;
+i64 dy1 = 0;
+i64 score0 = 0;
+i64 score1 = 0;
+bool game_over = false;
+i64 tick = 0;
+
+i64[] apple_init = spawn_apple(&snake0, &snake1, rng_state, GRID_W, GRID_H);
+i64[] apple = [apple_init[0], apple_init[1]];
+rng_state = apple_init[2];
+
+i64 port = 8080;
+i64 listener = tcp_listen(port);
+println("Snake Online server on port " + port as str + "...");
+
+fn split_by_delim(str text, char delim): str[] {
+    str[] segments = [];
+    str word = "";
+
+    for (i64 i = 0; i < str_len(text); i += 1) {
+        char c = text[i];
+        if (c == delim) {
+            vector_push(&segments, word);
+            word = "";
+        } else {
+            word += c;
+        }
+    }
+
+    vector_push(&segments, word);
+
+    return segments;
+}
+
+for (;true;) {
+    i64 client = tcp_accept(listener);
+    str request = tcp_read(client);
+
+    println("DEBUG request: [" + request + "] len=" + str_len(request) as str);
+
+    str[] parts = split_by_delim(request, ' ');
+    println("DEBUG parts count: " + vector_size(&parts) as str);
+    if (vector_size(&parts) >= 1) {
+        println("DEBUG parts[0]: [" + parts[0] + "]");
+    }
+
+    if (vector_size(&parts) >= 1 && parts[0] == "RESET") {
+        snake0 = [[5, 10], [4, 10], [3, 10]];
+        snake1 = [[24, 10], [25, 10], [26, 10]];
+        dx0 = 1; dy0 = 0;
+        dx1 = -1; dy1 = 0;
+        score0 = 0;
+        score1 = 0;
+        game_over = false;
+        tick = 0;
+        i64[] r = spawn_apple(&snake0, &snake1, rng_state, GRID_W, GRID_H);
+        apple = [r[0], r[1]];
+        rng_state = r[2];
+    }
+
+    if (vector_size(&parts) >= 4 && parts[0] == "INPUT") {
+        i64 pid = parts[1] as i64;
+        i64 new_dx = parts[2] as i64;
+        i64 new_dy = parts[3] as i64;
+
+        if (pid == 0) {
+            if (!(new_dx == -dx0 && new_dy == -dy0)) { dx0 = new_dx; dy0 = new_dy; }
+        } else {
+            if (!(new_dx == -dx1 && new_dy == -dy1)) { dx1 = new_dx; dy1 = new_dy; }
+        }
+
+        if (!game_over) {
+            tick += 1;
+            if (tick >= TICK_SPEED) {
+                tick = 0;
+
+                i64 head0_x = snake0[0][0] + dx0;
+                i64 head0_y = snake0[0][1] + dy0;
+                i64 head1_x = snake1[0][0] + dx1;
+                i64 head1_y = snake1[0][1] + dy1;
+
+                bool wall0 = head0_x < 0 || head0_x >= GRID_W || head0_y < 0 || head0_y >= GRID_H;
+                bool wall1 = head1_x < 0 || head1_x >= GRID_W || head1_y < 0 || head1_y >= GRID_H;
+
+                bool self0 = false;
+                for (i64 i = 0; i < vector_size(&snake0) - 1; i += 1) {
+                    if (snake0[i][0] == head0_x && snake0[i][1] == head0_y) self0 = true;
+                }
+                bool self1 = false;
+                for (i64 i = 0; i < vector_size(&snake1) - 1; i += 1) {
+                    if (snake1[i][0] == head1_x && snake1[i][1] == head1_y) self1 = true;
+                }
+
+                bool hit_other0 = false;
+                for (i64 i = 0; i < vector_size(&snake1); i += 1) {
+                    if (snake1[i][0] == head0_x && snake1[i][1] == head0_y) hit_other0 = true;
+                }
+                bool hit_other1 = false;
+                for (i64 i = 0; i < vector_size(&snake0); i += 1) {
+                    if (snake0[i][0] == head1_x && snake0[i][1] == head1_y) hit_other1 = true;
+                }
+
+                bool dead0 = wall0 || self0 || hit_other0;
+                bool dead1 = wall1 || self1 || hit_other1;
+
+                if (dead0 || dead1) {
+                    game_over = true;
+                } else {
+                    bool ate0 = head0_x == apple[0] && head0_y == apple[1];
+                    bool ate1 = head1_x == apple[0] && head1_y == apple[1];
+
+                    i64[][] new_snake0 = [[head0_x, head0_y]];
+                    i64 copy_len0 = vector_size(&snake0);
+                    if (!ate0) copy_len0 = copy_len0 - 1;
+                    for (i64 i = 0; i < copy_len0; i += 1) {
+                        vector_push(&new_snake0, snake0[i]);
+                    }
+                    snake0 = new_snake0;
+
+                    i64[][] new_snake1 = [[head1_x, head1_y]];
+                    i64 copy_len1 = vector_size(&snake1);
+                    if (!ate1) copy_len1 = copy_len1 - 1;
+                    for (i64 i = 0; i < copy_len1; i += 1) {
+                        vector_push(&new_snake1, snake1[i]);
+                    }
+                    snake1 = new_snake1;
+
+                    if (ate0) score0 += 1;
+                    if (ate1) score1 += 1;
+                    if (ate0 || ate1) {
+                        i64[] r = spawn_apple(&snake0, &snake1, rng_state, GRID_W, GRID_H);
+                        apple = [r[0], r[1]];
+                        rng_state = r[2];
+                    }
+                }
+            }
+        }
+    }
+
+    str response = serialize_world(game_over, score0, score1, &apple, &snake0, &snake1);
+    println("DEBUG response: [" + response + "]");
+    tcp_write(client, response);
+    tcp_close(client);
+}

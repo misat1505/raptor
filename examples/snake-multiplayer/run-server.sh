@@ -1,0 +1,1 @@
+clear && cargo run --bin raptor -- --compile -O3 --run examples/snake-multiplayer/server.rp

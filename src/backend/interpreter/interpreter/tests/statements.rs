@@ -325,3 +325,121 @@ fn declare_vector_variable_wrong_inner_type_fails() {
 
     assert!(interpreter.visit_statement(&ast).is_err());
 }
+
+#[test]
+fn index_assignment_out_of_bounds_fails() {
+    let ast = test_node!(Statement::Assignment {
+        identifier: test_node!(String::from("x")),
+        value: test_node!(Expression::Literal(Literal::I64(99))),
+        indices: vec![test_node!(Expression::Literal(Literal::I64(5)))],
+    });
+    let program = setup_program();
+    let mut interpreter = create_interpreter(&program);
+    let values = Rc::new(RefCell::new(vec![
+        Rc::new(RefCell::new(Value::I64(10))),
+        Rc::new(RefCell::new(Value::I64(20))),
+    ]));
+    let _ = interpreter.stack.declare_variable(
+        "x",
+        Rc::new(RefCell::new(Value::Vector {
+            kind: Box::new(Type::I64),
+            values,
+        })),
+        Span::default(),
+    );
+    assert!(interpreter.visit_statement(&ast).is_err());
+}
+
+#[test]
+fn index_assignment_on_non_vector_fails() {
+    let ast = test_node!(Statement::Assignment {
+        identifier: test_node!(String::from("x")),
+        value: test_node!(Expression::Literal(Literal::I64(1))),
+        indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+    });
+    let program = setup_program();
+    let mut interpreter = create_interpreter(&program);
+    let _ = interpreter
+        .stack
+        .declare_variable("x", Rc::new(RefCell::new(Value::I64(0))), Span::default());
+    assert!(interpreter.visit_statement(&ast).is_err());
+}
+
+#[test]
+fn string_index_assignment() {
+    // s[0] = 'Z';
+    let ast = test_node!(Statement::Assignment {
+        identifier: test_node!(String::from("s")),
+        value: test_node!(Expression::Literal(Literal::Char('Z'))),
+        indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+    });
+    let program = setup_program();
+    let mut interpreter = create_interpreter(&program);
+    let _ = interpreter
+        .stack
+        .declare_variable("s", Rc::new(RefCell::new(Value::String(String::from("abc")))), Span::default());
+    assert!(interpreter.visit_statement(&ast).is_ok());
+    assert_eq!(
+        *interpreter.stack.get_variable("s", Span::default()).unwrap().borrow(),
+        Value::String(String::from("Zbc"))
+    );
+}
+
+#[test]
+fn string_index_assignment_non_char_fails() {
+    let ast = test_node!(Statement::Assignment {
+        identifier: test_node!(String::from("s")),
+        value: test_node!(Expression::Literal(Literal::I64(65))),
+        indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+    });
+    let program = setup_program();
+    let mut interpreter = create_interpreter(&program);
+    let _ = interpreter
+        .stack
+        .declare_variable("s", Rc::new(RefCell::new(Value::String(String::from("abc")))), Span::default());
+    assert!(interpreter.visit_statement(&ast).is_err());
+}
+
+#[test]
+fn nested_index_assignment() {
+    // m[0][1] = 99;
+    let ast = test_node!(Statement::Assignment {
+        identifier: test_node!(String::from("m")),
+        value: test_node!(Expression::Literal(Literal::I64(99))),
+        indices: vec![
+            test_node!(Expression::Literal(Literal::I64(0))),
+            test_node!(Expression::Literal(Literal::I64(1))),
+        ],
+    });
+    let program = setup_program();
+    let mut interpreter = create_interpreter(&program);
+
+    let inner0 = Rc::new(RefCell::new(vec![
+        Rc::new(RefCell::new(Value::I64(1))),
+        Rc::new(RefCell::new(Value::I64(2))),
+    ]));
+    let inner1 = Rc::new(RefCell::new(vec![
+        Rc::new(RefCell::new(Value::I64(3))),
+        Rc::new(RefCell::new(Value::I64(4))),
+    ]));
+    let outer = Rc::new(RefCell::new(vec![
+        Rc::new(RefCell::new(Value::Vector {
+            kind: Box::new(Type::I64),
+            values: inner0.clone(),
+        })),
+        Rc::new(RefCell::new(Value::Vector {
+            kind: Box::new(Type::I64),
+            values: inner1,
+        })),
+    ]));
+    let _ = interpreter.stack.declare_variable(
+        "m",
+        Rc::new(RefCell::new(Value::Vector {
+            kind: Box::new(Type::Vector(Box::new(Type::I64))),
+            values: outer,
+        })),
+        Span::default(),
+    );
+    assert!(interpreter.visit_statement(&ast).is_ok());
+    assert_eq!(*inner0.borrow()[1].borrow(), Value::I64(99));
+}

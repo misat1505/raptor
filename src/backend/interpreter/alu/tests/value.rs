@@ -206,3 +206,74 @@ fn scalar_values_have_correct_types() {
     assert_eq!(Value::F64(0.0).to_type(), Type::F64);
     assert_eq!(Value::String(String::new()).to_type(), Type::Str);
 }
+
+#[test]
+fn default_values_all_integer_types() {
+    assert_eq!(Value::default_value(&Type::I8, Span::default()).unwrap(), Value::I8(0));
+    assert_eq!(Value::default_value(&Type::I16, Span::default()).unwrap(), Value::I16(0));
+    assert_eq!(Value::default_value(&Type::I32, Span::default()).unwrap(), Value::I32(0));
+    assert_eq!(Value::default_value(&Type::U8, Span::default()).unwrap(), Value::U8(0));
+    assert_eq!(Value::default_value(&Type::U16, Span::default()).unwrap(), Value::U16(0));
+    assert_eq!(Value::default_value(&Type::U32, Span::default()).unwrap(), Value::U32(0));
+    assert_eq!(Value::default_value(&Type::U64, Span::default()).unwrap(), Value::U64(0));
+}
+
+#[test]
+fn default_value_char_fails() {
+    let r = Value::default_value(&Type::Char, Span::default());
+    assert!(r.is_err());
+    assert_eq!(r.err().unwrap().message(), "Cannot create default value for type 'char'.");
+}
+
+#[test]
+fn value_to_type_all_scalars() {
+    assert_eq!(Value::I8(0).to_type(), Type::I8);
+    assert_eq!(Value::I16(0).to_type(), Type::I16);
+    assert_eq!(Value::I32(0).to_type(), Type::I32);
+    assert_eq!(Value::U8(0).to_type(), Type::U8);
+    assert_eq!(Value::U16(0).to_type(), Type::U16);
+    assert_eq!(Value::U32(0).to_type(), Type::U32);
+    assert_eq!(Value::U64(0).to_type(), Type::U64);
+    assert_eq!(Value::Char('a').to_type(), Type::Char);
+}
+
+#[test]
+fn try_into_bool_rejects_all_non_bool() {
+    let non_bools = [
+        Value::I8(0),
+        Value::I16(0),
+        Value::I32(0),
+        Value::U8(0),
+        Value::U16(0),
+        Value::U32(0),
+        Value::U64(0),
+        Value::Char('t'),
+    ];
+    for v in non_bools {
+        let r = v.try_into_bool(Span::default());
+        assert!(r.is_err());
+        assert_eq!(r.err().unwrap().message(), "Given value is not a boolean.");
+    }
+}
+
+#[test]
+fn default_nested_vector() {
+    let nested = Type::Vector(Box::new(Type::Vector(Box::new(Type::Bool))));
+    let value = Value::default_value(&nested, Span::default()).unwrap();
+    match value {
+        Value::Vector { kind, values } => {
+            assert_eq!(*kind, Type::Vector(Box::new(Type::Bool)));
+            assert!(values.borrow().is_empty());
+            // to_type returns the element type
+            assert_eq!(
+                Value::Vector {
+                    kind: kind.clone(),
+                    values: values.clone()
+                }
+                .to_type(),
+                Type::Vector(Box::new(Type::Bool))
+            );
+        }
+        _ => panic!("expected Vector"),
+    }
+}

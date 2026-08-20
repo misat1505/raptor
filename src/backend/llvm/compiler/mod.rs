@@ -7,6 +7,9 @@ mod stringify;
 mod vectors;
 mod visitor;
 
+#[cfg(test)]
+mod tests;
+
 use std::collections::HashMap;
 
 use inkwell::basic_block::BasicBlock;

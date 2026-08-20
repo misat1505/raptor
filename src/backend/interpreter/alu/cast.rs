@@ -182,6 +182,10 @@ impl ALU {
             // Bool -> F64
             (Value::Bool(value), Type::F64) => Ok(Value::F64(if value { 1.0 } else { 0.0 })),
 
+            // Char <-> u8
+            (Value::Char(c), Type::U8) => Ok(Value::U8(c as u8)),
+            (Value::U8(val), Type::Char) => Ok(Value::Char(val as char)),
+
             // Integer -> Integer
             (Value::I8(value), target_type) => Self::cast_signed_integer(value as i128, target_type, span),
             (Value::I16(value), target_type) => Self::cast_signed_integer(value as i128, target_type, span),

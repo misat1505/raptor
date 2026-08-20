@@ -291,6 +291,10 @@ impl LlvmAlu {
             // char -> str
             (LlvmValue::Char(value), Type::Str) => Self::char_to_str(builder, libc, value, span),
 
+            // Char <-> u8
+            (LlvmValue::Char(c), Type::U8) => Ok(LlvmValue::U8(c)),
+            (LlvmValue::U8(val), Type::Char) => Ok(LlvmValue::Char(val)),
+
             // -----------------------------------------------------------------
             // Unsupported
             // -----------------------------------------------------------------

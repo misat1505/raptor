@@ -8,7 +8,7 @@ extern fn WindowShouldClose(): bool as window_should_close;
 extern fn BeginDrawing(): void as begin_drawing;
 extern fn ClearBackground(i64 color): void as clear_background;
 extern fn EndDrawing(): void as end_drawing;
-extern fn CloseWindow(): void;
+extern fn CloseWindow(): void as close_window;
 extern fn SetTargetFPS(i64 fps): void as set_target_fps;
 extern fn DrawRectangle(i64 x, i64 y, i64 w, i64 h, i64 color): void as draw_rectangle;
 extern fn DrawText(str text, i64 x, i64 y, i64 font_size, i64 color): void as draw_text;
@@ -136,10 +136,10 @@ while (!window_should_close()) {
     draw_cell(apple[0], apple[1], COLOR_APPLE);
 
     if (game_over) {
-        draw_text("GAME OVER - ENTER, aby zagrac ponownie", 20, 190, 20, COLOR_TEXT);
+        draw_text("GAME OVER - ENTER, to play again", 20, 190, 20, COLOR_TEXT);
     }
 
     end_drawing();
 }
 
-CloseWindow();
+close_window();

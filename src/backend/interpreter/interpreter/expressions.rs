@@ -114,51 +114,67 @@ impl<'a> Interpreter<'a> {
 
         let collection_value = self.read_last_result()?;
 
-        let values = match collection_value {
-            Value::Vector { values, .. } => values,
+        match collection_value {
+            Value::Vector { values, .. } => {
+                let idx = self.eval_index_value(index)?;
 
-            other => {
-                return Err(Box::new(InterpreterError::expected_found(
-                    ErrorSeverity::HIGH,
-                    String::from("Cannot index into this value."),
-                    String::from("Vector"),
-                    format!("{:?}", other.to_type()),
-                    collection.span,
-                )));
+                let borrowed = values.borrow();
+
+                let element_cell = borrowed.get(idx).ok_or_else(|| {
+                    Box::new(InterpreterError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Index {} out of bounds.", idx),
+                        index.span,
+                    )) as Box<dyn IError>
+                })?;
+
+                self.last_result = Some(element_cell.borrow().clone());
+
+                Ok(())
             }
-        };
 
+            Value::String(s) => {
+                let idx = self.eval_index_value(index)?;
+
+                let ch = s.chars().nth(idx).ok_or_else(|| {
+                    Box::new(InterpreterError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Index {} out of bounds.", idx),
+                        index.span,
+                    )) as Box<dyn IError>
+                })?;
+
+                self.last_result = Some(Value::Char(ch));
+
+                Ok(())
+            }
+
+            other => Err(Box::new(InterpreterError::expected_found(
+                ErrorSeverity::HIGH,
+                String::from("Cannot index into this value."),
+                String::from("Vector or Str"),
+                format!("{:?}", other.to_type()),
+                collection.span,
+            ))),
+        }
+    }
+
+    fn eval_index_value(&mut self, index: &'a Node<Expression>) -> Result<usize, Box<dyn IError>> {
         self.visit_expression(index)?;
 
         let index_value = self.read_last_result()?;
 
-        let idx = match index_value {
-            Value::I64(i) if i >= 0 => i as usize,
+        match index_value {
+            Value::I64(i) if i >= 0 => Ok(i as usize),
 
-            other => {
-                return Err(Box::new(InterpreterError::expected_found(
-                    ErrorSeverity::HIGH,
-                    String::from("Array index must be a non-negative i64."),
-                    String::from("I64"),
-                    format!("{:?}", other.to_type()),
-                    index.span,
-                )));
-            }
-        };
-
-        let borrowed = values.borrow();
-
-        let element_cell = borrowed.get(idx).ok_or_else(|| {
-            Box::new(InterpreterError::at(
+            other => Err(Box::new(InterpreterError::expected_found(
                 ErrorSeverity::HIGH,
-                format!("Index {} out of bounds.", idx),
+                String::from("Array index must be a non-negative i64."),
+                String::from("I64"),
+                format!("{:?}", other.to_type()),
                 index.span,
-            )) as Box<dyn IError>
-        })?;
-
-        self.last_result = Some(element_cell.borrow().clone());
-
-        Ok(())
+            ))),
+        }
     }
 
     pub(in crate::backend::interpreter::interpreter) fn expect_index(&mut self) -> Result<usize, Box<dyn IError>> {

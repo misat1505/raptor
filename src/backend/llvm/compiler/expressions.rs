@@ -1,6 +1,7 @@
 use inkwell::builder::Builder;
 
 use super::Compiler;
+use crate::common::types::Type;
 use crate::common::visitor::Visitor;
 use crate::{
     backend::llvm::{
@@ -120,39 +121,60 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.visit_expression(collection)?;
                 let collection_value = self.read_last_value()?;
 
-                let vector_ptr = match &collection_value {
-                    LlvmValue::Vector(ptr, _) => *ptr,
+                match &collection_value {
+                    LlvmValue::Vector(vector_ptr, _) => {
+                        let collection_type = collection_value.to_type();
 
-                    other => {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            format!("Cannot index into type '{:?}'.", other.to_type()),
-                            span,
-                        )) as Box<dyn IError>);
+                        let (element_ptr, element_type) =
+                            self.resolve_indexed_element(*vector_ptr, &collection_type, std::slice::from_ref(index.as_ref()), span)?;
+
+                        let element_llvm_type = LlvmValue::type_to_basic_type_enum(&element_type, self.context).ok_or_else(|| {
+                            Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Compiling vectors of type '{:?}' is not yet supported.", element_type),
+                                span,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        let raw_value = self
+                            .builder
+                            .build_load(element_llvm_type, element_ptr, "idx.load")
+                            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+                        self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &element_type));
+
+                        Ok(())
                     }
-                };
 
-                let collection_type = collection_value.to_type();
+                    LlvmValue::Str(str_ptr) => {
+                        self.visit_expression(index)?;
+                        let index_value = self.read_last_value()?;
+                        let index_int = index_value.into_i64_value(index.span)?;
 
-                let (element_ptr, element_type) =
-                    self.resolve_indexed_element(vector_ptr, &collection_type, std::slice::from_ref(index.as_ref()), span)?;
+                        let i8_type = self.context.i8_type();
 
-                let element_llvm_type = LlvmValue::type_to_basic_type_enum(&element_type, self.context).ok_or_else(|| {
-                    Box::new(CompilerError::at(
+                        let element_ptr = unsafe {
+                            self.builder
+                                .build_gep(i8_type, *str_ptr, &[index_int], "str.idx.ptr")
+                                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
+                        };
+
+                        let raw_value = self
+                            .builder
+                            .build_load(i8_type, element_ptr, "str.idx.load")
+                            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+                        self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &Type::Char));
+
+                        Ok(())
+                    }
+
+                    other => Err(Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
-                        format!("Compiling vectors of type '{:?}' is not yet supported.", element_type),
+                        format!("Cannot index into type '{:?}'.", other.to_type()),
                         span,
-                    )) as Box<dyn IError>
-                })?;
-
-                let raw_value = self
-                    .builder
-                    .build_load(element_llvm_type, element_ptr, "idx.load")
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
-
-                self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &element_type));
-
-                Ok(())
+                    )) as Box<dyn IError>),
+                }
             }
 
             Expression::Vector(elements) => {

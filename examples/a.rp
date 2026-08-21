@@ -1,5 +1,5 @@
 fn split_by_delim(str text, char delim): str[] {
-    str[] segments = [];
+    let segments: str[] = [];
     let word = "";
 
     for (let i = 0; i < str_len(text); i += 1) {

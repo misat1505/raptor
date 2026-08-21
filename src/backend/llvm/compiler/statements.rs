@@ -85,24 +85,98 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     Ok(())
                 }
 
-                VariableDeclarationKind::LET { value } => {
-                    self.visit_expression(value)?;
+                VariableDeclarationKind::LET { var_type, value } => {
+                    let is_empty_vector = matches!(
+                        &value.value,
+                        Expression::Vector(elements) if elements.is_empty()
+                    );
 
-                    let init_value = self.read_last_value()?;
-                    let var_type = init_value.to_type();
+                    let (final_type, init_value) = if is_empty_vector {
+                        let Some(var_type) = var_type else {
+                            return Err(Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                format!(
+                                    "Cannot infer type of empty vector. Consider adding a type annotation, e.g. `let {}: {:?} = [];`.",
+                                    identifier.value,
+                                    Type::Vector(Box::new(Type::I64))
+                                ),
+                                span,
+                            )));
+                        };
 
-                    if matches!(&var_type, Type::Vector(inner) if **inner == Type::Void) {
-                        return Err(Box::new(CompilerError::at(
-                            ErrorSeverity::HIGH,
-                            String::from("Cannot infer type of empty vector."),
-                            span,
-                        )));
-                    }
+                        let Type::Vector(inner) = &var_type.value else {
+                            return Err(Box::new(CompilerError::expected_found(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot assign value to variable '{}'.", identifier.value),
+                                format!("{:?}", var_type.value),
+                                "empty vector".to_string(),
+                                span,
+                            )));
+                        };
 
-                    let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type, self.context).ok_or_else(|| {
+                        let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type.value, self.context).ok_or_else(|| {
+                            Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Compiling declarations of type '{:?}' is not yet supported.", var_type.value),
+                                span,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        let ptr = self
+                            .builder
+                            .build_alloca(llvm_type, identifier.value.as_str())
+                            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+                        let vector_ptr = self.build_empty_vector(inner, span)?;
+
+                        self.builder
+                            .build_store(ptr, vector_ptr)
+                            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+                        self.variables.insert(identifier.value.clone(), (ptr, var_type.value.clone()));
+
+                        return Ok(());
+                    } else {
+                        self.visit_expression(value)?;
+
+                        let init_value = self.read_last_value()?;
+                        let resolved_type = init_value.to_type();
+
+                        let final_type = match var_type {
+                            Some(var_type) => {
+                                if !var_type.value.is_compatible(&resolved_type) {
+                                    return Err(Box::new(CompilerError::expected_found(
+                                        ErrorSeverity::HIGH,
+                                        format!("Cannot assign value to variable '{}'.", identifier.value),
+                                        format!("{:?}", var_type.value),
+                                        format!("{:?}", resolved_type),
+                                        span,
+                                    )));
+                                }
+
+                                var_type.value.clone()
+                            }
+
+                            None => {
+                                if resolved_type == Type::Void {
+                                    return Err(Box::new(CompilerError::at(
+                                        ErrorSeverity::HIGH,
+                                        format!("Cannot assign `void` to variable '{}'.", identifier.value),
+                                        span,
+                                    )));
+                                }
+
+                                resolved_type
+                            }
+                        };
+
+                        (final_type, init_value)
+                    };
+
+                    let llvm_type = LlvmValue::type_to_basic_type_enum(&final_type, self.context).ok_or_else(|| {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Compiling declarations of type '{:?}' is not yet supported.", var_type),
+                            format!("Compiling declarations of type '{:?}' is not yet supported.", final_type),
                             span,
                         )) as Box<dyn IError>
                     })?;
@@ -116,7 +190,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .build_store(ptr, init_value.as_basic_value_enum())
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
-                    self.variables.insert(identifier.value.clone(), (ptr, var_type));
+                    self.variables.insert(identifier.value.clone(), (ptr, final_type));
 
                     Ok(())
                 }

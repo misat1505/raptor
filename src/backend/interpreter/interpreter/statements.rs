@@ -127,10 +127,10 @@ impl<'a> Interpreter<'a> {
                         .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?;
                 }
 
-                VariableDeclarationKind::LET { value } => {
+                VariableDeclarationKind::LET { var_type, value } => {
                     self.visit_expression(value)?;
 
-                    let computed_value = self.read_last_result().map_err(|_| {
+                    let mut computed_value = self.read_last_result().map_err(|_| {
                         Box::new(InterpreterError::at(
                             ErrorSeverity::HIGH,
                             format!("Cannot declare variable '{}' with no value.", identifier.value),
@@ -138,15 +138,53 @@ impl<'a> Interpreter<'a> {
                         )) as Box<dyn IError>
                     })?;
 
-                    if matches!(
-                        computed_value.to_type(),
-                        Type::Vector(ref inner) if **inner == Type::Void
-                    ) {
-                        return Err(Box::new(InterpreterError::at(
-                            ErrorSeverity::HIGH,
-                            String::from("Cannot infer type of empty vector."),
-                            statement.span,
-                        )));
+                    if let Value::Vector { kind: _, ref values } = computed_value {
+                        if values.borrow().is_empty() {
+                            match var_type {
+                                Some(var_type) => {
+                                    if !matches!(var_type.value, Type::Vector(_)) {
+                                        return Err(Box::new(InterpreterError::expected_found(
+                                            ErrorSeverity::HIGH,
+                                            format!("Cannot assign value to variable '{}'.", identifier.value),
+                                            format!("{:?}", var_type.value),
+                                            "empty vector".to_string(),
+                                            statement.span,
+                                        )));
+                                    }
+
+                                    computed_value = Value::Vector {
+                                        kind: Box::new(var_type.value.clone()),
+                                        values: values.clone(),
+                                    };
+                                }
+
+                                None => {
+                                    return Err(Box::new(InterpreterError::at(
+                                        ErrorSeverity::HIGH,
+                                        format!(
+                                            "Cannot infer type of empty vector. Consider adding a type annotation, e.g. `let {}: {:?} = [];`.",
+                                            identifier.value,
+                                            Type::Vector(Box::new(Type::I64))
+                                        ),
+                                        statement.span,
+                                    )));
+                                }
+                            }
+                        }
+                    }
+
+                    let resolved_type = computed_value.to_type();
+
+                    if let Some(var_type) = var_type {
+                        if var_type.value != resolved_type {
+                            return Err(Box::new(InterpreterError::expected_found(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot assign value to variable '{}'.", identifier.value),
+                                format!("{:?}", var_type.value),
+                                format!("{:?}", resolved_type),
+                                statement.span,
+                            )));
+                        }
                     }
 
                     self.stack

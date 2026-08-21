@@ -77,7 +77,7 @@ pub struct Argument {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VariableDeclarationKind {
-    LET { value: Node<Expression> },
+    LET { var_type: Option<Node<Type>>, value: Node<Expression> },
     TYPE { var_type: Node<Type>, value: Option<Node<Expression>> },
 }
 

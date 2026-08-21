@@ -53,13 +53,24 @@ impl<L: ILexer> Parser<L> {
     }
 
     pub(in crate::frontend::parser) fn parse_let_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // let_declaration = let, identifier, "=", expression;
+        // let_declaration = let, identifier, [ ":", type ], "=", expression;
 
         let let_token = try_consume_token!(self, TokenCategory::Let);
 
         let identifier = self
             .parse_identifier()?
             .ok_or_else(|| self.create_parser_error(String::from("Couldn't create identifier while parsing variable declaration.")))?;
+
+        let var_type = if self.current_token().category == TokenCategory::Colon {
+            self.consume_must_be(TokenCategory::Colon)?;
+
+            Some(
+                self.parse_type()?
+                    .ok_or_else(|| self.create_parser_error(String::from("Couldn't create type while parsing let declaration.")))?,
+            )
+        } else {
+            None
+        };
 
         self.consume_must_be(TokenCategory::Assign)?;
 
@@ -72,7 +83,7 @@ impl<L: ILexer> Parser<L> {
         let node = Node {
             value: Statement::Declaration {
                 identifier,
-                kind: VariableDeclarationKind::LET { value },
+                kind: VariableDeclarationKind::LET { var_type, value },
             },
             span: Span::new(let_token.span.start(), end),
         };
@@ -81,7 +92,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     pub(in crate::frontend::parser) fn parse_let_variable_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // let_declaration = let, identifier, "=", expression, ";";
+        // let_variable_declaration = let, identifier, [ ":", type ], "=", expression, ";";
 
         let mut decl = try_consume!(self, parse_let_declaration);
 

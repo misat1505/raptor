@@ -59,12 +59,47 @@ impl<'a> SemanticChecker<'a> {
                 }
             }
 
-            VariableDeclarationKind::LET { value } => {
+            VariableDeclarationKind::LET { var_type, value } => {
                 let _ = self.visit_expression(value);
 
                 if let Ok(resolved_type) = self.read_last_result(value.span) {
-                    if matches!(&resolved_type, Type::Vector(inner) if **inner == Type::Void) {
-                        let error = SemanticCheckerError::at(ErrorSeverity::HIGH, String::from("Cannot infer type of empty vector."), statement.span);
+                    if let Some(var_type) = var_type {
+                        let types_compatible = var_type.value == resolved_type
+                            || matches!(
+                                (&var_type.value, &resolved_type),
+                                (Type::Vector(_), Type::Vector(inner))
+                                    if **inner == Type::Void
+                            );
+
+                        if !types_compatible {
+                            let error = SemanticCheckerError::type_mismatch(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot assign `{:?}` to `{}`.", resolved_type, identifier.value),
+                                &var_type.value,
+                                &resolved_type,
+                                statement.span,
+                            );
+
+                            self.errors.push(Box::new(error));
+                        }
+
+                        if let Err(err) = self
+                            .stack
+                            .declare_variable(identifier.value.as_str(), var_type.value.clone(), statement.span)
+                        {
+                            self.errors
+                                .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
+                        }
+                    } else if matches!(&resolved_type, Type::Vector(inner) if **inner == Type::Void) {
+                        let error = SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Cannot infer type of empty vector. Consider adding a type annotation, e.g. `let {}: {:?} = [];`.",
+                                identifier.value,
+                                Type::Vector(Box::new(Type::I64))
+                            ),
+                            statement.span,
+                        );
 
                         self.errors.push(Box::new(error));
                     } else if resolved_type == Type::Void {

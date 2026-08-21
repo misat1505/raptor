@@ -2,7 +2,7 @@ fn split_by_delim(str text, char delim): str[] {
     str[] segments = [];
     let word = "";
 
-    for (i64 i = 0; i < str_len(text); i += 1) {
+    for (let i = 0; i < str_len(text); i += 1) {
         let c = text[i];
         if (c == delim) {
             vector_push(&segments, word);
@@ -39,5 +39,5 @@ let y = [1, 2, 3];
 println(x as str);
 println(vector_stringify(y));
 
-# zle
+# bad
 # let z = [];

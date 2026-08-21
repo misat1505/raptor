@@ -61,7 +61,7 @@
       "patterns": [
         {
           "name": "keyword.control.rp",
-          "match": "\\b(fn|extern|if|else|for|while|switch|return|break|continue|import|as|let)\\b"
+          "match": "\\b(fn|extern|if|else|for|while|switch|return|break|continue|import|as)\\b"
         }
       ]
     },
@@ -69,7 +69,7 @@
       "patterns": [
         {
           "name": "constant.language.rp",
-          "match": "\\b(true|false)\\b"
+          "match": "\\b(true|false|let)\\b"
         }
       ]
     },

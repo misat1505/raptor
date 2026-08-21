@@ -52,8 +52,8 @@ impl<L: ILexer> Parser<L> {
         Ok(Some(decl))
     }
 
-    pub(in crate::frontend::parser) fn parse_let_variable_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // let_declaration = let, identifier, "=", expression, ";";
+    pub(in crate::frontend::parser) fn parse_let_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // let_declaration = let, identifier, "=", expression;
 
         let let_token = try_consume_token!(self, TokenCategory::Let);
 
@@ -67,8 +67,7 @@ impl<L: ILexer> Parser<L> {
             .parse_expression()?
             .ok_or_else(|| self.create_parser_error(String::from("Couldn't parse expression while parsing variable declaration.")))?;
 
-        let semicolon = self.consume_must_be(TokenCategory::Semicolon)?;
-        let end = semicolon.span.end();
+        let end = value.span.end();
 
         let node = Node {
             value: Statement::Declaration {
@@ -79,5 +78,17 @@ impl<L: ILexer> Parser<L> {
         };
 
         Ok(Some(node))
+    }
+
+    pub(in crate::frontend::parser) fn parse_let_variable_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // let_declaration = let, identifier, "=", expression, ";";
+
+        let mut decl = try_consume!(self, parse_let_declaration);
+
+        self.consume_must_be(TokenCategory::Semicolon)?;
+
+        decl.span = Span::new(decl.span.start(), self.current_token().span.end());
+
+        Ok(Some(decl))
     }
 }

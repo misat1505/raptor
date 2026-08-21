@@ -2,7 +2,7 @@ use std::{collections::HashMap, vec};
 
 use crate::{
     common::types::Type,
-    frontend::ast::{Block, Expression, Literal, Program, Statement, SwitchCase, SwitchExpression},
+    frontend::ast::{Block, Expression, Literal, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
     semantic::semantic_checker::tests::common::make_function,
 };
 
@@ -12,9 +12,11 @@ use super::common::{empty_program, node, run_check};
 fn valid_declaration_has_no_errors() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::I64),
         identifier: node!(String::from("x")),
-        value: Some(node!(Expression::Literal(Literal::I64(5)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::I64),
+            value: Some(node!(Expression::Literal(Literal::I64(5)))),
+        },
     }));
 
     assert!(run_check(&program).is_empty());
@@ -24,9 +26,11 @@ fn valid_declaration_has_no_errors() {
 fn declaration_type_mismatch_reports_error() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::I64),
         identifier: node!(String::from("x")),
-        value: Some(node!(Expression::Literal(Literal::True))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::I64),
+            value: Some(node!(Expression::Literal(Literal::True))),
+        },
     }));
 
     let errors = run_check(&program);
@@ -40,9 +44,11 @@ fn declaration_type_mismatch_reports_error() {
 fn declaration_without_value_uses_default_type() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::I64),
         identifier: node!(String::from("x")),
-        value: None,
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::I64),
+            value: None,
+        },
     }));
 
     assert!(run_check(&program).is_empty());
@@ -52,9 +58,11 @@ fn declaration_without_value_uses_default_type() {
 fn empty_vector_literal_matches_any_vector_type() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::Vector(Box::new(Type::I64))),
         identifier: node!(String::from("x")),
-        value: Some(node!(Expression::Vector(vec![]))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            value: Some(node!(Expression::Vector(vec![]))),
+        },
     }));
 
     assert!(run_check(&program).is_empty());
@@ -64,12 +72,14 @@ fn empty_vector_literal_matches_any_vector_type() {
 fn vector_literal_with_mixed_types_reports_error() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::Vector(Box::new(Type::I64))),
         identifier: node!(String::from("x")),
-        value: Some(node!(Expression::Vector(vec![
-            Box::new(node!(Expression::Literal(Literal::I64(1)))),
-            Box::new(node!(Expression::Literal(Literal::True))),
-        ]))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            value: Some(node!(Expression::Vector(vec![
+                Box::new(node!(Expression::Literal(Literal::I64(1)))),
+                Box::new(node!(Expression::Literal(Literal::True))),
+            ]))),
+        },
     }));
 
     let errors = run_check(&program);
@@ -93,9 +103,11 @@ fn assignment_to_undeclared_variable_reports_error() {
 fn assignment_type_mismatch_reports_error() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::I64),
         identifier: node!(String::from("x")),
-        value: Some(node!(Expression::Literal(Literal::I64(0)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::I64),
+            value: Some(node!(Expression::Literal(Literal::I64(0)))),
+        },
     }));
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("x")),
@@ -354,11 +366,14 @@ fn else_block_is_type_checked() {
         condition: node!(Expression::Literal(Literal::True)),
         if_block: node!(Block(vec![])),
         else_block: Some(node!(Block(vec![node!(Statement::Declaration {
-            var_type: node!(Type::I64),
             identifier: node!(String::from("x")),
-            value: Some(node!(Expression::Literal(Literal::True))),
+            kind: VariableDeclarationKind::TYPE {
+                var_type: node!(Type::I64),
+                value: Some(node!(Expression::Literal(Literal::True))),
+            },
         })]))),
     }));
+
     let errors = run_check(&program);
     assert!(errors.iter().any(|e| e.contains("Cannot assign `bool` to `x`.")));
 }
@@ -366,34 +381,44 @@ fn else_block_is_type_checked() {
 #[test]
 fn nested_index_assignment_is_valid() {
     let mut program = empty_program();
+
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::Vector(Box::new(Type::Vector(Box::new(Type::I64))))),
         identifier: node!(String::from("matrix")),
-        value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Vector(vec![Box::new(
-            node!(Expression::Literal(Literal::I64(1)))
-        ),])))]))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::Vector(Box::new(Type::Vector(Box::new(Type::I64))))),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Vector(vec![Box::new(
+                node!(Expression::Literal(Literal::I64(1)))
+            ),]))),]))),
+        },
     }));
+
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("matrix")),
         indices: vec![node!(Expression::Literal(Literal::I64(0))), node!(Expression::Literal(Literal::I64(0))),],
         value: node!(Expression::Literal(Literal::I64(42))),
     }));
+
     assert!(run_check(&program).is_empty());
 }
 
 #[test]
 fn index_assignment_with_non_i64_index_reports_error() {
     let mut program = empty_program();
+
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::Vector(Box::new(Type::I64))),
         identifier: node!(String::from("arr")),
-        value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1)))),]))),
+        },
     }));
+
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("arr")),
         indices: vec![node!(Expression::Literal(Literal::True))],
         value: node!(Expression::Literal(Literal::I64(2))),
     }));
+
     let errors = run_check(&program);
     assert!(errors.iter().any(|e| e.contains("array index must be `i64`")));
 }
@@ -401,16 +426,21 @@ fn index_assignment_with_non_i64_index_reports_error() {
 #[test]
 fn index_assignment_into_non_vector_reports_error() {
     let mut program = empty_program();
+
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::I64),
         identifier: node!(String::from("x")),
-        value: Some(node!(Expression::Literal(Literal::I64(1)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::I64),
+            value: Some(node!(Expression::Literal(Literal::I64(1)))),
+        },
     }));
+
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("x")),
         indices: vec![node!(Expression::Literal(Literal::I64(0)))],
         value: node!(Expression::Literal(Literal::I64(2))),
     }));
+
     let errors = run_check(&program);
     assert!(errors.iter().any(|e| e.contains("Cannot index into value of type")));
 }
@@ -418,11 +448,15 @@ fn index_assignment_into_non_vector_reports_error() {
 #[test]
 fn index_assignment_type_mismatch_reports_error() {
     let mut program = empty_program();
+
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::Vector(Box::new(Type::I64))),
         identifier: node!(String::from("arr")),
-        value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1)))),]))),
+        },
     }));
+
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("arr")),
         indices: vec![node!(Expression::Literal(Literal::I64(0)))],
@@ -436,11 +470,15 @@ fn index_assignment_type_mismatch_reports_error() {
 #[test]
 fn index_assignment_updates_element() {
     let mut program = empty_program();
+
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::Vector(Box::new(Type::I64))),
         identifier: node!(String::from("arr")),
-        value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1)))),]))),
+        },
     }));
+
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("arr")),
         indices: vec![node!(Expression::Literal(Literal::I64(0)))],

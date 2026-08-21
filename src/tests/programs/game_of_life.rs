@@ -74,3 +74,76 @@ print_board(&board);
 
     assert_same_output(text, ".....\n.....\n.###.\n.....\n.....\n");
 }
+
+#[test]
+fn game_of_life_let_keywords() {
+    let text = BufReader::new(
+        r##"
+fn print_board(&str[][] board): void {
+  for (let i = 0; i < vector_size(&board); i += 1) {
+    for (let j = 0; j < vector_size(&board[0]); j += 1) {
+      print(board[i][j]);
+    }
+    println("");
+  }
+}
+
+fn next_state(&str[][] board): str[][] {
+  let next_board: str[][] = [];
+
+  for (let i = 0; i < vector_size(&board); i += 1) {
+    let row = board[i];
+    let next_state_row: str[] = [];
+    for (let j = 0; j < vector_size(&row); j += 1) {
+      let current_cell = board[i][j];
+
+      let alive_neighbours = 0;
+      let dead_neighbours = 0;
+
+      for (let dx = -1; dx <= 1; dx += 1) {
+        for (let dy = -1; dy <= 1; dy += 1) {
+          let x = j + dx;
+          let y = i + dy;
+          let is_x_in_bounds = x >= 0 && x < vector_size(&row);
+          let is_y_in_bounds = y >= 0 && y < vector_size(&board);
+          let is_current_cell = (dx == 0 && dy == 0);
+          let is_valid_neighbour = is_x_in_bounds && is_y_in_bounds && !is_current_cell;
+          if (is_valid_neighbour) {
+            if (board[y][x] == "#") alive_neighbours += 1;
+            else dead_neighbours += 1;
+            
+          }
+        }
+      }
+
+      if (current_cell == ".") {
+        if (alive_neighbours == 3) vector_push(&next_state_row, "#");
+        else vector_push(&next_state_row, ".");
+      } else if (current_cell == "#") {
+        if (alive_neighbours == 2 || alive_neighbours == 3) vector_push(&next_state_row, "#");
+        else vector_push(&next_state_row, ".");
+      }
+    }
+
+    vector_push(&next_board, next_state_row);
+  }
+
+  return next_board;
+}
+
+let board = [
+  [".", ".", ".", ".", "."],
+  [".", ".", "#", ".", "."],
+  [".", ".", "#", ".", "."],
+  [".", ".", "#", ".", "."],
+  [".", ".", ".", ".", "."]
+];
+
+board = next_state(&board);
+print_board(&board);
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(text, ".....\n.....\n.###.\n.....\n.....\n");
+}

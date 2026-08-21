@@ -4,16 +4,18 @@ use super::{create_interpreter, setup_program, test_node};
 use crate::{
     backend::interpreter::alu::value::Value,
     common::{span::Span, types::Type, visitor::Visitor},
-    frontend::ast::{Argument, Block, Expression, Literal, PassedBy, Statement},
+    frontend::ast::{Argument, Block, Expression, Literal, PassedBy, Statement, VariableDeclarationKind},
 };
 
 #[test]
 fn declare_variable() {
     // i64 x = 5;
     let ast = test_node!(Statement::Declaration {
-        var_type: test_node!(Type::I64),
         identifier: test_node!(String::from("x")),
-        value: Some(test_node!(Expression::Literal(Literal::I64(5)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: test_node!(Type::I64),
+            value: Some(test_node!(Expression::Literal(Literal::I64(5)))),
+        },
     });
 
     let program = setup_program();
@@ -30,9 +32,11 @@ fn declare_variable() {
 fn declare_variable_with_default_value() {
     // i64 x;
     let ast = test_node!(Statement::Declaration {
-        var_type: test_node!(Type::I64),
         identifier: test_node!(String::from("x")),
-        value: None,
+        kind: VariableDeclarationKind::TYPE {
+            var_type: test_node!(Type::I64),
+            value: None,
+        },
     });
 
     let program = setup_program();
@@ -49,9 +53,11 @@ fn declare_variable_with_default_value() {
 fn declare_variable_bad_type() {
     // i64 x = false;
     let ast = test_node!(Statement::Declaration {
-        var_type: test_node!(Type::I64),
         identifier: test_node!(String::from("x")),
-        value: Some(test_node!(Expression::Literal(Literal::False))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: test_node!(Type::I64),
+            value: Some(test_node!(Expression::Literal(Literal::False))),
+        },
     });
 
     let program = setup_program();
@@ -63,9 +69,11 @@ fn declare_variable_bad_type() {
 #[test]
 fn redeclare_variable_fails() {
     let ast = test_node!(Statement::Declaration {
-        var_type: test_node!(Type::I64),
         identifier: test_node!(String::from("x")),
-        value: None,
+        kind: VariableDeclarationKind::TYPE {
+            var_type: test_node!(Type::I64),
+            value: None,
+        },
     });
 
     let program = setup_program();
@@ -84,15 +92,17 @@ fn redeclare_variable_fails() {
 fn declare_with_none_value_fails() {
     // i64 x = print("hello world");
     let ast = test_node!(Statement::Declaration {
-        var_type: test_node!(Type::I64),
         identifier: test_node!(String::from("x")),
-        value: Some(test_node!(Expression::FunctionCall {
-            identifier: test_node!(String::from("print")),
-            arguments: vec![Box::new(test_node!(Argument {
-                value: test_node!(Expression::Literal(Literal::String(String::from("hello world")))),
-                passed_by: PassedBy::Value,
-            })),],
-        })),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: test_node!(Type::I64),
+            value: Some(test_node!(Expression::FunctionCall {
+                identifier: test_node!(String::from("print")),
+                arguments: vec![Box::new(test_node!(Argument {
+                    value: test_node!(Expression::Literal(Literal::String(String::from("hello world")))),
+                    passed_by: PassedBy::Value,
+                }))],
+            })),
+        },
     });
 
     let program = setup_program();
@@ -104,9 +114,11 @@ fn declare_with_none_value_fails() {
 fn declare_with_bad_type_fails() {
     // i64 x = true;
     let ast = test_node!(Statement::Declaration {
-        var_type: test_node!(Type::I64),
         identifier: test_node!(String::from("x")),
-        value: Some(test_node!(Expression::Literal(Literal::True))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: test_node!(Type::I64),
+            value: Some(test_node!(Expression::Literal(Literal::True))),
+        },
     });
 
     let program = setup_program();
@@ -294,13 +306,15 @@ fn assign_by_index() {
 fn declare_vector_variable() {
     // i64[] x = [1, 2, 3];
     let ast = test_node!(Statement::Declaration {
-        var_type: test_node!(Type::Vector(Box::new(Type::I64))),
         identifier: test_node!(String::from("x")),
-        value: Some(test_node!(Expression::Vector(vec![
-            Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
-            Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
-            Box::new(test_node!(Expression::Literal(Literal::I64(3)))),
-        ]))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: test_node!(Type::Vector(Box::new(Type::I64))),
+            value: Some(test_node!(Expression::Vector(vec![
+                Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
+                Box::new(test_node!(Expression::Literal(Literal::I64(3)))),
+            ]))),
+        },
     });
 
     let program = setup_program();
@@ -313,11 +327,13 @@ fn declare_vector_variable() {
 fn declare_vector_variable_wrong_inner_type_fails() {
     // i64[] x = ["a"];
     let ast = test_node!(Statement::Declaration {
-        var_type: test_node!(Type::Vector(Box::new(Type::I64))),
         identifier: test_node!(String::from("x")),
-        value: Some(test_node!(Expression::Vector(vec![Box::new(test_node!(Expression::Literal(
-            Literal::String(String::from("a"))
-        ))),]))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: test_node!(Type::Vector(Box::new(Type::I64))),
+            value: Some(test_node!(Expression::Vector(vec![Box::new(test_node!(Expression::Literal(
+                Literal::String(String::from("a"))
+            ))),]))),
+        },
     });
 
     let program = setup_program();

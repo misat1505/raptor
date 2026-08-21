@@ -2,7 +2,7 @@ use std::{collections::HashMap, vec};
 
 use crate::{
     common::types::Type,
-    frontend::ast::{Argument, Block, Expression, Literal, Parameter, PassedBy, Program, Statement},
+    frontend::ast::{Argument, Block, Expression, Literal, Parameter, PassedBy, Program, Statement, VariableDeclarationKind},
     semantic::semantic_checker::tests::common::make_function,
 };
 
@@ -182,9 +182,11 @@ fn function_call_reference_with_index_expression_is_valid() {
     };
 
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::Vector(Box::new(Type::I64))),
         identifier: node!(String::from("arr")),
-        value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::Vector(Box::new(Type::I64))),
+            value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1))))]))),
+        },
     }));
     program.statements.push(node!(Statement::FunctionCall {
         identifier: node!(String::from("takes_ref")),
@@ -308,12 +310,14 @@ fn function_call_expression_produces_return_type() {
         extern_functions: HashMap::new(),
     };
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::I64),
         identifier: node!(String::from("x")),
-        value: Some(node!(Expression::FunctionCall {
-            identifier: node!(String::from("get_value")),
-            arguments: vec![],
-        })),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::I64),
+            value: Some(node!(Expression::FunctionCall {
+                identifier: node!(String::from("get_value")),
+                arguments: vec![],
+            })),
+        },
     }));
     assert!(run_check(&program).is_empty());
 }
@@ -339,9 +343,11 @@ fn function_call_with_wrong_passed_by_mode_reports_error() {
         extern_functions: HashMap::new(),
     };
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::I64),
         identifier: node!(String::from("x")),
-        value: Some(node!(Expression::Literal(Literal::I64(1)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::I64),
+            value: Some(node!(Expression::Literal(Literal::I64(1)))),
+        },
     }));
     program.statements.push(node!(Statement::FunctionCall {
         identifier: node!(String::from("takes_ref")),
@@ -375,9 +381,11 @@ fn reference_parameter_with_correct_variable_is_valid() {
         extern_functions: HashMap::new(),
     };
     program.statements.push(node!(Statement::Declaration {
-        var_type: node!(Type::I64),
         identifier: node!(String::from("x")),
-        value: Some(node!(Expression::Literal(Literal::I64(1)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node!(Type::I64),
+            value: Some(node!(Expression::Literal(Literal::I64(1)))),
+        },
     }));
     program.statements.push(node!(Statement::FunctionCall {
         identifier: node!(String::from("takes_ref")),

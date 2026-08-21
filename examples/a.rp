@@ -1,9 +1,9 @@
 fn split_by_delim(str text, char delim): str[] {
     str[] segments = [];
-    str word = "";
+    let word = "";
 
     for (i64 i = 0; i < str_len(text); i += 1) {
-        char c = text[i];
+        let c = text[i];
         if (c == delim) {
             vector_push(&segments, word);
             word = "";
@@ -17,17 +17,27 @@ fn split_by_delim(str text, char delim): str[] {
     return segments;
 }
 
-str[] segments = split_by_delim("Users/misat/Desktop/studia/sem6/tkom/projekt", '/');
+let segments = split_by_delim("Users/misat/Desktop/studia/sem6/tkom/projekt", '/');
 println(vector_stringify(segments));
 
-str[] text = ["hello world"];
+let text = ["hello world"];
 text[0][0] = 'a';
 println(vector_stringify(text));
 
 fn capitalize(char c): char {
-    u8 ascii = c as u8;
+    let ascii = c as u8;
     ascii -= 32 as u8;
     return ascii as char;
 }
 
 println(capitalize('a') as str);
+
+# ok
+let x = 420;
+let y = [1, 2, 3];
+
+println(x as str);
+println(vector_stringify(y));
+
+# zle
+# let z = [];

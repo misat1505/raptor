@@ -76,15 +76,20 @@ pub struct Argument {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum VariableDeclarationKind {
+    LET { value: Node<Expression> },
+    TYPE { var_type: Node<Type>, value: Option<Node<Expression>> },
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     FunctionCall {
         identifier: Node<String>,
         arguments: Vec<BNode<Argument>>,
     },
     Declaration {
-        var_type: Node<Type>,
         identifier: Node<String>,
-        value: Option<Node<Expression>>,
+        kind: VariableDeclarationKind,
     },
     Assignment {
         identifier: Node<String>,

@@ -1,9 +1,12 @@
 use crate::{
     common::{errors::IError, span::Span},
     frontend::{
-        ast::{Node, Statement},
+        ast::{Node, Statement, VariableDeclarationKind},
         lexer::lexer::ILexer,
-        parser::{core::try_consume, Parser},
+        parser::{
+            core::{try_consume, try_consume_token},
+            Parser,
+        },
         tokens::TokenCategory,
     },
 };
@@ -27,9 +30,11 @@ impl<L: ILexer> Parser<L> {
 
         let node = Node {
             value: Statement::Declaration {
-                var_type: declaration_type.clone(),
                 identifier,
-                value,
+                kind: VariableDeclarationKind::TYPE {
+                    value,
+                    var_type: declaration_type.clone(),
+                },
             },
             span: Span::new(declaration_type.span.start(), end),
         };
@@ -45,5 +50,34 @@ impl<L: ILexer> Parser<L> {
         decl.span = Span::new(decl.span.start(), self.current_token().span.end());
 
         Ok(Some(decl))
+    }
+
+    pub(in crate::frontend::parser) fn parse_let_variable_declaration(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        // let_declaration = let, identifier, "=", expression, ";";
+
+        let let_token = try_consume_token!(self, TokenCategory::Let);
+
+        let identifier = self
+            .parse_identifier()?
+            .ok_or_else(|| self.create_parser_error(String::from("Couldn't create identifier while parsing variable declaration.")))?;
+
+        self.consume_must_be(TokenCategory::Assign)?;
+
+        let value = self
+            .parse_expression()?
+            .ok_or_else(|| self.create_parser_error(String::from("Couldn't parse expression while parsing variable declaration.")))?;
+
+        let semicolon = self.consume_must_be(TokenCategory::Semicolon)?;
+        let end = semicolon.span.end();
+
+        let node = Node {
+            value: Statement::Declaration {
+                identifier,
+                kind: VariableDeclarationKind::LET { value },
+            },
+            span: Span::new(let_token.span.start(), end),
+        };
+
+        Ok(Some(node))
     }
 }

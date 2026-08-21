@@ -11,7 +11,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Block, Expression, Node, Program, Statement, SwitchCase, SwitchExpression},
+    frontend::ast::{Block, Expression, Node, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
 };
 
 impl<'a> Interpreter<'a> {
@@ -51,80 +51,109 @@ impl<'a> Interpreter<'a> {
                 self.call_function(identifier, arguments, statement.span)?;
             }
 
-            Statement::Declaration { var_type, identifier, value } => {
-                self.visit_type(var_type)?;
+            Statement::Declaration { identifier, kind } => match kind {
+                VariableDeclarationKind::TYPE { var_type, value } => {
+                    self.visit_type(var_type)?;
 
-                let mut computed_value = match value {
-                    Some(val) => {
-                        self.visit_expression(val)?;
+                    let mut computed_value = match value {
+                        Some(val) => {
+                            self.visit_expression(val)?;
 
-                        self.read_last_result().map_err(|_| {
-                            Box::new(InterpreterError::at(
-                                ErrorSeverity::HIGH,
-                                format!("Cannot declare variable '{}' with no value.", identifier.value),
-                                statement.span,
-                            )) as Box<dyn IError>
-                        })?
-                    }
-
-                    None => Value::default_value(&var_type.value, statement.span)
-                        .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?,
-                };
-
-                match (&var_type.value, &computed_value) {
-                    (Type::I8, Value::I8(_))
-                    | (Type::I16, Value::I16(_))
-                    | (Type::I32, Value::I32(_))
-                    | (Type::I64, Value::I64(_))
-                    | (Type::U8, Value::U8(_))
-                    | (Type::U16, Value::U16(_))
-                    | (Type::U32, Value::U32(_))
-                    | (Type::U64, Value::U64(_))
-                    | (Type::F64, Value::F64(_))
-                    | (Type::Str, Value::String(_))
-                    | (Type::Char, Value::Char(_))
-                    | (Type::Bool, Value::Bool(_)) => {}
-
-                    (Type::Vector(declared_inner), Value::Vector { values, .. }) => {
-                        for value in values.borrow().iter() {
-                            let actual_type = value.borrow().to_type();
-
-                            if actual_type != *declared_inner.as_ref() {
-                                return Err(Box::new(InterpreterError::expected_found(
+                            self.read_last_result().map_err(|_| {
+                                Box::new(InterpreterError::at(
                                     ErrorSeverity::HIGH,
-                                    format!("Cannot assign value to vector '{}'.", identifier.value),
-                                    format!("{:?}", declared_inner.as_ref()),
-                                    format!("{:?}", actual_type),
+                                    format!("Cannot declare variable '{}' with no value.", identifier.value),
                                     statement.span,
-                                )));
+                                )) as Box<dyn IError>
+                            })?
+                        }
+
+                        None => Value::default_value(&var_type.value, statement.span)
+                            .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?,
+                    };
+
+                    match (&var_type.value, &computed_value) {
+                        (Type::I8, Value::I8(_))
+                        | (Type::I16, Value::I16(_))
+                        | (Type::I32, Value::I32(_))
+                        | (Type::I64, Value::I64(_))
+                        | (Type::U8, Value::U8(_))
+                        | (Type::U16, Value::U16(_))
+                        | (Type::U32, Value::U32(_))
+                        | (Type::U64, Value::U64(_))
+                        | (Type::F64, Value::F64(_))
+                        | (Type::Str, Value::String(_))
+                        | (Type::Char, Value::Char(_))
+                        | (Type::Bool, Value::Bool(_)) => {}
+
+                        (Type::Vector(declared_inner), Value::Vector { values, .. }) => {
+                            for value in values.borrow().iter() {
+                                let actual_type = value.borrow().to_type();
+
+                                if actual_type != *declared_inner.as_ref() {
+                                    return Err(Box::new(InterpreterError::expected_found(
+                                        ErrorSeverity::HIGH,
+                                        format!("Cannot assign value to vector '{}'.", identifier.value),
+                                        format!("{:?}", declared_inner.as_ref()),
+                                        format!("{:?}", actual_type),
+                                        statement.span,
+                                    )));
+                                }
+                            }
+
+                            if let Value::Vector { kind: _, ref values } = computed_value {
+                                if values.borrow().is_empty() {
+                                    computed_value = Value::Vector {
+                                        kind: Box::new(var_type.value.clone()),
+                                        values: values.clone(),
+                                    };
+                                }
                             }
                         }
 
-                        if let Value::Vector { kind: _, ref values } = computed_value {
-                            if values.borrow().is_empty() {
-                                computed_value = Value::Vector {
-                                    kind: Box::new(var_type.value.clone()),
-                                    values: values.clone(),
-                                };
-                            }
+                        (declared_type, computed_value) => {
+                            return Err(Box::new(InterpreterError::expected_found(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot assign value to variable '{}'.", identifier.value),
+                                format!("{:?}", declared_type),
+                                format!("{:?}", computed_value.to_type()),
+                                statement.span,
+                            )));
                         }
                     }
 
-                    (declared_type, computed_value) => {
-                        return Err(Box::new(InterpreterError::expected_found(
+                    self.stack
+                        .declare_variable(identifier.value.as_str(), Rc::new(RefCell::new(computed_value)), statement.span)
+                        .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?;
+                }
+
+                VariableDeclarationKind::LET { value } => {
+                    self.visit_expression(value)?;
+
+                    let computed_value = self.read_last_result().map_err(|_| {
+                        Box::new(InterpreterError::at(
                             ErrorSeverity::HIGH,
-                            format!("Cannot assign value to variable '{}'.", identifier.value),
-                            format!("{:?}", declared_type),
-                            format!("{:?}", computed_value.to_type()),
+                            format!("Cannot declare variable '{}' with no value.", identifier.value),
+                            statement.span,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    if matches!(
+                        computed_value.to_type(),
+                        Type::Vector(ref inner) if **inner == Type::Void
+                    ) {
+                        return Err(Box::new(InterpreterError::at(
+                            ErrorSeverity::HIGH,
+                            String::from("Cannot infer type of empty vector."),
                             statement.span,
                         )));
                     }
-                }
 
-                self.stack
-                    .declare_variable(identifier.value.as_str(), Rc::new(RefCell::new(computed_value)), statement.span)
-                    .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?;
-            }
+                    self.stack
+                        .declare_variable(identifier.value.as_str(), Rc::new(RefCell::new(computed_value)), statement.span)
+                        .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?;
+                }
+            },
 
             Statement::Assignment { identifier, value, indices } => {
                 if indices.is_empty() {

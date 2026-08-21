@@ -2,6 +2,7 @@ use inkwell::AddressSpace;
 
 use super::{Compiler, ControlFrame};
 use crate::common::visitor::Visitor;
+use crate::frontend::ast::VariableDeclarationKind;
 use crate::{
     backend::llvm::llvm_alu::llvm_value::LlvmValue,
     common::{
@@ -26,62 +27,100 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.build_function_call(identifier, arguments, span)
             }
 
-            Statement::Declaration { var_type, identifier, value } => {
-                let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type.value, self.context).ok_or_else(|| {
-                    Box::new(CompilerError::at(
-                        ErrorSeverity::HIGH,
-                        format!("Compiling declarations of type '{:?}' is not yet supported.", var_type.value),
-                        span,
-                    )) as Box<dyn IError>
-                })?;
+            Statement::Declaration { identifier, kind } => match kind {
+                VariableDeclarationKind::TYPE { var_type, value } => {
+                    let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type.value, self.context).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Compiling declarations of type '{:?}' is not yet supported.", var_type.value),
+                            span,
+                        )) as Box<dyn IError>
+                    })?;
 
-                let ptr = self
-                    .builder
-                    .build_alloca(llvm_type, identifier.value.as_str())
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                    let ptr = self
+                        .builder
+                        .build_alloca(llvm_type, identifier.value.as_str())
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
-                match value {
-                    Some(val_expr) => match (&var_type.value, &val_expr.value) {
-                        (Type::Vector(inner), Expression::Vector(elements)) if elements.is_empty() => {
-                            let vector_ptr = self.build_empty_vector(inner, span)?;
+                    match value {
+                        Some(val_expr) => match (&var_type.value, &val_expr.value) {
+                            (Type::Vector(inner), Expression::Vector(elements)) if elements.is_empty() => {
+                                let vector_ptr = self.build_empty_vector(inner, span)?;
 
-                            self.builder
-                                .build_store(ptr, vector_ptr)
-                                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                                self.builder
+                                    .build_store(ptr, vector_ptr)
+                                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                            }
+
+                            (Type::Vector(inner), Expression::Vector(elements)) => {
+                                let vector_ptr = if elements.is_empty() {
+                                    self.build_empty_vector(inner, span)?
+                                } else {
+                                    self.build_vector_from_elements(inner, elements, None, span)?
+                                };
+
+                                self.builder
+                                    .build_store(ptr, vector_ptr)
+                                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                            }
+
+                            _ => {
+                                self.visit_expression(val_expr)?;
+
+                                let init_value = self.read_last_value()?;
+
+                                self.builder
+                                    .build_store(ptr, init_value.as_basic_value_enum())
+                                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                            }
+                        },
+
+                        None => {
+                            self.build_default_value(ptr, &var_type.value, span)?;
                         }
-
-                        (Type::Vector(inner), Expression::Vector(elements)) => {
-                            let vector_ptr = if elements.is_empty() {
-                                self.build_empty_vector(inner, span)?
-                            } else {
-                                self.build_vector_from_elements(inner, elements, None, span)?
-                            };
-
-                            self.builder
-                                .build_store(ptr, vector_ptr)
-                                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
-                        }
-
-                        _ => {
-                            self.visit_expression(val_expr)?;
-
-                            let init_value = self.read_last_value()?;
-
-                            self.builder
-                                .build_store(ptr, init_value.as_basic_value_enum())
-                                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
-                        }
-                    },
-
-                    None => {
-                        self.build_default_value(ptr, &var_type.value, span)?;
                     }
+
+                    self.variables.insert(identifier.value.clone(), (ptr, var_type.value.clone()));
+
+                    Ok(())
                 }
 
-                self.variables.insert(identifier.value.clone(), (ptr, var_type.value.clone()));
+                VariableDeclarationKind::LET { value } => {
+                    self.visit_expression(value)?;
 
-                Ok(())
-            }
+                    let init_value = self.read_last_value()?;
+                    let var_type = init_value.to_type();
+
+                    if matches!(&var_type, Type::Vector(inner) if **inner == Type::Void) {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            String::from("Cannot infer type of empty vector."),
+                            span,
+                        )));
+                    }
+
+                    let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type, self.context).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Compiling declarations of type '{:?}' is not yet supported.", var_type),
+                            span,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    let ptr = self
+                        .builder
+                        .build_alloca(llvm_type, identifier.value.as_str())
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+                    self.builder
+                        .build_store(ptr, init_value.as_basic_value_enum())
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+                    self.variables.insert(identifier.value.clone(), (ptr, var_type));
+
+                    Ok(())
+                }
+            },
 
             Statement::Assignment { identifier, value, indices } => {
                 let (var_ptr, var_type) = self.get_variable(identifier.value.as_str())?;

@@ -4,55 +4,74 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Node, Statement, SwitchCase, SwitchExpression},
+    frontend::ast::{Node, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
     semantic::semantic_checker::SemanticChecker,
 };
 
 impl<'a> SemanticChecker<'a> {
     pub(in crate::semantic::semantic_checker) fn check_declaration(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
-        let Statement::Declaration { var_type, value, identifier } = &statement.value else {
+        let Statement::Declaration { identifier, kind } = &statement.value else {
             return Ok(());
         };
 
-        let _ = self.visit_type(var_type);
+        match kind {
+            VariableDeclarationKind::TYPE { var_type, value } => {
+                let _ = self.visit_type(var_type);
 
-        let resolved_type = match value {
-            Some(val) => {
-                let _ = self.visit_expression(val);
+                let resolved_type = match value {
+                    Some(value) => {
+                        let _ = self.visit_expression(value);
 
-                match self.read_last_result(val.span) {
-                    Ok(t) => Some(t),
-                    Err(_) => None,
+                        match self.read_last_result(value.span) {
+                            Ok(actual_type) => {
+                                let types_compatible = var_type.value == actual_type
+                                    || matches!(
+                                        (&var_type.value, &actual_type),
+                                        (Type::Vector(_), Type::Vector(inner))
+                                            if **inner == Type::Void
+                                    );
+
+                                if !types_compatible {
+                                    let error = SemanticCheckerError::type_mismatch(
+                                        ErrorSeverity::HIGH,
+                                        format!("Cannot assign `{:?}` to `{}`.", actual_type, identifier.value),
+                                        &var_type.value,
+                                        &actual_type,
+                                        statement.span,
+                                    );
+
+                                    self.errors.push(Box::new(error));
+                                }
+
+                                Some(var_type.value.clone())
+                            }
+                            Err(_) => None,
+                        }
+                    }
+                    None => Some(var_type.value.clone()),
+                };
+
+                if let Some(resolved_type) = resolved_type {
+                    if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), resolved_type, statement.span) {
+                        self.errors
+                            .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
+                    }
                 }
             }
-            None => Some(var_type.value.clone()),
-        };
 
-        if let Some(actual_type) = resolved_type {
-            let types_compatible = var_type.value == actual_type
-                || matches!(
-                    (&var_type.value, &actual_type),
-                    (Type::Vector(_), Type::Vector(inner)) if **inner == Type::Void
-                );
+            VariableDeclarationKind::LET { value } => {
+                let _ = self.visit_expression(value);
 
-            if !types_compatible {
-                let error = SemanticCheckerError::type_mismatch(
-                    ErrorSeverity::HIGH,
-                    format!("Cannot assign `{:?}` to `{}`.", actual_type, identifier.value),
-                    &var_type.value,
-                    &actual_type,
-                    statement.span,
-                );
+                if let Ok(resolved_type) = self.read_last_result(value.span) {
+                    if matches!(&resolved_type, Type::Vector(inner) if **inner == Type::Void) {
+                        let error = SemanticCheckerError::at(ErrorSeverity::HIGH, String::from("Cannot infer type of empty vector."), statement.span);
 
-                self.errors.push(Box::new(error));
-            }
-
-            if let Err(err) = self
-                .stack
-                .declare_variable(identifier.value.as_str(), var_type.value.clone(), statement.span)
-            {
-                self.errors
-                    .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
+                        self.errors.push(Box::new(error));
+                    } else if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), resolved_type, statement.span) {
+                        self.errors
+                            .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
+                    }
+                }
             }
         }
 

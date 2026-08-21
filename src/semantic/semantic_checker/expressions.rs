@@ -7,7 +7,7 @@ use crate::{
     },
     frontend::ast::{Expression, Node},
     semantic::{
-        semantic_checker::{functions::FunctionCallType, SemanticChecker},
+        semantic_checker::{checker::HoverInfo, functions::FunctionCallType, SemanticChecker},
         type_alu::TypeALU,
     },
 };
@@ -29,6 +29,11 @@ impl<'a> SemanticChecker<'a> {
                 return;
             }
         };
+
+        self.hovers.push(HoverInfo {
+            contents: format!("```raptor\n{:?} {}\n```", current_type, identifier.value),
+            span: identifier.span,
+        });
 
         for index_expr in indices {
             let _ = self.visit_expression(index_expr);

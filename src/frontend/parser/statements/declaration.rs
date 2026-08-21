@@ -96,9 +96,9 @@ impl<L: ILexer> Parser<L> {
 
         let mut decl = try_consume!(self, parse_let_declaration);
 
-        self.consume_must_be(TokenCategory::Semicolon)?;
+        let semicolon_token = self.consume_must_be(TokenCategory::Semicolon)?;
 
-        decl.span = Span::new(decl.span.start(), self.current_token().span.end());
+        decl.span = Span::new(decl.span.start(), semicolon_token.span.end());
 
         Ok(Some(decl))
     }

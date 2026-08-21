@@ -5,7 +5,7 @@ use crate::{
         visitor::Visitor,
     },
     frontend::ast::{Node, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
-    semantic::semantic_checker::SemanticChecker,
+    semantic::semantic_checker::{checker::HoverInfo, SemanticChecker},
 };
 
 impl<'a> SemanticChecker<'a> {
@@ -51,36 +51,45 @@ impl<'a> SemanticChecker<'a> {
                     None => Some(var_type.value.clone()),
                 };
 
-                if let Some(resolved_type) = resolved_type {
+                if let Some(resolved_type) = resolved_type.clone() {
                     if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), resolved_type, statement.span) {
                         self.errors
                             .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
                     }
                 }
+
+                self.hovers.push(HoverInfo {
+                    contents: format!("```raptor\n{:?} {}\n```", resolved_type.unwrap_or(Type::Void), identifier.value),
+                    span: identifier.span,
+                });
             }
 
             VariableDeclarationKind::LET { var_type, value } => {
                 let _ = self.visit_expression(value);
 
-                if let Ok(resolved_type) = self.read_last_result(value.span) {
-                    if let Some(var_type) = var_type {
-                        let types_compatible = var_type.value == resolved_type
-                            || matches!(
-                                (&var_type.value, &resolved_type),
-                                (Type::Vector(_), Type::Vector(inner))
-                                    if **inner == Type::Void
-                            );
+                let resolved_type = self.read_last_result(value.span).ok();
 
-                        if !types_compatible {
-                            let error = SemanticCheckerError::type_mismatch(
-                                ErrorSeverity::HIGH,
-                                format!("Cannot assign `{:?}` to `{}`.", resolved_type, identifier.value),
-                                &var_type.value,
-                                &resolved_type,
-                                statement.span,
-                            );
+                let final_type = match var_type {
+                    Some(var_type) => {
+                        if let Some(resolved_type) = &resolved_type {
+                            let types_compatible = var_type.value == *resolved_type
+                                || matches!(
+                                    (&var_type.value, resolved_type),
+                                    (Type::Vector(_), Type::Vector(inner))
+                                        if **inner == Type::Void
+                                );
 
-                            self.errors.push(Box::new(error));
+                            if !types_compatible {
+                                let error = SemanticCheckerError::type_mismatch(
+                                    ErrorSeverity::HIGH,
+                                    format!("Cannot assign `{:?}` to `{}`.", resolved_type, identifier.value),
+                                    &var_type.value,
+                                    resolved_type,
+                                    statement.span,
+                                );
+
+                                self.errors.push(Box::new(error));
+                            }
                         }
 
                         if let Err(err) = self
@@ -90,31 +99,54 @@ impl<'a> SemanticChecker<'a> {
                             self.errors
                                 .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
                         }
-                    } else if matches!(&resolved_type, Type::Vector(inner) if **inner == Type::Void) {
-                        let error = SemanticCheckerError::at(
-                            ErrorSeverity::HIGH,
-                            format!(
-                                "Cannot infer type of empty vector. Consider adding a type annotation, e.g. `let {}: {:?} = [];`.",
-                                identifier.value,
-                                Type::Vector(Box::new(Type::I64))
-                            ),
-                            statement.span,
-                        );
 
-                        self.errors.push(Box::new(error));
-                    } else if resolved_type == Type::Void {
-                        let error = SemanticCheckerError::at(
-                            ErrorSeverity::HIGH,
-                            format!("Cannot assign `{:?}` to `{}`.", resolved_type, identifier.value),
-                            statement.span,
-                        );
-
-                        self.errors.push(Box::new(error));
-                    } else if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), resolved_type, statement.span) {
-                        self.errors
-                            .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
+                        var_type.value.clone()
                     }
-                }
+
+                    None => match resolved_type {
+                        Some(resolved_type) => {
+                            if matches!(
+                                &resolved_type,
+                                Type::Vector(inner) if **inner == Type::Void
+                            ) {
+                                let error = SemanticCheckerError::at(
+                                    ErrorSeverity::HIGH,
+                                    format!(
+                                        "Cannot infer type of empty vector. Consider adding a type annotation, e.g. `let {}: {:?} = [];`.",
+                                        identifier.value,
+                                        Type::Vector(Box::new(Type::I64))
+                                    ),
+                                    statement.span,
+                                );
+
+                                self.errors.push(Box::new(error));
+                            } else if resolved_type == Type::Void {
+                                let error = SemanticCheckerError::at(
+                                    ErrorSeverity::HIGH,
+                                    format!("Cannot assign `{:?}` to `{}`.", resolved_type, identifier.value),
+                                    statement.span,
+                                );
+
+                                self.errors.push(Box::new(error));
+                            } else if let Err(err) = self
+                                .stack
+                                .declare_variable(identifier.value.as_str(), resolved_type.clone(), statement.span)
+                            {
+                                self.errors
+                                    .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
+                            }
+
+                            resolved_type
+                        }
+
+                        None => Type::Void,
+                    },
+                };
+
+                self.hovers.push(HoverInfo {
+                    contents: format!("```raptor\n{:?} {}\n```", final_type, identifier.value),
+                    span: identifier.span,
+                });
             }
         }
 
@@ -140,10 +172,15 @@ impl<'a> SemanticChecker<'a> {
                 Box::new(error) as Box<dyn IError>
             })?;
 
-            if let Err(err) = self.stack.assign_variable(identifier.value.as_str(), value, statement.span) {
+            if let Err(err) = self.stack.assign_variable(identifier.value.as_str(), value.clone(), statement.span) {
                 self.errors
                     .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
             }
+
+            self.hovers.push(HoverInfo {
+                contents: format!("```raptor\n{:?} {}\n```", value, identifier.value),
+                span: identifier.span,
+            });
         } else {
             self.check_index_assignment(identifier, indices, value, statement.span);
         }

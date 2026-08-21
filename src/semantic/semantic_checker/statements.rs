@@ -67,6 +67,14 @@ impl<'a> SemanticChecker<'a> {
                         let error = SemanticCheckerError::at(ErrorSeverity::HIGH, String::from("Cannot infer type of empty vector."), statement.span);
 
                         self.errors.push(Box::new(error));
+                    } else if resolved_type == Type::Void {
+                        let error = SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot assign `{:?}` to `{}`.", resolved_type, identifier.value),
+                            statement.span,
+                        );
+
+                        self.errors.push(Box::new(error));
                     } else if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), resolved_type, statement.span) {
                         self.errors
                             .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));

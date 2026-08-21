@@ -31,13 +31,3 @@ fn capitalize(char c): char {
 }
 
 println(capitalize('a') as str);
-
-# ok
-let x = 420;
-let y = [1, 2, 3];
-
-println(x as str);
-println(vector_stringify(y));
-
-# bad
-# let z = [];

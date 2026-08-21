@@ -2,7 +2,7 @@
 
 ### Syntax Part
 
-**program** = { function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" };
+**program** = { function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration };
 
 **comment** = "#" , {unicode_character - "\n"}, "\n";
 
@@ -31,7 +31,7 @@ fn add(i64 a, i64 b): i64 {
 
 **statement_block** = ("{", {statement}, "}") | statement;
 
-**statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | declaration, ";" | return_statement | break_statement | continue_statement;
+**statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration | return_statement | break_statement | continue_statement;
 
 **assign_or_call_without_semicolon** = identifier, ( { "[", expression, "]" }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
 
@@ -54,6 +54,17 @@ bool is_valid = true;
 i64 counter = 0;
 f64 result = 10.5;
 str message = "Hello, Raptor!";
+```
+
+**let_declaration** = let, identifier, [ ":", identifier ], "=", expression, ";";
+
+```text
+let is_valid = true;
+let counter = 0;
+let result = 10.5;
+let message = "Hello, Raptor!";
+let colors = ["white", "black"];
+let array: str[] = [];
 ```
 
 **if_statement** = "if", "(", expression, ")", statement_block, [ "else", statement_block ];
@@ -296,21 +307,21 @@ switch (x: temp1, y: temp2) {
 
 ## Operator priority
 
-| Operator              | Priority |   |   |
-| --------------------- | -------: | - | - |
-| `-` (number negation) |        7 |   |   |
-| `!`                   |        7 |   |   |
-| `as`                  |        6 |   |   |
-| `*`                   |        5 |   |   |
-| `/`                   |        5 |   |   |
-| `%`                   |        5 |   |   |
-| `+`                   |        4 |   |   |
-| `-` (subtraction)     |        4 |   |   |
-| `>`                   |        3 |   |   |
-| `>=`                  |        3 |   |   |
-| `<`                   |        3 |   |   |
-| `<=`                  |        3 |   |   |
-| `==`                  |        3 |   |   |
-| `!=`                  |        3 |   |   |
-| `&&`                  |        2 |   |   |
-| `\|\|`                |        1 |   |   |
+| Operator              | Priority |
+| --------------------- | -------: |
+| `-` (number negation) |        7 |
+| `!`                   |        7 |
+| `as`                  |        6 |
+| `*`                   |        5 |
+| `/`                   |        5 |
+| `%`                   |        5 |
+| `+`                   |        4 |
+| `-` (subtraction)     |        4 |
+| `>`                   |        3 |
+| `>=`                  |        3 |
+| `<`                   |        3 |
+| `<=`                  |        3 |
+| `==`                  |        3 |
+| `!=`                  |        3 |
+| `&&`                  |        2 |
+| `\|\|`                |        1 |

@@ -69,7 +69,7 @@
       "patterns": [
         {
           "name": "constant.language.rp",
-          "match": "\\b(true|false)\\b"
+          "match": "\\b(true|false|let)\\b"
         }
       ]
     },

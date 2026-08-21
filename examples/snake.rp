@@ -19,34 +19,34 @@ fn make_color(i64 r, i64 g, i64 b, i64 a): i64 {
     return a * 256 * 256 * 256 + b * 256 * 256 + g * 256 + r;
 }
 
-i64 CELL_SIZE = 20;
-i64 GRID_W = 30;
-i64 GRID_H = 20;
+let CELL_SIZE = 20;
+let GRID_W = 30;
+let GRID_H = 20;
 
-i64 KEY_RIGHT = 262;
-i64 KEY_LEFT = 263;
-i64 KEY_DOWN = 264;
-i64 KEY_UP = 265;
-i64 KEY_ENTER = 257;
+let KEY_RIGHT = 262;
+let KEY_LEFT = 263;
+let KEY_DOWN = 264;
+let KEY_UP = 265;
+let KEY_ENTER = 257;
 
-i64 COLOR_BG = make_color(24, 24, 24, 255);
-i64 COLOR_SNAKE = make_color(0, 200, 60, 255);
-i64 COLOR_APPLE = make_color(220, 30, 30, 255);
-i64 COLOR_TEXT = make_color(255, 255, 255, 255);
+let COLOR_BG = make_color(24, 24, 24, 255);
+let COLOR_SNAKE = make_color(0, 200, 60, 255);
+let COLOR_APPLE = make_color(220, 30, 30, 255);
+let COLOR_TEXT = make_color(255, 255, 255, 255);
 
 fn is_on_snake(&i64[][] snake, i64 x, i64 y): bool {
-    for (i64 i = 0; i < vector_size(&snake); i += 1) {
+    for (let i = 0; i < vector_size(&snake); i += 1) {
         if (snake[i][0] == x && snake[i][1] == y) return true;
     }
     return false;
 }
 
 fn spawn_apple(&i64[][] snake): i64[] {
-    i64 GRID_W = 30;
-    i64 GRID_H = 20;
+    let GRID_W = 30;
+    let GRID_H = 20;
 
-    i64 x = get_random_value(0, GRID_W - 1);
-    i64 y = get_random_value(0, GRID_H - 1);
+    let x = get_random_value(0, GRID_W - 1);
+    let y = get_random_value(0, GRID_H - 1);
     while (is_on_snake(&snake, x, y)) {
         x = get_random_value(0, GRID_W - 1);
         y = get_random_value(0, GRID_H - 1);
@@ -55,7 +55,7 @@ fn spawn_apple(&i64[][] snake): i64[] {
 }
 
 fn draw_cell(i64 x, i64 y, i64 color): void {
-    i64 CELL_SIZE = 20;
+    let CELL_SIZE = 20;
     draw_rectangle(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1, color);
 }
 
@@ -66,13 +66,13 @@ fn new_snake_start(): i64[][] {
 init_window(GRID_W * CELL_SIZE, GRID_H * CELL_SIZE, "Snake - Raptor + raylib");
 set_target_fps(60);
 
-i64[][] snake = new_snake_start();
-i64 dx = 1;
-i64 dy = 0;
-i64[] apple = spawn_apple(&snake);
-i64 tick = 0;
-i64 tick_speed = 8;
-bool game_over = false;
+let snake = new_snake_start();
+let dx = 1;
+let dy = 0;
+let apple = spawn_apple(&snake);
+let tick = 0;
+let tick_speed = 8;
+let game_over = false;
 
 while (!window_should_close()) {
 
@@ -95,26 +95,26 @@ while (!window_should_close()) {
         if (tick >= tick_speed) {
             tick = 0;
 
-            i64 head_x = snake[0][0] + dx;
-            i64 head_y = snake[0][1] + dy;
+            let head_x = snake[0][0] + dx;
+            let head_y = snake[0][1] + dy;
 
-            bool hit_wall = head_x < 0 || head_x >= GRID_W || head_y < 0 || head_y >= GRID_H;
+            let hit_wall = head_x < 0 || head_x >= GRID_W || head_y < 0 || head_y >= GRID_H;
 
-            bool hit_self = false;
-            for (i64 i = 0; i < vector_size(&snake) - 1; i += 1) {
+            let hit_self = false;
+            for (let i = 0; i < vector_size(&snake) - 1; i += 1) {
                 if (snake[i][0] == head_x && snake[i][1] == head_y) hit_self = true;
             }
 
             if (hit_wall || hit_self) {
                 game_over = true;
             } else {
-                bool ate = (head_x == apple[0] && head_y == apple[1]);
+                let ate = (head_x == apple[0] && head_y == apple[1]);
 
-                i64[][] new_snake = [[head_x, head_y]];
-                i64 copy_len = vector_size(&snake);
+                let new_snake = [[head_x, head_y]];
+                let copy_len = vector_size(&snake);
                 if (!ate) copy_len = copy_len - 1;
 
-                for (i64 i = 0; i < copy_len; i += 1) {
+                for (let i = 0; i < copy_len; i += 1) {
                     vector_push(&new_snake, snake[i]);
                 }
 
@@ -130,7 +130,7 @@ while (!window_should_close()) {
     begin_drawing();
     clear_background(COLOR_BG);
 
-    for (i64 i = 0; i < vector_size(&snake); i += 1) {
+    for (let i = 0; i < vector_size(&snake); i += 1) {
         draw_cell(snake[i][0], snake[i][1], COLOR_SNAKE);
     }
     draw_cell(apple[0], apple[1], COLOR_APPLE);

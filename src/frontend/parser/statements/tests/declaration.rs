@@ -1,3 +1,4 @@
+use crate::frontend::ast::VariableDeclarationKind;
 use crate::frontend::parser::tests::{create_token, LexerMock};
 use crate::{
     common::types::Type,
@@ -29,14 +30,18 @@ fn parse_declaration() {
 
     let expected = [
         Statement::Declaration {
-            var_type: test_node!(Type::I64),
             identifier: test_node!(String::from("a")),
-            value: None,
+            kind: VariableDeclarationKind::TYPE {
+                var_type: test_node!(Type::I64),
+                value: None,
+            },
         },
         Statement::Declaration {
-            var_type: test_node!(Type::I64),
             identifier: test_node!(String::from("a")),
-            value: Some(test_node!(Expression::Literal(Literal::I64(5)))),
+            kind: VariableDeclarationKind::TYPE {
+                var_type: test_node!(Type::I64),
+                value: Some(test_node!(Expression::Literal(Literal::I64(5)))),
+            },
         },
     ];
 

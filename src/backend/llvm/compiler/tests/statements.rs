@@ -6,7 +6,7 @@ use crate::{
         Compiler,
     },
     common::types::Type,
-    frontend::ast::{Block, Expression, Literal, Statement},
+    frontend::ast::{Block, Expression, Literal, Statement, VariableDeclarationKind},
 };
 
 fn with_main<'a, 'ctx>(program: &'a crate::frontend::ast::Program, context: &'ctx Context) -> Compiler<'a, 'ctx> {
@@ -22,9 +22,11 @@ fn declare_i64_with_init() {
     let mut compiler = with_main(&program, &context);
 
     let stmt = node(Statement::Declaration {
-        var_type: node(Type::I64),
         identifier: node(String::from("x")),
-        value: Some(node(Expression::Literal(Literal::I64(42)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node(Type::I64),
+            value: Some(node(Expression::Literal(Literal::I64(42)))),
+        },
     });
     assert!(compiler.compile_statement(&stmt).is_ok());
     assert!(compiler.get_variable("x").is_ok());
@@ -37,9 +39,11 @@ fn declare_i64_with_default() {
     let mut compiler = with_main(&program, &context);
 
     let stmt = node(Statement::Declaration {
-        var_type: node(Type::I64),
         identifier: node(String::from("y")),
-        value: None,
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node(Type::I64),
+            value: None,
+        },
     });
     assert!(compiler.compile_statement(&stmt).is_ok());
     assert!(compiler.get_variable("y").is_ok());
@@ -52,16 +56,20 @@ fn declare_bool_and_f64() {
     let mut compiler = with_main(&program, &context);
 
     let b = node(Statement::Declaration {
-        var_type: node(Type::Bool),
         identifier: node(String::from("flag")),
-        value: Some(node(Expression::Literal(Literal::True))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node(Type::Bool),
+            value: Some(node(Expression::Literal(Literal::True))),
+        },
     });
     assert!(compiler.compile_statement(&b).is_ok());
 
     let f = node(Statement::Declaration {
-        var_type: node(Type::F64),
         identifier: node(String::from("pi")),
-        value: Some(node(Expression::Literal(Literal::F64(3.14)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node(Type::F64),
+            value: Some(node(Expression::Literal(Literal::F64(3.14)))),
+        },
     });
     assert!(compiler.compile_statement(&f).is_ok());
 }
@@ -74,9 +82,11 @@ fn assign_to_variable() {
 
     // declare first
     let decl = node(Statement::Declaration {
-        var_type: node(Type::I64),
         identifier: node(String::from("x")),
-        value: Some(node(Expression::Literal(Literal::I64(0)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node(Type::I64),
+            value: Some(node(Expression::Literal(Literal::I64(0)))),
+        },
     });
     compiler.compile_statement(&decl).unwrap();
 
@@ -110,9 +120,11 @@ fn if_true_branch() {
 
     // i64 x = 0;
     let binding = node(Statement::Declaration {
-        var_type: node(Type::I64),
         identifier: node(String::from("x")),
-        value: Some(node(Expression::Literal(Literal::I64(0)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node(Type::I64),
+            value: Some(node(Expression::Literal(Literal::I64(0)))),
+        },
     });
 
     compiler.compile_statement(&binding).unwrap();
@@ -197,9 +209,11 @@ fn for_loop_basic() {
 
     let stmt = node(Statement::ForLoop {
         declaration: Some(Box::new(node(Statement::Declaration {
-            var_type: node(Type::I64),
             identifier: node(String::from("i")),
-            value: Some(node(Expression::Literal(Literal::I64(0)))),
+            kind: VariableDeclarationKind::TYPE {
+                var_type: node(Type::I64),
+                value: Some(node(Expression::Literal(Literal::I64(0)))),
+            },
         }))),
         condition: node(Expression::Literal(Literal::False)),
         assignment: Some(Box::new(node(Statement::Assignment {

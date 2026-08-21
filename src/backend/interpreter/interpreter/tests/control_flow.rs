@@ -4,7 +4,9 @@ use super::{create_interpreter, setup_program, test_node};
 use crate::{
     backend::interpreter::{alu::value::Value, interpreter::Interpreter},
     common::{span::Span, types::Type, visitor::Visitor},
-    frontend::ast::{Block, Expression, FunctionDeclaration, Literal, Node, Program, Statement, SwitchCase, SwitchExpression},
+    frontend::ast::{
+        Block, Expression, FunctionDeclaration, Literal, Node, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind,
+    },
 };
 
 #[test]
@@ -13,9 +15,11 @@ fn for_loop() {
     // for (i64 i = 1; i <= 5; i = i + 1) {total = total + i;}
     let ast = test_node!(Statement::ForLoop {
         declaration: Some(Box::new(test_node!(Statement::Declaration {
-            var_type: test_node!(Type::I64),
             identifier: test_node!(String::from("i")),
-            value: Some(test_node!(Expression::Literal(Literal::I64(1)))),
+            kind: VariableDeclarationKind::TYPE {
+                var_type: test_node!(Type::I64),
+                value: Some(test_node!(Expression::Literal(Literal::I64(1)))),
+            },
         }))),
         condition: test_node!(Expression::LessEqual(
             Box::new(test_node!(Expression::Variable(String::from("i")))),
@@ -161,9 +165,11 @@ fn for_loop_with_continue() {
     // for (i64 i = 0; i < 5; i = i + 1) { if (i == 2) { continue; } total = total + i; }
     let ast = test_node!(Statement::ForLoop {
         declaration: Some(Box::new(test_node!(Statement::Declaration {
-            var_type: test_node!(Type::I64),
             identifier: test_node!(String::from("i")),
-            value: Some(test_node!(Expression::Literal(Literal::I64(0)))),
+            kind: VariableDeclarationKind::TYPE {
+                var_type: test_node!(Type::I64),
+                value: Some(test_node!(Expression::Literal(Literal::I64(0)))),
+            },
         }))),
         condition: test_node!(Expression::Less(
             Box::new(test_node!(Expression::Variable(String::from("i")))),

@@ -6,7 +6,9 @@ use crate::{
         Compiler,
     },
     common::{types::Type, visitor::Visitor},
-    frontend::ast::{Argument, Block, Expression, Literal, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression},
+    frontend::ast::{
+        Argument, Block, Expression, Literal, Parameter, PassedBy, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind,
+    },
 };
 
 fn with_main<'a, 'ctx>(program: &'a Program, context: &'ctx Context) -> Compiler<'a, 'ctx> {
@@ -30,14 +32,18 @@ fn visit_program_with_statements() {
     let mut program = empty_program();
     program.statements = vec![
         node(Statement::Declaration {
-            var_type: node(Type::I64),
             identifier: node(String::from("x")),
-            value: Some(node(Expression::Literal(Literal::I64(1)))),
+            kind: VariableDeclarationKind::TYPE {
+                var_type: node(Type::I64),
+                value: Some(node(Expression::Literal(Literal::I64(1)))),
+            },
         }),
         node(Statement::Declaration {
-            var_type: node(Type::Bool),
             identifier: node(String::from("b")),
-            value: Some(node(Expression::Literal(Literal::True))),
+            kind: VariableDeclarationKind::TYPE {
+                var_type: node(Type::Bool),
+                value: Some(node(Expression::Literal(Literal::True))),
+            },
         }),
     ];
     let mut compiler = with_main(&program, &context);
@@ -81,9 +87,11 @@ fn visit_variable_loads_value() {
 
     // declare via statement so alloca + store happen
     let binding = node(Statement::Declaration {
-        var_type: node(Type::I64),
         identifier: node(String::from("n")),
-        value: Some(node(Expression::Literal(Literal::I64(7)))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node(Type::I64),
+            value: Some(node(Expression::Literal(Literal::I64(7)))),
+        },
     });
 
     compiler.visit_statement(&binding).unwrap();
@@ -120,9 +128,11 @@ fn visit_block_with_statements() {
 
     let block = node(Block(vec![
         node(Statement::Declaration {
-            var_type: node(Type::I64),
             identifier: node(String::from("a")),
-            value: Some(node(Expression::Literal(Literal::I64(1)))),
+            kind: VariableDeclarationKind::TYPE {
+                var_type: node(Type::I64),
+                value: Some(node(Expression::Literal(Literal::I64(1)))),
+            },
         }),
         node(Statement::Assignment {
             identifier: node(String::from("a")),
@@ -154,9 +164,11 @@ fn visit_statement_dispatches_to_compile() {
     let mut compiler = with_main(&program, &context);
 
     let stmt = node(Statement::Declaration {
-        var_type: node(Type::Bool),
         identifier: node(String::from("ok")),
-        value: Some(node(Expression::Literal(Literal::False))),
+        kind: VariableDeclarationKind::TYPE {
+            var_type: node(Type::Bool),
+            value: Some(node(Expression::Literal(Literal::False))),
+        },
     });
     assert!(compiler.visit_statement(&stmt).is_ok());
 }

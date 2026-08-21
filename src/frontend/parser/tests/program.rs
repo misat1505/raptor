@@ -2,7 +2,7 @@ use super::{create_token, LexerMock};
 use crate::{
     common::types::Type,
     frontend::{
-        ast::{Block, Expression, Literal, Statement, SwitchCase, SwitchExpression},
+        ast::{Block, Expression, Literal, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
         parser::{tests::test_node, IParser, Parser},
         tokens::{TokenCategory, TokenValue},
     },
@@ -141,9 +141,11 @@ fn parse_statement() {
         Statement::Return(None),
         Statement::Break,
         Statement::Declaration {
-            var_type: test_node!(Type::I64),
             identifier: test_node!(String::from("a")),
-            value: Some(test_node!(Expression::Literal(Literal::I64(5)))),
+            kind: VariableDeclarationKind::TYPE {
+                var_type: test_node!(Type::I64),
+                value: Some(test_node!(Expression::Literal(Literal::I64(5)))),
+            },
         },
     ];
 

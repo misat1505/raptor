@@ -182,4 +182,5 @@ pub struct Program {
     pub std_functions: HashMap<String, StdFunction>,
     pub extern_functions: HashMap<String, Rc<Node<ExternFunctionDeclaration>>>,
     pub declared_types: HashMap<String, Rc<Node<DeclaredType>>>,
+    pub types: HashMap<String, Type>,
 }

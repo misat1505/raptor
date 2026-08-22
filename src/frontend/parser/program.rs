@@ -85,12 +85,15 @@ impl<L: ILexer> Parser<L> {
 
         self.consume_must_be(TokenCategory::ETX)?;
 
+        let types = Self::resolve_declared_types(&declared_types)?;
+
         Ok(Program {
             statements,
             functions,
             std_functions,
             extern_functions,
             declared_types,
+            types,
         })
     }
 

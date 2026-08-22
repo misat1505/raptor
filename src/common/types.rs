@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 #[derive(Clone, PartialEq)]
 pub enum Type {
@@ -16,6 +16,10 @@ pub enum Type {
     F64,
     Void,
     Vector(Box<Type>),
+    Struct {
+        identifier: String,
+        fields: HashMap<String, Type>,
+    },
     #[allow(dead_code)]
     Any, // internal, not available for the user
 }
@@ -37,6 +41,7 @@ impl Debug for Type {
             Type::Char => Ok(write!(f, "char")?),
             Type::Void => Ok(write!(f, "void")?),
             Type::Vector(inner) => write!(f, "{:?}[]", inner),
+            Type::Struct { identifier, .. } => write!(f, "{}", identifier),
             Type::Any => Ok(write!(f, "any")?),
         }
     }

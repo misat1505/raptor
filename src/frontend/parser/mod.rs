@@ -8,6 +8,7 @@ mod expressions;
 mod functions;
 mod misc;
 mod program;
+mod resolve_declared_types;
 mod statements;
 mod structs;
 

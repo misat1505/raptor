@@ -1,41 +1,46 @@
-struct Hobby {
+struct Post {
   u64 id,
   str description
 };
 
-struct Person {
+struct User {
   u64 id,
   str name,
-  Hobby[] hobbies
+  Post[] posts
 };
 
-let hobby = Hobby {
+let post = Post {
   id: 123 as u64,
   description: "Play football"
 };
 
-let person = Person {
+let user = User {
   id: 2137 as u64,
   name: "Elon",
-  hobbies: [hobby]
+  posts: [post]
 };
 
-fn person_get_person(&Person person): Person {
-  return person;
+fn user_get_user(&User user): User {
+  return user;
 }
 
-fn person_get_person2(&Person[] person): Person {
-  return person[0];
+fn user_get_user2(&User[] user): User {
+  return user[0];
 }
 
-fn person_get_person_array(&Person person): Person[] {
-  return [person];
+fn user_get_user_array(&User user): User[] {
+  return [user];
 }
 
-fn person_get_person_array2(&Person[] person): Person[] {
-  return [person[0]];
+fn user_get_user_array2(&User[] user): User[] {
+  return [user[0]];
 }
 
-let arr = [person];
-person_get_person_array(&arr[0]);
-person_get_person_array2(&arr);
+let arr = [user];
+user_get_user_array(&arr[0]);
+user_get_user_array2(&arr);
+
+
+extern fn ab(User u): User;
+
+let i = ab(user);

@@ -31,8 +31,9 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
             for param in &function.value.parameters {
                 let param_name = &param.value.identifier.value;
-                self.visit_type(&param.value.parameter_type);
-                let t = self.read_last_result(param.value.parameter_type.span)?;
+                self.visit_type(&param.value.parameter_type)?;
+                let raw_t = self.read_last_result(param.value.parameter_type.span)?;
+                let t = self.resolve_type_fully_checked(&raw_t, param.value.parameter_type.span)?;
 
                 if let Err(err) = self.stack.declare_variable(param_name, t.clone(), param.span) {
                     self.errors

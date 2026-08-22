@@ -47,6 +47,11 @@ impl<'a> Interpreter<'a> {
             Expression::Variable(variable) => self.visit_variable(variable, expression.span)?,
             Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments, expression.span)?,
             Expression::Index { collection, index } => self.eval_index(collection, index)?,
+            Expression::StructLiteral { .. } => Err(Box::new(InterpreterError::at(
+                ErrorSeverity::HIGH,
+                String::from("Visiting struct literal in interpreter is not implemented yet."),
+                expression.span,
+            )) as Box<dyn IError>)?,
         }
 
         Ok(())

@@ -1,7 +1,14 @@
-struct Hobby {
+# struct Hobby {
+#   u64 id,
+#   str description
+# };
+
+struct Person {
   u64 id,
-  str description
+  str name
 };
+
+let p = Person { id: 123 as u64, name: "Bob" };
 
 # struct Person {
 #   u64 id,

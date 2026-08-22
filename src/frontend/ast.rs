@@ -14,6 +14,12 @@ pub struct Node<T> {
 type BNode<T> = Box<Node<T>>;
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct StructLiteralField {
+    pub identifier: Node<String>,
+    pub value: Node<Expression>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     // Boolean operations
     Alternative(BNode<Expression>, BNode<Expression>),
@@ -50,6 +56,10 @@ pub enum Expression {
     FunctionCall {
         identifier: Node<String>,
         arguments: Vec<BNode<Argument>>,
+    },
+    StructLiteral {
+        identifier: Node<String>,
+        fields: Vec<Node<StructLiteralField>>,
     },
 }
 

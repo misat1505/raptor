@@ -216,7 +216,7 @@ x * 10 % 3
 !(x == 5)
 ```
 
-**factor** = literal | ( "(", expression, ")" ) | identifier_or_call | vector_literal;
+**factor** = literal | ( "(", expression, ")" ) | identifier_or_call_or_struct_literal | vector_literal;
 
 ```text
 5
@@ -242,15 +242,26 @@ fun(5)
 ]
 ```
 
-**identifier_or_call** = identifier, [ "(", arguments, ")" ], { "[", expression, "]" };
-
+**identifier_or_call_or_struct_literal** = identifier, ( call_or_index_tail | struct_literal_tail );
 ```text
 x
 fun(5)
 
 x[0][0]
 fun(5)[0][0]
+
+Person { id: 123 as u64, name: "Bob" }
+Hobby { id: 1, description: "Play football" }
 ```
+
+**call_or_index_tail** = [ "(", arguments, ")" ], { "[", expression, "]" };
+
+**struct_literal_tail** = "{", [ struct_literal_fields ], "}";
+
+**struct_literal_fields** = struct_literal_field, { ",", struct_literal_field };
+
+**struct_literal_field** = identifier, ":", expression;
+
 
 **literal** = integer_literal | float_literal | boolean_literal | string_literal | char_literal;
 

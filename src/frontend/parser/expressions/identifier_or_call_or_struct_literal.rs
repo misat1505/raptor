@@ -1,7 +1,7 @@
 use crate::{
     common::{errors::IError, span::Span},
     frontend::{
-        ast::{Expression, Node, StructLiteralField},
+        ast::{Expression, Node, StructLiteral, StructLiteralField},
         lexer::lexer::ILexer,
         parser::{core::try_consume, Parser},
         tokens::TokenCategory,
@@ -71,8 +71,11 @@ impl<L: ILexer> Parser<L> {
         let brace_close_token = self.consume_must_be(TokenCategory::BraceClose)?;
 
         Ok(Node {
-            span: Span::new(start, brace_close_token.span.end()),
-            value: Expression::StructLiteral { identifier, fields },
+            span: Span::new(start.clone(), brace_close_token.span.end().clone()),
+            value: Expression::StructLiteral(Node {
+                value: StructLiteral { identifier, fields },
+                span: Span::new(start.clone(), brace_close_token.span.end().clone()),
+            }),
         })
     }
 

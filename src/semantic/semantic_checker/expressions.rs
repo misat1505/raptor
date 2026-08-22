@@ -200,17 +200,7 @@ impl<'a> SemanticChecker<'a> {
                 }
             }
 
-            Expression::StructLiteral { .. } => {
-                let err = SemanticCheckerError::at(
-                    ErrorSeverity::HIGH,
-                    String::from("Visiting struct literal in semantic checker is not implemented yet."),
-                    expression.span,
-                );
-
-                self.errors.push(Box::new(err.clone()));
-
-                return Err(Box::new(err));
-            }
+            Expression::StructLiteral(sl) => self.visit_struct_literal(sl)?,
         }
 
         Ok(())

@@ -20,6 +20,12 @@ pub struct StructLiteralField {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct StructLiteral {
+    pub identifier: Node<String>,
+    pub fields: Vec<Node<StructLiteralField>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     // Boolean operations
     Alternative(BNode<Expression>, BNode<Expression>),
@@ -57,10 +63,7 @@ pub enum Expression {
         identifier: Node<String>,
         arguments: Vec<BNode<Argument>>,
     },
-    StructLiteral {
-        identifier: Node<String>,
-        fields: Vec<Node<StructLiteralField>>,
-    },
+    StructLiteral(Node<StructLiteral>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

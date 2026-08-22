@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, SemanticCheckerError},
@@ -5,7 +7,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression},
+    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, StructLiteral, SwitchCase, SwitchExpression},
     semantic::semantic_checker::{checker::HoverInfo, functions::FunctionCallType, SemanticChecker},
 };
 
@@ -179,6 +181,98 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         }
 
         self.last_result = Some(vector_type);
+
+        Ok(())
+    }
+}
+
+impl<'a> SemanticChecker<'a> {
+    pub(in crate::semantic::semantic_checker) fn visit_struct_literal(&mut self, node: &'a Node<StructLiteral>) -> Result<(), Box<dyn IError>> {
+        let identifier = &node.value.identifier;
+        let fields = &node.value.fields;
+
+        let type_node: &'a Node<Type> = Box::leak(Box::new(Node {
+            value: Type::Unresolved(identifier.value.clone()),
+            span: identifier.span,
+        }));
+
+        let _ = self.visit_type(type_node);
+        let Ok(declared_type) = self.read_last_result(identifier.span) else {
+            return Ok(());
+        };
+
+        let Type::Struct {
+            identifier: struct_name,
+            fields: expected_fields,
+        } = &declared_type
+        else {
+            let error = SemanticCheckerError::at(
+                ErrorSeverity::HIGH,
+                format!("'{}' is not a struct type.", identifier.value),
+                identifier.span,
+            );
+            self.errors.push(Box::new(error));
+            return Ok(());
+        };
+
+        let mut seen_fields = HashSet::new();
+
+        for field in fields {
+            let field_name = &field.value.identifier.value;
+
+            self.visit_expression(&field.value.value)?;
+            let Ok(actual_type) = self.read_last_result(field.value.value.span) else {
+                continue;
+            };
+
+            let Some(expected_type) = expected_fields.get(field_name) else {
+                let error = SemanticCheckerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Struct '{}' has no field '{}'.", struct_name, field_name),
+                    field.value.identifier.span,
+                );
+                self.errors.push(Box::new(error));
+                continue;
+            };
+
+            if !expected_type.is_compatible(&actual_type) {
+                let error = SemanticCheckerError::type_mismatch(
+                    ErrorSeverity::HIGH,
+                    format!("Cannot assign `{:?}` to field '{}' of `{}`.", actual_type, field_name, struct_name),
+                    expected_type,
+                    &actual_type,
+                    field.span,
+                );
+                self.errors.push(Box::new(error));
+            }
+
+            if !seen_fields.insert(field_name.clone()) {
+                let error = SemanticCheckerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Field '{}' specified more than once.", field_name),
+                    field.value.identifier.span,
+                );
+                self.errors.push(Box::new(error));
+            }
+        }
+
+        for expected_name in expected_fields.keys() {
+            if !seen_fields.contains(expected_name) {
+                let error = SemanticCheckerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Missing field '{}' in initializer of '{}'.", expected_name, struct_name),
+                    node.span,
+                );
+                self.errors.push(Box::new(error));
+            }
+        }
+
+        self.hovers.push(HoverInfo {
+            contents: format!("```raptor\n{:?}\n```", declared_type),
+            span: identifier.span,
+        });
+
+        self.last_result = Some(declared_type);
 
         Ok(())
     }

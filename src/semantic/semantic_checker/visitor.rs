@@ -22,7 +22,12 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         for (_name, function) in &program.functions {
             self.stack.push_stack_frame().map_err(|err| Box::new(err));
 
-            self.current_function_return_type = Some(function.value.return_type.value.clone());
+            let _ = self.visit_type(&function.value.return_type);
+            let resolved = self.read_last_result(function.value.return_type.span).ok();
+            self.current_function_return_type = resolved
+                .map(|t| self.resolve_type_fully_checked(&t, function.value.return_type.span))
+                .transpose()
+                .unwrap_or(None);
 
             for param in &function.value.parameters {
                 let param_name = &param.value.identifier.value;
@@ -235,11 +240,13 @@ impl<'a> SemanticChecker<'a> {
                 continue;
             };
 
+            let expected_type = self.resolve_type_fully_checked(expected_type, identifier.span)?;
+
             if !expected_type.is_compatible(&actual_type) {
                 let error = SemanticCheckerError::type_mismatch(
                     ErrorSeverity::HIGH,
                     format!("Cannot assign `{:?}` to field '{}' of `{}`.", actual_type, field_name, struct_name),
-                    expected_type,
+                    &expected_type,
                     &actual_type,
                     field.span,
                 );
@@ -275,5 +282,17 @@ impl<'a> SemanticChecker<'a> {
         self.last_result = Some(declared_type);
 
         Ok(())
+    }
+
+    pub(in crate::semantic::semantic_checker) fn resolve_type_fully_checked(&mut self, ty: &Type, span: Span) -> Result<Type, Box<dyn IError>> {
+        match ty {
+            Type::Unresolved(name) => self.program.types.get(name).cloned().ok_or_else(|| {
+                let err = SemanticCheckerError::at(ErrorSeverity::HIGH, format!("Unknown type '{}'.", name), span);
+                self.errors.push(Box::new(err.clone()));
+                Box::new(err) as Box<dyn IError>
+            }),
+            Type::Vector(inner) => Ok(Type::Vector(Box::new(self.resolve_type_fully_checked(inner, span)?))),
+            other => Ok(other.clone()),
+        }
     }
 }

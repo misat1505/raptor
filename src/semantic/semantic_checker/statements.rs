@@ -355,7 +355,7 @@ impl<'a> SemanticChecker<'a> {
         if let Some(expected) = self.current_function_return_type.clone() {
             let is_ok = match (&actual_type, &expected) {
                 (None, Type::Void) => true,
-                (Some(t), exp) => t == exp,
+                (Some(t), exp) => exp.is_compatible(t),
                 (None, _) => false,
             };
 

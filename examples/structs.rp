@@ -1,37 +1,41 @@
-# struct Hobby {
-#   u64 id,
-#   str description
-# };
+struct Hobby {
+  u64 id,
+  str description
+};
 
 struct Person {
   u64 id,
-  str name
+  str name,
+  Hobby[] hobbies
 };
 
-fn print_person(&Person person): void {}
+let hobby = Hobby {
+  id: 123 as u64,
+  description: "Play football"
+};
 
-let name = "Bob";
-let p = Person { id: 123 as u64, name: name };
+let person = Person {
+  id: 2137 as u64,
+  name: "Elon",
+  hobbies: [hobby]
+};
 
-# struct Person {
-#   u64 id,
-#   str name,
-#   Hobby[] hobbies
-# };
+fn person_get_person(&Person person): Person {
+  return person;
+}
 
-# let hobby = Hobby {
-#   id: 123,
-#   description: "Play football"
-# };
+fn person_get_person2(&Person[] person): Person {
+  return person[0];
+}
 
-# let person = Person {
-#   id: 2137,
-#   name: "Elon",
-#   hobbies: [hobby]
-# };
+fn person_get_person_array(&Person person): Person[] {
+  return [person];
+}
 
-# fn person_get_first_hobby_name(&Person person): str {
-#   return person.hobbies[0].name;
-# }
+fn person_get_person_array2(&Person[] person): Person[] {
+  return [person[0]];
+}
 
-# println(person_get_first_hobby_name(&person));
+let arr = [person];
+person_get_person_array(&arr[0]);
+person_get_person_array2(&arr);

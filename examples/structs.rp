@@ -8,7 +8,8 @@ struct Person {
   str name
 };
 
-let p = Person { id: 123 as u64, name: "Bob" };
+let name = "Bob";
+let p = Person { id: 123 as u64, name: name };
 
 # struct Person {
 #   u64 id,

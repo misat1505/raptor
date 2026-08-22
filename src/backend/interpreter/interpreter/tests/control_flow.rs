@@ -366,6 +366,8 @@ fn break_called_outside_for_or_switch() {
             else_block: None,
         })],
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     let mut interpreter = Interpreter::new(&program);
@@ -398,6 +400,8 @@ fn return_called_outside_for_or_switch() {
             else_block: None,
         })],
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     let mut interpreter = Interpreter::new(&program);
@@ -415,6 +419,8 @@ fn continue_called_outside_for_or_while() {
             else_block: None,
         })],
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     let mut interpreter = Interpreter::new(&program);

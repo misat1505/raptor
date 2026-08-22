@@ -327,6 +327,8 @@ fn return_inside_function_does_not_report_placement_error() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     let errors = run_check(&program);
@@ -353,6 +355,8 @@ fn return_inside_nested_if_inside_function_is_ok() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     let errors = run_check(&program);

@@ -23,6 +23,8 @@ pub(super) fn empty_program() -> Program {
         extern_functions: HashMap::new(),
         functions: HashMap::new(),
         std_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     }
 }
 

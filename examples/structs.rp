@@ -8,6 +8,8 @@ struct Person {
   str name
 };
 
+fn print_person(&Person person): void {}
+
 let name = "Bob";
 let p = Person { id: 123 as u64, name: name };
 

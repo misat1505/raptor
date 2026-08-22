@@ -20,6 +20,14 @@ pub enum Type {
         identifier: String,
         fields: HashMap<String, Type>,
     },
+    // Internal, not available for the user. Placeholder created by the parser
+    // when it encounters an identifier in type position (e.g. `Hobby[] hobbies`)
+    // before it's known whether that name refers to a real declared type.
+    // Must be resolved to a concrete `Type` (currently only `Struct`, later also
+    // enum/class variants) by the resolver pass right after parsing; it should
+    // never reach the type checker or later compilation stages.
+    #[allow(dead_code)]
+    Unresolved(String),
     #[allow(dead_code)]
     Any, // internal, not available for the user
 }
@@ -42,6 +50,7 @@ impl Debug for Type {
             Type::Void => Ok(write!(f, "void")?),
             Type::Vector(inner) => write!(f, "{:?}[]", inner),
             Type::Struct { identifier, .. } => write!(f, "{}", identifier),
+            Type::Unresolved(name) => write!(f, "{}", name),
             Type::Any => Ok(write!(f, "any")?),
         }
     }
@@ -52,6 +61,7 @@ impl Type {
         match (self, other) {
             (Type::Any, _) | (_, Type::Any) => true,
             (Type::Vector(a), Type::Vector(b)) => a.is_compatible(b),
+            (Type::Struct { identifier: a, .. }, Type::Struct { identifier: b, .. }) => a == b,
             (a, b) => a == b,
         }
     }

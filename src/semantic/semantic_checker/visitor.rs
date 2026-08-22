@@ -24,9 +24,10 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
             for param in &function.value.parameters {
                 let param_name = &param.value.identifier.value;
-                let param_type = &param.value.parameter_type.value;
+                self.visit_type(&param.value.parameter_type);
+                let t = self.read_last_result(param.value.parameter_type.span)?;
 
-                if let Err(err) = self.stack.declare_variable(param_name, param_type.clone(), param.span) {
+                if let Err(err) = self.stack.declare_variable(param_name, t.clone(), param.span) {
                     self.errors
                         .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), param.span)));
                 }
@@ -92,7 +93,18 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         self.check_switch_expression(switch_expression)
     }
 
-    fn visit_type(&mut self, _node_type: &'a Node<Type>) -> Result<(), Box<dyn IError>> {
+    fn visit_type(&mut self, node_type: &'a Node<Type>) -> Result<(), Box<dyn IError>> {
+        let resolved_type = match &node_type.value {
+            Type::Unresolved(name) => self.program.types.get(name).cloned().ok_or_else(|| {
+                let err = SemanticCheckerError::at(ErrorSeverity::HIGH, format!("Unknown type '{}'.", name), node_type.span);
+                self.errors.push(Box::new(err.clone()));
+                Box::new(err) as Box<dyn IError>
+            })?,
+            other => other.clone(),
+        };
+
+        self.last_result = Some(resolved_type);
+
         Ok(())
     }
 

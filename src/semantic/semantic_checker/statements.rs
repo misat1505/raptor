@@ -17,6 +17,10 @@ impl<'a> SemanticChecker<'a> {
         match kind {
             VariableDeclarationKind::TYPE { var_type, value } => {
                 let _ = self.visit_type(var_type);
+                let declared_type = match self.read_last_result(var_type.span) {
+                    Ok(declared_type) => declared_type,
+                    Err(_) => return Ok(()),
+                };
 
                 let resolved_type = match value {
                     Some(value) => {
@@ -24,9 +28,9 @@ impl<'a> SemanticChecker<'a> {
 
                         match self.read_last_result(value.span) {
                             Ok(actual_type) => {
-                                let types_compatible = var_type.value == actual_type
+                                let types_compatible = declared_type == actual_type
                                     || matches!(
-                                        (&var_type.value, &actual_type),
+                                        (&declared_type, &actual_type),
                                         (Type::Vector(_), Type::Vector(inner))
                                             if **inner == Type::Void
                                     );
@@ -35,7 +39,7 @@ impl<'a> SemanticChecker<'a> {
                                     let error = SemanticCheckerError::type_mismatch(
                                         ErrorSeverity::HIGH,
                                         format!("Cannot assign `{:?}` to `{}`.", actual_type, identifier.value),
-                                        &var_type.value,
+                                        &declared_type,
                                         &actual_type,
                                         statement.span,
                                     );
@@ -43,12 +47,12 @@ impl<'a> SemanticChecker<'a> {
                                     self.errors.push(Box::new(error));
                                 }
 
-                                Some(var_type.value.clone())
+                                Some(declared_type.clone())
                             }
                             Err(_) => None,
                         }
                     }
-                    None => Some(var_type.value.clone()),
+                    None => Some(declared_type.clone()),
                 };
 
                 if let Some(resolved_type) = resolved_type.clone() {
@@ -71,10 +75,16 @@ impl<'a> SemanticChecker<'a> {
 
                 let final_type = match var_type {
                     Some(var_type) => {
+                        let _ = self.visit_type(var_type);
+                        let declared_type = match self.read_last_result(var_type.span) {
+                            Ok(declared_type) => declared_type,
+                            Err(_) => return Ok(()),
+                        };
+
                         if let Some(resolved_type) = &resolved_type {
-                            let types_compatible = var_type.value == *resolved_type
+                            let types_compatible = declared_type == *resolved_type
                                 || matches!(
-                                    (&var_type.value, resolved_type),
+                                    (&declared_type, resolved_type),
                                     (Type::Vector(_), Type::Vector(inner))
                                         if **inner == Type::Void
                                 );
@@ -83,7 +93,7 @@ impl<'a> SemanticChecker<'a> {
                                 let error = SemanticCheckerError::type_mismatch(
                                     ErrorSeverity::HIGH,
                                     format!("Cannot assign `{:?}` to `{}`.", resolved_type, identifier.value),
-                                    &var_type.value,
+                                    &declared_type,
                                     resolved_type,
                                     statement.span,
                                 );
@@ -94,13 +104,13 @@ impl<'a> SemanticChecker<'a> {
 
                         if let Err(err) = self
                             .stack
-                            .declare_variable(identifier.value.as_str(), var_type.value.clone(), statement.span)
+                            .declare_variable(identifier.value.as_str(), declared_type.clone(), statement.span)
                         {
                             self.errors
                                 .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
                         }
 
-                        var_type.value.clone()
+                        declared_type
                     }
 
                     None => match resolved_type {

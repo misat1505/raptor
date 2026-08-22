@@ -9,6 +9,7 @@ mod functions;
 mod misc;
 mod program;
 mod statements;
+mod structs;
 
 #[cfg(test)]
 mod tests;

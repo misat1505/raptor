@@ -2,9 +2,26 @@
 
 ### Syntax Part
 
-**program** = { function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration };
+**program** = { struct_declaration | function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration };
 
 **comment** = "#" , {unicode_character - "\n"}, "\n";
+
+**struct_declaration** = "struct", identifier, "{", [ struct_members ], "}", ";";
+```text
+struct Hobby {
+  u64 id,
+  str description
+};
+
+struct Person {
+  u64 id,
+  str name,
+};
+```
+
+**struct_members** = struct_member, { ",", struct_member };
+
+**struct_member** = type, identifier;
 
 **extern_function_declaration** = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
 
@@ -270,7 +287,7 @@ switch (x: temp1, y: temp2) {
 
 **letter** = "a" - "z" | "A" - "Z";
 
-**type** = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str"), { "[]" };
+**type** = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str"), { "[", "]" };
 
 **relation_operands** = "==" | "<" | "<=" | ">" | ">=" | "!=";
 

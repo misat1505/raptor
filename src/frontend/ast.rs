@@ -159,9 +159,27 @@ pub struct ExternFunctionDeclaration {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct StructMember {
+    pub identifier: Node<String>,
+    pub member_type: Node<Type>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructDeclaration {
+    pub identifier: Node<String>,
+    pub members: Vec<Node<StructMember>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeclaredType {
+    Struct(StructDeclaration),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub statements: Vec<Node<Statement>>,
     pub functions: HashMap<String, Rc<Node<FunctionDeclaration>>>,
     pub std_functions: HashMap<String, StdFunction>,
     pub extern_functions: HashMap<String, Rc<Node<ExternFunctionDeclaration>>>,
+    pub declared_types: HashMap<String, Rc<Node<DeclaredType>>>,
 }

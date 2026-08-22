@@ -1,0 +1,27 @@
+struct Hobby {
+  u64 id,
+  str description
+};
+
+# struct Person {
+#   u64 id,
+#   str name,
+#   Hobby[] hobbies
+# };
+
+# let hobby = Hobby {
+#   id: 123,
+#   description: "Play football"
+# };
+
+# let person = Person {
+#   id: 2137,
+#   name: "Elon",
+#   hobbies: [hobby]
+# };
+
+# fn person_get_first_hobby_name(&Person person): str {
+#   return person.hobbies[0].name;
+# }
+
+# println(person_get_first_hobby_name(&person));

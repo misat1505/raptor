@@ -2,9 +2,12 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     backend::std_functions::std_functions::get_std_functions,
-    common::errors::{ErrorSeverity, IError, ParserError},
+    common::{
+        errors::{ErrorSeverity, IError, ParserError},
+        span::Span,
+    },
     frontend::{
-        ast::{ExternFunctionDeclaration, FunctionDeclaration, Node, Program, Statement},
+        ast::{DeclaredType, ExternFunctionDeclaration, FunctionDeclaration, Node, Program, Statement},
         lexer::lexer::ILexer,
         parser::Parser,
         tokens::TokenCategory,
@@ -13,29 +16,48 @@ use crate::{
 
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_program(&mut self) -> Result<Program, Box<dyn IError>> {
-        // program = { function_declaration | extern_function_declaration | assign_or_call
+        // program = { struct_declaration | function_declaration | extern_function_declaration | assign_or_call
         //           | if_statement | for_statement | while_statement | switch_statement
         //           | declaration, ";" };
         let mut statements: Vec<Node<Statement>> = vec![];
         let mut functions: HashMap<String, Rc<Node<FunctionDeclaration>>> = HashMap::new();
         let std_functions = get_std_functions();
         let mut extern_functions: HashMap<String, Rc<Node<ExternFunctionDeclaration>>> = HashMap::new();
+        let mut declared_types: HashMap<String, Rc<Node<DeclaredType>>> = HashMap::new();
 
         loop {
-            if let Some(statement) = self.parse_program_statement()? {
+            if let Some(struct_declaration) = self.parse_struct_declaration()? {
+                let type_name = struct_declaration.value.identifier.value.clone();
+
+                Self::check_name_collision(
+                    &type_name,
+                    struct_declaration.span,
+                    &functions,
+                    &std_functions,
+                    &extern_functions,
+                    &declared_types,
+                )?;
+
+                let declared_type = Node {
+                    value: DeclaredType::Struct(struct_declaration.value),
+                    span: struct_declaration.span,
+                };
+
+                declared_types.insert(type_name, Rc::new(declared_type));
+            } else if let Some(statement) = self.parse_program_statement()? {
                 statements.push(statement);
             } else if let Some(function_declaration) = self.parse_function_declaration()? {
                 let function_name = function_declaration.value.identifier.value.clone();
-                if functions.contains_key(&function_name)
-                    || std_functions.contains_key(&function_name)
-                    || extern_functions.contains_key(&function_name)
-                {
-                    return Err(Box::new(ParserError::new(
-                        ErrorSeverity::HIGH,
-                        format!("Redeclaration of function '{}'.", function_name),
-                        function_declaration.span,
-                    )));
-                }
+
+                Self::check_name_collision(
+                    &function_name,
+                    function_declaration.span,
+                    &functions,
+                    &std_functions,
+                    &extern_functions,
+                    &declared_types,
+                )?;
+
                 functions.insert(function_name, Rc::new(function_declaration));
             } else if let Some(function_declaration) = self.parse_extern_function_declaration()? {
                 let function_name = function_declaration
@@ -46,16 +68,14 @@ impl<L: ILexer> Parser<L> {
                     .value
                     .clone();
 
-                if functions.contains_key(&function_name)
-                    || std_functions.contains_key(&function_name)
-                    || extern_functions.contains_key(&function_name)
-                {
-                    return Err(Box::new(ParserError::new(
-                        ErrorSeverity::HIGH,
-                        format!("Redeclaration of function '{}'.", function_name),
-                        function_declaration.span,
-                    )));
-                }
+                Self::check_name_collision(
+                    &function_name,
+                    function_declaration.span,
+                    &functions,
+                    &std_functions,
+                    &extern_functions,
+                    &declared_types,
+                )?;
 
                 extern_functions.insert(function_name, Rc::new(function_declaration));
             } else {
@@ -70,7 +90,31 @@ impl<L: ILexer> Parser<L> {
             functions,
             std_functions,
             extern_functions,
+            declared_types,
         })
+    }
+
+    fn check_name_collision(
+        name: &str,
+        span: Span,
+        functions: &HashMap<String, Rc<Node<FunctionDeclaration>>>,
+        std_functions: &HashMap<String, crate::backend::std_functions::std_functions::StdFunction>,
+        extern_functions: &HashMap<String, Rc<Node<ExternFunctionDeclaration>>>,
+        declared_types: &HashMap<String, Rc<Node<DeclaredType>>>,
+    ) -> Result<(), Box<dyn IError>> {
+        if functions.contains_key(name)
+            || std_functions.contains_key(name)
+            || extern_functions.contains_key(name)
+            || declared_types.contains_key(name)
+        {
+            return Err(Box::new(ParserError::new(
+                ErrorSeverity::HIGH,
+                format!("Redeclaration of '{}'.", name),
+                span,
+            )));
+        }
+
+        Ok(())
     }
 
     pub(in crate::frontend::parser) fn parse_program_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {

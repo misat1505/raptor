@@ -111,7 +111,7 @@ fn parse_for_statement() {
                     Box::new(test_node!(Expression::Variable(String::from("x")))),
                     Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
                 )),
-                indices: vec![]
+                accessors: vec![]
             }))),
             block: test_node!(Block(vec![])),
         },

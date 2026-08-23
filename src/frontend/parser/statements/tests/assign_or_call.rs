@@ -1,9 +1,10 @@
+use crate::frontend::ast::Accessor;
 use crate::frontend::parser::tests::{create_token, LexerMock};
 use crate::frontend::{
-        ast::{Expression, Literal, Statement},
-        parser::{tests::test_node, IParser, Parser},
-        tokens::{TokenCategory, TokenValue},
-    };
+    ast::{Expression, Literal, Statement},
+    parser::{tests::test_node, IParser, Parser},
+    tokens::{TokenCategory, TokenValue},
+};
 
 #[test]
 fn parse_assign_or_call_fail() {
@@ -73,7 +74,7 @@ fn parse_assign_or_call() {
         Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(5))),
-            indices: vec![],
+            accessors: vec![],
         },
     ];
 
@@ -138,7 +139,7 @@ fn parse_compound_assignments() {
                 Box::new(test_node!(Expression::Variable(String::from("x")))),
                 Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
             )),
-            indices: vec![],
+            accessors: vec![],
         },
         Statement::Assignment {
             identifier: test_node!(String::from("x")),
@@ -146,7 +147,7 @@ fn parse_compound_assignments() {
                 Box::new(test_node!(Expression::Variable(String::from("x")))),
                 Box::new(test_node!(Expression::Literal(Literal::I64(1)))),
             )),
-            indices: vec![],
+            accessors: vec![],
         },
         Statement::Assignment {
             identifier: test_node!(String::from("x")),
@@ -154,7 +155,7 @@ fn parse_compound_assignments() {
                 Box::new(test_node!(Expression::Variable(String::from("x")))),
                 Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
             )),
-            indices: vec![],
+            accessors: vec![],
         },
         Statement::Assignment {
             identifier: test_node!(String::from("x")),
@@ -162,7 +163,7 @@ fn parse_compound_assignments() {
                 Box::new(test_node!(Expression::Variable(String::from("x")))),
                 Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
             )),
-            indices: vec![],
+            accessors: vec![],
         },
         Statement::Assignment {
             identifier: test_node!(String::from("x")),
@@ -170,7 +171,7 @@ fn parse_compound_assignments() {
                 Box::new(test_node!(Expression::Variable(String::from("x")))),
                 Box::new(test_node!(Expression::Literal(Literal::I64(2)))),
             )),
-            indices: vec![],
+            accessors: vec![],
         },
     ];
 
@@ -199,7 +200,7 @@ fn parse_compound_assignment_with_index() {
 
     let expected = Statement::Assignment {
         identifier: test_node!(String::from("x")),
-        indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+        accessors: vec![test_node!(Accessor::Index(test_node!(Expression::Literal(Literal::I64(0)))))],
         value: test_node!(Expression::Addition(
             Box::new(test_node!(Expression::Index {
                 collection: Box::new(test_node!(Expression::Variable(String::from("x")))),
@@ -232,7 +233,7 @@ fn parse_assignment_with_index() {
 
     let expected = Statement::Assignment {
         identifier: test_node!(String::from("x")),
-        indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+        accessors: vec![test_node!(Accessor::Index(test_node!(Expression::Literal(Literal::I64(0)))))],
         value: test_node!(Expression::Literal(Literal::I64(5))),
     };
 

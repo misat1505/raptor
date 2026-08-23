@@ -93,7 +93,7 @@ fn assign_to_variable() {
     let assign = node(Statement::Assignment {
         identifier: node(String::from("x")),
         value: node(Expression::Literal(Literal::I64(99))),
-        indices: vec![],
+        accessors: vec![],
     });
     assert!(compiler.compile_statement(&assign).is_ok());
 }
@@ -107,7 +107,7 @@ fn assign_undeclared_fails() {
     let assign = node(Statement::Assignment {
         identifier: node(String::from("missing")),
         value: node(Expression::Literal(Literal::I64(1))),
-        indices: vec![],
+        accessors: vec![],
     });
     assert!(compiler.compile_statement(&assign).is_err());
 }
@@ -134,12 +134,12 @@ fn if_true_branch() {
         if_block: node(Block(vec![node(Statement::Assignment {
             identifier: node(String::from("x")),
             value: node(Expression::Literal(Literal::I64(1))),
-            indices: vec![],
+            accessors: vec![],
         })])),
         else_block: Some(node(Block(vec![node(Statement::Assignment {
             identifier: node(String::from("x")),
             value: node(Expression::Literal(Literal::I64(2))),
-            indices: vec![],
+            accessors: vec![],
         })]))),
     });
     assert!(compiler.compile_statement(&stmt).is_ok());
@@ -222,7 +222,7 @@ fn for_loop_basic() {
                 Box::new(node(Expression::Variable(String::from("i")))),
                 Box::new(node(Expression::Literal(Literal::I64(1)))),
             )),
-            indices: vec![],
+            accessors: vec![],
         }))),
         block: node(Block(vec![])),
     });

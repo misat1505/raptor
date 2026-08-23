@@ -137,7 +137,7 @@ fn visit_block_with_statements() {
         node(Statement::Assignment {
             identifier: node(String::from("a")),
             value: node(Expression::Literal(Literal::I64(2))),
-            indices: vec![],
+            accessors: vec![],
         }),
     ]));
     assert!(compiler.visit_block(&block).is_ok());

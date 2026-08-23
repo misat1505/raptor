@@ -2,7 +2,7 @@ use std::{collections::HashMap, vec};
 
 use crate::{
     common::types::Type,
-    frontend::ast::{Block, Expression, Literal, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
+    frontend::ast::{Accessor, Block, Expression, Literal, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
     semantic::semantic_checker::tests::common::make_function,
 };
 
@@ -91,7 +91,7 @@ fn assignment_to_undeclared_variable_reports_error() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("x")),
-        indices: vec![],
+        accessors: vec![],
         value: node!(Expression::Literal(Literal::I64(5))),
     }));
 
@@ -111,7 +111,7 @@ fn assignment_type_mismatch_reports_error() {
     }));
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("x")),
-        indices: vec![],
+        accessors: vec![],
         value: node!(Expression::Literal(Literal::True)),
     }));
 
@@ -398,7 +398,10 @@ fn nested_index_assignment_is_valid() {
 
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("matrix")),
-        indices: vec![node!(Expression::Literal(Literal::I64(0))), node!(Expression::Literal(Literal::I64(0))),],
+        accessors: vec![
+            node!(Accessor::Index(node!(Expression::Literal(Literal::I64(0))))),
+            node!(Accessor::Index(node!(Expression::Literal(Literal::I64(0))))),
+        ],
         value: node!(Expression::Literal(Literal::I64(42))),
     }));
 
@@ -419,7 +422,7 @@ fn index_assignment_with_non_i64_index_reports_error() {
 
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("arr")),
-        indices: vec![node!(Expression::Literal(Literal::True))],
+        accessors: vec![node!(Accessor::Index(node!(Expression::Literal(Literal::True))))],
         value: node!(Expression::Literal(Literal::I64(2))),
     }));
 
@@ -441,7 +444,7 @@ fn index_assignment_into_non_vector_reports_error() {
 
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("x")),
-        indices: vec![node!(Expression::Literal(Literal::I64(0)))],
+        accessors: vec![node!(Accessor::Index(node!(Expression::Literal(Literal::I64(0)))))],
         value: node!(Expression::Literal(Literal::I64(2))),
     }));
 
@@ -463,12 +466,13 @@ fn index_assignment_type_mismatch_reports_error() {
 
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("arr")),
-        indices: vec![node!(Expression::Literal(Literal::I64(0)))],
+        accessors: vec![node!(Accessor::Index(node!(Expression::Literal(Literal::I64(0)))))],
         value: node!(Expression::Literal(Literal::True)),
     }));
 
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("Cannot assign `bool` to array element.")));
+    assert!(errors.len() != 0);
+    assert!(errors.iter().any(|e| e.contains("Cannot assign `bool` to value of type `i64`.")));
 }
 
 #[test]
@@ -485,7 +489,7 @@ fn index_assignment_updates_element() {
 
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("arr")),
-        indices: vec![node!(Expression::Literal(Literal::I64(0)))],
+        accessors: vec![node!(Accessor::Index(node!(Expression::Literal(Literal::I64(0)))))],
         value: node!(Expression::Literal(Literal::I64(99))),
     }));
 

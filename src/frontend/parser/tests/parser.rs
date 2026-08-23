@@ -42,7 +42,7 @@ fn parse_full_program() {
         Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(5))),
-            indices: vec![],
+            accessors: vec![],
         }
     );
 

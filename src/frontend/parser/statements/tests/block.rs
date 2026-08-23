@@ -1,9 +1,9 @@
 use crate::frontend::parser::tests::{create_token, LexerMock};
 use crate::frontend::{
-        ast::{Block, Expression, Literal, Statement},
-        parser::{tests::test_node, IParser, Parser},
-        tokens::{TokenCategory, TokenValue},
-    };
+    ast::{Block, Expression, Literal, Statement},
+    parser::{tests::test_node, IParser, Parser},
+    tokens::{TokenCategory, TokenValue},
+};
 
 #[test]
 fn parse_statement_block_fail() {
@@ -55,18 +55,18 @@ fn parse_statement_block() {
         Block(vec![test_node!(Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(5))),
-            indices: vec![]
+            accessors: vec![]
         })]),
         Block(vec![
             test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(5))),
-                indices: vec![]
+                accessors: vec![]
             }),
             test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("x")),
                 value: test_node!(Expression::Literal(Literal::I64(5))),
-                indices: vec![]
+                accessors: vec![]
             }),
         ]),
     ];

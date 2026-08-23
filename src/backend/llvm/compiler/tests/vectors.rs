@@ -6,7 +6,7 @@ use crate::{
         Compiler,
     },
     common::types::Type,
-    frontend::ast::{Expression, Literal},
+    frontend::ast::{Accessor, Expression, Literal},
 };
 
 fn with_main<'a, 'ctx>(program: &'a crate::frontend::ast::Program, context: &'ctx Context) -> Compiler<'a, 'ctx> {
@@ -190,7 +190,7 @@ fn resolve_index_empty_indices_fails() {
     let err = compiler
         .resolve_indexed_element(vec_ptr, &Type::Vector(Box::new(Type::I64)), &[], span())
         .unwrap_err();
-    assert!(err.message().contains("at least one index"));
+    assert!(err.message().contains("at least one accessor"));
 }
 
 #[test]
@@ -205,9 +205,9 @@ fn resolve_index_into_vector() {
     ];
     let vec_ptr = compiler.build_vector_from_elements(&Type::I64, &elements, None, span()).unwrap();
 
-    let indices = [node(Expression::Literal(Literal::I64(1)))];
+    let accessors = [node(Accessor::Index(node(Expression::Literal(Literal::I64(1)))))];
     let (elem_ptr, elem_ty) = compiler
-        .resolve_indexed_element(vec_ptr, &Type::Vector(Box::new(Type::I64)), &indices, span())
+        .resolve_indexed_element(vec_ptr, &Type::Vector(Box::new(Type::I64)), &accessors, span())
         .unwrap();
     assert_eq!(elem_ty, Type::I64);
     let _ = elem_ptr;
@@ -221,8 +221,8 @@ fn resolve_index_into_non_vector_fails() {
 
     // use a dummy pointer with type I64
     let dummy = context.ptr_type(inkwell::AddressSpace::default()).const_null();
-    let indices = [node(Expression::Literal(Literal::I64(0)))];
-    let err = compiler.resolve_indexed_element(dummy, &Type::I64, &indices, span()).unwrap_err();
+    let accessors = [node(Accessor::Index(node(Expression::Literal(Literal::I64(0)))))];
+    let err = compiler.resolve_indexed_element(dummy, &Type::I64, &accessors, span()).unwrap_err();
     assert!(err.message().contains("Cannot index"));
 }
 

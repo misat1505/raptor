@@ -49,8 +49,42 @@ impl<'a> Interpreter<'a> {
             Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments, expression.span)?,
             Expression::Index { collection, index } => self.eval_index(collection, index)?,
             Expression::StructLiteral(node) => self.eval_struct_literal(&node.value.identifier, &node.value.fields, expression.span)?,
-            Expression::FieldAccess { .. } => unimplemented!(),
+            Expression::FieldAccess { instance, field } => self.eval_field_access(instance, field)?,
         }
+
+        Ok(())
+    }
+
+    pub(in crate::backend::interpreter::interpreter) fn eval_field_access(
+        &mut self,
+        instance: &'a Node<Expression>,
+        field: &'a Node<String>,
+    ) -> Result<(), Box<dyn IError>> {
+        self.visit_expression(instance)?;
+
+        let instance_value = self.read_last_result()?;
+
+        let Value::Struct { fields, .. } = instance_value else {
+            return Err(Box::new(InterpreterError::expected_found(
+                ErrorSeverity::HIGH,
+                format!("Cannot access field '{}' on this value.", field.value),
+                String::from("struct"),
+                format!("{:?}", instance_value.to_type()),
+                instance.span,
+            )));
+        };
+
+        let borrowed_fields = fields.borrow();
+
+        let field_cell = borrowed_fields.get(&field.value).ok_or_else(|| {
+            Box::new(InterpreterError::at(
+                ErrorSeverity::HIGH,
+                format!("Struct has no field '{}'.", field.value),
+                field.span,
+            )) as Box<dyn IError>
+        })?;
+
+        self.last_result = Some(field_cell.borrow().clone());
 
         Ok(())
     }

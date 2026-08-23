@@ -18,6 +18,7 @@ impl<'a> SemanticChecker<'a> {
         match expression {
             Expression::Variable(_) => true,
             Expression::Index { collection, .. } => Self::is_valid_reference_expression(&collection.value),
+            Expression::FieldAccess { instance, .. } => Self::is_valid_reference_expression(&instance.value),
             _ => false,
         }
     }

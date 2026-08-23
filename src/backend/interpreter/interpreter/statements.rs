@@ -690,9 +690,39 @@ impl<'a> Interpreter<'a> {
                 Ok(Rc::clone(element_cell))
             }
 
+            Expression::FieldAccess { instance, field } => {
+                let instance_ref = self.resolve_reference(instance)?;
+
+                let borrowed = instance_ref.borrow();
+
+                match &*borrowed {
+                    Value::Struct { fields, .. } => {
+                        let fields = fields.borrow();
+
+                        let field_cell = fields.get(field.value.as_str()).ok_or_else(|| {
+                            Box::new(InterpreterError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Struct has no field `{}`.", field.value),
+                                field.span,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        Ok(Rc::clone(field_cell))
+                    }
+
+                    other => Err(Box::new(InterpreterError::expected_found(
+                        ErrorSeverity::HIGH,
+                        String::from("Cannot access a field on this value."),
+                        String::from("Struct"),
+                        format!("{:?}", other.to_type()),
+                        field.span,
+                    ))),
+                }
+            }
+
             _ => Err(Box::new(InterpreterError::at(
                 ErrorSeverity::HIGH,
-                String::from("Cannot pass this kind of expression by reference — expected a variable or indexed value."),
+                String::from("Cannot pass this kind of expression by reference - expected a variable, indexed value, or field."),
                 expression.span,
             ))),
         }

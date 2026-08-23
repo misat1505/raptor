@@ -120,7 +120,13 @@ impl<'a> SemanticChecker<'a> {
             Err(_) => return,
         };
 
-        if actual_type != current_type {
+        let compatible = match (&current_type, &actual_type) {
+            (Type::Vector(_), Type::Vector(inner)) if **inner == Type::Void => true,
+
+            _ => actual_type == current_type,
+        };
+
+        if !compatible {
             self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                 ErrorSeverity::HIGH,
                 format!("Cannot assign `{:?}` to value of type `{:?}`.", actual_type, current_type),

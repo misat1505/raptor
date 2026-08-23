@@ -241,9 +241,23 @@ impl<'a> SemanticChecker<'a> {
                 continue;
             };
 
-            let expected_type = self.resolve_type_fully_checked(expected_type, identifier.span)?;
+            let expected_type = match self.resolve_type_fully_checked(expected_type, field.span) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
 
-            if !expected_type.is_compatible(&actual_type) {
+            let actual_type = match self.resolve_type_fully_checked(&actual_type, field.value.value.span) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+
+            let compatible = match (&expected_type, &actual_type) {
+                (Type::Vector(expected_inner), Type::Vector(actual_inner)) if **actual_inner == Type::Void => true,
+
+                _ => expected_type.is_compatible(&actual_type),
+            };
+
+            if !compatible {
                 let error = SemanticCheckerError::type_mismatch(
                     ErrorSeverity::HIGH,
                     format!("Cannot assign `{:?}` to field '{}' of `{}`.", actual_type, field_name, struct_name),

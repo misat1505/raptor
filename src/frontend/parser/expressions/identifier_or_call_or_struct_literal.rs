@@ -123,20 +123,33 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_struct_literal_field(&mut self) -> Result<Option<Node<StructLiteralField>>, Box<dyn IError>> {
-        // struct_literal_field = identifier, ":", expression;
+        // struct_literal_field = identifier, [ ":", expression ];
         let Some(identifier) = self.parse_identifier()? else {
             return Ok(None);
         };
 
-        let _ = self.consume_must_be(TokenCategory::Colon)?;
+        if self.consume_if_matches(TokenCategory::Colon)?.is_some() {
+            let value = self
+                .parse_expression()?
+                .ok_or_else(|| self.create_parser_error(String::from("Expected expression after ':' in struct literal field.")))?;
 
-        let value = self
-            .parse_expression()?
-            .ok_or_else(|| self.create_parser_error(String::from("Expected expression after ':' in struct literal field.")))?;
+            Ok(Some(Node {
+                span: Span::new(identifier.span.start(), value.span.end()),
+                value: StructLiteralField { identifier, value },
+            }))
+        } else {
+            let span = identifier.span.clone();
 
-        Ok(Some(Node {
-            span: Span::new(identifier.span.start(), value.span.end()),
-            value: StructLiteralField { identifier, value },
-        }))
+            Ok(Some(Node {
+                span,
+                value: StructLiteralField {
+                    identifier: identifier.clone(),
+                    value: Node {
+                        value: Expression::Variable(identifier.value),
+                        span,
+                    },
+                },
+            }))
+        }
     }
 }

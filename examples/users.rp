@@ -1,5 +1,5 @@
 struct User {
-    u64 id,
+    i64 id,
     str name
 };
 
@@ -30,7 +30,8 @@ fn user_repository_stringify(&UserRepository repo): str {
 
 let repo = UserRepository { users: [] };
 
-let user = User { id: 420 as u64, name: "Elon" };
+let name = "Elon";
+let user = User { id: 420, name };
 
 println(user_repository_stringify(&repo));
 

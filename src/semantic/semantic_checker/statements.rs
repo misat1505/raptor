@@ -164,11 +164,16 @@ impl<'a> SemanticChecker<'a> {
     }
 
     pub(in crate::semantic::semantic_checker) fn check_assignment(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
-        let Statement::Assignment { indices, value, identifier } = &statement.value else {
+        let Statement::Assignment {
+            accessors,
+            value,
+            identifier,
+        } = &statement.value
+        else {
             return Ok(());
         };
 
-        if indices.is_empty() {
+        if accessors.is_empty() {
             self.visit_expression(value)?;
 
             let value = self.read_last_result(value.span).map_err(|_| {
@@ -192,7 +197,7 @@ impl<'a> SemanticChecker<'a> {
                 span: identifier.span,
             });
         } else {
-            self.check_index_assignment(identifier, indices, value, statement.span);
+            self.check_index_assignment(identifier, accessors, value, statement.span);
         }
 
         Ok(())

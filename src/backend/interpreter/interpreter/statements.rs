@@ -11,7 +11,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Block, Expression, Node, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
+    frontend::ast::{Accessor, Block, Expression, Node, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
 };
 
 impl<'a> Interpreter<'a> {
@@ -193,8 +193,12 @@ impl<'a> Interpreter<'a> {
                 }
             },
 
-            Statement::Assignment { identifier, value, indices } => {
-                if indices.is_empty() {
+            Statement::Assignment {
+                identifier,
+                value,
+                accessors,
+            } => {
+                if accessors.is_empty() {
                     self.visit_expression(value)?;
 
                     let value = self.read_last_result().map_err(|_| {
@@ -209,7 +213,7 @@ impl<'a> Interpreter<'a> {
                         .assign_variable(identifier.value.as_str(), Rc::new(RefCell::new(value)), statement.span)
                         .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), statement.span)) as Box<dyn IError>)?;
                 } else {
-                    self.exec_index_assignment(identifier, indices, value)?;
+                    self.exec_index_assignment(identifier, accessors, value)?;
                 }
             }
 
@@ -448,7 +452,7 @@ impl<'a> Interpreter<'a> {
     pub(in crate::backend::interpreter::interpreter) fn exec_index_assignment(
         &mut self,
         identifier: &'a Node<String>,
-        indices: &'a Vec<Node<Expression>>,
+        accessors: &'a Vec<Node<Accessor>>,
         value: &'a Node<Expression>,
     ) -> Result<(), Box<dyn IError>> {
         let var_ref = self
@@ -457,115 +461,187 @@ impl<'a> Interpreter<'a> {
             .map_err(|err| Box::new(InterpreterError::at(ErrorSeverity::HIGH, err.message(), identifier.span)) as Box<dyn IError>)?
             .clone();
 
-        let (last_index_expr, earlier_indices) = indices.split_last().expect("parser guarantees at least one index in IndexAssignment");
+        let (last_accessor, earlier_accessors) = accessors.split_last().expect("parser guarantees at least one accessor in assignment");
 
         let mut current_cell: Rc<RefCell<Value>> = var_ref;
 
-        for index_expr in earlier_indices {
-            self.visit_expression(index_expr)?;
+        // Dochodzimy do komórki zawierającej obiekt, którego ostatni
+        // accessor będzie modyfikowany.
+        for accessor in earlier_accessors {
+            current_cell = match &accessor.value {
+                Accessor::Index(index_expr) => {
+                    self.visit_expression(index_expr)?;
 
-            let idx = self.expect_index()?;
+                    let idx = self.expect_index()?;
 
-            let next_cell = {
-                let borrowed = current_cell.borrow();
+                    let values = {
+                        let borrowed = current_cell.borrow();
 
-                let values = match &*borrowed {
-                    Value::Vector { values, .. } => values.clone(),
+                        match &*borrowed {
+                            Value::Vector { values, .. } => values.clone(),
 
-                    other => {
-                        return Err(Box::new(InterpreterError::expected_found(
-                            ErrorSeverity::HIGH,
-                            String::from("Cannot index into this value."),
-                            String::from("Vector"),
-                            format!("{:?}", other.to_type()),
-                            index_expr.span,
-                        )));
+                            other => {
+                                return Err(Box::new(InterpreterError::expected_found(
+                                    ErrorSeverity::HIGH,
+                                    String::from("Cannot index into this value."),
+                                    String::from("Vector"),
+                                    format!("{:?}", other.to_type()),
+                                    index_expr.span,
+                                )));
+                            }
+                        }
+                    };
+
+                    let borrowed_values = values.borrow();
+
+                    borrowed_values
+                        .get(idx)
+                        .ok_or_else(|| {
+                            Box::new(InterpreterError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Index {} out of bounds.", idx),
+                                index_expr.span,
+                            )) as Box<dyn IError>
+                        })?
+                        .clone()
+                }
+
+                Accessor::Field(field) => {
+                    let borrowed = current_cell.borrow();
+
+                    match &*borrowed {
+                        Value::Struct { fields, .. } => fields
+                            .borrow()
+                            .get(field.value.as_str())
+                            .ok_or_else(|| {
+                                Box::new(InterpreterError::at(
+                                    ErrorSeverity::HIGH,
+                                    format!("Struct has no field `{}`.", field.value),
+                                    field.span,
+                                )) as Box<dyn IError>
+                            })?
+                            .clone(),
+
+                        other => {
+                            return Err(Box::new(InterpreterError::expected_found(
+                                ErrorSeverity::HIGH,
+                                String::from("Cannot access a field on this value."),
+                                String::from("Struct"),
+                                format!("{:?}", other.to_type()),
+                                field.span,
+                            )));
+                        }
                     }
-                };
-
-                let borrowed_values = values.borrow();
-
-                borrowed_values
-                    .get(idx)
-                    .ok_or_else(|| {
-                        Box::new(InterpreterError::at(
-                            ErrorSeverity::HIGH,
-                            format!("Index {} out of bounds.", idx),
-                            index_expr.span,
-                        )) as Box<dyn IError>
-                    })?
-                    .clone()
+                }
             };
-
-            current_cell = next_cell;
         }
 
-        self.visit_expression(last_index_expr)?;
-
-        let idx = self.expect_index()?;
-
+        // Obliczamy wartość RHS dopiero po przejściu przez wcześniejsze accessors.
         self.visit_expression(value)?;
-
         let new_value = self.read_last_result()?;
 
-        let mut borrowed = current_cell.borrow_mut();
+        match &last_accessor.value {
+            Accessor::Index(index_expr) => {
+                self.visit_expression(index_expr)?;
 
-        match &mut *borrowed {
-            Value::Vector { values, .. } => {
-                let mut vec_borrowed = values.borrow_mut();
+                let idx = self.expect_index()?;
 
-                let target_cell = vec_borrowed.get_mut(idx).ok_or_else(|| {
-                    Box::new(InterpreterError::at(
-                        ErrorSeverity::HIGH,
-                        format!("Index {} out of bounds.", idx),
-                        last_index_expr.span,
-                    )) as Box<dyn IError>
-                })?;
+                let mut borrowed = current_cell.borrow_mut();
 
-                *target_cell = Rc::new(RefCell::new(new_value));
+                match &mut *borrowed {
+                    Value::Vector { values, .. } => {
+                        let mut vec_borrowed = values.borrow_mut();
 
-                Ok(())
-            }
+                        let target_cell = vec_borrowed.get_mut(idx).ok_or_else(|| {
+                            Box::new(InterpreterError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Index {} out of bounds.", idx),
+                                index_expr.span,
+                            )) as Box<dyn IError>
+                        })?;
 
-            Value::String(s) => {
-                let ch = match new_value {
-                    Value::Char(c) => c,
+                        *target_cell = Rc::new(RefCell::new(new_value));
 
-                    other => {
-                        return Err(Box::new(InterpreterError::expected_found(
-                            ErrorSeverity::HIGH,
-                            String::from("Can only assign a `char` into a string index."),
-                            String::from("Char"),
-                            format!("{:?}", other.to_type()),
-                            value.span,
-                        )));
+                        Ok(())
                     }
-                };
 
-                let mut bytes = std::mem::take(s).into_bytes();
+                    Value::String(s) => {
+                        let ch = match new_value {
+                            Value::Char(c) => c,
 
-                let byte = bytes.get_mut(idx).ok_or_else(|| {
-                    Box::new(InterpreterError::at(
+                            other => {
+                                return Err(Box::new(InterpreterError::expected_found(
+                                    ErrorSeverity::HIGH,
+                                    String::from("Can only assign a `char` into a string index."),
+                                    String::from("Char"),
+                                    format!("{:?}", other.to_type()),
+                                    value.span,
+                                )));
+                            }
+                        };
+
+                        let mut bytes = std::mem::take(s).into_bytes();
+
+                        let byte = bytes.get_mut(idx).ok_or_else(|| {
+                            Box::new(InterpreterError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Index {} out of bounds.", idx),
+                                index_expr.span,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        *byte = ch as u8;
+
+                        *s = String::from_utf8(bytes).map_err(|_| {
+                            Box::new(InterpreterError::at(
+                                ErrorSeverity::HIGH,
+                                String::from("String index assignment produced invalid UTF-8."),
+                                index_expr.span,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        Ok(())
+                    }
+
+                    other => Err(Box::new(InterpreterError::expected_found(
                         ErrorSeverity::HIGH,
-                        format!("Index {} out of bounds.", idx),
-                        last_index_expr.span,
-                    )) as Box<dyn IError>
-                })?;
-
-                *byte = ch as u8;
-
-                *s = String::from_utf8(bytes).expect("byte-level char assignment should preserve valid ASCII/UTF-8");
-
-                Ok(())
+                        String::from("Cannot index into this value."),
+                        String::from("Vector or Str"),
+                        format!("{:?}", other.to_type()),
+                        index_expr.span,
+                    ))),
+                }
             }
 
-            other => Err(Box::new(InterpreterError::expected_found(
-                ErrorSeverity::HIGH,
-                String::from("Cannot index into this value."),
-                String::from("Vector or Str"),
-                format!("{:?}", other.to_type()),
-                last_index_expr.span,
-            ))),
+            Accessor::Field(field) => {
+                let mut borrowed = current_cell.borrow_mut();
+
+                match &mut *borrowed {
+                    Value::Struct { fields, .. } => {
+                        let mut fields_borrowed = fields.borrow_mut();
+
+                        let target_cell = fields_borrowed.get_mut(field.value.as_str()).ok_or_else(|| {
+                            Box::new(InterpreterError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Struct has no field `{}`.", field.value),
+                                field.span,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        *target_cell = Rc::new(RefCell::new(new_value));
+
+                        Ok(())
+                    }
+
+                    other => Err(Box::new(InterpreterError::expected_found(
+                        ErrorSeverity::HIGH,
+                        String::from("Cannot access a field on this value."),
+                        String::from("Struct"),
+                        format!("{:?}", other.to_type()),
+                        field.span,
+                    ))),
+                }
+            }
         }
     }
 

@@ -5,7 +5,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Expression, Node},
+    frontend::ast::{Accessor, DeclaredType, Expression, Node},
     semantic::{
         semantic_checker::{checker::HoverInfo, functions::FunctionCallType, SemanticChecker},
         type_alu::TypeALU,
@@ -16,7 +16,7 @@ impl<'a> SemanticChecker<'a> {
     pub(in crate::semantic::semantic_checker) fn check_index_assignment(
         &mut self,
         identifier: &'a Node<String>,
-        indices: &'a Vec<Node<Expression>>,
+        accessors: &'a Vec<Node<Accessor>>,
         value: &'a Node<Expression>,
         span: Span,
     ) {
@@ -35,33 +35,88 @@ impl<'a> SemanticChecker<'a> {
             span: identifier.span,
         });
 
-        for index_expr in indices {
-            let _ = self.visit_expression(index_expr);
+        for accessor in accessors {
+            match &accessor.value {
+                Accessor::Index(index_expr) => {
+                    let _ = self.visit_expression(index_expr);
 
-            if let Ok(idx_type) = self.read_last_result(index_expr.span) {
-                if idx_type != Type::I64 {
-                    self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
-                        ErrorSeverity::HIGH,
-                        String::from("array index must be `i64`"),
-                        &Type::I64,
-                        &idx_type,
-                        index_expr.span,
-                    )));
-                    return;
+                    if let Ok(idx_type) = self.read_last_result(index_expr.span) {
+                        if idx_type != Type::I64 {
+                            self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
+                                ErrorSeverity::HIGH,
+                                String::from("array index must be `i64`"),
+                                &Type::I64,
+                                &idx_type,
+                                index_expr.span,
+                            )));
+
+                            return;
+                        }
+                    }
+
+                    current_type = match current_type {
+                        Type::Vector(inner) => *inner,
+
+                        Type::Str => Type::Char,
+
+                        other => {
+                            self.errors.push(Box::new(SemanticCheckerError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot index into value of type `{:?}`", other),
+                                index_expr.span,
+                            )));
+
+                            return;
+                        }
+                    };
                 }
-            }
 
-            match current_type {
-                Type::Vector(inner) => current_type = *inner,
-                Type::Str => current_type = Type::Char,
+                Accessor::Field(field) => {
+                    current_type = match current_type {
+                        Type::Struct { identifier: struct_name, .. } => {
+                            let declared_type = match self.program.declared_types.get(&struct_name) {
+                                Some(declared_type) => declared_type,
 
-                other => {
-                    self.errors.push(Box::new(SemanticCheckerError::at(
-                        ErrorSeverity::HIGH,
-                        format!("Cannot index into value of type `{:?}`", other),
-                        span,
-                    )));
-                    return;
+                                None => {
+                                    self.errors.push(Box::new(SemanticCheckerError::at(
+                                        ErrorSeverity::HIGH,
+                                        format!("Unknown struct type `{:?}`.", struct_name),
+                                        field.span,
+                                    )));
+
+                                    return;
+                                }
+                            };
+
+                            match &declared_type.as_ref().value {
+                                DeclaredType::Struct(struct_decl) => {
+                                    match struct_decl.members.iter().find(|member| member.value.identifier.value == field.value) {
+                                        Some(member) => member.value.member_type.value.clone(),
+
+                                        None => {
+                                            self.errors.push(Box::new(SemanticCheckerError::at(
+                                                ErrorSeverity::HIGH,
+                                                format!("Struct `{}` has no field `{}`.", struct_name, field.value),
+                                                field.span,
+                                            )));
+
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        other => {
+                            self.errors.push(Box::new(SemanticCheckerError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot access field `{}` on value of type `{:?}`.", field.value, other),
+                                field.span,
+                            )));
+
+                            return;
+                        }
+                    };
                 }
             }
         }
@@ -72,7 +127,7 @@ impl<'a> SemanticChecker<'a> {
             if actual_type != current_type {
                 self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                     ErrorSeverity::HIGH,
-                    format!("Cannot assign `{:?}` to array element.", actual_type),
+                    format!("Cannot assign `{:?}` to value of type `{:?}`.", actual_type, current_type),
                     &current_type,
                     &actual_type,
                     span,

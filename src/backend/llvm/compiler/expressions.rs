@@ -1,4 +1,5 @@
 use inkwell::builder::Builder;
+use inkwell::AddressSpace;
 
 use super::Compiler;
 use crate::common::types::Type;
@@ -123,29 +124,64 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     LlvmValue::Vector(vector_ptr, _) => {
                         let collection_type = collection_value.to_type();
 
-                        let (element_ptr, element_type) =
-                            self.resolve_indexed_element(*vector_ptr, &collection_type, std::slice::from_ref(index.as_ref()), span)?;
+                        let struct_type = LlvmValue::vector_struct_type(self.context);
+                        let ptr_type = self.context.ptr_type(AddressSpace::default());
 
-                        let element_llvm_type = LlvmValue::type_to_basic_type_enum(&element_type, self.context).ok_or_else(|| {
+                        let inner_type = match &collection_type {
+                            Type::Vector(inner) => (**inner).clone(),
+
+                            other => {
+                                return Err(Box::new(CompilerError::at(
+                                    ErrorSeverity::HIGH,
+                                    format!("Cannot index into type '{:?}'.", other),
+                                    span,
+                                )));
+                            }
+                        };
+
+                        let data_field = self
+                            .builder
+                            .build_struct_gep(struct_type, *vector_ptr, 0, "idx.data")
+                            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+                        let data = self
+                            .builder
+                            .build_load(ptr_type, data_field, "idx.data.val")
+                            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
+                            .into_pointer_value();
+
+                        self.visit_expression(index)?;
+
+                        let index_value = self.read_last_value()?;
+                        let index_int = index_value.into_i64_value(index.span)?;
+
+                        let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling vectors of type '{:?}' is not yet supported.", element_type),
-                                span,
+                                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                                index.span,
                             )) as Box<dyn IError>
                         })?;
+
+                        let element_ptr = unsafe {
+                            self.builder
+                                .build_gep(element_llvm_type, data, &[index_int], "idx.elem")
+                                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
+                        };
 
                         let raw_value = self
                             .builder
                             .build_load(element_llvm_type, element_ptr, "idx.load")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
-                        self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &element_type));
+                        self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &inner_type));
 
                         Ok(())
                     }
 
                     LlvmValue::Str(str_ptr) => {
                         self.visit_expression(index)?;
+
                         let index_value = self.read_last_value()?;
                         let index_int = index_value.into_i64_value(index.span)?;
 

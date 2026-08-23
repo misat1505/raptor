@@ -99,6 +99,12 @@ pub enum VariableDeclarationKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Accessor {
+    Index(Node<Expression>),
+    Field(Node<String>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     FunctionCall {
         identifier: Node<String>,
@@ -110,7 +116,7 @@ pub enum Statement {
     },
     Assignment {
         identifier: Node<String>,
-        indices: Vec<Node<Expression>>,
+        accessors: Vec<Node<Accessor>>,
         value: Node<Expression>,
     },
     Conditional {

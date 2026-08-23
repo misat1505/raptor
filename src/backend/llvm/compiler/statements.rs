@@ -196,10 +196,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
             },
 
-            Statement::Assignment { identifier, value, indices } => {
+            Statement::Assignment {
+                identifier,
+                value,
+                accessors,
+            } => {
                 let (var_ptr, var_type) = self.get_variable(identifier.value.as_str())?;
 
-                if indices.is_empty() {
+                if accessors.is_empty() {
                     self.visit_expression(value)?;
 
                     let new_value = self.read_last_value()?;
@@ -219,7 +223,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                     .into_pointer_value();
 
-                let (element_ptr, element_type) = self.resolve_indexed_element(vector_ptr, &var_type, indices, span)?;
+                let (element_ptr, element_type) = self.resolve_indexed_element(vector_ptr, &var_type, accessors, span)?;
 
                 self.visit_expression(value)?;
 

@@ -5,7 +5,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Accessor, DeclaredType, Expression, Node},
+    frontend::ast::{Accessor, Expression, Node},
     semantic::{
         semantic_checker::{checker::HoverInfo, functions::FunctionCallType, SemanticChecker},
         type_alu::TypeALU,
@@ -40,18 +40,21 @@ impl<'a> SemanticChecker<'a> {
                 Accessor::Index(index_expr) => {
                     let _ = self.visit_expression(index_expr);
 
-                    if let Ok(idx_type) = self.read_last_result(index_expr.span) {
-                        if idx_type != Type::I64 {
-                            self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
-                                ErrorSeverity::HIGH,
-                                String::from("array index must be `i64`"),
-                                &Type::I64,
-                                &idx_type,
-                                index_expr.span,
-                            )));
+                    let idx_type = match self.read_last_result(index_expr.span) {
+                        Ok(t) => t,
+                        Err(_) => return,
+                    };
 
-                            return;
-                        }
+                    if idx_type != Type::I64 {
+                        self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
+                            ErrorSeverity::HIGH,
+                            String::from("array index must be `i64`"),
+                            &Type::I64,
+                            &idx_type,
+                            index_expr.span,
+                        )));
+
+                        return;
                     }
 
                     current_type = match current_type {
@@ -72,67 +75,59 @@ impl<'a> SemanticChecker<'a> {
                 }
 
                 Accessor::Field(field) => {
-                    current_type = match current_type {
-                        Type::Struct { identifier: struct_name, .. } => {
-                            let declared_type = match self.program.declared_types.get(&struct_name) {
-                                Some(declared_type) => declared_type,
+                    let Type::Struct {
+                        identifier: struct_name,
+                        fields,
+                    } = &current_type
+                    else {
+                        self.errors.push(Box::new(SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot access field `{}` on value of type `{:?}`.", field.value, current_type),
+                            field.span,
+                        )));
 
-                                None => {
-                                    self.errors.push(Box::new(SemanticCheckerError::at(
-                                        ErrorSeverity::HIGH,
-                                        format!("Unknown struct type `{:?}`.", struct_name),
-                                        field.span,
-                                    )));
-
-                                    return;
-                                }
-                            };
-
-                            match &declared_type.as_ref().value {
-                                DeclaredType::Struct(struct_decl) => {
-                                    match struct_decl.members.iter().find(|member| member.value.identifier.value == field.value) {
-                                        Some(member) => member.value.member_type.value.clone(),
-
-                                        None => {
-                                            self.errors.push(Box::new(SemanticCheckerError::at(
-                                                ErrorSeverity::HIGH,
-                                                format!("Struct `{}` has no field `{}`.", struct_name, field.value),
-                                                field.span,
-                                            )));
-
-                                            return;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        other => {
-                            self.errors.push(Box::new(SemanticCheckerError::at(
-                                ErrorSeverity::HIGH,
-                                format!("Cannot access field `{}` on value of type `{:?}`.", field.value, other),
-                                field.span,
-                            )));
-
-                            return;
-                        }
+                        return;
                     };
+
+                    let Some(field_type) = fields.get(&field.value).cloned() else {
+                        self.errors.push(Box::new(SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Struct `{}` has no field `{}`.", struct_name, field.value),
+                            field.span,
+                        )));
+
+                        return;
+                    };
+
+                    current_type = match self.resolve_type_fully_checked(&field_type, field.span) {
+                        Ok(t) => t,
+
+                        Err(_) => return,
+                    };
+
+                    self.hovers.push(HoverInfo {
+                        contents: format!("```raptor\n{:?} {}\n```", current_type, field.value),
+                        span: field.span,
+                    });
                 }
             }
         }
 
         let _ = self.visit_expression(value);
 
-        if let Ok(actual_type) = self.read_last_result(value.span) {
-            if actual_type != current_type {
-                self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
-                    ErrorSeverity::HIGH,
-                    format!("Cannot assign `{:?}` to value of type `{:?}`.", actual_type, current_type),
-                    &current_type,
-                    &actual_type,
-                    span,
-                )));
-            }
+        let actual_type = match self.read_last_result(value.span) {
+            Ok(t) => t,
+            Err(_) => return,
+        };
+
+        if actual_type != current_type {
+            self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
+                ErrorSeverity::HIGH,
+                format!("Cannot assign `{:?}` to value of type `{:?}`.", actual_type, current_type),
+                &current_type,
+                &actual_type,
+                span,
+            )));
         }
     }
 

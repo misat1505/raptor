@@ -51,7 +51,7 @@ fn default_vector_value() {
     assert_eq!(
         value,
         Value::Vector {
-            kind: Box::new(Type::I64),
+            kind: Box::new(Type::Vector(Box::new(Type::I64))),
             values: Rc::new(RefCell::new(vec![])),
         }
     );
@@ -65,17 +65,18 @@ fn default_vector_preserves_inner_type() {
         let vector_type = Type::Vector(Box::new(inner_type.clone()));
         let value = Value::default_value(&vector_type, Span::default()).unwrap();
 
-        assert_eq!(value.to_type(), inner_type);
+        assert_eq!(value.to_type(), vector_type);
     }
 }
 
 #[test]
 fn default_vector_is_empty() {
-    let value = Value::default_value(&Type::Vector(Box::new(Type::F64)), Span::default()).unwrap();
+    let ty = Type::Vector(Box::new(Type::F64));
+    let value = Value::default_value(&ty, Span::default()).unwrap();
 
     match value {
         Value::Vector { kind, values } => {
-            assert_eq!(*kind, Type::F64);
+            assert_eq!(*kind, ty);
             assert!(values.borrow().is_empty());
         }
         _ => panic!("Expected vector value."),
@@ -262,16 +263,16 @@ fn default_nested_vector() {
     let value = Value::default_value(&nested, Span::default()).unwrap();
     match value {
         Value::Vector { kind, values } => {
-            assert_eq!(*kind, Type::Vector(Box::new(Type::Bool)));
+            assert_eq!(*kind, nested);
             assert!(values.borrow().is_empty());
-            // to_type returns the element type
+            // to_type returns the full vector type (kind)
             assert_eq!(
                 Value::Vector {
                     kind: kind.clone(),
                     values: values.clone()
                 }
                 .to_type(),
-                Type::Vector(Box::new(Type::Bool))
+                nested
             );
         }
         _ => panic!("expected Vector"),

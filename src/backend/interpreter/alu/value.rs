@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, vec};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, vec};
 
 use crate::common::{
     errors::{ComputationError, ErrorSeverity},
@@ -27,6 +27,12 @@ pub enum Value {
         kind: Box<Type>,
         values: Rc<RefCell<Vec<Rc<RefCell<Value>>>>>,
     },
+
+    Struct {
+        identifier: String,
+        fields_types: Rc<HashMap<String, Type>>,
+        fields: Rc<RefCell<HashMap<String, Rc<RefCell<Value>>>>>,
+    },
 }
 
 impl Value {
@@ -48,9 +54,24 @@ impl Value {
             Type::Str => Ok(Value::String("".to_owned())),
 
             Type::Vector(inner) => Ok(Value::Vector {
-                kind: Box::new((**inner).clone()),
+                kind: Box::new(Type::Vector(inner.clone())),
                 values: Rc::new(RefCell::new(vec![])),
             }),
+
+            Type::Struct { identifier, fields } => {
+                let mut default_fields = HashMap::new();
+
+                for (field_name, field_type) in fields {
+                    let default_field_value = Value::default_value(field_type, span)?;
+                    default_fields.insert(field_name.clone(), Rc::new(RefCell::new(default_field_value)));
+                }
+
+                Ok(Value::Struct {
+                    identifier: identifier.clone(),
+                    fields_types: Rc::new(fields.clone()),
+                    fields: Rc::new(RefCell::new(default_fields)),
+                })
+            }
 
             other => Err(ComputationError::new(
                 ErrorSeverity::HIGH,
@@ -79,6 +100,13 @@ impl Value {
             Value::Char(_) => Type::Char,
 
             Value::Vector { kind, .. } => kind.as_ref().clone(),
+
+            Value::Struct {
+                identifier, fields_types, ..
+            } => Type::Struct {
+                identifier: identifier.clone(),
+                fields: (**fields_types).clone(),
+            },
         }
     }
 

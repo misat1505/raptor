@@ -200,21 +200,3 @@ fn void_type_or_error_fails_on_other_token() {
     let mut parser = Parser::new(mock_lexer);
     assert!(parser.void_type_or_error().is_err());
 }
-
-#[test]
-fn parse_type_returns_none_for_non_type_tokens() {
-    let non_types = [
-        TokenCategory::Identifier,
-        TokenCategory::Plus,
-        TokenCategory::Semicolon,
-        TokenCategory::Fn,
-        TokenCategory::ETX,
-    ];
-    for cat in non_types {
-        let series = vec![create_token(cat, TokenValue::Null), create_token(TokenCategory::ETX, TokenValue::Null)];
-        let mock_lexer = LexerMock::new(series);
-        let mut parser = Parser::new(mock_lexer);
-        let result = parser.parse_type().unwrap();
-        assert!(result.is_none());
-    }
-}

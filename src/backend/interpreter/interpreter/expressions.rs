@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     backend::interpreter::{
@@ -7,10 +7,11 @@ use crate::{
     },
     common::{
         errors::{ComputationError, ErrorSeverity, IError, InterpreterError},
+        span::Span,
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Expression, Literal, Node},
+    frontend::ast::{Expression, Literal, Node, StructLiteralField},
 };
 
 impl<'a> Interpreter<'a> {
@@ -47,11 +48,7 @@ impl<'a> Interpreter<'a> {
             Expression::Variable(variable) => self.visit_variable(variable, expression.span)?,
             Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments, expression.span)?,
             Expression::Index { collection, index } => self.eval_index(collection, index)?,
-            Expression::StructLiteral { .. } => Err(Box::new(InterpreterError::at(
-                ErrorSeverity::HIGH,
-                String::from("Visiting struct literal in interpreter is not implemented yet."),
-                expression.span,
-            )) as Box<dyn IError>)?,
+            Expression::StructLiteral(node) => self.eval_struct_literal(&node.value.identifier, &node.value.fields, expression.span)?,
         }
 
         Ok(())
@@ -91,6 +88,46 @@ impl<'a> Interpreter<'a> {
         };
 
         self.last_result = Some(Value::Vector { kind, values });
+
+        Ok(())
+    }
+
+    pub(in crate::backend::interpreter::interpreter) fn eval_struct_literal(
+        &mut self,
+        identifier: &'a Node<String>,
+        fields: &'a Vec<Node<StructLiteralField>>,
+        span: Span,
+    ) -> Result<(), Box<dyn IError>> {
+        let declared_type = self.program.types.get(&identifier.value).cloned().ok_or_else(|| {
+            Box::new(InterpreterError::at(
+                ErrorSeverity::HIGH,
+                format!("Unknown type '{}'.", identifier.value),
+                span,
+            )) as Box<dyn IError>
+        })?;
+
+        let Type::Struct { fields: fields_types, .. } = &declared_type else {
+            return Err(Box::new(InterpreterError::at(
+                ErrorSeverity::HIGH,
+                format!("'{}' is not a struct type.", identifier.value),
+                span,
+            )));
+        };
+
+        let mut field_values = HashMap::new();
+
+        for field in fields {
+            self.visit_expression(&field.value.value)?;
+            let value = self.read_last_result()?;
+
+            field_values.insert(field.value.identifier.value.clone(), Rc::new(RefCell::new(value)));
+        }
+
+        self.last_result = Some(Value::Struct {
+            identifier: identifier.value.clone(),
+            fields_types: Rc::new(fields_types.clone()),
+            fields: Rc::new(RefCell::new(field_values)),
+        });
 
         Ok(())
     }

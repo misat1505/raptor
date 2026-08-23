@@ -148,11 +148,11 @@ impl<'a> Interpreter<'a> {
                 )) as Box<dyn IError>
             })?;
 
-            let desired_type = &parameter.value.parameter_type.value;
+            let desired_type = self.resolve_type(&parameter.value.parameter_type.value);
             let param_name = &parameter.value.identifier.value;
             let value = &self.last_arguments[idx];
 
-            if !type_accepts_value(desired_type, &value.borrow()) {
+            if !type_accepts_value(&desired_type, &value.borrow()) {
                 self.stack.pop_stack_frame();
 
                 return Err(Box::new(InterpreterError::expected_found(
@@ -204,10 +204,12 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        match &self.last_result {
-            None if function_declaration.return_type.value == Type::Void => {}
+        let expected_return_type = self.resolve_type(&function_declaration.return_type.value);
 
-            Some(value) if type_accepts_value(&function_declaration.return_type.value, value) => {}
+        match &self.last_result {
+            None if expected_return_type == Type::Void => {}
+
+            Some(value) if type_accepts_value(&expected_return_type, value) => {}
 
             result => {
                 let result_type = match result {
@@ -220,7 +222,7 @@ impl<'a> Interpreter<'a> {
                 return Err(Box::new(InterpreterError::expected_found(
                     ErrorSeverity::HIGH,
                     format!("Bad return type from function '{}'.", name),
-                    format!("{:?}", function_declaration.return_type.value),
+                    format!("{:?}", expected_return_type),
                     format!("{:?}", result_type),
                     function_declaration.return_type.span,
                 )));
@@ -230,5 +232,13 @@ impl<'a> Interpreter<'a> {
         self.stack.pop_stack_frame();
 
         Ok(())
+    }
+
+    fn resolve_type(&self, ty: &Type) -> Type {
+        match ty {
+            Type::Unresolved(name) => self.program.types.get(name).cloned().unwrap_or_else(|| ty.clone()),
+            Type::Vector(inner) => Type::Vector(Box::new(self.resolve_type(inner))),
+            other => other.clone(),
+        }
     }
 }

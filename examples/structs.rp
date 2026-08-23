@@ -1,3 +1,19 @@
+# enum Statement {
+#   Declaration(Post),
+#   Assignment(Post)
+# };
+
+# let statement = Statement();
+# switch (statement) {
+#   case Declaration(post) {
+#     #  post: Post, dostępny tylko w tym case
+#   }
+#   case Assignment(post) {
+#     #  post: Post
+#   }
+# };
+
+
 struct Post {
   u64 id,
   str description
@@ -39,8 +55,3 @@ fn user_get_user_array2(&User[] user): User[] {
 let arr = [user];
 user_get_user_array(&arr[0]);
 user_get_user_array2(&arr);
-
-
-extern fn ab(User u): User;
-
-let i = ab(user);

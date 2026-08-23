@@ -50,7 +50,7 @@ fn add(i64 a, i64 b): i64 {
 
 **statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration | return_statement | break_statement | continue_statement;
 
-**assign_or_call_without_semicolon** = identifier, ( { "[", expression, "]" }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
+**assign_or_call_without_semicolon** = identifier, ( { access_tail }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
 
 **assign_or_call** = assign_or_call_without_semicolon, ";";
 
@@ -252,9 +252,13 @@ fun(5)[0][0]
 
 Person { id: 123 as u64, name: "Bob" }
 Hobby { id: 1, description: "Play football" }
+
+person.hobbies[0].description
 ```
 
-**call_or_index_tail** = [ "(", arguments, ")" ], { "[", expression, "]" };
+<!-- **call_or_index_tail** = [ "(", arguments, ")" ], { "[", expression, "]" }; -->
+**call_or_index_tail** = [ "(", arguments, ")" ], { access_tail };
+**access_tail** = ("[", expression, "]") | (".", identifier);
 
 **struct_literal_tail** = "{", [ struct_literal_fields ], "}";
 

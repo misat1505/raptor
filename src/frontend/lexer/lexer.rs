@@ -318,13 +318,13 @@ impl Lexer {
             '=' => Some(self.extend_to_next('=', TokenCategory::Assign, TokenCategory::Equal)),
             '&' => Some(self.extend_to_next('&', TokenCategory::Reference, TokenCategory::And)),
             '|' => Some(self.extend_to_next_or_warning('|', TokenCategory::Or)),
+            '.' => Some(self.single_char(TokenCategory::Dot)),
             _ => None,
         };
 
         Ok(token)
     }
 
-    #[allow(dead_code)]
     fn single_char(&mut self, category: TokenCategory) -> Token {
         let start = self.position.clone();
 

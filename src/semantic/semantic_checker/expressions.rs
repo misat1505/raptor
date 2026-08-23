@@ -166,7 +166,7 @@ impl<'a> SemanticChecker<'a> {
 
                 match (collection_type, index_type) {
                     (Ok(Type::Vector(inner)), Ok(Type::I64)) => {
-                        self.last_result = Some(*inner);
+                        self.last_result = self.resolve_type_fully_checked(&inner, expression.span).ok();
                     }
                     (Ok(Type::Str), Ok(Type::I64)) => {
                         self.last_result = Some(Type::Char);
@@ -201,6 +201,48 @@ impl<'a> SemanticChecker<'a> {
             }
 
             Expression::StructLiteral(sl) => self.visit_struct_literal(sl)?,
+            Expression::FieldAccess { instance, field } => {
+                self.visit_expression(instance)?;
+
+                let Ok(instance_type) = self.read_last_result(instance.span) else {
+                    self.last_result = None;
+                    return Ok(());
+                };
+
+                let Type::Struct { identifier, fields } = &instance_type else {
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Cannot access field `{}` on value of type `{:?}`.", field.value, instance_type),
+                        expression.span,
+                    )));
+
+                    self.last_result = None;
+                    return Ok(());
+                };
+
+                let Some(field_type) = fields.get(&field.value).cloned() else {
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Struct `{}` has no field `{}`.", identifier, field.value),
+                        field.span,
+                    )));
+
+                    self.last_result = None;
+                    return Ok(());
+                };
+
+                let Some(field_type) = self.resolve_type_fully_checked(&field_type, field.span).ok() else {
+                    self.last_result = None;
+                    return Ok(());
+                };
+
+                self.hovers.push(HoverInfo {
+                    contents: format!("```raptor\n{:?} {}\n```", field_type, field.value),
+                    span: field.span,
+                });
+
+                self.last_result = Some(field_type);
+            }
         }
 
         Ok(())

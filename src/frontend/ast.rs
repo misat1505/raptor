@@ -58,6 +58,10 @@ pub enum Expression {
         collection: BNode<Expression>,
         index: BNode<Expression>,
     },
+    FieldAccess {
+        instance: BNode<Expression>,
+        field: Node<String>,
+    },
     Variable(String),
     FunctionCall {
         identifier: Node<String>,

@@ -188,6 +188,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 String::from("Visiting struct literal in compiler is not implemented yet."),
                 expression.span,
             )) as Box<dyn IError>)?,
+            Expression::FieldAccess { .. } => Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                String::from("Visiting field access in compiler is not implemented yet."),
+                expression.span,
+            )) as Box<dyn IError>)?,
         }
     }
 }

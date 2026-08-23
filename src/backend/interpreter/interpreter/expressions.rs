@@ -49,6 +49,7 @@ impl<'a> Interpreter<'a> {
             Expression::FunctionCall { identifier, arguments } => self.call_function(identifier, arguments, expression.span)?,
             Expression::Index { collection, index } => self.eval_index(collection, index)?,
             Expression::StructLiteral(node) => self.eval_struct_literal(&node.value.identifier, &node.value.fields, expression.span)?,
+            Expression::FieldAccess { .. } => unimplemented!(),
         }
 
         Ok(())

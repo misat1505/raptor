@@ -21,7 +21,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn parse_call_or_index_tail(&mut self, identifier: Node<String>) -> Result<Option<Node<Expression>>, Box<dyn IError>> {
-        // call_or_index_tail = [ "(", arguments, ")" ], { "[", expression, "]" };
+        // call_or_index_tail = [ "(", arguments, ")" ], { access_tail };
         let start = identifier.span.start();
 
         let (mut result, mut end) = match self.consume_if_matches(TokenCategory::ParenOpen)? {
@@ -36,22 +36,45 @@ impl<L: ILexer> Parser<L> {
             }
         };
 
-        while self.current_token().category == TokenCategory::BracketOpen {
-            let _ = self.consume_must_be(TokenCategory::BracketOpen);
-            let index_expr = self
-                .parse_expression()?
-                .ok_or_else(|| self.create_parser_error(String::from("Expected an expression inside '[]' index.")))?;
-            let bracket_close_token = self.consume_must_be(TokenCategory::BracketClose)?;
+        loop {
+            match self.current_token().category {
+                TokenCategory::BracketOpen => {
+                    let _ = self.consume_must_be(TokenCategory::BracketOpen);
+                    let index_expr = self
+                        .parse_expression()?
+                        .ok_or_else(|| self.create_parser_error(String::from("Expected an expression inside '[]' index.")))?;
+                    let bracket_close_token = self.consume_must_be(TokenCategory::BracketClose)?;
 
-            end = bracket_close_token.span.end();
+                    end = bracket_close_token.span.end();
 
-            result = Expression::Index {
-                collection: Box::new(Node {
-                    value: result,
-                    span: Span::new(start, index_expr.span.start()),
-                }),
-                index: Box::new(index_expr),
-            };
+                    result = Expression::Index {
+                        collection: Box::new(Node {
+                            value: result,
+                            span: Span::new(start, index_expr.span.start()),
+                        }),
+                        index: Box::new(index_expr),
+                    };
+                }
+
+                TokenCategory::Dot => {
+                    let _ = self.consume_must_be(TokenCategory::Dot);
+                    let field = self
+                        .parse_identifier()?
+                        .ok_or_else(|| self.create_parser_error(String::from("Expected an identifier after '.'.")))?;
+
+                    end = field.span.end();
+
+                    result = Expression::FieldAccess {
+                        instance: Box::new(Node {
+                            value: result,
+                            span: Span::new(start, field.span.start()),
+                        }),
+                        field,
+                    };
+                }
+
+                _ => break,
+            }
         }
 
         Ok(Some(Node {

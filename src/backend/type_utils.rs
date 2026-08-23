@@ -23,7 +23,9 @@ pub fn type_accepts_value(ty: &Type, value: &Value) -> bool {
 
         (Type::Struct { identifier: expected, .. }, Value::Struct { identifier: actual, .. }) => expected == actual,
 
-        _ => false,
+        (Type::Unresolved(expected), Value::Struct { identifier: actual, .. }) => expected == actual,
+
+        (a, b) => a == &b.to_type(),
     }
 }
 

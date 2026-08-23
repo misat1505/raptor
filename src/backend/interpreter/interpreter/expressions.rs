@@ -152,8 +152,24 @@ impl<'a> Interpreter<'a> {
         let mut field_values = HashMap::new();
 
         for field in fields {
+            let field_name = field.value.identifier.value.as_str();
+
+            let expected_type = fields_types.get(field_name).ok_or_else(|| {
+                Box::new(InterpreterError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Struct `{}` has no field `{}`.", identifier.value, field_name),
+                    field.value.identifier.span,
+                )) as Box<dyn IError>
+            })?;
+
             self.visit_expression(&field.value.value)?;
-            let value = self.read_last_result()?;
+            let mut value = self.read_last_result()?;
+
+            if let (Type::Vector(_), Value::Vector { kind, .. }) = (expected_type, &mut value) {
+                if *kind.as_ref() == Type::Void {
+                    *kind = Box::new(expected_type.clone());
+                }
+            }
 
             field_values.insert(field.value.identifier.value.clone(), Rc::new(RefCell::new(value)));
         }

@@ -66,6 +66,8 @@ pub fn input() -> StdFunction {
         compiler.visit_expression(&arg.value.value)?;
         let prompt_ptr = compiler.read_last_value()?.into_str_value(span)?;
 
+        let owned_ptr = compiler.build_string_copy(prompt_ptr, span)?;
+
         // printf("%s", prompt)
         let format_str = compiler
             .builder()
@@ -77,12 +79,12 @@ pub fn input() -> StdFunction {
 
         compiler
             .builder()
-            .build_call(printf_fn, &[format_str.into(), prompt_ptr.into()], "printf.prompt")
+            .build_call(printf_fn, &[format_str.into(), owned_ptr.into()], "printf.prompt")
             .map_err(err)?;
 
         let free_fn = compiler.libc().free_fn;
 
-        compiler.builder().build_call(free_fn, &[prompt_ptr.into()], "free.prompt").map_err(err)?;
+        compiler.builder().build_call(free_fn, &[owned_ptr.into()], "free.prompt").map_err(err)?;
 
         let context = compiler.context();
         let i64_type = context.i64_type();

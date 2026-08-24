@@ -66,16 +66,18 @@ pub fn println() -> StdFunction {
             }
         };
 
+        let owned_ptr = compiler.build_string_copy(text_ptr, span)?;
+
         let printf_fn = compiler.libc().printf_fn;
 
         let format_str = compiler.builder().build_global_string_ptr("%s\n", "fmt").map_err(err)?;
 
         compiler
             .builder()
-            .build_call(printf_fn, &[format_str.as_pointer_value().into(), text_ptr.into()], "printf_call")
+            .build_call(printf_fn, &[format_str.as_pointer_value().into(), owned_ptr.into()], "printf_call")
             .map_err(err)?;
 
-        compiler.builder().build_free(text_ptr).map_err(err)?;
+        compiler.builder().build_free(owned_ptr).map_err(err)?;
 
         Ok(())
     };

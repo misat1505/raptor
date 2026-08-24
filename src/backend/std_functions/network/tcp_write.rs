@@ -82,6 +82,7 @@ pub fn tcp_write() -> StdFunction {
 
         compiler.visit_expression(&data_arg.value.value)?;
         let data_ptr = compiler.read_last_value()?.into_str_value(span)?;
+        let owned_ptr = compiler.build_string_copy(data_ptr, span)?;
 
         let context = compiler.context();
         let i32_type = context.i32_type();
@@ -92,7 +93,7 @@ pub fn tcp_write() -> StdFunction {
 
         let len = compiler
             .builder()
-            .build_call(strlen_fn, &[data_ptr.into()], "data.len")
+            .build_call(strlen_fn, &[owned_ptr.into()], "data.len")
             .map_err(err)?
             .try_as_basic_value()
             .basic()
@@ -105,7 +106,7 @@ pub fn tcp_write() -> StdFunction {
             .builder()
             .build_call(
                 send_fn,
-                &[fd_i32.into(), data_ptr.into(), len.into(), i32_type.const_int(0, false).into()],
+                &[fd_i32.into(), owned_ptr.into(), len.into(), i32_type.const_int(0, false).into()],
                 "send.call",
             )
             .map_err(err)?;
@@ -114,7 +115,7 @@ pub fn tcp_write() -> StdFunction {
 
         compiler
             .builder()
-            .build_call(free_fn, &[data_ptr.into()], "tcp_write.free_data")
+            .build_call(free_fn, &[owned_ptr.into()], "tcp_write.free_data")
             .map_err(err)?;
 
         Ok(())

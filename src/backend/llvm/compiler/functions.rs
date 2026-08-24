@@ -239,10 +239,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let value = match value {
                         LlvmValue::Vector(ptr, inner) => {
                             let copy_ptr = self.build_shallow_copy_vector(ptr, &inner, span)?;
-
                             LlvmValue::Vector(copy_ptr, inner)
                         }
 
+                        LlvmValue::Str(ptr) => {
+                            let copy_ptr = self.build_string_copy(ptr, span)?;
+                            LlvmValue::Str(copy_ptr)
+                        }
                         other => other,
                     };
 
@@ -299,5 +302,45 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 expression.span,
             ))),
         }
+    }
+
+    pub(in crate::backend) fn build_string_copy(&mut self, ptr: PointerValue<'ctx>, span: Span) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
+
+        let context = self.context();
+        let i64_type = context.i64_type();
+
+        // strlen(ptr)
+        let strlen = self
+            .builder()
+            .build_call(self.libc().strlen_fn, &[ptr.into()], "str.copy.len")
+            .map_err(err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("strlen should return a value")
+            .into_int_value();
+
+        // strlen + 1 for '\0'
+        let size = self
+            .builder()
+            .build_int_add(strlen, i64_type.const_int(1, false), "str.copy.size")
+            .map_err(err)?;
+
+        // malloc(size)
+        let new_ptr = self
+            .builder()
+            .build_call(self.libc().malloc_fn, &[size.into()], "str.copy.malloc")
+            .map_err(err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+
+        // strcpy(new_ptr, ptr)
+        self.builder()
+            .build_call(self.libc().strcpy_fn, &[new_ptr.into(), ptr.into()], "str.copy")
+            .map_err(err)?;
+
+        Ok(new_ptr)
     }
 }

@@ -5,3 +5,9 @@
 # let text = "Hello world";
 # change_char(text);
 # println(text);
+
+let text = "Hello world";
+println(text);
+let a = text;
+println(a);
+str_free(&text);

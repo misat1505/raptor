@@ -51,6 +51,7 @@ pub fn exists_file() -> StdFunction {
 
         compiler.visit_expression(&arg.value.value)?;
         let path_ptr = compiler.read_last_value()?.into_str_value(span)?;
+        let owned_ptr = compiler.build_string_copy(path_ptr, span)?;
 
         let context = compiler.context();
         let i32_type = context.i32_type();
@@ -58,7 +59,7 @@ pub fn exists_file() -> StdFunction {
         let access_fn = compiler.libc().access_fn;
         let result = compiler
             .builder()
-            .build_call(access_fn, &[path_ptr.into(), i32_type.const_int(0, false).into()], "access.call")
+            .build_call(access_fn, &[owned_ptr.into(), i32_type.const_int(0, false).into()], "access.call")
             .map_err(err)?
             .try_as_basic_value()
             .basic()
@@ -72,7 +73,7 @@ pub fn exists_file() -> StdFunction {
 
         let free_fn = compiler.libc().free_fn;
 
-        compiler.builder().build_call(free_fn, &[path_ptr.into()], "free.path").map_err(err)?;
+        compiler.builder().build_call(free_fn, &[owned_ptr.into()], "free.path").map_err(err)?;
 
         compiler.set_last_value(LlvmValue::Bool(exists));
         Ok(())

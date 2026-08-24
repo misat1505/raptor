@@ -74,7 +74,7 @@ pub fn str_free() -> StdFunction {
 
     StdFunction {
         params,
-        passed_by: vec![PassedBy::Value],
+        passed_by: vec![PassedBy::Reference],
         execute,
         return_type: Type::Void,
         type_check: None,

@@ -72,6 +72,7 @@ pub fn tcp_connect() -> StdFunction {
 
         compiler.visit_expression(&host_arg.value.value)?;
         let host_ptr = compiler.read_last_value()?.into_str_value(span)?;
+        let owned_ptr = compiler.build_string_copy(host_ptr, span)?;
 
         compiler.visit_expression(&port_arg.value.value)?;
         let port = compiler.read_last_value()?.into_i64_value(span)?;
@@ -158,7 +159,7 @@ pub fn tcp_connect() -> StdFunction {
         let strcmp_fn = compiler.libc().strcmp_fn;
         let cmp = compiler
             .builder()
-            .build_call(strcmp_fn, &[host_ptr.into(), localhost_lit.as_pointer_value().into()], "host.cmp")
+            .build_call(strcmp_fn, &[owned_ptr.into(), localhost_lit.as_pointer_value().into()], "host.cmp")
             .map_err(err)?
             .try_as_basic_value()
             .basic()
@@ -170,16 +171,16 @@ pub fn tcp_connect() -> StdFunction {
             .build_int_compare(inkwell::IntPredicate::EQ, cmp, i32_type.const_zero(), "is.localhost")
             .map_err(err)?;
 
-        let resolved_host_ptr = compiler
+        let resolved_owned_ptr = compiler
             .builder()
-            .build_select(is_localhost, loopback_lit.as_pointer_value(), host_ptr, "resolved.host")
+            .build_select(is_localhost, loopback_lit.as_pointer_value(), owned_ptr, "resolved.host")
             .map_err(err)?
             .into_pointer_value();
 
         let inet_addr_fn = compiler.libc().inet_addr_fn;
         let addr_be = compiler
             .builder()
-            .build_call(inet_addr_fn, &[resolved_host_ptr.into()], "inet_addr.call")
+            .build_call(inet_addr_fn, &[resolved_owned_ptr.into()], "inet_addr.call")
             .map_err(err)?
             .try_as_basic_value()
             .basic()
@@ -261,7 +262,7 @@ pub fn tcp_connect() -> StdFunction {
         compiler.builder().build_unconditional_branch(free_block).map_err(err)?;
 
         // Both success and error paths arrive here.
-        // host_ptr is a temporary string copy created because
+        // owned_ptr is a temporary string copy created because
         // tcp_connect takes its string argument by value.
         compiler.builder().position_at_end(free_block);
 
@@ -269,7 +270,7 @@ pub fn tcp_connect() -> StdFunction {
 
         compiler
             .builder()
-            .build_call(free_fn, &[host_ptr.into()], "tcp_connect.free_host")
+            .build_call(free_fn, &[owned_ptr.into()], "tcp_connect.free_host")
             .map_err(err)?;
 
         compiler.builder().build_unconditional_branch(continue_block).map_err(err)?;

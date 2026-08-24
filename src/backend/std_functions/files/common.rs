@@ -72,5 +72,17 @@ pub fn compile_write_or_append<'a, 'ctx>(
     let fclose_fn = compiler.libc().fclose_fn;
     compiler.builder().build_call(fclose_fn, &[file.into()], "fclose.call").map_err(err)?;
 
+    let free_fn = compiler.libc().free_fn;
+
+    compiler
+        .builder()
+        .build_call(free_fn, &[path_ptr.into()], "write.free.path")
+        .map_err(err)?;
+
+    compiler
+        .builder()
+        .build_call(free_fn, &[content_ptr.into()], "write.free.content")
+        .map_err(err)?;
+
     Ok(())
 }

@@ -38,6 +38,7 @@ pub fn tcp_write() -> StdFunction {
             match (&*handle, &*data) {
                 (Value::I64(stream_handle), Value::String(payload)) => {
                     let mut streams = STREAMS.lock().unwrap();
+
                     let stream = streams
                         .as_mut()
                         .and_then(|m| m.get_mut(stream_handle))
@@ -49,6 +50,7 @@ pub fn tcp_write() -> StdFunction {
 
                     Ok(None)
                 }
+
                 _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
@@ -87,6 +89,7 @@ pub fn tcp_write() -> StdFunction {
         let fd_i32 = compiler.builder().build_int_truncate(fd, i32_type, "fd.i32").map_err(err)?;
 
         let strlen_fn = compiler.libc().strlen_fn;
+
         let len = compiler
             .builder()
             .build_call(strlen_fn, &[data_ptr.into()], "data.len")
@@ -97,6 +100,7 @@ pub fn tcp_write() -> StdFunction {
             .into_int_value();
 
         let send_fn = compiler.libc().send_fn;
+
         compiler
             .builder()
             .build_call(
@@ -104,6 +108,13 @@ pub fn tcp_write() -> StdFunction {
                 &[fd_i32.into(), data_ptr.into(), len.into(), i32_type.const_int(0, false).into()],
                 "send.call",
             )
+            .map_err(err)?;
+
+        let free_fn = compiler.libc().free_fn;
+
+        compiler
+            .builder()
+            .build_call(free_fn, &[data_ptr.into()], "tcp_write.free_data")
             .map_err(err)?;
 
         Ok(())

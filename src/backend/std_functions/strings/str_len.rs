@@ -72,7 +72,12 @@ pub fn str_len() -> StdFunction {
             .expect("strlen should return a value")
             .into_int_value();
 
+        let free_fn = compiler.libc().free_fn;
+
+        compiler.builder().build_call(free_fn, &[str_ptr.into()], "str_len.free").map_err(err)?;
+
         compiler.set_last_value(LlvmValue::I64(length));
+
         Ok(())
     };
 

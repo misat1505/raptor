@@ -139,6 +139,10 @@ pub fn read_file() -> StdFunction {
             .build_store(end_ptr, context.i8_type().const_int(0, false))
             .map_err(err)?;
 
+        let free_fn = compiler.libc().free_fn;
+
+        compiler.builder().build_call(free_fn, &[path_ptr.into()], "free.path").map_err(err)?;
+
         compiler.set_last_value(LlvmValue::Str(buf));
         Ok(())
     };

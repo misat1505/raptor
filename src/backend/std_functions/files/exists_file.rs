@@ -70,6 +70,10 @@ pub fn exists_file() -> StdFunction {
             .build_int_compare(inkwell::IntPredicate::EQ, result, i32_type.const_int(0, false), "access.exists")
             .map_err(err)?;
 
+        let free_fn = compiler.libc().free_fn;
+
+        compiler.builder().build_call(free_fn, &[path_ptr.into()], "free.path").map_err(err)?;
+
         compiler.set_last_value(LlvmValue::Bool(exists));
         Ok(())
     };

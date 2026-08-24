@@ -228,6 +228,7 @@ pub fn tcp_connect() -> StdFunction {
                 span,
             )) as Box<dyn IError>
         })?;
+
         let current_fn = current_block.get_parent().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
@@ -237,24 +238,46 @@ pub fn tcp_connect() -> StdFunction {
         })?;
 
         let close_block = compiler.context().append_basic_block(current_fn, "tcp_connect.close_on_error");
+
+        let free_block = compiler.context().append_basic_block(current_fn, "tcp_connect.free_host");
+
         let continue_block = compiler.context().append_basic_block(current_fn, "tcp_connect.continue");
 
         compiler
             .builder()
-            .build_conditional_branch(is_error, close_block, continue_block)
+            .build_conditional_branch(is_error, close_block, free_block)
             .map_err(err)?;
 
+        // connect() failed -> close socket
         compiler.builder().position_at_end(close_block);
+
         let close_fn = compiler.libc().close_fn;
+
         compiler
             .builder()
             .build_call(close_fn, &[fd.into()], "tcp_connect.close_on_error.call")
             .map_err(err)?;
+
+        compiler.builder().build_unconditional_branch(free_block).map_err(err)?;
+
+        // Both success and error paths arrive here.
+        // host_ptr is a temporary string copy created because
+        // tcp_connect takes its string argument by value.
+        compiler.builder().position_at_end(free_block);
+
+        let free_fn = compiler.libc().free_fn;
+
+        compiler
+            .builder()
+            .build_call(free_fn, &[host_ptr.into()], "tcp_connect.free_host")
+            .map_err(err)?;
+
         compiler.builder().build_unconditional_branch(continue_block).map_err(err)?;
 
         compiler.builder().position_at_end(continue_block);
 
         let fd_i64 = compiler.builder().build_int_z_extend(fd, i64_type, "fd.i64").map_err(err)?;
+
         let neg_one = i64_type.const_int(u64::MAX, true);
 
         let result = compiler
@@ -264,6 +287,7 @@ pub fn tcp_connect() -> StdFunction {
             .into_int_value();
 
         compiler.set_last_value(LlvmValue::I64(result));
+
         Ok(())
     };
 

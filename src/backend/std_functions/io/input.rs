@@ -22,6 +22,7 @@ use crate::{
 
 pub fn input() -> StdFunction {
     let params = vec![Type::Str];
+
     let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
         let fn_name = "input";
         let expected_types = vec![Type::Str];
@@ -37,11 +38,13 @@ pub fn input() -> StdFunction {
                     io::stdout().flush().unwrap();
 
                     let mut input = String::new();
+
                     match io::stdin().read_line(&mut input) {
                         Ok(_) => Ok(Some(Value::String(input.trim().to_string()))),
                         Err(_) => Err(StdFunctionError::new(ErrorSeverity::HIGH, String::from("Failed to read input."), span)),
                     }
                 }
+
                 _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
@@ -63,6 +66,7 @@ pub fn input() -> StdFunction {
         compiler.visit_expression(&arg.value.value)?;
         let prompt_ptr = compiler.read_last_value()?.into_str_value(span)?;
 
+        // printf("%s", prompt)
         let format_str = compiler
             .builder()
             .build_global_string_ptr("%s", "fmt.prompt")
@@ -70,28 +74,37 @@ pub fn input() -> StdFunction {
             .as_pointer_value();
 
         let printf_fn = compiler.libc().printf_fn;
+
         compiler
             .builder()
             .build_call(printf_fn, &[format_str.into(), prompt_ptr.into()], "printf.prompt")
             .map_err(err)?;
 
+        let free_fn = compiler.libc().free_fn;
+
+        compiler.builder().build_call(free_fn, &[prompt_ptr.into()], "free.prompt").map_err(err)?;
+
         let context = compiler.context();
         let i64_type = context.i64_type();
         let i32_type = context.i32_type();
-        let buf_size = 4096u64;
 
+        const BUF_SIZE: u64 = 4096;
+
+        // malloc(4096)
         let malloc_fn = compiler.libc().malloc_fn;
+
         let buf = compiler
             .builder()
-            .build_call(malloc_fn, &[i64_type.const_int(buf_size, false).into()], "input.buf")
+            .build_call(malloc_fn, &[i64_type.const_int(BUF_SIZE, false).into()], "input.buf")
             .map_err(err)?
             .try_as_basic_value()
             .basic()
             .expect("malloc should return a value")
             .into_pointer_value();
 
-        // read(fd=0, buf, buf_size - 1)
+        // read(0, buf, 4095)
         let read_fn = compiler.libc().read_fn;
+
         let n = compiler
             .builder()
             .build_call(
@@ -99,7 +112,7 @@ pub fn input() -> StdFunction {
                 &[
                     i32_type.const_int(0, false).into(),
                     buf.into(),
-                    i64_type.const_int(buf_size - 1, false).into(),
+                    i64_type.const_int(BUF_SIZE - 1, false).into(),
                 ],
                 "read.call",
             )
@@ -109,9 +122,7 @@ pub fn input() -> StdFunction {
             .expect("read should return a value")
             .into_int_value();
 
-        let n_clamped = compiler.builder().build_call(compiler.libc().strlen_fn, &[buf.into()], "unused");
-        let _ = n_clamped;
-
+        // buf[n] = '\0'
         let end_ptr = unsafe { compiler.builder().build_gep(context.i8_type(), buf, &[n], "input.end").map_err(err)? };
 
         compiler
@@ -120,6 +131,7 @@ pub fn input() -> StdFunction {
             .map_err(err)?;
 
         compiler.set_last_value(LlvmValue::Str(buf));
+
         Ok(())
     };
 

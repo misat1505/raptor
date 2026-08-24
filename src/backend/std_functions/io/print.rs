@@ -3,6 +3,7 @@ use std::{cell::RefCell, rc::Rc, vec};
 use crate::{
     backend::{
         interpreter::Value,
+        llvm::LlvmValue,
         std_functions::std_functions::{build_usage_error, LlvmCompileFn, StdFunction},
     },
     common::{
@@ -16,13 +17,15 @@ use crate::{
 
 pub fn print() -> StdFunction {
     let params = vec![Type::Str];
+
     let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
-        let fn_name = "write_file";
+        let fn_name = "print";
         let expected_types = vec![Type::Str];
         let mut actual_types: Vec<Type> = vec![];
 
         if let Some(value) = params.get(0) {
             actual_types.push(value.borrow().to_type());
+
             let value = value.borrow();
 
             match &*value {
@@ -51,18 +54,28 @@ pub fn print() -> StdFunction {
         compiler.visit_expression(&arg.value.value)?;
         let text_value = compiler.read_last_value()?;
 
+        let text_ptr = match text_value {
+            LlvmValue::Str(ptr) => ptr,
+
+            other => {
+                return Err(Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("'print' expects a string, got '{:?}'.", other.to_type()),
+                    span,
+                )));
+            }
+        };
+
         let printf_fn = compiler.libc().printf_fn;
 
         let format_str = compiler.builder().build_global_string_ptr("%s", "fmt").map_err(err)?;
 
         compiler
             .builder()
-            .build_call(
-                printf_fn,
-                &[format_str.as_pointer_value().into(), text_value.as_basic_value_enum().into()],
-                "printf_call",
-            )
+            .build_call(printf_fn, &[format_str.as_pointer_value().into(), text_ptr.into()], "printf_call")
             .map_err(err)?;
+
+        compiler.builder().build_free(text_ptr).map_err(err)?;
 
         Ok(())
     };

@@ -15,24 +15,21 @@ use crate::{
     frontend::ast::PassedBy,
 };
 
-pub fn println() -> StdFunction {
+pub fn str_free() -> StdFunction {
     let params = vec![Type::Str];
 
     let execute = |params: &Vec<Rc<RefCell<Value>>>, span: Span| -> Result<Option<Value>, StdFunctionError> {
-        let fn_name = "println";
+        let fn_name = "str_free";
         let expected_types = vec![Type::Str];
         let mut actual_types: Vec<Type> = vec![];
 
-        if let Some(value) = params.get(0) {
-            actual_types.push(value.borrow().to_type());
+        if let Some(text) = params.get(0) {
+            actual_types.push(text.borrow().to_type());
 
-            let value = value.borrow();
+            let text = text.borrow();
 
-            match &*value {
-                Value::String(text) => {
-                    println!("{}", text);
-                    Ok(None)
-                }
+            match &*text {
+                Value::String(_) => Ok(None),
                 _ => Err(build_usage_error(fn_name, expected_types, actual_types, span)),
             }
         } else {
@@ -41,49 +38,44 @@ pub fn println() -> StdFunction {
     };
 
     let compile: LlvmCompileFn = |compiler, arguments, span| {
-        let err = |err: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>;
+        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
         let arg = arguments.get(0).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                String::from("'println' expects exactly one argument."),
+                String::from("'str_free' expects exactly one argument."),
                 span,
             )) as Box<dyn IError>
         })?;
 
         compiler.visit_expression(&arg.value.value)?;
-        let text_value = compiler.read_last_value()?;
 
-        let text_ptr = match text_value {
+        let str_value = compiler.read_last_value()?;
+
+        let str_ptr = match str_value {
             LlvmValue::Str(ptr) => ptr,
 
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("'println' expects a string, got '{:?}'.", other.to_type()),
+                    format!("'str_free' expects a string, got '{:?}'.", other.to_type()),
                     span,
                 )));
             }
         };
 
-        let printf_fn = compiler.libc().printf_fn;
-
-        let format_str = compiler.builder().build_global_string_ptr("%s\n", "fmt").map_err(err)?;
-
         compiler
             .builder()
-            .build_call(printf_fn, &[format_str.as_pointer_value().into(), text_ptr.into()], "printf_call")
+            .build_call(compiler.libc().free_fn, &[str_ptr.into()], "str.free")
             .map_err(err)?;
-
-        compiler.builder().build_free(text_ptr).map_err(err)?;
 
         Ok(())
     };
 
     StdFunction {
         params,
-        execute,
         passed_by: vec![PassedBy::Value],
+        execute,
         return_type: Type::Void,
         type_check: None,
         compile,

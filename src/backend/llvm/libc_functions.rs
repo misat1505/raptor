@@ -15,6 +15,7 @@ pub struct LibcFunctions<'ctx> {
     pub atof_fn: FunctionValue<'ctx>,
     pub realloc_fn: FunctionValue<'ctx>,
     pub memcpy_fn: FunctionValue<'ctx>,
+    pub free_fn: FunctionValue<'ctx>,
     pub usleep_fn: FunctionValue<'ctx>,
 
     // files
@@ -61,6 +62,7 @@ impl<'ctx> LibcFunctions<'ctx> {
         let strcpy_fn = module.add_function("strcpy", str_type.fn_type(&[str_type.into(), str_type.into()], false), None);
         let strcat_fn = module.add_function("strcat", str_type.fn_type(&[str_type.into(), str_type.into()], false), None);
         let malloc_fn = module.add_function("malloc", str_type.fn_type(&[i64_type.into()], false), None);
+        let free_fn = module.add_function("free", context.void_type().fn_type(&[ptr_type.into()], false), None);
         let atoll_fn = module.add_function("atoll", i64_type.fn_type(&[str_type.into()], false), None);
         let atof_fn = module.add_function("atof", f64_type.fn_type(&[str_type.into()], false), None);
         let realloc_fn = module.add_function("realloc", ptr_type.fn_type(&[ptr_type.into(), i64_type.into()], false), None);
@@ -143,6 +145,7 @@ impl<'ctx> LibcFunctions<'ctx> {
             strcpy_fn,
             strcat_fn,
             malloc_fn,
+            free_fn,
             atoll_fn,
             atof_fn,
             realloc_fn,

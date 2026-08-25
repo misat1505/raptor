@@ -1,0 +1,9 @@
+struct User {
+    i64 id,
+    str name
+};
+
+let user = User { id: 1, name: "bob" };
+
+println(user.id as str);
+println(user.name);

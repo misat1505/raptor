@@ -219,16 +219,118 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Ok(())
             }
 
-            Expression::StructLiteral { .. } => Err(Box::new(CompilerError::at(
-                ErrorSeverity::HIGH,
-                String::from("Visiting struct literal in compiler is not implemented yet."),
-                expression.span,
-            )) as Box<dyn IError>)?,
-            Expression::FieldAccess { .. } => Err(Box::new(CompilerError::at(
-                ErrorSeverity::HIGH,
-                String::from("Visiting field access in compiler is not implemented yet."),
-                expression.span,
-            )) as Box<dyn IError>)?,
+            Expression::StructLiteral(node) => {
+                let identifier = &node.value.identifier;
+                let fields = &node.value.fields;
+
+                let declared_type = self.program.types.get(&identifier.value).cloned().ok_or_else(|| {
+                    Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Unknown type '{}'.", identifier.value),
+                        span,
+                    )) as Box<dyn IError>
+                })?;
+
+                let (struct_type, field_indices) = self.struct_llvm_type(&identifier.value, span)?;
+
+                let struct_ptr = self
+                    .builder
+                    .build_alloca(struct_type, identifier.value.as_str())
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+                for field in fields {
+                    let field_name = field.value.identifier.value.as_str();
+
+                    let field_index = *field_indices.get(field_name).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Struct '{}' has no field '{}'.", identifier.value, field_name),
+                            field.span,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    self.visit_expression(&field.value.value)?;
+                    let field_value = self.read_last_value()?;
+
+                    let field_ptr = self
+                        .builder
+                        .build_struct_gep(struct_type, struct_ptr, field_index, "field.init")
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
+
+                    self.builder
+                        .build_store(field_ptr, field_value.as_basic_value_enum())
+                        .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
+                }
+
+                self.last_value = Some(LlvmValue::Struct(struct_ptr, Box::new(declared_type)));
+
+                Ok(())
+            }
+
+            Expression::FieldAccess { instance, field } => {
+                self.visit_expression(instance)?;
+                let instance_value = self.read_last_value()?;
+
+                let (struct_ptr, struct_type_info) = match &instance_value {
+                    LlvmValue::Struct(ptr, ty) => (*ptr, ty.clone()),
+
+                    other => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot access field '{}' on type '{:?}'.", field.value, other.to_type()),
+                            span,
+                        )));
+                    }
+                };
+
+                let Type::Struct { identifier, fields } = struct_type_info.as_ref() else {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Cannot access field '{}' on a non-struct type.", field.value),
+                        span,
+                    )));
+                };
+
+                let field_type = fields.get(&field.value).cloned().ok_or_else(|| {
+                    Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Struct '{}' has no field '{}'.", identifier, field.value),
+                        field.span,
+                    )) as Box<dyn IError>
+                })?;
+
+                let (struct_type, field_indices) = self.struct_llvm_type(identifier, span)?;
+
+                let field_index = *field_indices.get(&field.value).ok_or_else(|| {
+                    Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Struct '{}' has no field '{}'.", identifier, field.value),
+                        field.span,
+                    )) as Box<dyn IError>
+                })?;
+
+                let field_ptr = self
+                    .builder
+                    .build_struct_gep(struct_type, struct_ptr, field_index, "field.access")
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
+
+                let field_llvm_type = LlvmValue::type_to_basic_type_enum(&field_type, self.context).ok_or_else(|| {
+                    Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Compiling fields of type '{:?}' is not yet supported.", field_type),
+                        field.span,
+                    )) as Box<dyn IError>
+                })?;
+
+                let raw_value = self
+                    .builder
+                    .build_load(field_llvm_type, field_ptr, "field.load")
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
+
+                self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &field_type));
+
+                Ok(())
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     backend::{
@@ -55,6 +55,34 @@ impl<'a> Interpreter<'a> {
                             };
 
                             args.push(Rc::new(RefCell::new(shallow_copy_vector)));
+                        }
+
+                        Value::Struct {
+                            ref identifier,
+                            ref fields_types,
+                            ref fields,
+                        } => {
+                            let original_fields = fields.borrow();
+                            let mut shallow_fields = HashMap::new();
+
+                            for (field_name, field_value) in original_fields.iter() {
+                                let copied_field = match &*field_value.borrow() {
+                                    Value::Vector { .. } | Value::Struct { .. } => Rc::clone(field_value),
+                                    other_value => Rc::new(RefCell::new(other_value.clone())),
+                                };
+
+                                shallow_fields.insert(field_name.clone(), copied_field);
+                            }
+
+                            drop(original_fields);
+
+                            let shallow_copy_struct = Value::Struct {
+                                identifier: identifier.clone(),
+                                fields_types: Rc::clone(fields_types),
+                                fields: Rc::new(RefCell::new(shallow_fields)),
+                            };
+
+                            args.push(Rc::new(RefCell::new(shallow_copy_struct)));
                         }
 
                         _ => args.push(Rc::new(RefCell::new(value))),

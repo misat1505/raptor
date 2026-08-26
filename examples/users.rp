@@ -28,7 +28,8 @@ fn user_repository_stringify(&UserRepository repo): str {
     return text;
 }
 
-let repo = UserRepository { users: [] };
+let users: User[] = [];
+let repo = UserRepository { users };
 
 let name = "Elon";
 let user = User { id: 420, name };

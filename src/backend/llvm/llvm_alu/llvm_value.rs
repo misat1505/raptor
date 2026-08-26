@@ -161,13 +161,14 @@ impl<'ctx> LlvmValue<'ctx> {
             Type::Bool => 1,
             Type::Char => 1,
 
-            Type::Str => 8,       // TODO: 64-bit platform only
-            Type::Vector(_) => 8, // TODO: 64-bit platform only
+            Type::Str => 8,           // TODO: 64-bit platform only
+            Type::Vector(_) => 8,     // TODO: 64-bit platform only
+            Type::Struct { .. } => 8, // TODO: 64-bit platform only
 
             other => {
                 return Err(Box::new(CompilerError::new(
                     ErrorSeverity::HIGH,
-                    format!("Compiling vectors of type '{:?}' is not yet supported.", other),
+                    format!("Compiling vectors of type '{:?}' is not yet supported. 6", other),
                     span,
                 )))
             }

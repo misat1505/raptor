@@ -15,7 +15,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Expression, PassedBy},
+    frontend::ast::PassedBy,
 };
 
 pub fn vector_push() -> StdFunction {
@@ -85,20 +85,15 @@ pub fn vector_push() -> StdFunction {
         let vector_arg = arguments.get(0).ok_or_else(err_arity)?;
         let value_arg = arguments.get(1).ok_or_else(err_arity)?;
 
-        let variable_name = match &vector_arg.value.value.value {
-            Expression::Variable(name) => name.clone(),
-            other => {
-                return Err(Box::new(CompilerError::at(
-                    ErrorSeverity::HIGH,
-                    format!("'vector_push' expects a variable as its first argument, got '{:?}'.", other),
-                    span,
-                )))
-            }
-        };
+        let vector_slot_ptr = compiler.resolve_reference(&vector_arg.value.value)?;
 
-        let (var_slot_ptr, var_type) = compiler.get_variable(&variable_name)?;
-        let inner_type = match var_type {
-            Type::Vector(inner) => *inner,
+        compiler.visit_expression(&vector_arg.value.value)?;
+        let vector_value = compiler.read_last_value()?;
+
+        let vector_type = compiler.resolve_type(&vector_value.to_type());
+
+        let inner_type = match vector_type {
+            Type::Vector(inner) => compiler.resolve_type(&inner),
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
@@ -111,7 +106,7 @@ pub fn vector_push() -> StdFunction {
         compiler.visit_expression(&value_arg.value.value)?;
         let pushed_value = compiler.read_last_value()?;
 
-        if pushed_value.to_type() != inner_type {
+        if !inner_type.is_compatible(&pushed_value.to_type()) {
             return Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!(
@@ -137,7 +132,7 @@ pub fn vector_push() -> StdFunction {
 
         let struct_ptr = compiler
             .builder()
-            .build_load(ptr_type, var_slot_ptr, "vector.ptr")
+            .build_load(ptr_type, vector_slot_ptr, "vector.ptr")
             .map_err(err)?
             .into_pointer_value();
 
@@ -171,7 +166,7 @@ pub fn vector_push() -> StdFunction {
         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                format!("Compiling vectors of type '{:?}' is not yet supported. 7", inner_type),
                 span,
             )) as Box<dyn IError>
         })?;

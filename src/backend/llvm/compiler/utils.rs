@@ -14,7 +14,7 @@ use crate::{
 };
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
-    fn resolve_type(&self, ty: &Type) -> Type {
+    pub(in crate::backend) fn resolve_type(&self, ty: &Type) -> Type {
         match ty {
             Type::Unresolved(name) => self.program.types.get(name).cloned().unwrap_or_else(|| ty.clone()),
             Type::Vector(inner) => Type::Vector(Box::new(self.resolve_type(inner))),

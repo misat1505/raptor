@@ -78,7 +78,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let element_llvm_type = LlvmValue::type_to_basic_type_enum(inner_type, self.context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                format!("Compiling vectors of type '{:?}' is not yet supported. 4", inner_type),
                 span,
             )) as Box<dyn IError>
         })?;
@@ -113,7 +113,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.evaluate_vector_element(inner_type, element)?
             };
 
-            if element_value.to_type() != *inner_type {
+            if !inner_type.is_compatible(&element_value.to_type()) {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     format!(
@@ -363,7 +363,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                                format!("Compiling vectors of type '{:?}' is not yet supported. 5", inner_type),
                                 index_expr.span,
                             )) as Box<dyn IError>
                         })?;

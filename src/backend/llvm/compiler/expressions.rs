@@ -158,7 +158,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                                format!("Compiling vectors of type '{:?}' is not yet supported. 1", inner_type),
                                 index.span,
                             )) as Box<dyn IError>
                         })?;

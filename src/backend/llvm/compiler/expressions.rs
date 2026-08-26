@@ -122,13 +122,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                 match &collection_value {
                     LlvmValue::Vector(vector_ptr, _) => {
-                        let collection_type = collection_value.to_type();
+                        let collection_type = self.resolve_type(&collection_value.to_type());
 
                         let struct_type = LlvmValue::vector_struct_type(self.context);
                         let ptr_type = self.context.ptr_type(AddressSpace::default());
 
                         let inner_type = match &collection_type {
-                            Type::Vector(inner) => (**inner).clone(),
+                            Type::Vector(inner) => self.resolve_type(inner),
 
                             other => {
                                 return Err(Box::new(CompilerError::at(
@@ -158,7 +158,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling vectors of type '{:?}' is not yet supported. 1", inner_type),
+                                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
                                 index.span,
                             )) as Box<dyn IError>
                         })?;
@@ -338,6 +338,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     )) as Box<dyn IError>
                 })?;
 
+                let resolved_field_type = self.resolve_type(&field_type);
+
                 let (struct_type, field_indices) = self.struct_llvm_type(identifier, span)?;
 
                 let field_index = *field_indices.get(&field.value).ok_or_else(|| {
@@ -353,10 +355,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     .build_struct_gep(struct_type, struct_ptr, field_index, "field.access")
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
 
-                let field_llvm_type = LlvmValue::type_to_basic_type_enum(&field_type, self.context).ok_or_else(|| {
+                let field_llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_field_type, self.context).ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
-                        format!("Compiling fields of type '{:?}' is not yet supported.", field_type),
+                        format!("Compiling fields of type '{:?}' is not yet supported.", resolved_field_type),
                         field.span,
                     )) as Box<dyn IError>
                 })?;
@@ -366,7 +368,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     .build_load(field_llvm_type, field_ptr, "field.load")
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
 
-                self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &field_type));
+                self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &resolved_field_type));
 
                 Ok(())
             }

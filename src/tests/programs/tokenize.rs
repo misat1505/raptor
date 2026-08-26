@@ -1,3 +1,11 @@
+use std::io::BufReader;
+
+use crate::tests::common::helpers::assert_same_output;
+
+#[test]
+fn game_of_life() {
+    let text = BufReader::new(
+        r##"
 fn split_by_delim(str text, char delim): str[] {
     let segments: str[] = [];
     let word = "";
@@ -17,17 +25,11 @@ fn split_by_delim(str text, char delim): str[] {
     return segments;
 }
 
-let segments = split_by_delim("Users/misat/Desktop/studia/sem6/tkom/projekt", '/');
+let segments = split_by_delim("Users/user1/Desktop/foo/bar/baz", '/');
 println(vector_stringify(segments));
+    "##
+        .as_bytes(),
+    );
 
-let text = ["hello world"];
-text[0][0] = 'a';
-println(vector_stringify(text));
-
-fn capitalize(char c): char {
-    let ascii = c as u8;
-    ascii -= 32 as u8;
-    return ascii as char;
+    assert_same_output(text, "[\"Users\", \"user1\", \"Desktop\", \"foo\", \"bar\", \"baz\"]\n");
 }
-
-println(capitalize('a') as str);

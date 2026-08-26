@@ -3,6 +3,7 @@ mod expressions;
 mod functions;
 mod misc;
 mod references;
+mod structs;
 mod switch;
 mod types_and_casts;
 mod vectors;

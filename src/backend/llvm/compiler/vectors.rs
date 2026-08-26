@@ -418,8 +418,68 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     }
                 },
 
-                Accessor::Field(_field) => {
-                    unimplemented!("Field access in LLVM compiler is not implemented yet");
+                Accessor::Field(field_name_node) => {
+                    let field_name = &field_name_node.value;
+
+                    let Type::Struct { identifier, fields } = &current_element_type else {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot access field '{}' on type '{:?}'.", field_name, current_element_type),
+                            field_name_node.span,
+                        )) as Box<dyn IError>);
+                    };
+
+                    let (struct_type, field_indices) = self.struct_llvm_type(identifier, field_name_node.span)?;
+
+                    let field_index = *field_indices.get(field_name.as_str()).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Struct '{}' has no field '{}'.", identifier, field_name),
+                            field_name_node.span,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    let declared_field_type = fields.get(field_name.as_str()).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Struct '{}' has no field '{}'.", identifier, field_name),
+                            field_name_node.span,
+                        )) as Box<dyn IError>
+                    })?;
+
+                    let field_type = self.resolve_type(declared_field_type);
+
+                    let field_ptr = self
+                        .builder
+                        .build_struct_gep(struct_type, current_ptr, field_index, "field.access")
+                        .map_err(&err)?;
+
+                    if is_last {
+                        return Ok((field_ptr, field_type));
+                    }
+
+                    match &field_type {
+                        Type::Vector(_) | Type::Struct { .. } => {
+                            let field_llvm_type = LlvmValue::type_to_basic_type_enum(&field_type, self.context)
+                                .expect("Vector and Struct always map to a pointer type");
+
+                            current_ptr = self
+                                .builder
+                                .build_load(field_llvm_type, field_ptr, "field.next")
+                                .map_err(&err)?
+                                .into_pointer_value();
+
+                            current_element_type = field_type;
+                        }
+
+                        other => {
+                            return Err(Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot access further into type '{:?}'.", other),
+                                field_name_node.span,
+                            )) as Box<dyn IError>);
+                        }
+                    }
                 }
             }
         }

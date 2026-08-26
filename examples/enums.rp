@@ -1,0 +1,17 @@
+# This is a concept file. It doesn't work for now
+
+# enum Task {
+#   InProgress(Deadline),
+#   Completed(CompletionTimestamp)
+# };
+
+# let task = Task();
+# switch (task) {
+#   case InProgress(deadline) {
+#     #  deadline: Deadline - available only in this scope
+#   }
+#   case Completed(timestamp) {
+#     #  timestamp: CompletionTimestamp
+#   }
+#   # have to match all the arms
+# };

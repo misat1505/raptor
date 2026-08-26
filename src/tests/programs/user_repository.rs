@@ -52,6 +52,6 @@ println(user_repository_stringify(&repo));
 
     assert_same_output(
         text,
-        "UserRepository { users: [  ] }\nUserRepository { users: [ User { id: 420, name: \"Elon\" } ] }",
+        "UserRepository { users: [  ] }\nUserRepository { users: [ User { id: 420, name: \"Elon\" } ] }\n",
     );
 }

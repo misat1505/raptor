@@ -4,6 +4,7 @@ mod expressions;
 mod functions;
 mod statements;
 mod stringify;
+mod utils;
 mod vectors;
 mod visitor;
 

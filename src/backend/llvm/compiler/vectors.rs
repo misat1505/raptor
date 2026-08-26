@@ -3,6 +3,7 @@ use inkwell::{AddressSpace, IntPredicate};
 
 use super::Compiler;
 use crate::common::visitor::Visitor;
+use crate::frontend::ast::Accessor;
 use crate::{
     backend::llvm::llvm_alu::llvm_value::LlvmValue,
     common::{
@@ -77,7 +78,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let element_llvm_type = LlvmValue::type_to_basic_type_enum(inner_type, self.context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                format!("Compiling vectors of type '{:?}' is not yet supported. 4", inner_type),
                 span,
             )) as Box<dyn IError>
         })?;
@@ -112,7 +113,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.evaluate_vector_element(inner_type, element)?
             };
 
-            if element_value.to_type() != *inner_type {
+            if !inner_type.is_compatible(&element_value.to_type()) {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     format!(
@@ -123,6 +124,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     element.span,
                 )));
             }
+
+            let element_value = if let LlvmValue::Str(str_ptr) = &element_value {
+                let copied = self.build_string_copy(*str_ptr, element.span)?;
+                LlvmValue::Str(copied)
+            } else {
+                element_value
+            };
 
             let element_ptr = unsafe {
                 self.builder
@@ -321,13 +329,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         &mut self,
         mut current_ptr: PointerValue<'ctx>,
         current_type: &Type,
-        indices: &'a [Node<Expression>],
+        accessors: &'a [Node<Accessor>],
         span: Span,
     ) -> Result<(PointerValue<'ctx>, Type), Box<dyn IError>> {
-        if indices.is_empty() {
+        if accessors.is_empty() {
             return Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                String::from("Indexing requires at least one index."),
+                String::from("Accessing an element requires at least one accessor."),
                 span,
             )) as Box<dyn IError>);
         }
@@ -339,85 +347,153 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let mut current_element_type = current_type.clone();
 
-        for (i, index_expr) in indices.iter().enumerate() {
-            let is_last = i == indices.len() - 1;
+        for (i, accessor) in accessors.iter().enumerate() {
+            let is_last = i == accessors.len() - 1;
 
-            match &current_element_type {
-                Type::Vector(inner) => {
-                    let inner_type = (**inner).clone();
+            match &accessor.value {
+                Accessor::Index(index_expr) => match &current_element_type {
+                    Type::Vector(inner) => {
+                        let inner_type = (**inner).clone();
 
-                    let data_field = self.builder.build_struct_gep(struct_type, current_ptr, 0, "idx.data").map_err(&err)?;
+                        let data_field = self.builder.build_struct_gep(struct_type, current_ptr, 0, "idx.data").map_err(&err)?;
 
-                    let data = self
-                        .builder
-                        .build_load(ptr_type, data_field, "idx.data.val")
-                        .map_err(&err)?
-                        .into_pointer_value();
+                        let data = self
+                            .builder
+                            .build_load(ptr_type, data_field, "idx.data.val")
+                            .map_err(&err)?
+                            .into_pointer_value();
 
-                    self.visit_expression(index_expr)?;
-                    let index_value = self.read_last_value()?.into_i64_value(index_expr.span)?;
+                        self.visit_expression(index_expr)?;
 
-                    let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
+                        let index_value = self.read_last_value()?.into_i64_value(index_expr.span)?;
+
+                        let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
+                            Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Compiling vectors of type '{:?}' is not yet supported. 5", inner_type),
+                                index_expr.span,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        let element_ptr = unsafe {
+                            self.builder
+                                .build_gep(element_llvm_type, data, &[index_value], "idx.elem")
+                                .map_err(&err)?
+                        };
+
+                        if is_last {
+                            return Ok((element_ptr, inner_type));
+                        }
+
+                        current_ptr = self
+                            .builder
+                            .build_load(ptr_type, element_ptr, "idx.next")
+                            .map_err(&err)?
+                            .into_pointer_value();
+
+                        current_element_type = inner_type;
+                    }
+
+                    Type::Str => {
+                        self.visit_expression(index_expr)?;
+
+                        let index_value = self.read_last_value()?.into_i64_value(index_expr.span)?;
+
+                        let element_ptr = unsafe {
+                            self.builder
+                                .build_gep(i8_type, current_ptr, &[index_value], "idx.str.elem")
+                                .map_err(&err)?
+                        };
+
+                        if is_last {
+                            return Ok((element_ptr, Type::Char));
+                        }
+
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            String::from("Cannot index into type 'Char'."),
+                            index_expr.span,
+                        )) as Box<dyn IError>);
+                    }
+
+                    other => {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot index into type '{:?}'.", other),
+                            index_expr.span,
+                        )) as Box<dyn IError>);
+                    }
+                },
+
+                Accessor::Field(field_name_node) => {
+                    let field_name = &field_name_node.value;
+
+                    let Type::Struct { identifier, fields } = &current_element_type else {
+                        return Err(Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot access field '{}' on type '{:?}'.", field_name, current_element_type),
+                            field_name_node.span,
+                        )) as Box<dyn IError>);
+                    };
+
+                    let (struct_type, field_indices) = self.struct_llvm_type(identifier, field_name_node.span)?;
+
+                    let field_index = *field_indices.get(field_name.as_str()).ok_or_else(|| {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
-                            index_expr.span,
+                            format!("Struct '{}' has no field '{}'.", identifier, field_name),
+                            field_name_node.span,
                         )) as Box<dyn IError>
                     })?;
 
-                    let element_ptr = unsafe {
-                        self.builder
-                            .build_gep(element_llvm_type, data, &[index_value], "idx.elem")
-                            .map_err(&err)?
-                    };
+                    let declared_field_type = fields.get(field_name.as_str()).ok_or_else(|| {
+                        Box::new(CompilerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Struct '{}' has no field '{}'.", identifier, field_name),
+                            field_name_node.span,
+                        )) as Box<dyn IError>
+                    })?;
 
-                    if is_last {
-                        return Ok((element_ptr, inner_type));
-                    }
+                    let field_type = self.resolve_type(declared_field_type);
 
-                    current_ptr = self
+                    let field_ptr = self
                         .builder
-                        .build_load(ptr_type, element_ptr, "idx.next")
-                        .map_err(&err)?
-                        .into_pointer_value();
-
-                    current_element_type = inner_type;
-                }
-
-                Type::Str => {
-                    self.visit_expression(index_expr)?;
-                    let index_value = self.read_last_value()?.into_i64_value(index_expr.span)?;
-
-                    let element_ptr = unsafe {
-                        self.builder
-                            .build_gep(i8_type, current_ptr, &[index_value], "idx.str.elem")
-                            .map_err(&err)?
-                    };
+                        .build_struct_gep(struct_type, current_ptr, field_index, "field.access")
+                        .map_err(&err)?;
 
                     if is_last {
-                        return Ok((element_ptr, Type::Char));
+                        return Ok((field_ptr, field_type));
                     }
 
-                    return Err(Box::new(CompilerError::at(
-                        ErrorSeverity::HIGH,
-                        String::from("Cannot index into type 'Char'."),
-                        index_expr.span,
-                    )) as Box<dyn IError>);
-                }
+                    match &field_type {
+                        Type::Vector(_) | Type::Struct { .. } | Type::Str => {
+                            let field_llvm_type = LlvmValue::type_to_basic_type_enum(&field_type, self.context)
+                                .expect("Vector, Struct and Str always map to a pointer type");
 
-                other => {
-                    return Err(Box::new(CompilerError::at(
-                        ErrorSeverity::HIGH,
-                        format!("Cannot index into type '{:?}'.", other),
-                        index_expr.span,
-                    )) as Box<dyn IError>)
+                            current_ptr = self
+                                .builder
+                                .build_load(field_llvm_type, field_ptr, "field.next")
+                                .map_err(&err)?
+                                .into_pointer_value();
+
+                            current_element_type = field_type;
+                        }
+
+                        other => {
+                            return Err(Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot access further into type '{:?}'.", other),
+                                field_name_node.span,
+                            )) as Box<dyn IError>);
+                        }
+                    }
                 }
             }
         }
 
         Err(Box::new(CompilerError::at(
             ErrorSeverity::HIGH,
-            String::from("Indexing requires at least one index."),
+            String::from("Accessing an element requires at least one accessor."),
             span,
         )) as Box<dyn IError>)
     }

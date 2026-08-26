@@ -31,7 +31,7 @@ fn for_loop() {
                 Box::new(test_node!(Expression::Variable(String::from("i")))),
                 Box::new(test_node!(Expression::Literal(Literal::I64(1))))
             )),
-            indices: vec![]
+            accessors: vec![]
         }))),
         block: test_node!(Block(vec![test_node!(Statement::Assignment {
             identifier: test_node!(String::from("total")),
@@ -39,7 +39,7 @@ fn for_loop() {
                 Box::new(test_node!(Expression::Variable(String::from("total")))),
                 Box::new(test_node!(Expression::Variable(String::from("i"))))
             )),
-            indices: vec![]
+            accessors: vec![]
         }),])),
     });
 
@@ -75,7 +75,7 @@ fn for_loop_second_variant() {
                     Box::new(test_node!(Expression::Variable(String::from("total")))),
                     Box::new(test_node!(Expression::Variable(String::from("i"))))
                 )),
-                indices: vec![]
+                accessors: vec![]
             }),
             test_node!(Statement::Assignment {
                 identifier: test_node!(String::from("i")),
@@ -83,7 +83,7 @@ fn for_loop_second_variant() {
                     Box::new(test_node!(Expression::Variable(String::from("i")))),
                     Box::new(test_node!(Expression::Literal(Literal::I64(1))))
                 )),
-                indices: vec![]
+                accessors: vec![]
             }),
         ])),
     });
@@ -133,7 +133,7 @@ fn for_loop_with_break() {
                 Box::new(test_node!(Expression::Variable(String::from("i")))),
                 Box::new(test_node!(Expression::Literal(Literal::I64(1))))
             )),
-            indices: vec![]
+            accessors: vec![]
         }))),
         block: test_node!(Block(vec![test_node!(Statement::Conditional {
             condition: test_node!(Expression::Equal(
@@ -181,7 +181,7 @@ fn for_loop_with_continue() {
                 Box::new(test_node!(Expression::Variable(String::from("i")))),
                 Box::new(test_node!(Expression::Literal(Literal::I64(1))))
             )),
-            indices: vec![]
+            accessors: vec![]
         }))),
         block: test_node!(Block(vec![
             test_node!(Statement::Conditional {
@@ -198,7 +198,7 @@ fn for_loop_with_continue() {
                     Box::new(test_node!(Expression::Variable(String::from("total")))),
                     Box::new(test_node!(Expression::Variable(String::from("i"))))
                 )),
-                indices: vec![]
+                accessors: vec![]
             }),
         ])),
     });
@@ -234,7 +234,7 @@ fn create_test_switch_case() -> Node<Statement> {
         test_node!(Statement::Assignment {
             identifier: test_node!(String::from("result")),
             value: test_node!(Expression::Literal(Literal::I64(val))),
-            indices: vec![]
+            accessors: vec![]
         })
     }
 
@@ -366,6 +366,8 @@ fn break_called_outside_for_or_switch() {
             else_block: None,
         })],
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     let mut interpreter = Interpreter::new(&program);
@@ -398,6 +400,8 @@ fn return_called_outside_for_or_switch() {
             else_block: None,
         })],
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     let mut interpreter = Interpreter::new(&program);
@@ -415,6 +419,8 @@ fn continue_called_outside_for_or_while() {
             else_block: None,
         })],
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     let mut interpreter = Interpreter::new(&program);
@@ -451,7 +457,7 @@ fn while_loop() {
                 Box::new(test_node!(Expression::Variable(String::from("i")))),
                 Box::new(test_node!(Expression::Literal(Literal::I64(1))))
             )),
-            indices: vec![]
+            accessors: vec![]
         }),])),
     });
 

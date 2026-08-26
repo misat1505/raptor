@@ -42,7 +42,7 @@ fn parse_full_program() {
         Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(5))),
-            indices: vec![],
+            accessors: vec![],
         }
     );
 
@@ -84,7 +84,7 @@ fn parse_program_redeclared_function_fails() {
     let mut parser = Parser::new(mock_lexer);
 
     let err = parser.parse().unwrap_err();
-    assert_eq!(err.message(), format!("Redeclaration of function 'add'."));
+    assert_eq!(err.message(), format!("Redeclaration of 'add'."));
 }
 
 #[test]
@@ -106,5 +106,5 @@ fn parse_program_function_shadows_std_function_fails() {
     let mut parser = Parser::new(mock_lexer);
 
     let err = parser.parse().unwrap_err();
-    assert_eq!(err.message(), format!("Redeclaration of function 'print'."));
+    assert_eq!(err.message(), format!("Redeclaration of 'print'."));
 }

@@ -29,9 +29,11 @@ pub fn compile_write_or_append<'a, 'ctx>(
 
     compiler.visit_expression(&path_arg.value.value)?;
     let path_ptr = compiler.read_last_value()?.into_str_value(span)?;
+    let path_owned_ptr = compiler.build_string_copy(path_ptr, span)?;
 
     compiler.visit_expression(&content_arg.value.value)?;
     let content_ptr = compiler.read_last_value()?.into_str_value(span)?;
+    let content_owned_ptr = compiler.build_string_copy(content_ptr, span)?;
 
     let mode = compiler
         .builder()
@@ -41,7 +43,7 @@ pub fn compile_write_or_append<'a, 'ctx>(
     let fopen_fn = compiler.libc().fopen_fn;
     let file = compiler
         .builder()
-        .build_call(fopen_fn, &[path_ptr.into(), mode.into()], "fopen.call")
+        .build_call(fopen_fn, &[path_owned_ptr.into(), mode.into()], "fopen.call")
         .map_err(err)?
         .try_as_basic_value()
         .basic()
@@ -51,7 +53,7 @@ pub fn compile_write_or_append<'a, 'ctx>(
     let strlen_fn = compiler.libc().strlen_fn;
     let len = compiler
         .builder()
-        .build_call(strlen_fn, &[content_ptr.into()], "content.len")
+        .build_call(strlen_fn, &[content_owned_ptr.into()], "content.len")
         .map_err(err)?
         .try_as_basic_value()
         .basic()
@@ -64,13 +66,25 @@ pub fn compile_write_or_append<'a, 'ctx>(
         .builder()
         .build_call(
             fwrite_fn,
-            &[content_ptr.into(), i64_type.const_int(1, false).into(), len.into(), file.into()],
+            &[content_owned_ptr.into(), i64_type.const_int(1, false).into(), len.into(), file.into()],
             "fwrite.call",
         )
         .map_err(err)?;
 
     let fclose_fn = compiler.libc().fclose_fn;
     compiler.builder().build_call(fclose_fn, &[file.into()], "fclose.call").map_err(err)?;
+
+    let free_fn = compiler.libc().free_fn;
+
+    compiler
+        .builder()
+        .build_call(free_fn, &[path_owned_ptr.into()], "write.free.path")
+        .map_err(err)?;
+
+    compiler
+        .builder()
+        .build_call(free_fn, &[content_owned_ptr.into()], "write.free.content")
+        .map_err(err)?;
 
     Ok(())
 }

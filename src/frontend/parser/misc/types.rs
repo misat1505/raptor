@@ -4,12 +4,17 @@ use crate::{
         span::Span,
         types::Type,
     },
-    frontend::{ast::Node, lexer::lexer::ILexer, parser::Parser, tokens::TokenCategory},
+    frontend::{
+        ast::Node,
+        lexer::lexer::ILexer,
+        parser::Parser,
+        tokens::{TokenCategory, TokenValue},
+    },
 };
 
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_type(&mut self) -> Result<Option<Node<Type>>, Box<dyn IError>> {
-        // type = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str"), { "[]" };
+        // type = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str" | identifier), { "[]" };
         let token = self.current_token();
 
         let mut result = match token.category {
@@ -25,18 +30,25 @@ impl<L: ILexer> Parser<L> {
             TokenCategory::U32 => Type::U32,
             TokenCategory::U64 => Type::U64,
             TokenCategory::F64 => Type::F64,
+            TokenCategory::Identifier => {
+                let TokenValue::String(name) = &token.value else {
+                    return Err(self.create_parser_error(String::from("Identifier token has no string value.")));
+                };
+                Type::Unresolved(name.clone())
+            }
             _ => return Ok(None),
         };
 
+        let mut end_pos = token.span.end();
         let _ = self.next_token()?;
+
         while self.current_token().category == TokenCategory::BracketOpen {
             self.consume_must_be(TokenCategory::BracketOpen)?;
-            self.consume_must_be(TokenCategory::BracketClose)?;
+            let bracket_close_token = self.consume_must_be(TokenCategory::BracketClose)?;
 
+            end_pos = bracket_close_token.span.end();
             result = Type::Vector(Box::new(result));
         }
-
-        let end_pos = self.current_token().span.start();
 
         Ok(Some(Node {
             value: result,

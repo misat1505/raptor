@@ -69,6 +69,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                                 let init_value = self.read_last_value()?;
 
+                                let init_value = if let LlvmValue::Str(str_ptr) = &init_value {
+                                    let copied = self.build_string_copy(*str_ptr, span)?;
+                                    LlvmValue::Str(copied)
+                                } else {
+                                    init_value
+                                };
+
                                 self.builder
                                     .build_store(ptr, init_value.as_basic_value_enum())
                                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
@@ -170,6 +177,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             }
                         };
 
+                        let init_value = if let LlvmValue::Str(str_ptr) = &init_value {
+                            let copied = self.build_string_copy(*str_ptr, span)?;
+                            LlvmValue::Str(copied)
+                        } else {
+                            init_value
+                        };
+
                         (final_type, init_value)
                     };
 
@@ -196,13 +210,24 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
             },
 
-            Statement::Assignment { identifier, value, indices } => {
+            Statement::Assignment {
+                identifier,
+                value,
+                accessors,
+            } => {
                 let (var_ptr, var_type) = self.get_variable(identifier.value.as_str())?;
 
-                if indices.is_empty() {
+                if accessors.is_empty() {
                     self.visit_expression(value)?;
 
                     let new_value = self.read_last_value()?;
+
+                    let new_value = if let LlvmValue::Str(str_ptr) = &new_value {
+                        let copied = self.build_string_copy(*str_ptr, span)?;
+                        LlvmValue::Str(copied)
+                    } else {
+                        new_value
+                    };
 
                     self.builder
                         .build_store(var_ptr, new_value.as_basic_value_enum())
@@ -219,7 +244,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                     .into_pointer_value();
 
-                let (element_ptr, element_type) = self.resolve_indexed_element(vector_ptr, &var_type, indices, span)?;
+                let (element_ptr, element_type) = self.resolve_indexed_element(vector_ptr, &var_type, accessors, span)?;
 
                 self.visit_expression(value)?;
 
@@ -236,6 +261,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         span,
                     )));
                 }
+
+                let new_value = if let LlvmValue::Str(str_ptr) = &new_value {
+                    let copied = self.build_string_copy(*str_ptr, span)?;
+                    LlvmValue::Str(copied)
+                } else {
+                    new_value
+                };
 
                 self.builder
                     .build_store(element_ptr, new_value.as_basic_value_enum())

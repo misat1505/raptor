@@ -37,6 +37,24 @@ fn stringify_value(value: &Value) -> String {
 
             format!("[{}]", values.join(", "))
         }
+        Value::Struct { identifier, fields, .. } => {
+            let fields = fields.borrow();
+
+            let mut field_names: Vec<&String> = fields.keys().collect();
+            field_names.sort();
+
+            let fields_str = field_names
+                .into_iter()
+                .map(|name| format!("{}: {}", name, stringify_value(&fields.get(name).unwrap().borrow())))
+                .collect::<Vec<String>>()
+                .join(", ");
+
+            if fields_str.is_empty() {
+                format!("{} {{}}", identifier)
+            } else {
+                format!("{} {{{}}}", identifier, fields_str)
+            }
+        }
     }
 }
 

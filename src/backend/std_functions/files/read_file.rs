@@ -51,6 +51,7 @@ pub fn read_file() -> StdFunction {
 
         compiler.visit_expression(&arg.value.value)?;
         let path_ptr = compiler.read_last_value()?.into_str_value(span)?;
+        let owned_ptr = compiler.build_string_copy(path_ptr, span)?;
 
         let context = compiler.context();
         let i64_type = context.i64_type();
@@ -65,7 +66,7 @@ pub fn read_file() -> StdFunction {
         let fopen_fn = compiler.libc().fopen_fn;
         let file = compiler
             .builder()
-            .build_call(fopen_fn, &[path_ptr.into(), mode.into()], "fopen.call")
+            .build_call(fopen_fn, &[owned_ptr.into(), mode.into()], "fopen.call")
             .map_err(err)?
             .try_as_basic_value()
             .basic()
@@ -138,6 +139,10 @@ pub fn read_file() -> StdFunction {
             .builder()
             .build_store(end_ptr, context.i8_type().const_int(0, false))
             .map_err(err)?;
+
+        let free_fn = compiler.libc().free_fn;
+
+        compiler.builder().build_call(free_fn, &[owned_ptr.into()], "free.path").map_err(err)?;
 
         compiler.set_last_value(LlvmValue::Str(buf));
         Ok(())

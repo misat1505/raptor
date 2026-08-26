@@ -19,8 +19,20 @@ pub fn type_accepts_value(ty: &Type, value: &Value) -> bool {
         (Type::Str, Value::String(_)) => true,
         (Type::Char, Value::Char(_)) => true,
 
-        (Type::Vector(_), Value::Vector { kind, .. }) => *ty == **kind,
+        (Type::Vector(_), Value::Vector { kind, .. }) => type_matches(ty, kind),
 
-        _ => false,
+        (Type::Struct { identifier: expected, .. }, Value::Struct { identifier: actual, .. }) => expected == actual,
+
+        (Type::Unresolved(expected), Value::Struct { identifier: actual, .. }) => expected == actual,
+
+        (a, b) => a == &b.to_type(),
+    }
+}
+
+fn type_matches(expected: &Type, actual: &Type) -> bool {
+    match (expected, actual) {
+        (Type::Vector(a), Type::Vector(b)) => type_matches(a, b),
+        (Type::Struct { identifier: a, .. }, Type::Struct { identifier: b, .. }) => a == b,
+        (a, b) => a == b,
     }
 }

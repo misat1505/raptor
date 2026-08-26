@@ -5,7 +5,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Expression, Node},
+    frontend::ast::{Accessor, Expression, Node},
     semantic::{
         semantic_checker::{checker::HoverInfo, functions::FunctionCallType, SemanticChecker},
         type_alu::TypeALU,
@@ -16,7 +16,7 @@ impl<'a> SemanticChecker<'a> {
     pub(in crate::semantic::semantic_checker) fn check_index_assignment(
         &mut self,
         identifier: &'a Node<String>,
-        indices: &'a Vec<Node<Expression>>,
+        accessors: &'a Vec<Node<Accessor>>,
         value: &'a Node<Expression>,
         span: Span,
     ) {
@@ -35,49 +35,105 @@ impl<'a> SemanticChecker<'a> {
             span: identifier.span,
         });
 
-        for index_expr in indices {
-            let _ = self.visit_expression(index_expr);
+        for accessor in accessors {
+            match &accessor.value {
+                Accessor::Index(index_expr) => {
+                    let _ = self.visit_expression(index_expr);
 
-            if let Ok(idx_type) = self.read_last_result(index_expr.span) {
-                if idx_type != Type::I64 {
-                    self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
-                        ErrorSeverity::HIGH,
-                        String::from("array index must be `i64`"),
-                        &Type::I64,
-                        &idx_type,
-                        index_expr.span,
-                    )));
-                    return;
+                    let idx_type = match self.read_last_result(index_expr.span) {
+                        Ok(t) => t,
+                        Err(_) => return,
+                    };
+
+                    if idx_type != Type::I64 {
+                        self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
+                            ErrorSeverity::HIGH,
+                            String::from("array index must be `i64`"),
+                            &Type::I64,
+                            &idx_type,
+                            index_expr.span,
+                        )));
+
+                        return;
+                    }
+
+                    current_type = match current_type {
+                        Type::Vector(inner) => *inner,
+
+                        Type::Str => Type::Char,
+
+                        other => {
+                            self.errors.push(Box::new(SemanticCheckerError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot index into value of type `{:?}`", other),
+                                index_expr.span,
+                            )));
+
+                            return;
+                        }
+                    };
                 }
-            }
 
-            match current_type {
-                Type::Vector(inner) => current_type = *inner,
-                Type::Str => current_type = Type::Char,
+                Accessor::Field(field) => {
+                    let Type::Struct {
+                        identifier: struct_name,
+                        fields,
+                    } = &current_type
+                    else {
+                        self.errors.push(Box::new(SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Cannot access field `{}` on value of type `{:?}`.", field.value, current_type),
+                            field.span,
+                        )));
 
-                other => {
-                    self.errors.push(Box::new(SemanticCheckerError::at(
-                        ErrorSeverity::HIGH,
-                        format!("Cannot index into value of type `{:?}`", other),
-                        span,
-                    )));
-                    return;
+                        return;
+                    };
+
+                    let Some(field_type) = fields.get(&field.value).cloned() else {
+                        self.errors.push(Box::new(SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            format!("Struct `{}` has no field `{}`.", struct_name, field.value),
+                            field.span,
+                        )));
+
+                        return;
+                    };
+
+                    current_type = match self.resolve_type_fully_checked(&field_type, field.span) {
+                        Ok(t) => t,
+
+                        Err(_) => return,
+                    };
+
+                    self.hovers.push(HoverInfo {
+                        contents: format!("```raptor\n{:?} {}\n```", current_type, field.value),
+                        span: field.span,
+                    });
                 }
             }
         }
 
         let _ = self.visit_expression(value);
 
-        if let Ok(actual_type) = self.read_last_result(value.span) {
-            if actual_type != current_type {
-                self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
-                    ErrorSeverity::HIGH,
-                    format!("Cannot assign `{:?}` to array element.", actual_type),
-                    &current_type,
-                    &actual_type,
-                    span,
-                )));
-            }
+        let actual_type = match self.read_last_result(value.span) {
+            Ok(t) => t,
+            Err(_) => return,
+        };
+
+        let compatible = match (&current_type, &actual_type) {
+            (Type::Vector(_), Type::Vector(inner)) if **inner == Type::Void => true,
+
+            _ => actual_type == current_type,
+        };
+
+        if !compatible {
+            self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
+                ErrorSeverity::HIGH,
+                format!("Cannot assign `{:?}` to value of type `{:?}`.", actual_type, current_type),
+                &current_type,
+                &actual_type,
+                span,
+            )));
         }
     }
 
@@ -166,7 +222,7 @@ impl<'a> SemanticChecker<'a> {
 
                 match (collection_type, index_type) {
                     (Ok(Type::Vector(inner)), Ok(Type::I64)) => {
-                        self.last_result = Some(*inner);
+                        self.last_result = self.resolve_type_fully_checked(&inner, expression.span).ok();
                     }
                     (Ok(Type::Str), Ok(Type::I64)) => {
                         self.last_result = Some(Type::Char);
@@ -198,6 +254,50 @@ impl<'a> SemanticChecker<'a> {
                         self.last_result = None;
                     }
                 }
+            }
+
+            Expression::StructLiteral(sl) => self.visit_struct_literal(sl)?,
+            Expression::FieldAccess { instance, field } => {
+                self.visit_expression(instance)?;
+
+                let Ok(instance_type) = self.read_last_result(instance.span) else {
+                    self.last_result = None;
+                    return Ok(());
+                };
+
+                let Type::Struct { identifier, fields } = &instance_type else {
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Cannot access field `{}` on value of type `{:?}`.", field.value, instance_type),
+                        expression.span,
+                    )));
+
+                    self.last_result = None;
+                    return Ok(());
+                };
+
+                let Some(field_type) = fields.get(&field.value).cloned() else {
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Struct `{}` has no field `{}`.", identifier, field.value),
+                        field.span,
+                    )));
+
+                    self.last_result = None;
+                    return Ok(());
+                };
+
+                let Some(field_type) = self.resolve_type_fully_checked(&field_type, field.span).ok() else {
+                    self.last_result = None;
+                    return Ok(());
+                };
+
+                self.hovers.push(HoverInfo {
+                    contents: format!("```raptor\n{:?} {}\n```", field_type, field.value),
+                    span: field.span,
+                });
+
+                self.last_result = Some(field_type);
             }
         }
 

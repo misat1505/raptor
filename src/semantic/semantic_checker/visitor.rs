@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, SemanticCheckerError},
@@ -5,7 +7,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, SwitchCase, SwitchExpression},
+    frontend::ast::{Argument, Block, Expression, Literal, Node, Parameter, Program, Statement, StructLiteral, SwitchCase, SwitchExpression},
     semantic::semantic_checker::{checker::HoverInfo, functions::FunctionCallType, SemanticChecker},
 };
 
@@ -20,13 +22,20 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         for (_name, function) in &program.functions {
             self.stack.push_stack_frame().map_err(|err| Box::new(err));
 
-            self.current_function_return_type = Some(function.value.return_type.value.clone());
+            let _ = self.visit_type(&function.value.return_type);
+            let resolved = self.read_last_result(function.value.return_type.span).ok();
+            self.current_function_return_type = resolved
+                .map(|t| self.resolve_type_fully_checked(&t, function.value.return_type.span))
+                .transpose()
+                .unwrap_or(None);
 
             for param in &function.value.parameters {
                 let param_name = &param.value.identifier.value;
-                let param_type = &param.value.parameter_type.value;
+                self.visit_type(&param.value.parameter_type)?;
+                let raw_t = self.read_last_result(param.value.parameter_type.span)?;
+                let t = self.resolve_type_fully_checked(&raw_t, param.value.parameter_type.span)?;
 
-                if let Err(err) = self.stack.declare_variable(param_name, param_type.clone(), param.span) {
+                if let Err(err) = self.stack.declare_variable(param_name, t.clone(), param.span) {
                     self.errors
                         .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), param.span)));
                 }
@@ -92,7 +101,18 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         self.check_switch_expression(switch_expression)
     }
 
-    fn visit_type(&mut self, _node_type: &'a Node<Type>) -> Result<(), Box<dyn IError>> {
+    fn visit_type(&mut self, node_type: &'a Node<Type>) -> Result<(), Box<dyn IError>> {
+        let resolved_type = match &node_type.value {
+            Type::Unresolved(name) => self.program.types.get(name).cloned().ok_or_else(|| {
+                let err = SemanticCheckerError::at(ErrorSeverity::HIGH, format!("Unknown type '{}'.", name), node_type.span);
+                self.errors.push(Box::new(err.clone()));
+                Box::new(err) as Box<dyn IError>
+            })?,
+            other => other.clone(),
+        };
+
+        self.last_result = Some(resolved_type);
+
         Ok(())
     }
 
@@ -169,5 +189,125 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         self.last_result = Some(vector_type);
 
         Ok(())
+    }
+}
+
+impl<'a> SemanticChecker<'a> {
+    pub(in crate::semantic::semantic_checker) fn visit_struct_literal(&mut self, node: &'a Node<StructLiteral>) -> Result<(), Box<dyn IError>> {
+        let identifier = &node.value.identifier;
+        let fields = &node.value.fields;
+
+        let type_node: &'a Node<Type> = Box::leak(Box::new(Node {
+            value: Type::Unresolved(identifier.value.clone()),
+            span: identifier.span,
+        }));
+
+        let _ = self.visit_type(type_node);
+        let Ok(declared_type) = self.read_last_result(identifier.span) else {
+            return Ok(());
+        };
+
+        let Type::Struct {
+            identifier: struct_name,
+            fields: expected_fields,
+        } = &declared_type
+        else {
+            let error = SemanticCheckerError::at(
+                ErrorSeverity::HIGH,
+                format!("'{}' is not a struct type.", identifier.value),
+                identifier.span,
+            );
+            self.errors.push(Box::new(error));
+            return Ok(());
+        };
+
+        let mut seen_fields = HashSet::new();
+
+        for field in fields {
+            let field_name = &field.value.identifier.value;
+
+            self.visit_expression(&field.value.value)?;
+            let Ok(actual_type) = self.read_last_result(field.value.value.span) else {
+                continue;
+            };
+
+            let Some(expected_type) = expected_fields.get(field_name) else {
+                let error = SemanticCheckerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Struct '{}' has no field '{}'.", struct_name, field_name),
+                    field.value.identifier.span,
+                );
+                self.errors.push(Box::new(error));
+                continue;
+            };
+
+            let expected_type = match self.resolve_type_fully_checked(expected_type, field.span) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+
+            let actual_type = match self.resolve_type_fully_checked(&actual_type, field.value.value.span) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+
+            let compatible = match (&expected_type, &actual_type) {
+                (Type::Vector(expected_inner), Type::Vector(actual_inner)) if **actual_inner == Type::Void => true,
+
+                _ => expected_type.is_compatible(&actual_type),
+            };
+
+            if !compatible {
+                let error = SemanticCheckerError::type_mismatch(
+                    ErrorSeverity::HIGH,
+                    format!("Cannot assign `{:?}` to field '{}' of `{}`.", actual_type, field_name, struct_name),
+                    &expected_type,
+                    &actual_type,
+                    field.span,
+                );
+                self.errors.push(Box::new(error));
+            }
+
+            if !seen_fields.insert(field_name.clone()) {
+                let error = SemanticCheckerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Field '{}' specified more than once.", field_name),
+                    field.value.identifier.span,
+                );
+                self.errors.push(Box::new(error));
+            }
+        }
+
+        for expected_name in expected_fields.keys() {
+            if !seen_fields.contains(expected_name) {
+                let error = SemanticCheckerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Missing field '{}' in initializer of '{}'.", expected_name, struct_name),
+                    node.span,
+                );
+                self.errors.push(Box::new(error));
+            }
+        }
+
+        self.hovers.push(HoverInfo {
+            contents: format!("```raptor\n{:?}\n```", declared_type),
+            span: identifier.span,
+        });
+
+        self.last_result = Some(declared_type);
+
+        Ok(())
+    }
+
+    pub(in crate::semantic::semantic_checker) fn resolve_type_fully_checked(&mut self, ty: &Type, span: Span) -> Result<Type, Box<dyn IError>> {
+        match ty {
+            Type::Unresolved(name) => self.program.types.get(name).cloned().ok_or_else(|| {
+                let err = SemanticCheckerError::at(ErrorSeverity::HIGH, format!("Unknown type '{}'.", name), span);
+                self.errors.push(Box::new(err.clone()));
+                Box::new(err) as Box<dyn IError>
+            }),
+            Type::Vector(inner) => Ok(Type::Vector(Box::new(self.resolve_type_fully_checked(inner, span)?))),
+            other => Ok(other.clone()),
+        }
     }
 }

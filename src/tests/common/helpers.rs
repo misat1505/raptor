@@ -38,8 +38,8 @@ fn setup_program_impl(text: BufReader<&[u8]>, skip_typecheck: bool) -> Program {
     let reader = LazyStreamReader::new(code, None);
 
     let lexer_options = LexerOptions {
-        max_comment_length: 100,
-        max_identifier_length: 20,
+        max_comment_length: 500,
+        max_identifier_length: 100,
     };
 
     let lexer = Lexer::new(reader, lexer_options, on_warning).unwrap();

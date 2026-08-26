@@ -50,9 +50,17 @@ pub fn delete_file() -> StdFunction {
 
         compiler.visit_expression(&arg.value.value)?;
         let path_ptr = compiler.read_last_value()?.into_str_value(span)?;
+        let owned_ptr = compiler.build_string_copy(path_ptr, span)?;
 
         let remove_fn = compiler.libc().remove_fn;
-        compiler.builder().build_call(remove_fn, &[path_ptr.into()], "remove.call").map_err(err)?;
+        compiler
+            .builder()
+            .build_call(remove_fn, &[owned_ptr.into()], "remove.call")
+            .map_err(err)?;
+
+        let free_fn = compiler.libc().free_fn;
+
+        compiler.builder().build_call(free_fn, &[owned_ptr.into()], "free.path").map_err(err)?;
 
         Ok(())
     };

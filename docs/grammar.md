@@ -2,9 +2,26 @@
 
 ### Syntax Part
 
-**program** = { function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration };
+**program** = { struct_declaration | function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration };
 
 **comment** = "#" , {unicode_character - "\n"}, "\n";
+
+**struct_declaration** = "struct", identifier, "{", [ struct_members ], "}", ";";
+```text
+struct Hobby {
+  u64 id,
+  str description
+};
+
+struct Person {
+  u64 id,
+  str name,
+};
+```
+
+**struct_members** = struct_member, { ",", struct_member };
+
+**struct_member** = type, identifier;
 
 **extern_function_declaration** = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
 
@@ -33,7 +50,7 @@ fn add(i64 a, i64 b): i64 {
 
 **statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration | return_statement | break_statement | continue_statement;
 
-**assign_or_call_without_semicolon** = identifier, ( { "[", expression, "]" }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
+**assign_or_call_without_semicolon** = identifier, ( { access_tail }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
 
 **assign_or_call** = assign_or_call_without_semicolon, ";";
 
@@ -199,7 +216,7 @@ x * 10 % 3
 !(x == 5)
 ```
 
-**factor** = literal | ( "(", expression, ")" ) | identifier_or_call | vector_literal;
+**factor** = literal | ( "(", expression, ")" ) | identifier_or_call_or_struct_literal | vector_literal;
 
 ```text
 5
@@ -225,15 +242,30 @@ fun(5)
 ]
 ```
 
-**identifier_or_call** = identifier, [ "(", arguments, ")" ], { "[", expression, "]" };
-
+**identifier_or_call_or_struct_literal** = identifier, ( call_or_index_tail | struct_literal_tail );
 ```text
 x
 fun(5)
 
 x[0][0]
 fun(5)[0][0]
+
+Person { id: 123 as u64, name: "Bob" }
+Hobby { id: 1, description: "Play football" }
+
+person.hobbies[0].description
 ```
+
+<!-- **call_or_index_tail** = [ "(", arguments, ")" ], { "[", expression, "]" }; -->
+**call_or_index_tail** = [ "(", arguments, ")" ], { access_tail };
+**access_tail** = ("[", expression, "]") | (".", identifier);
+
+**struct_literal_tail** = "{", [ struct_literal_fields ], "}";
+
+**struct_literal_fields** = struct_literal_field, { ",", struct_literal_field };
+
+**struct_literal_field** = identifier, ":", expression;
+
 
 **literal** = integer_literal | float_literal | boolean_literal | string_literal | char_literal;
 
@@ -270,7 +302,7 @@ switch (x: temp1, y: temp2) {
 
 **letter** = "a" - "z" | "A" - "Z";
 
-**type** = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str"), { "[]" };
+**type** = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str"), { "[", "]" };
 
 **relation_operands** = "==" | "<" | "<=" | ">" | ">=" | "!=";
 

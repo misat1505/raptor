@@ -38,6 +38,8 @@ fn function_call_with_correct_arg_types_has_no_errors() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     program.statements.push(node!(Statement::FunctionCall {
@@ -77,6 +79,8 @@ fn function_call_wrong_arg_count_reports_error() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     program.statements.push(node!(Statement::FunctionCall {
@@ -108,6 +112,8 @@ fn function_call_wrong_arg_type_reports_error() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     program.statements.push(node!(Statement::FunctionCall {
@@ -142,6 +148,8 @@ fn function_call_reference_with_non_variable_reports_error() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     program.statements.push(node!(Statement::FunctionCall {
@@ -179,6 +187,8 @@ fn function_call_reference_with_index_expression_is_valid() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     program.statements.push(node!(Statement::Declaration {
@@ -230,6 +240,8 @@ fn function_with_correct_return_type_has_no_errors() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     assert!(run_check(&program).is_empty());
@@ -251,6 +263,8 @@ fn function_with_bad_return_type_reports_error() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     let errors = run_check(&program);
@@ -268,6 +282,8 @@ fn void_function_without_return_has_no_errors() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     assert!(run_check(&program).is_empty());
@@ -293,6 +309,8 @@ fn function_parameters_are_declared_in_scope() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
 
     assert!(run_check(&program).is_empty());
@@ -308,6 +326,8 @@ fn function_call_expression_produces_return_type() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
     program.statements.push(node!(Statement::Declaration {
         identifier: node!(String::from("x")),
@@ -341,6 +361,8 @@ fn function_call_with_wrong_passed_by_mode_reports_error() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
     program.statements.push(node!(Statement::Declaration {
         identifier: node!(String::from("x")),
@@ -379,6 +401,8 @@ fn reference_parameter_with_correct_variable_is_valid() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
     program.statements.push(node!(Statement::Declaration {
         identifier: node!(String::from("x")),
@@ -407,6 +431,8 @@ fn missing_return_value_for_non_void_function_reports_error() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
     let errors = run_check(&program);
     assert!(errors.iter().any(|e| e.contains("wrong return type")));
@@ -422,6 +448,8 @@ fn void_function_return_without_value_is_valid() {
         functions,
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
     assert!(run_check(&program).is_empty());
 }

@@ -13,6 +13,8 @@ pub(super) fn setup_program() -> Program {
         functions: HashMap::new(),
         std_functions: HashMap::new(),
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     }
 }
 

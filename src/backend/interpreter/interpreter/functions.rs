@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     backend::{
@@ -55,6 +55,34 @@ impl<'a> Interpreter<'a> {
                             };
 
                             args.push(Rc::new(RefCell::new(shallow_copy_vector)));
+                        }
+
+                        Value::Struct {
+                            ref identifier,
+                            ref fields_types,
+                            ref fields,
+                        } => {
+                            let original_fields = fields.borrow();
+                            let mut shallow_fields = HashMap::new();
+
+                            for (field_name, field_value) in original_fields.iter() {
+                                let copied_field = match &*field_value.borrow() {
+                                    Value::Vector { .. } | Value::Struct { .. } => Rc::clone(field_value),
+                                    other_value => Rc::new(RefCell::new(other_value.clone())),
+                                };
+
+                                shallow_fields.insert(field_name.clone(), copied_field);
+                            }
+
+                            drop(original_fields);
+
+                            let shallow_copy_struct = Value::Struct {
+                                identifier: identifier.clone(),
+                                fields_types: Rc::clone(fields_types),
+                                fields: Rc::new(RefCell::new(shallow_fields)),
+                            };
+
+                            args.push(Rc::new(RefCell::new(shallow_copy_struct)));
                         }
 
                         _ => args.push(Rc::new(RefCell::new(value))),
@@ -148,11 +176,11 @@ impl<'a> Interpreter<'a> {
                 )) as Box<dyn IError>
             })?;
 
-            let desired_type = &parameter.value.parameter_type.value;
+            let desired_type = self.resolve_type(&parameter.value.parameter_type.value);
             let param_name = &parameter.value.identifier.value;
             let value = &self.last_arguments[idx];
 
-            if !type_accepts_value(desired_type, &value.borrow()) {
+            if !type_accepts_value(&desired_type, &value.borrow()) {
                 self.stack.pop_stack_frame();
 
                 return Err(Box::new(InterpreterError::expected_found(
@@ -204,10 +232,12 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        match &self.last_result {
-            None if function_declaration.return_type.value == Type::Void => {}
+        let expected_return_type = self.resolve_type(&function_declaration.return_type.value);
 
-            Some(value) if type_accepts_value(&function_declaration.return_type.value, value) => {}
+        match &self.last_result {
+            None if expected_return_type == Type::Void => {}
+
+            Some(value) if type_accepts_value(&expected_return_type, value) => {}
 
             result => {
                 let result_type = match result {
@@ -220,7 +250,7 @@ impl<'a> Interpreter<'a> {
                 return Err(Box::new(InterpreterError::expected_found(
                     ErrorSeverity::HIGH,
                     format!("Bad return type from function '{}'.", name),
-                    format!("{:?}", function_declaration.return_type.value),
+                    format!("{:?}", expected_return_type),
                     format!("{:?}", result_type),
                     function_declaration.return_type.span,
                 )));
@@ -230,5 +260,13 @@ impl<'a> Interpreter<'a> {
         self.stack.pop_stack_frame();
 
         Ok(())
+    }
+
+    fn resolve_type(&self, ty: &Type) -> Type {
+        match ty {
+            Type::Unresolved(name) => self.program.types.get(name).cloned().unwrap_or_else(|| ty.clone()),
+            Type::Vector(inner) => Type::Vector(Box::new(self.resolve_type(inner))),
+            other => other.clone(),
+        }
     }
 }

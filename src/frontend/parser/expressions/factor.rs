@@ -32,6 +32,6 @@ impl<L: ILexer> Parser<L> {
             return Ok(Some(vector));
         }
 
-        self.parse_identifier_or_call()
+        self.parse_identifier_or_call_or_struct_literal()
     }
 }

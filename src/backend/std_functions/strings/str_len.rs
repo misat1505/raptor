@@ -61,18 +61,24 @@ pub fn str_len() -> StdFunction {
                 )))
             }
         };
+        let owned_ptr = compiler.build_string_copy(str_ptr, span)?;
 
         let strlen_fn = compiler.libc().strlen_fn;
         let length = compiler
             .builder()
-            .build_call(strlen_fn, &[str_ptr.into()], "str.len")
+            .build_call(strlen_fn, &[owned_ptr.into()], "str.len")
             .map_err(err)?
             .try_as_basic_value()
             .basic()
             .expect("strlen should return a value")
             .into_int_value();
 
+        let free_fn = compiler.libc().free_fn;
+
+        compiler.builder().build_call(free_fn, &[owned_ptr.into()], "str_len.free").map_err(err)?;
+
         compiler.set_last_value(LlvmValue::I64(length));
+
         Ok(())
     };
 

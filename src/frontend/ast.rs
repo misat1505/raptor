@@ -14,6 +14,18 @@ pub struct Node<T> {
 type BNode<T> = Box<Node<T>>;
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct StructLiteralField {
+    pub identifier: Node<String>,
+    pub value: Node<Expression>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructLiteral {
+    pub identifier: Node<String>,
+    pub fields: Vec<Node<StructLiteralField>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     // Boolean operations
     Alternative(BNode<Expression>, BNode<Expression>),
@@ -46,11 +58,16 @@ pub enum Expression {
         collection: BNode<Expression>,
         index: BNode<Expression>,
     },
+    FieldAccess {
+        instance: BNode<Expression>,
+        field: Node<String>,
+    },
     Variable(String),
     FunctionCall {
         identifier: Node<String>,
         arguments: Vec<BNode<Argument>>,
     },
+    StructLiteral(Node<StructLiteral>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -82,6 +99,12 @@ pub enum VariableDeclarationKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Accessor {
+    Index(Node<Expression>),
+    Field(Node<String>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     FunctionCall {
         identifier: Node<String>,
@@ -93,7 +116,7 @@ pub enum Statement {
     },
     Assignment {
         identifier: Node<String>,
-        indices: Vec<Node<Expression>>,
+        accessors: Vec<Node<Accessor>>,
         value: Node<Expression>,
     },
     Conditional {
@@ -159,9 +182,28 @@ pub struct ExternFunctionDeclaration {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct StructMember {
+    pub identifier: Node<String>,
+    pub member_type: Node<Type>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructDeclaration {
+    pub identifier: Node<String>,
+    pub members: Vec<Node<StructMember>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeclaredType {
+    Struct(StructDeclaration),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub statements: Vec<Node<Statement>>,
     pub functions: HashMap<String, Rc<Node<FunctionDeclaration>>>,
     pub std_functions: HashMap<String, StdFunction>,
     pub extern_functions: HashMap<String, Rc<Node<ExternFunctionDeclaration>>>,
+    pub declared_types: HashMap<String, Rc<Node<DeclaredType>>>,
+    pub types: HashMap<String, Type>,
 }

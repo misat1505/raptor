@@ -54,6 +54,8 @@ fn test_function_call() {
         std_functions: HashMap::new(),
         functions,
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
     let mut interpreter = Interpreter::new(&program);
     assert!(interpreter.visit_statement(&ast).is_ok());
@@ -149,6 +151,8 @@ fn call_function_wrong_arg_count_fails() {
         std_functions: HashMap::new(),
         functions,
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
     let mut interpreter = Interpreter::new(&program);
     assert!(interpreter.visit_statement(&ast).is_err());
@@ -175,7 +179,7 @@ fn call_function_by_reference() {
                     Box::new(test_node!(Expression::Variable(String::from("x")))),
                     Box::new(test_node!(Expression::Literal(Literal::I64(1))))
                 )),
-                indices: vec![]
+                accessors: vec![]
             }),])),
         })),
     );
@@ -193,6 +197,8 @@ fn call_function_by_reference() {
         std_functions: HashMap::new(),
         functions,
         extern_functions: HashMap::new(),
+        declared_types: HashMap::new(),
+        types: HashMap::new(),
     };
     let mut interpreter = Interpreter::new(&program);
     let _ = interpreter

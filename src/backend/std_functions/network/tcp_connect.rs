@@ -72,6 +72,7 @@ pub fn tcp_connect() -> StdFunction {
 
         compiler.visit_expression(&host_arg.value.value)?;
         let host_ptr = compiler.read_last_value()?.into_str_value(span)?;
+        let owned_ptr = compiler.build_string_copy(host_ptr, span)?;
 
         compiler.visit_expression(&port_arg.value.value)?;
         let port = compiler.read_last_value()?.into_i64_value(span)?;
@@ -158,7 +159,7 @@ pub fn tcp_connect() -> StdFunction {
         let strcmp_fn = compiler.libc().strcmp_fn;
         let cmp = compiler
             .builder()
-            .build_call(strcmp_fn, &[host_ptr.into(), localhost_lit.as_pointer_value().into()], "host.cmp")
+            .build_call(strcmp_fn, &[owned_ptr.into(), localhost_lit.as_pointer_value().into()], "host.cmp")
             .map_err(err)?
             .try_as_basic_value()
             .basic()
@@ -170,16 +171,16 @@ pub fn tcp_connect() -> StdFunction {
             .build_int_compare(inkwell::IntPredicate::EQ, cmp, i32_type.const_zero(), "is.localhost")
             .map_err(err)?;
 
-        let resolved_host_ptr = compiler
+        let resolved_owned_ptr = compiler
             .builder()
-            .build_select(is_localhost, loopback_lit.as_pointer_value(), host_ptr, "resolved.host")
+            .build_select(is_localhost, loopback_lit.as_pointer_value(), owned_ptr, "resolved.host")
             .map_err(err)?
             .into_pointer_value();
 
         let inet_addr_fn = compiler.libc().inet_addr_fn;
         let addr_be = compiler
             .builder()
-            .build_call(inet_addr_fn, &[resolved_host_ptr.into()], "inet_addr.call")
+            .build_call(inet_addr_fn, &[resolved_owned_ptr.into()], "inet_addr.call")
             .map_err(err)?
             .try_as_basic_value()
             .basic()
@@ -228,6 +229,7 @@ pub fn tcp_connect() -> StdFunction {
                 span,
             )) as Box<dyn IError>
         })?;
+
         let current_fn = current_block.get_parent().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
@@ -237,24 +239,46 @@ pub fn tcp_connect() -> StdFunction {
         })?;
 
         let close_block = compiler.context().append_basic_block(current_fn, "tcp_connect.close_on_error");
+
+        let free_block = compiler.context().append_basic_block(current_fn, "tcp_connect.free_host");
+
         let continue_block = compiler.context().append_basic_block(current_fn, "tcp_connect.continue");
 
         compiler
             .builder()
-            .build_conditional_branch(is_error, close_block, continue_block)
+            .build_conditional_branch(is_error, close_block, free_block)
             .map_err(err)?;
 
+        // connect() failed -> close socket
         compiler.builder().position_at_end(close_block);
+
         let close_fn = compiler.libc().close_fn;
+
         compiler
             .builder()
             .build_call(close_fn, &[fd.into()], "tcp_connect.close_on_error.call")
             .map_err(err)?;
+
+        compiler.builder().build_unconditional_branch(free_block).map_err(err)?;
+
+        // Both success and error paths arrive here.
+        // owned_ptr is a temporary string copy created because
+        // tcp_connect takes its string argument by value.
+        compiler.builder().position_at_end(free_block);
+
+        let free_fn = compiler.libc().free_fn;
+
+        compiler
+            .builder()
+            .build_call(free_fn, &[owned_ptr.into()], "tcp_connect.free_host")
+            .map_err(err)?;
+
         compiler.builder().build_unconditional_branch(continue_block).map_err(err)?;
 
         compiler.builder().position_at_end(continue_block);
 
         let fd_i64 = compiler.builder().build_int_z_extend(fd, i64_type, "fd.i64").map_err(err)?;
+
         let neg_one = i64_type.const_int(u64::MAX, true);
 
         let result = compiler
@@ -264,6 +288,7 @@ pub fn tcp_connect() -> StdFunction {
             .into_int_value();
 
         compiler.set_last_value(LlvmValue::I64(result));
+
         Ok(())
     };
 

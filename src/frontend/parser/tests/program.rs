@@ -111,7 +111,7 @@ fn parse_statement() {
         Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(5))),
-            indices: vec![],
+            accessors: vec![],
         },
         Statement::FunctionCall {
             identifier: test_node!(String::from("print")),

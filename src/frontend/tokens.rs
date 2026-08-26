@@ -81,6 +81,8 @@ pub enum TokenCategory {
 
     Extern,
     Let,
+    Struct,
+    Dot,
 }
 
 impl Debug for TokenCategory {
@@ -155,6 +157,8 @@ impl Debug for TokenCategory {
             CharValue => "char value",
             Extern => "extern",
             Let => "let",
+            Struct => "struct",
+            Dot => "dot",
         };
 
         Ok(write!(f, "{}", text)?)

@@ -18,6 +18,7 @@ impl<'a> SemanticChecker<'a> {
         match expression {
             Expression::Variable(_) => true,
             Expression::Index { collection, .. } => Self::is_valid_reference_expression(&collection.value),
+            Expression::FieldAccess { instance, .. } => Self::is_valid_reference_expression(&instance.value),
             _ => false,
         }
     }
@@ -178,15 +179,19 @@ impl<'a> SemanticChecker<'a> {
                                 )));
                             }
 
-                            if let Some(actual) = &actual_type {
-                                if parameter.value.parameter_type.value != *actual {
+                            let expected_type = self
+                                .resolve_type_fully_checked(&parameter.value.parameter_type.value, parameter.value.parameter_type.span)
+                                .ok();
+
+                            if let (Some(expected), Some(actual)) = (&expected_type, &actual_type) {
+                                if !expected.is_compatible(actual) {
                                     self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                                         ErrorSeverity::HIGH,
                                         format!(
                                             "parameter `{}` in extern function `{}` has the wrong type",
                                             parameter.value.identifier.value, name
                                         ),
-                                        &parameter.value.parameter_type.value,
+                                        expected,
                                         actual,
                                         argument.span,
                                     )));
@@ -255,15 +260,21 @@ impl<'a> SemanticChecker<'a> {
                                 )));
                             }
 
-                            if let Some(actual) = &actual_type {
-                                if parameter.value.parameter_type.value != *actual {
+                            let _ = self.visit_type(&parameter.value.parameter_type);
+                            let expected_type = self
+                                .read_last_result(parameter.value.parameter_type.span)
+                                .ok()
+                                .and_then(|raw| self.resolve_type_fully_checked(&raw, parameter.value.parameter_type.span).ok());
+
+                            if let (Some(expected), Some(actual)) = (&expected_type, &actual_type) {
+                                if !expected.is_compatible(actual) {
                                     self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                                         ErrorSeverity::HIGH,
                                         format!(
                                             "parameter `{}` in function `{}` has the wrong type",
                                             parameter.value.identifier.value, name
                                         ),
-                                        &parameter.value.parameter_type.value,
+                                        expected,
                                         actual,
                                         argument.span,
                                     )));

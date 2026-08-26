@@ -4,7 +4,7 @@ use super::{create_interpreter, setup_program, test_node};
 use crate::{
     backend::interpreter::alu::value::Value,
     common::{span::Span, types::Type, visitor::Visitor},
-    frontend::ast::{Argument, Block, Expression, Literal, PassedBy, Statement, VariableDeclarationKind},
+    frontend::ast::{Accessor, Argument, Block, Expression, Literal, PassedBy, Statement, VariableDeclarationKind},
 };
 
 #[test]
@@ -133,7 +133,7 @@ fn assigns_to_variable() {
     let ast = test_node!(Statement::Assignment {
         identifier: test_node!(String::from("x")),
         value: test_node!(Expression::Literal(Literal::I64(1))),
-        indices: vec![]
+        accessors: vec![]
     });
 
     let program = setup_program();
@@ -156,7 +156,7 @@ fn assigns_bad_type_fails() {
     let ast = test_node!(Statement::Assignment {
         identifier: test_node!(String::from("x")),
         value: test_node!(Expression::Literal(Literal::False)),
-        indices: vec![]
+        accessors: vec![]
     });
 
     let program = setup_program();
@@ -180,7 +180,7 @@ fn assign_with_none_value_fails() {
                 passed_by: PassedBy::Value,
             })),],
         }),
-        indices: vec![]
+        accessors: vec![]
     });
 
     let program = setup_program();
@@ -201,12 +201,12 @@ fn if_true_branch() {
         if_block: test_node!(Block(vec![test_node!(Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(1))),
-            indices: vec![]
+            accessors: vec![]
         }),])),
         else_block: Some(test_node!(Block(vec![test_node!(Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(2))),
-            indices: vec![]
+            accessors: vec![]
         }),]))),
     });
 
@@ -232,12 +232,12 @@ fn if_false_branch() {
         if_block: test_node!(Block(vec![test_node!(Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(1))),
-            indices: vec![]
+            accessors: vec![]
         }),])),
         else_block: Some(test_node!(Block(vec![test_node!(Statement::Assignment {
             identifier: test_node!(String::from("x")),
             value: test_node!(Expression::Literal(Literal::I64(2))),
-            indices: vec![]
+            accessors: vec![]
         }),]))),
     });
 
@@ -279,7 +279,7 @@ fn assign_by_index() {
     let ast = test_node!(Statement::Assignment {
         identifier: test_node!(String::from("x")),
         value: test_node!(Expression::Literal(Literal::I64(99))),
-        indices: vec![test_node!(Expression::Literal(Literal::I64(1)))]
+        accessors: vec![test_node!(Accessor::Index(test_node!(Expression::Literal(Literal::I64(1)))))]
     });
 
     let program = setup_program();
@@ -347,7 +347,7 @@ fn index_assignment_out_of_bounds_fails() {
     let ast = test_node!(Statement::Assignment {
         identifier: test_node!(String::from("x")),
         value: test_node!(Expression::Literal(Literal::I64(99))),
-        indices: vec![test_node!(Expression::Literal(Literal::I64(5)))],
+        accessors: vec![test_node!(Accessor::Index(test_node!(Expression::Literal(Literal::I64(5)))))],
     });
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
@@ -371,7 +371,7 @@ fn index_assignment_on_non_vector_fails() {
     let ast = test_node!(Statement::Assignment {
         identifier: test_node!(String::from("x")),
         value: test_node!(Expression::Literal(Literal::I64(1))),
-        indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+        accessors: vec![test_node!(Accessor::Index(test_node!(Expression::Literal(Literal::I64(0)))))],
     });
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
@@ -387,7 +387,7 @@ fn string_index_assignment() {
     let ast = test_node!(Statement::Assignment {
         identifier: test_node!(String::from("s")),
         value: test_node!(Expression::Literal(Literal::Char('Z'))),
-        indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+        accessors: vec![test_node!(Accessor::Index(test_node!(Expression::Literal(Literal::I64(0)))))],
     });
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
@@ -406,7 +406,7 @@ fn string_index_assignment_non_char_fails() {
     let ast = test_node!(Statement::Assignment {
         identifier: test_node!(String::from("s")),
         value: test_node!(Expression::Literal(Literal::I64(65))),
-        indices: vec![test_node!(Expression::Literal(Literal::I64(0)))],
+        accessors: vec![test_node!(Accessor::Index(test_node!(Expression::Literal(Literal::I64(0)))))],
     });
     let program = setup_program();
     let mut interpreter = create_interpreter(&program);
@@ -422,9 +422,9 @@ fn nested_index_assignment() {
     let ast = test_node!(Statement::Assignment {
         identifier: test_node!(String::from("m")),
         value: test_node!(Expression::Literal(Literal::I64(99))),
-        indices: vec![
-            test_node!(Expression::Literal(Literal::I64(0))),
-            test_node!(Expression::Literal(Literal::I64(1))),
+        accessors: vec![
+            test_node!(Accessor::Index(test_node!(Expression::Literal(Literal::I64(0))))),
+            test_node!(Accessor::Index(test_node!(Expression::Literal(Literal::I64(1))))),
         ],
     });
     let program = setup_program();

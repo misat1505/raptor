@@ -44,7 +44,7 @@ fn variable_declared_in_block_does_not_escape_scope() {
     }));
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("x")),
-        indices: vec![],
+        accessors: vec![],
         value: node!(Expression::Literal(Literal::I64(2))),
     }));
     let errors = run_check(&program);

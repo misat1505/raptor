@@ -27,6 +27,7 @@ pub enum LlvmValue<'ctx> {
     Bool(IntValue<'ctx>),
 
     Vector(PointerValue<'ctx>, Box<Type>),
+    Struct(PointerValue<'ctx>, Box<Type>),
 }
 
 impl<'ctx> LlvmValue<'ctx> {
@@ -48,6 +49,7 @@ impl<'ctx> LlvmValue<'ctx> {
             LlvmValue::Bool(_) => Type::Bool,
 
             LlvmValue::Vector(_, inner) => Type::Vector(inner.clone()),
+            LlvmValue::Struct(_, ty) => (**ty).clone(),
         }
     }
 
@@ -69,6 +71,7 @@ impl<'ctx> LlvmValue<'ctx> {
             LlvmValue::Bool(v) => (*v).into(),
 
             LlvmValue::Vector(v, _) => (*v).into(),
+            LlvmValue::Struct(v, _) => (*v).into(),
         }
     }
 
@@ -104,6 +107,7 @@ impl<'ctx> LlvmValue<'ctx> {
             (Type::Bool, BasicValueEnum::IntValue(v)) => LlvmValue::Bool(v),
 
             (Type::Vector(inner), BasicValueEnum::PointerValue(v)) => LlvmValue::Vector(v, inner.clone()),
+            (Type::Struct { .. }, BasicValueEnum::PointerValue(v)) => LlvmValue::Struct(v, Box::new(target_type.clone())),
 
             _ => unreachable!("BasicValueEnum variant should always match the declared Type"),
         }
@@ -129,6 +133,7 @@ impl<'ctx> LlvmValue<'ctx> {
             Type::Bool => Some(context.bool_type().into()),
 
             Type::Vector(_) => Some(context.ptr_type(AddressSpace::default()).into()),
+            Type::Struct { .. } => Some(context.ptr_type(AddressSpace::default()).into()),
 
             _ => None,
         }
@@ -156,13 +161,14 @@ impl<'ctx> LlvmValue<'ctx> {
             Type::Bool => 1,
             Type::Char => 1,
 
-            Type::Str => 8,       // TODO: 64-bit platform only
-            Type::Vector(_) => 8, // TODO: 64-bit platform only
+            Type::Str => 8,           // TODO: 64-bit platform only
+            Type::Vector(_) => 8,     // TODO: 64-bit platform only
+            Type::Struct { .. } => 8, // TODO: 64-bit platform only
 
             other => {
                 return Err(Box::new(CompilerError::new(
                     ErrorSeverity::HIGH,
-                    format!("Compiling vectors of type '{:?}' is not yet supported.", other),
+                    format!("Compiling vectors of type '{:?}' is not yet supported. 6", other),
                     span,
                 )))
             }

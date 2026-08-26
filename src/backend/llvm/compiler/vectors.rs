@@ -466,9 +466,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     }
 
                     match &field_type {
-                        Type::Vector(_) | Type::Struct { .. } => {
+                        Type::Vector(_) | Type::Struct { .. } | Type::Str => {
                             let field_llvm_type = LlvmValue::type_to_basic_type_enum(&field_type, self.context)
-                                .expect("Vector and Struct always map to a pointer type");
+                                .expect("Vector, Struct and Str always map to a pointer type");
 
                             current_ptr = self
                                 .builder

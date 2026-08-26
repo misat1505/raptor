@@ -291,6 +291,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         self.read_last_value()?
                     };
 
+                    let field_value = if let LlvmValue::Str(str_ptr) = &field_value {
+                        let copied = self.build_string_copy(*str_ptr, field.span)?;
+                        LlvmValue::Str(copied)
+                    } else {
+                        field_value
+                    };
+
                     let field_ptr = self
                         .builder
                         .build_struct_gep(struct_type, struct_ptr, field_index, "field.init")

@@ -2,6 +2,7 @@ mod control_flow;
 mod expressions;
 mod functions;
 mod misc;
+mod primitive_values;
 mod references;
 mod structs;
 mod switch;

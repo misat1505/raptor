@@ -125,6 +125,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 )));
             }
 
+            let element_value = if let LlvmValue::Str(str_ptr) = &element_value {
+                let copied = self.build_string_copy(*str_ptr, element.span)?;
+                LlvmValue::Str(copied)
+            } else {
+                element_value
+            };
+
             let element_ptr = unsafe {
                 self.builder
                     .build_gep(element_llvm_type, data_ptr, &[i64_type.const_int(index as u64, false)], "vector.elem")

@@ -1,3 +1,11 @@
+use std::io::BufReader;
+
+use crate::tests::common::helpers::assert_same_output;
+
+#[test]
+fn user_repository() {
+    let text = BufReader::new(
+        r##"
 struct User {
     i64 id,
     str name
@@ -38,3 +46,12 @@ println(user_repository_stringify(&repo));
 user_repository_create_user(&repo, user);
 
 println(user_repository_stringify(&repo));
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(
+        text,
+        "UserRepository { users: [  ] }\nUserRepository { users: [ User { id: 420, name: \"Elon\" } ] }",
+    );
+}

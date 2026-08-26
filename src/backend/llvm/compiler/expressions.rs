@@ -231,6 +231,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     )) as Box<dyn IError>
                 })?;
 
+                let Type::Struct { fields: field_types, .. } = &declared_type else {
+                    return Err(Box::new(CompilerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("'{}' is not a struct type.", identifier.value),
+                        span,
+                    )));
+                };
+
                 let (struct_type, field_indices) = self.struct_llvm_type(&identifier.value, span)?;
 
                 let struct_ptr = self
@@ -249,8 +257,39 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         )) as Box<dyn IError>
                     })?;
 
-                    self.visit_expression(&field.value.value)?;
-                    let field_value = self.read_last_value()?;
+                    let is_empty_vector = matches!(
+                        &field.value.value.value,
+                        Expression::Vector(elements) if elements.is_empty()
+                    );
+
+                    let field_value = if is_empty_vector {
+                        let expected_field_type = field_types.get(field_name).ok_or_else(|| {
+                            Box::new(CompilerError::at(
+                                ErrorSeverity::HIGH,
+                                format!("Struct '{}' has no field '{}'.", identifier.value, field_name),
+                                field.span,
+                            )) as Box<dyn IError>
+                        })?;
+
+                        let resolved_field_type = self.resolve_type(expected_field_type);
+
+                        let Type::Vector(inner) = &resolved_field_type else {
+                            return Err(Box::new(CompilerError::expected_found(
+                                ErrorSeverity::HIGH,
+                                format!("Cannot assign value to field '{}'.", field_name),
+                                format!("{:?}", resolved_field_type),
+                                "empty vector".to_string(),
+                                field.span,
+                            )));
+                        };
+
+                        let vector_ptr = self.build_empty_vector(inner, field.span)?;
+
+                        LlvmValue::Vector(vector_ptr, inner.clone())
+                    } else {
+                        self.visit_expression(&field.value.value)?;
+                        self.read_last_value()?
+                    };
 
                     let field_ptr = self
                         .builder
@@ -262,7 +301,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
                 }
 
-                self.last_value = Some(LlvmValue::Struct(struct_ptr, Box::new(declared_type)));
+                self.last_value = Some(LlvmValue::Struct(struct_ptr, Box::new(declared_type.clone())));
 
                 Ok(())
             }

@@ -597,13 +597,18 @@ impl LlvmAlu {
 
         builder.position_at_end(overflow_block);
 
-        let message = format!(
-            "warning: integer overflow in cast ({:?}:{:?} -> {}:{})\n",
-            span.start(),
-            span.end(),
-            target_bits,
-            if target_signed { "signed" } else { "unsigned" }
+        let error = CompilerError::at(
+            self.overflow_policy.severity(),
+            format!(
+                "Integer overflow in cast ({} -> {}:{})",
+                value.get_type().get_bit_width(),
+                target_bits,
+                if target_signed { "signed" } else { "unsigned" }
+            ),
+            span,
         );
+
+        let message = error.get_stderr_message();
 
         let format_str = builder
             .build_global_string_ptr(&message, "overflow.msg")

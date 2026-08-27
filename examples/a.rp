@@ -1,6 +1,6 @@
-let x = 128 as i8;
+let x = 100 as u8;
 
 println(x as str);
 
-# x += 156 as u8;
-# println(x as str);
+x += 156 as u8;
+println(x as str);

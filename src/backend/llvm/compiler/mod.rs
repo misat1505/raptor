@@ -72,7 +72,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let span = Span::new(position, position);
         // TODO: unhardcode overflow policy
-        let llvm_alu = LlvmAlu::new(OverflowPolicy::Error);
+        let llvm_alu = LlvmAlu::new(OverflowPolicy::Warn);
 
         Compiler {
             program,

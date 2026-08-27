@@ -31,6 +31,16 @@ pub enum OverflowPolicy {
     Error,
 }
 
+impl OverflowPolicy {
+    pub fn severity(self) -> ErrorSeverity {
+        match self {
+            OverflowPolicy::Ignore => ErrorSeverity::LOW,
+            OverflowPolicy::Warn => ErrorSeverity::LOW,
+            OverflowPolicy::Error => ErrorSeverity::HIGH,
+        }
+    }
+}
+
 impl Default for OverflowPolicy {
     fn default() -> Self {
         OverflowPolicy::Ignore
@@ -153,13 +163,17 @@ impl LlvmAlu {
 
         builder.position_at_end(overflow_block);
 
-        let message = format!(
-            "warning: value does not fit in target type ({:?}:{:?} -> {}:{})\n",
-            span.start(),
-            span.end(),
-            target_bits,
-            if target_signed { "signed" } else { "unsigned" }
+        let error = CompilerError::at(
+            self.overflow_policy.severity(),
+            format!(
+                "Value does not fit in target type ({}:{})",
+                target_bits,
+                if target_signed { "signed" } else { "unsigned" }
+            ),
+            span,
         );
+
+        let message = error.get_stderr_message();
 
         let format_str = builder
             .build_global_string_ptr(&message, "overflow.msg")

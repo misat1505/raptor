@@ -1,11 +1,13 @@
 use inkwell::{builder::Builder, values::IntValue};
 
-use crate::backend::llvm::{
-    libc_functions::LibcFunctions,
-    llvm_alu::llvm_value::LlvmValue,
-    llvm_alu::{LlvmAlu, OverflowPolicy},
-};
 use crate::common::{errors::IError, span::Span};
+use crate::{
+    backend::llvm::{
+        libc_functions::LibcFunctions,
+        llvm_alu::{llvm_value::LlvmValue, LlvmAlu, OverflowPolicy},
+    },
+    common::errors::CompilerError,
+};
 
 impl LlvmAlu {
     pub fn boolean_negate<'ctx>(
@@ -82,23 +84,13 @@ impl LlvmAlu {
 
         builder.position_at_end(overflow_block);
 
-        let message = match self.overflow_policy {
-            OverflowPolicy::Warn => format!(
-                "warning: arithmetic negation overflow at {:?}:{:?}; \
-                 minimum signed integer cannot be negated\n",
-                span.start(),
-                span.end(),
-            ),
+        let error = CompilerError::at(
+            self.overflow_policy.severity(),
+            String::from("Arithmetic negation overflow: minimum signed integer cannot be negated"),
+            span,
+        );
 
-            OverflowPolicy::Error => format!(
-                "error: arithmetic negation overflow at {:?}:{:?}; \
-                 minimum signed integer cannot be negated\n",
-                span.start(),
-                span.end(),
-            ),
-
-            OverflowPolicy::Ignore => unreachable!(),
-        };
+        let message = error.get_stderr_message();
 
         let format_str = builder
             .build_global_string_ptr(&message, "neg_overflow.msg")

@@ -1,6 +1,7 @@
 use inkwell::values::{IntValue, PointerValue};
 use inkwell::{builder::Builder, IntPredicate};
 
+use crate::common::errors::CompilerError;
 use crate::{
     backend::llvm::{
         libc_functions::LibcFunctions,
@@ -726,7 +727,9 @@ impl LlvmAlu {
 
         builder.position_at_end(overflow_block);
 
-        let message = format!("warning: {} ({:?}:{:?})\n", description, span.start(), span.end(),);
+        let error = CompilerError::at(self.overflow_policy.severity(), description.to_string(), span);
+
+        let message = error.get_stderr_message();
 
         let format_str = builder
             .build_global_string_ptr(&message, "overflow.msg")

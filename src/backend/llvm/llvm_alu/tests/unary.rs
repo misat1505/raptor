@@ -3,7 +3,7 @@ use inkwell::context::Context;
 use crate::{
     backend::llvm::{
         llvm_alu::{tests::setup, LlvmAlu},
-        LlvmValue,
+        LlvmValue, OverflowPolicy,
     },
     common::span::Span,
 };
@@ -12,19 +12,22 @@ use crate::{
 fn boolean_negate_on_bool() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let t = LlvmValue::Bool(context.bool_type().const_int(1, false));
     let f = LlvmValue::Bool(context.bool_type().const_int(0, false));
 
-    assert!(matches!(LlvmAlu::boolean_negate(&builder, &libc, t, span).unwrap(), LlvmValue::Bool(_)));
-    assert!(matches!(LlvmAlu::boolean_negate(&builder, &libc, f, span).unwrap(), LlvmValue::Bool(_)));
+    assert!(matches!(alu.boolean_negate(&builder, &libc, t, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.boolean_negate(&builder, &libc, f, span).unwrap(), LlvmValue::Bool(_)));
 }
 
 #[test]
 fn boolean_negate_rejects_non_bool() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let bad = [
@@ -36,7 +39,7 @@ fn boolean_negate_rejects_non_bool() {
     ];
 
     for v in bad {
-        assert!(LlvmAlu::boolean_negate(&builder, &libc, v, span).is_err());
+        assert!(alu.boolean_negate(&builder, &libc, v, span).is_err());
     }
 }
 
@@ -44,22 +47,30 @@ fn boolean_negate_rejects_non_bool() {
 fn arithmetic_negate_signed_integers() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     assert!(matches!(
-        LlvmAlu::arithmetic_negate(&builder, &libc, LlvmValue::I8(context.i8_type().const_int(5, true)), span).unwrap(),
+        alu.arithmetic_negate(&builder, &libc, LlvmValue::I8(context.i8_type().const_int(5, true)), span)
+            .unwrap(),
         LlvmValue::I8(_)
     ));
+
     assert!(matches!(
-        LlvmAlu::arithmetic_negate(&builder, &libc, LlvmValue::I16(context.i16_type().const_int(5, true)), span).unwrap(),
+        alu.arithmetic_negate(&builder, &libc, LlvmValue::I16(context.i16_type().const_int(5, true)), span)
+            .unwrap(),
         LlvmValue::I16(_)
     ));
+
     assert!(matches!(
-        LlvmAlu::arithmetic_negate(&builder, &libc, LlvmValue::I32(context.i32_type().const_int(5, true)), span).unwrap(),
+        alu.arithmetic_negate(&builder, &libc, LlvmValue::I32(context.i32_type().const_int(5, true)), span)
+            .unwrap(),
         LlvmValue::I32(_)
     ));
+
     assert!(matches!(
-        LlvmAlu::arithmetic_negate(&builder, &libc, LlvmValue::I64(context.i64_type().const_int(5, true)), span).unwrap(),
+        alu.arithmetic_negate(&builder, &libc, LlvmValue::I64(context.i64_type().const_int(5, true)), span)
+            .unwrap(),
         LlvmValue::I64(_)
     ));
 }
@@ -68,16 +79,19 @@ fn arithmetic_negate_signed_integers() {
 fn arithmetic_negate_f64() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let v = LlvmValue::F64(context.f64_type().const_float(3.14));
-    assert!(matches!(LlvmAlu::arithmetic_negate(&builder, &libc, v, span).unwrap(), LlvmValue::F64(_)));
+
+    assert!(matches!(alu.arithmetic_negate(&builder, &libc, v, span).unwrap(), LlvmValue::F64(_)));
 }
 
 #[test]
 fn arithmetic_negate_rejects_unsupported() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let bad = [
@@ -91,6 +105,34 @@ fn arithmetic_negate_rejects_unsupported() {
     ];
 
     for v in bad {
-        assert!(LlvmAlu::arithmetic_negate(&builder, &libc, v, span).is_err());
+        assert!(alu.arithmetic_negate(&builder, &libc, v, span).is_err());
     }
+}
+
+#[test]
+fn arithmetic_negate_min_i8_warn_policy() {
+    let context = Context::create();
+    let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
+    let span = Span::default();
+
+    let min = LlvmValue::I8(context.i8_type().const_int(128, false));
+
+    let result = alu.arithmetic_negate(&builder, &libc, min, span);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn arithmetic_negate_min_i8_error_policy() {
+    let context = Context::create();
+    let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Error);
+    let span = Span::default();
+
+    let min = LlvmValue::I8(context.i8_type().const_int(128, false));
+
+    let result = alu.arithmetic_negate(&builder, &libc, min, span);
+
+    assert!(result.is_ok());
 }

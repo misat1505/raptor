@@ -2,7 +2,7 @@ use inkwell::{context::Context, AddressSpace};
 
 use crate::{
     backend::llvm::{
-        llvm_alu::{tests::setup, LlvmAlu},
+        llvm_alu::{tests::setup, LlvmAlu, OverflowPolicy},
         LlvmValue,
     },
     common::span::Span,
@@ -12,6 +12,7 @@ use crate::{
 fn greater_all_numeric() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let pairs = [
@@ -54,7 +55,8 @@ fn greater_all_numeric() {
     ];
 
     for (l, r) in pairs {
-        let result = LlvmAlu::greater(&builder, &libc, l, r, span).unwrap();
+        let result = alu.greater(&builder, &libc, l, r, span).unwrap();
+
         assert!(matches!(result, LlvmValue::Bool(_)));
     }
 }
@@ -63,68 +65,71 @@ fn greater_all_numeric() {
 fn greater_or_equal_all_numeric() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let l = LlvmValue::I64(context.i64_type().const_int(5, true));
     let r = LlvmValue::I64(context.i64_type().const_int(5, true));
-    assert!(matches!(
-        LlvmAlu::greater_or_equal(&builder, &libc, l, r, span).unwrap(),
-        LlvmValue::Bool(_)
-    ));
+
+    assert!(matches!(alu.greater_or_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::F64(context.f64_type().const_float(2.0));
     let r = LlvmValue::F64(context.f64_type().const_float(1.0));
-    assert!(matches!(
-        LlvmAlu::greater_or_equal(&builder, &libc, l, r, span).unwrap(),
-        LlvmValue::Bool(_)
-    ));
+
+    assert!(matches!(alu.greater_or_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::U32(context.i32_type().const_int(10, false));
     let r = LlvmValue::U32(context.i32_type().const_int(3, false));
-    assert!(matches!(
-        LlvmAlu::greater_or_equal(&builder, &libc, l, r, span).unwrap(),
-        LlvmValue::Bool(_)
-    ));
+
+    assert!(matches!(alu.greater_or_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 }
 
 #[test]
 fn less_all_numeric() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let l = LlvmValue::I32(context.i32_type().const_int(1, true));
     let r = LlvmValue::I32(context.i32_type().const_int(9, true));
-    assert!(matches!(LlvmAlu::less(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.less(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::U8(context.i8_type().const_int(1, false));
     let r = LlvmValue::U8(context.i8_type().const_int(9, false));
-    assert!(matches!(LlvmAlu::less(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.less(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::F64(context.f64_type().const_float(0.5));
     let r = LlvmValue::F64(context.f64_type().const_float(1.5));
-    assert!(matches!(LlvmAlu::less(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.less(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 }
 
 #[test]
 fn less_or_equal_all_numeric() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let l = LlvmValue::I64(context.i64_type().const_int(3, true));
     let r = LlvmValue::I64(context.i64_type().const_int(3, true));
-    assert!(matches!(LlvmAlu::less_or_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.less_or_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::F64(context.f64_type().const_float(1.0));
     let r = LlvmValue::F64(context.f64_type().const_float(2.0));
-    assert!(matches!(LlvmAlu::less_or_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.less_or_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 }
 
 #[test]
 fn ordered_ops_reject_mismatched_and_non_numeric() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let i64v = LlvmValue::I64(context.i64_type().const_int(1, true));
@@ -133,21 +138,24 @@ fn ordered_ops_reject_mismatched_and_non_numeric() {
     let boolv = LlvmValue::Bool(context.bool_type().const_int(1, false));
     let charv = LlvmValue::Char(context.i8_type().const_int(b'a' as u64, false));
 
-    // mixed numeric
-    assert!(LlvmAlu::greater(&builder, &libc, i64v.clone(), f64v.clone(), span).is_err());
-    assert!(LlvmAlu::less(&builder, &libc, f64v.clone(), i64v.clone(), span).is_err());
+    assert!(alu.greater(&builder, &libc, i64v.clone(), f64v.clone(), span).is_err());
 
-    // non-numeric
-    assert!(LlvmAlu::greater(&builder, &libc, strv.clone(), strv.clone(), span).is_err());
-    assert!(LlvmAlu::greater_or_equal(&builder, &libc, boolv.clone(), boolv.clone(), span).is_err());
-    assert!(LlvmAlu::less(&builder, &libc, charv.clone(), charv.clone(), span).is_err());
-    assert!(LlvmAlu::less_or_equal(&builder, &libc, strv.clone(), i64v.clone(), span).is_err());
+    assert!(alu.less(&builder, &libc, f64v.clone(), i64v.clone(), span).is_err());
+
+    assert!(alu.greater(&builder, &libc, strv.clone(), strv.clone(), span).is_err());
+
+    assert!(alu.greater_or_equal(&builder, &libc, boolv.clone(), boolv.clone(), span).is_err());
+
+    assert!(alu.less(&builder, &libc, charv.clone(), charv.clone(), span).is_err());
+
+    assert!(alu.less_or_equal(&builder, &libc, strv.clone(), i64v.clone(), span).is_err());
 }
 
 #[test]
 fn equal_same_integer_sizes() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let pairs = [
@@ -166,75 +174,88 @@ fn equal_same_integer_sizes() {
     ];
 
     for (l, r) in pairs {
-        assert!(matches!(LlvmAlu::equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+        assert!(matches!(alu.equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
     }
 }
 
 #[test]
 fn equal_mixed_integer_sizes() {
-    // integer_equality normalizes everything to i64, so mixed widths are OK
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let l = LlvmValue::I8(context.i8_type().const_int(5, true));
     let r = LlvmValue::I64(context.i64_type().const_int(5, true));
-    assert!(matches!(LlvmAlu::equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::U16(context.i16_type().const_int(10, false));
     let r = LlvmValue::I32(context.i32_type().const_int(10, true));
-    assert!(matches!(LlvmAlu::equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 }
 
 #[test]
 fn equal_f64_bool_char_str() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let l = LlvmValue::F64(context.f64_type().const_float(1.0));
     let r = LlvmValue::F64(context.f64_type().const_float(1.0));
-    assert!(matches!(LlvmAlu::equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::Bool(context.bool_type().const_int(1, false));
     let r = LlvmValue::Bool(context.bool_type().const_int(0, false));
-    assert!(matches!(LlvmAlu::equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::Char(context.i8_type().const_int(b'x' as u64, false));
     let r = LlvmValue::Char(context.i8_type().const_int(b'x' as u64, false));
-    assert!(matches!(LlvmAlu::equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let ptr = context.ptr_type(AddressSpace::default()).const_null();
     let l = LlvmValue::Str(ptr);
     let r = LlvmValue::Str(ptr);
-    assert!(matches!(LlvmAlu::equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 }
 
 #[test]
 fn not_equal_all_supported() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let l = LlvmValue::I64(context.i64_type().const_int(1, true));
     let r = LlvmValue::I64(context.i64_type().const_int(2, true));
-    assert!(matches!(LlvmAlu::not_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.not_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::F64(context.f64_type().const_float(1.0));
     let r = LlvmValue::F64(context.f64_type().const_float(2.0));
-    assert!(matches!(LlvmAlu::not_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.not_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::Bool(context.bool_type().const_int(1, false));
     let r = LlvmValue::Bool(context.bool_type().const_int(0, false));
-    assert!(matches!(LlvmAlu::not_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.not_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let l = LlvmValue::Char(context.i8_type().const_int(b'a' as u64, false));
     let r = LlvmValue::Char(context.i8_type().const_int(b'b' as u64, false));
-    assert!(matches!(LlvmAlu::not_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
+
+    assert!(matches!(alu.not_equal(&builder, &libc, l, r, span).unwrap(), LlvmValue::Bool(_)));
 
     let ptr = context.ptr_type(AddressSpace::default()).const_null();
+
     assert!(matches!(
-        LlvmAlu::not_equal(&builder, &libc, LlvmValue::Str(ptr), LlvmValue::Str(ptr), span).unwrap(),
+        alu.not_equal(&builder, &libc, LlvmValue::Str(ptr), LlvmValue::Str(ptr), span).unwrap(),
         LlvmValue::Bool(_)
     ));
 }
@@ -243,6 +264,7 @@ fn not_equal_all_supported() {
 fn equality_rejects_cross_category() {
     let context = Context::create();
     let (_module, builder, libc) = setup(&context);
+    let alu = LlvmAlu::new(OverflowPolicy::Warn);
     let span = Span::default();
 
     let i64v = LlvmValue::I64(context.i64_type().const_int(1, true));
@@ -251,13 +273,19 @@ fn equality_rejects_cross_category() {
     let boolv = LlvmValue::Bool(context.bool_type().const_int(1, false));
     let charv = LlvmValue::Char(context.i8_type().const_int(b'a' as u64, false));
 
-    assert!(LlvmAlu::equal(&builder, &libc, i64v.clone(), f64v.clone(), span).is_err());
-    assert!(LlvmAlu::equal(&builder, &libc, i64v.clone(), strv.clone(), span).is_err());
-    assert!(LlvmAlu::equal(&builder, &libc, i64v.clone(), boolv.clone(), span).is_err());
-    assert!(LlvmAlu::equal(&builder, &libc, f64v.clone(), strv.clone(), span).is_err());
-    assert!(LlvmAlu::equal(&builder, &libc, boolv.clone(), charv.clone(), span).is_err());
-    assert!(LlvmAlu::equal(&builder, &libc, strv.clone(), charv.clone(), span).is_err());
+    assert!(alu.equal(&builder, &libc, i64v.clone(), f64v.clone(), span).is_err());
 
-    assert!(LlvmAlu::not_equal(&builder, &libc, i64v.clone(), f64v.clone(), span).is_err());
-    assert!(LlvmAlu::not_equal(&builder, &libc, boolv.clone(), i64v.clone(), span).is_err());
+    assert!(alu.equal(&builder, &libc, i64v.clone(), strv.clone(), span).is_err());
+
+    assert!(alu.equal(&builder, &libc, i64v.clone(), boolv.clone(), span).is_err());
+
+    assert!(alu.equal(&builder, &libc, f64v.clone(), strv.clone(), span).is_err());
+
+    assert!(alu.equal(&builder, &libc, boolv.clone(), charv.clone(), span).is_err());
+
+    assert!(alu.equal(&builder, &libc, strv.clone(), charv.clone(), span).is_err());
+
+    assert!(alu.not_equal(&builder, &libc, i64v.clone(), f64v.clone(), span).is_err());
+
+    assert!(alu.not_equal(&builder, &libc, boolv.clone(), i64v.clone(), span).is_err());
 }

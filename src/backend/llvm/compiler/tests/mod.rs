@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use inkwell::context::Context;
 
 use crate::{
-    backend::llvm::compiler::Compiler,
+    backend::llvm::{compiler::Compiler, OverflowPolicy},
     common::span::Span,
     frontend::ast::{Node, Program},
 };
@@ -37,7 +37,7 @@ pub(super) fn node<T>(value: T) -> Node<T> {
 }
 
 pub(super) fn with_main<'a, 'ctx>(program: &'a crate::frontend::ast::Program, context: &'ctx Context) -> Compiler<'a, 'ctx> {
-    let mut compiler = Compiler::new(program, context);
+    let mut compiler = Compiler::new(program, context, OverflowPolicy::Ignore);
     compiler.declare_main_function();
     compiler
 }

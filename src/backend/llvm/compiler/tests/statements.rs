@@ -1,16 +1,19 @@
 use inkwell::context::Context;
 
 use crate::{
-    backend::llvm::compiler::{
-        tests::{empty_program, node},
-        Compiler,
+    backend::llvm::{
+        compiler::{
+            tests::{empty_program, node},
+            Compiler,
+        },
+        OverflowPolicy,
     },
     common::types::Type,
     frontend::ast::{Block, Expression, Literal, Statement, VariableDeclarationKind},
 };
 
 fn with_main<'a, 'ctx>(program: &'a crate::frontend::ast::Program, context: &'ctx Context) -> Compiler<'a, 'ctx> {
-    let mut c = Compiler::new(program, context);
+    let mut c = Compiler::new(program, context, OverflowPolicy::Ignore);
     c.declare_main_function();
     c
 }

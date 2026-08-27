@@ -63,7 +63,7 @@ pub struct Compiler<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
-    pub fn new(program: &'a Program, context: &'ctx Context) -> Self {
+    pub fn new(program: &'a Program, context: &'ctx Context, overflow_policy: OverflowPolicy) -> Self {
         let module = context.create_module("main_module");
         let builder = context.create_builder();
         let libc = LibcFunctions::new(context, &module);
@@ -71,8 +71,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let position = Position::new(0, 0, 0, None);
 
         let span = Span::new(position, position);
-        // TODO: unhardcode overflow policy
-        let llvm_alu = LlvmAlu::new(OverflowPolicy::Warn);
+
+        let llvm_alu = LlvmAlu::new(overflow_policy);
 
         Compiler {
             program,

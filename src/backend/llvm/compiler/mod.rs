@@ -20,6 +20,7 @@ use inkwell::module::Module;
 use inkwell::types::{FloatType, IntType};
 use inkwell::values::{FunctionValue, PointerValue};
 
+use crate::backend::llvm::llvm_alu::{LlvmAlu, OverflowPolicy};
 use crate::common::position::Position;
 use crate::common::span::Span;
 use crate::{
@@ -58,6 +59,7 @@ pub struct Compiler<'a, 'ctx> {
     last_value: Option<LlvmValue<'ctx>>,
 
     span: Span,
+    llvm_alu: LlvmAlu,
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
@@ -69,6 +71,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let position = Position::new(0, 0, 0, None);
 
         let span = Span::new(position, position);
+        // TODO: unhardcode overflow policy
+        let llvm_alu = LlvmAlu::new(OverflowPolicy::Error);
 
         Compiler {
             program,
@@ -82,6 +86,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             variables: HashMap::new(),
             last_value: None,
             span,
+            llvm_alu,
         }
     }
 

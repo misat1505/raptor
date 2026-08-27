@@ -25,7 +25,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         span: Span,
     ) -> Result<(), Box<dyn IError>>
     where
-        F: Fn(&Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, LlvmValue<'ctx>, Span) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
+        F: Fn(&LlvmAlu, &Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, LlvmValue<'ctx>, Span) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
     {
         self.visit_expression(lhs)?;
         let left_value = self.read_last_value()?;
@@ -33,7 +33,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.visit_expression(rhs)?;
         let right_value = self.read_last_value()?;
 
-        let value = op(&self.builder, &self.libc, left_value, right_value, span)?;
+        let value = op(&self.llvm_alu, &self.builder, &self.libc, left_value, right_value, span)?;
 
         self.last_value = Some(value);
 
@@ -47,12 +47,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         span: Span,
     ) -> Result<(), Box<dyn IError>>
     where
-        F: Fn(&Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, Span) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
+        F: Fn(&LlvmAlu, &Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, Span) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
     {
         self.visit_expression(value)?;
         let computed_value = self.read_last_value()?;
 
-        let value = op(&self.builder, &self.libc, computed_value, span)?;
+        let value = op(&self.llvm_alu, &self.builder, &self.libc, computed_value, span)?;
 
         self.last_value = Some(value);
 
@@ -111,7 +111,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.visit_expression(value)?;
                 let source_value = self.read_last_value()?;
 
-                self.last_value = Some(LlvmAlu::cast_to_type(&self.builder, &self.libc, source_value, &to_type.value, span)?);
+                self.last_value = Some(
+                    self.llvm_alu
+                        .cast_to_type(&self.builder, &self.libc, source_value, &to_type.value, span)?,
+                );
 
                 Ok(())
             }

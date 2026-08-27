@@ -17,6 +17,7 @@ pub struct LibcFunctions<'ctx> {
     pub memcpy_fn: FunctionValue<'ctx>,
     pub free_fn: FunctionValue<'ctx>,
     pub usleep_fn: FunctionValue<'ctx>,
+    pub exit_fn: FunctionValue<'ctx>,
 
     // files
     pub fopen_fn: FunctionValue<'ctx>,
@@ -72,6 +73,8 @@ impl<'ctx> LibcFunctions<'ctx> {
             None,
         );
         let usleep_fn = module.add_function("usleep", i32_type.fn_type(&[i32_type.into()], false), None);
+        let exit_fn_type = context.void_type().fn_type(&[context.i32_type().into()], false);
+        let exit_fn = module.add_function("exit", exit_fn_type, None);
         let fopen_fn = module.add_function("fopen", str_type.fn_type(&[str_type.into(), str_type.into()], false), None);
         let fclose_fn = module.add_function("fclose", i32_type.fn_type(&[str_type.into()], false), None);
         let fread_fn = module.add_function(
@@ -151,6 +154,7 @@ impl<'ctx> LibcFunctions<'ctx> {
             realloc_fn,
             memcpy_fn,
             usleep_fn,
+            exit_fn,
             accept_fn,
             access_fn,
             bind_fn,

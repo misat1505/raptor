@@ -1,7 +1,7 @@
 use inkwell::{
     builder::Builder,
     values::{FloatValue, IntValue},
-    FloatPredicate, IntPredicate,
+    AddressSpace, FloatPredicate, IntPredicate,
 };
 
 use crate::{
@@ -614,8 +614,16 @@ impl LlvmAlu {
             .build_global_string_ptr(&message, "overflow.msg")
             .map_err(|err| Self::map_err(err, span))?;
 
+        let stderr = builder
+            .build_load(context.ptr_type(AddressSpace::default()), libc.stderr.as_pointer_value(), "stderr")
+            .map_err(|err| Self::map_err(err, span))?;
+
         builder
-            .build_call(libc.printf_fn, &[format_str.as_pointer_value().into()], "overflow.printf")
+            .build_call(
+                libc.fprintf_fn,
+                &[stderr.into(), format_str.as_pointer_value().into()],
+                "overflow.fprintf",
+            )
             .map_err(|err| Self::map_err(err, span))?;
 
         if self.overflow_policy == OverflowPolicy::Error {

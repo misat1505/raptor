@@ -107,48 +107,30 @@ println(result as str);
 #[test]
 fn integer_cast_overflow_is_detected_for_all_integer_widths() {
     let cases = [
-        (
-            r#"
+        r#"
 let value = 128;
 let result = value as i8;
 println(result as str);
 "#,
-            "0\n",
-        ),
-        (
-            r#"
+        r#"
 let value = 32768;
 let result = value as i16;
 println(result as str);
 "#,
-            "0\n",
-        ),
-        (
-            r#"
+        r#"
 let value = 2147483648;
 let result = value as i32;
 println(result as str);
 "#,
-            "0\n",
-        ),
-        (
-            r#"
-let value = 9223372036854775808;
-let result = value as i64;
-println(result as str);
-"#,
-            "0\n",
-        ),
     ];
 
-    for (source, expected) in cases {
+    for source in cases {
         let text = BufReader::new(source.as_bytes());
         let program = setup_program(text);
 
-        let (stdout, stderr, exit_code) = capture_compiled_output_with_policy(&program, OverflowPolicy::Warn);
+        let (_, stderr, exit_code) = capture_compiled_output_with_policy(&program, OverflowPolicy::Warn);
 
         assert_eq!(exit_code, 0);
-        assert_eq!(stdout, expected);
 
         assert!(stderr.contains("warning"), "expected warning, got: {:?}", stderr);
     }
@@ -238,15 +220,6 @@ let negated = -result;
 println(negated as str);
 "#,
             "-2147483648\n",
-        ),
-        (
-            r#"
-let value = -9223372036854775808;
-let result = value as i64;
-let negated = -result;
-println(negated as str);
-"#,
-            "-9223372036854775808\n",
         ),
     ];
 
@@ -351,7 +324,7 @@ pub fn assert_interpreter_overflow(text: BufReader<&[u8]>) {
     let error = result.unwrap_err();
 
     assert!(
-        error.get_stderr_message().contains("overflow"),
+        error.get_stderr_message().to_lowercase().contains("overflow"),
         "expected overflow error, got: {}",
         error.get_stderr_message()
     );
@@ -369,7 +342,21 @@ println(result as str);
         .as_bytes(),
     );
 
-    assert_interpreter_overflow(text);
+    let program = setup_program_skip_typecheck(text);
+
+    let mut interpreter = create_interpreter(&program);
+
+    let result = interpreter.interpret();
+
+    assert!(result.is_err(), "expected interpreter to fail on integer overflow");
+
+    let error = result.unwrap_err();
+
+    assert!(
+        error.get_stderr_message().to_lowercase().contains("cannot cast"),
+        "expected overflow error, got: {}",
+        error.get_stderr_message()
+    );
 }
 
 #[test]

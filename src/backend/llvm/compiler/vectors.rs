@@ -356,6 +356,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let inner_type = (**inner).clone();
 
                         let data_field = self.builder.build_struct_gep(struct_type, current_ptr, 0, "idx.data").map_err(&err)?;
+                        let length_field = self.builder.build_struct_gep(struct_type, current_ptr, 1, "idx.length").map_err(&err)?;
 
                         let data = self
                             .builder
@@ -363,9 +364,19 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             .map_err(&err)?
                             .into_pointer_value();
 
+                        let i64_type = self.context.i64_type();
+
+                        let length = self
+                            .builder
+                            .build_load(i64_type, length_field, "idx.length.val")
+                            .map_err(&err)?
+                            .into_int_value();
+
                         self.visit_expression(index_expr)?;
 
                         let index_value = self.read_last_value()?.into_i64_value(index_expr.span)?;
+
+                        self.emit_bounds_check(&self.builder, &self.libc, self.context, index_value, length, index_expr.span)?;
 
                         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
@@ -398,6 +409,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         self.visit_expression(index_expr)?;
 
                         let index_value = self.read_last_value()?.into_i64_value(index_expr.span)?;
+
+                        let length = self
+                            .builder
+                            .build_call(self.libc.strlen_fn, &[current_ptr.into()], "idx.str.len")
+                            .map_err(&err)?
+                            .try_as_basic_value()
+                            .basic()
+                            .expect("strlen should return a value")
+                            .into_int_value();
+
+                        self.emit_bounds_check(&self.builder, &self.libc, self.context, index_value, length, index_expr.span)?;
 
                         let element_ptr = unsafe {
                             self.builder

@@ -16,8 +16,8 @@ impl<L: ILexer> Parser<L> {
         match node {
             None => Ok(None),
             Some(mut n) => {
-                self.consume_must_be(TokenCategory::Semicolon)?;
-                n.span = Span::new(n.span.start(), self.current_token().span.end());
+                let semicolon_token = self.consume_must_be(TokenCategory::Semicolon)?;
+                n.span = Span::new(n.span.start(), semicolon_token.span.end());
                 Ok(Some(n))
             }
         }

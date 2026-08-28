@@ -60,7 +60,7 @@ macro_rules! define_error {
 
             fn expected_found(level: ErrorSeverity, summary: String, expected: String, found: String, span: Span) -> Self {
                 let message = format!(
-                    "{}\n  --> {}\n  expected: {}\n  found:    {}",
+                    "{}\n  --> {}\n  expected: {}\n  found:    {}\n",
                     summary,
                     format!("{} -> {}", span.start().location(), span.end().location()),
                     expected,
@@ -71,7 +71,7 @@ macro_rules! define_error {
 
             fn at(level: ErrorSeverity, summary: String, span: Span) -> Self {
                 let message = format!(
-                    "{}\n  --> {}",
+                    "{}\n  --> {}\n",
                     summary,
                     format!("{} -> {}", span.start().location(), span.end().location()),
                 );

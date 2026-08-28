@@ -23,7 +23,7 @@ use crate::{
     semantic::semantic_checker::SemanticChecker,
 };
 
-use raptor_lib::backend;
+use raptor_lib::backend::{self, llvm::OverflowPolicy};
 use raptor_lib::common;
 use raptor_lib::frontend;
 use raptor_lib::semantic;
@@ -135,6 +135,7 @@ fn main() {
     let mut is_unsafe = false;
     let mut is_compile = false;
     let mut should_run = false;
+    let mut overflow_policy = OverflowPolicy::Ignore;
     let mut opt_level: Option<OptimizationLevel> = None;
     let mut link_objects: Vec<String> = Vec::new();
 
@@ -189,6 +190,26 @@ fn main() {
 
             "-O3" => {
                 opt_level = Some(OptimizationLevel::Aggressive);
+            }
+
+            "--overflow" => {
+                let policy = match arg_iter.next() {
+                    Some(policy) => policy,
+                    None => {
+                        eprintln!("Error: --overflow requires one of: ignore, warn, error.");
+                        exit(1);
+                    }
+                };
+
+                overflow_policy = match policy.as_str() {
+                    "ignore" => OverflowPolicy::Ignore,
+                    "warn" => OverflowPolicy::Warn,
+                    "error" => OverflowPolicy::Error,
+                    _ => {
+                        eprintln!("Error: invalid overflow policy '{}'. Expected: ignore, warn, error.", policy);
+                        exit(1);
+                    }
+                };
             }
 
             arg if arg.starts_with('-') => {
@@ -274,7 +295,7 @@ fn main() {
                     ErrorSeverity::LOW => warnings += 1,
                 }
 
-                eprintln!("{}\n", error.get_stderr_message());
+                eprintln!("{}", error.get_stderr_message());
             }
 
             eprintln!("Static analysis finished with {} errors, {} warnings.", errors, warnings);
@@ -286,7 +307,7 @@ fn main() {
         let (ir_path, obj_path, exe_path) = output_paths(&path);
 
         let context = Context::create();
-        let mut compiler = Compiler::new(&program, &context);
+        let mut compiler = Compiler::new(&program, &context, overflow_policy);
         if let Err(err) = compiler.compile() {
             eprintln!("{}", err.get_stderr_message());
             exit(1);

@@ -7,13 +7,14 @@ use crate::{
             Compiler,
         },
         llvm_alu::llvm_value::LlvmValue,
+        OverflowPolicy,
     },
     common::types::Type,
     frontend::ast::{Expression, Literal},
 };
 
 fn with_main<'a, 'ctx>(program: &'a crate::frontend::ast::Program, context: &'ctx Context) -> Compiler<'a, 'ctx> {
-    let mut c = Compiler::new(program, context);
+    let mut c = Compiler::new(program, context, OverflowPolicy::Ignore);
     c.declare_main_function();
     c
 }

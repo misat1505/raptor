@@ -1,9 +1,12 @@
 use inkwell::context::Context;
 
 use crate::{
-    backend::llvm::compiler::{
-        tests::{empty_program, node, span},
-        Compiler,
+    backend::llvm::{
+        compiler::{
+            tests::{empty_program, node, span},
+            Compiler,
+        },
+        OverflowPolicy,
     },
     common::{types::Type, visitor::Visitor},
     frontend::ast::{
@@ -12,7 +15,7 @@ use crate::{
 };
 
 fn with_main<'a, 'ctx>(program: &'a Program, context: &'ctx Context) -> Compiler<'a, 'ctx> {
-    let mut c = Compiler::new(program, context);
+    let mut c = Compiler::new(program, context, OverflowPolicy::Ignore);
     c.declare_main_function();
     c
 }

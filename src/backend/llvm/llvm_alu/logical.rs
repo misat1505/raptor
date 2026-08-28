@@ -6,6 +6,7 @@ use crate::common::span::Span;
 
 impl LlvmAlu {
     pub fn concatenation<'ctx>(
+        &self,
         builder: &Builder<'ctx>,
         _libc: &LibcFunctions<'ctx>,
         left: LlvmValue<'ctx>,
@@ -22,6 +23,7 @@ impl LlvmAlu {
     }
 
     pub fn alternative<'ctx>(
+        &self,
         builder: &Builder<'ctx>,
         _libc: &LibcFunctions<'ctx>,
         left: LlvmValue<'ctx>,

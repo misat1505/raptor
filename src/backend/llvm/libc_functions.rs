@@ -1,11 +1,13 @@
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::values::FunctionValue;
+use inkwell::values::{FunctionValue, GlobalValue};
 use inkwell::AddressSpace;
 
 pub struct LibcFunctions<'ctx> {
     pub printf_fn: FunctionValue<'ctx>,
     pub snprintf_fn: FunctionValue<'ctx>,
+    pub fprintf_fn: FunctionValue<'ctx>,
+    pub stderr: GlobalValue<'ctx>,
     pub strcmp_fn: FunctionValue<'ctx>,
     pub strlen_fn: FunctionValue<'ctx>,
     pub strcpy_fn: FunctionValue<'ctx>,
@@ -17,6 +19,7 @@ pub struct LibcFunctions<'ctx> {
     pub memcpy_fn: FunctionValue<'ctx>,
     pub free_fn: FunctionValue<'ctx>,
     pub usleep_fn: FunctionValue<'ctx>,
+    pub exit_fn: FunctionValue<'ctx>,
 
     // files
     pub fopen_fn: FunctionValue<'ctx>,
@@ -57,6 +60,10 @@ impl<'ctx> LibcFunctions<'ctx> {
             i32_type.fn_type(&[str_type.into(), i64_type.into(), str_type.into()], true),
             None,
         );
+        let fprintf_fn = module.add_function("fprintf", i32_type.fn_type(&[str_type.into(), str_type.into()], true), None);
+
+        let stderr = module.add_global(str_type, None, "stderr");
+
         let strcmp_fn = module.add_function("strcmp", i32_type.fn_type(&[str_type.into(), str_type.into()], false), None);
         let strlen_fn = module.add_function("strlen", i64_type.fn_type(&[str_type.into()], false), None);
         let strcpy_fn = module.add_function("strcpy", str_type.fn_type(&[str_type.into(), str_type.into()], false), None);
@@ -72,6 +79,8 @@ impl<'ctx> LibcFunctions<'ctx> {
             None,
         );
         let usleep_fn = module.add_function("usleep", i32_type.fn_type(&[i32_type.into()], false), None);
+        let exit_fn_type = context.void_type().fn_type(&[context.i32_type().into()], false);
+        let exit_fn = module.add_function("exit", exit_fn_type, None);
         let fopen_fn = module.add_function("fopen", str_type.fn_type(&[str_type.into(), str_type.into()], false), None);
         let fclose_fn = module.add_function("fclose", i32_type.fn_type(&[str_type.into()], false), None);
         let fread_fn = module.add_function(
@@ -140,6 +149,8 @@ impl<'ctx> LibcFunctions<'ctx> {
         LibcFunctions {
             printf_fn,
             snprintf_fn,
+            fprintf_fn,
+            stderr,
             strcmp_fn,
             strlen_fn,
             strcpy_fn,
@@ -151,6 +162,7 @@ impl<'ctx> LibcFunctions<'ctx> {
             realloc_fn,
             memcpy_fn,
             usleep_fn,
+            exit_fn,
             accept_fn,
             access_fn,
             bind_fn,

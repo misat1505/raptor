@@ -1,12 +1,15 @@
 use inkwell::{context::Context, OptimizationLevel};
 
-use crate::backend::llvm::compiler::{tests::empty_program, Compiler};
+use crate::backend::llvm::{
+    compiler::{tests::empty_program, Compiler},
+    OverflowPolicy,
+};
 
 #[test]
 fn new_compiler_has_empty_state() {
     let context = Context::create();
     let program = empty_program();
-    let compiler = Compiler::new(&program, &context);
+    let compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     assert!(compiler.main_fn.is_none());
     assert!(compiler.functions.is_empty());
@@ -19,7 +22,7 @@ fn new_compiler_has_empty_state() {
 fn declare_main_function_creates_entry() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     compiler.declare_main_function();
 
@@ -33,7 +36,7 @@ fn declare_main_function_creates_entry() {
 fn finish_main_function_adds_return_when_missing() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     compiler.declare_main_function();
     let main = compiler.main_fn.unwrap();
@@ -48,7 +51,7 @@ fn finish_main_function_adds_return_when_missing() {
 fn finish_main_function_does_not_double_terminate() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     compiler.declare_main_function();
     // manually add a return
@@ -67,7 +70,7 @@ fn finish_main_function_does_not_double_terminate() {
 fn compile_empty_program_succeeds() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     assert!(compiler.compile().is_ok());
     assert!(compiler.main_fn.is_some());
@@ -77,7 +80,7 @@ fn compile_empty_program_succeeds() {
 fn compile_empty_program_produces_valid_ir() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     compiler.compile().unwrap();
     let ir = compiler.print_ir();
@@ -89,7 +92,7 @@ fn compile_empty_program_produces_valid_ir() {
 fn verify_module_ok_after_compile() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     compiler.compile().unwrap();
     assert!(compiler.verify_module().is_ok());
@@ -99,7 +102,7 @@ fn verify_module_ok_after_compile() {
 fn read_last_value_errors_when_empty() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     let err = compiler.read_last_value().unwrap_err();
     assert!(err.message().contains("No value produced"));
@@ -109,7 +112,7 @@ fn read_last_value_errors_when_empty() {
 fn set_and_read_last_value() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     let v = crate::backend::llvm::llvm_alu::llvm_value::LlvmValue::I64(context.i64_type().const_int(42, true));
     compiler.set_last_value(v);
@@ -125,7 +128,7 @@ fn set_and_read_last_value() {
 fn get_variable_undeclared_fails() {
     let context = Context::create();
     let program = empty_program();
-    let compiler = Compiler::new(&program, &context);
+    let compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     let err = compiler.get_variable("nope").unwrap_err();
     assert!(err.message().contains("Undeclared variable"));
@@ -135,7 +138,7 @@ fn get_variable_undeclared_fails() {
 fn type_helpers_match_context() {
     let context = Context::create();
     let program = empty_program();
-    let compiler = Compiler::new(&program, &context);
+    let compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     assert_eq!(compiler.i64_type().get_bit_width(), 64);
     assert_eq!(compiler.i32_type().get_bit_width(), 32);
@@ -147,7 +150,7 @@ fn type_helpers_match_context() {
 fn optimize_after_compile() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     compiler.compile().unwrap();
     if compiler.optimize(OptimizationLevel::Default).is_ok() {
@@ -165,7 +168,7 @@ fn optimize_all_levels() {
     ] {
         let context = Context::create();
         let program = empty_program();
-        let mut compiler = Compiler::new(&program, &context);
+        let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
         compiler.compile().unwrap();
         // just ensure it doesn't panic; native target may be unavailable
         let _ = compiler.optimize(level);
@@ -176,7 +179,7 @@ fn optimize_all_levels() {
 fn print_ir_non_empty_after_compile() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     compiler.compile().unwrap();
     let ir = compiler.print_ir();
@@ -188,7 +191,7 @@ fn print_ir_non_empty_after_compile() {
 fn write_ir_to_file() {
     let context = Context::create();
     let program = empty_program();
-    let mut compiler = Compiler::new(&program, &context);
+    let mut compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
     compiler.compile().unwrap();
 
     let path = std::env::temp_dir().join(format!("test_ir_{}.ll", std::process::id()));
@@ -203,7 +206,7 @@ fn write_ir_to_file() {
 fn builder_and_libc_and_context_accessible() {
     let context = Context::create();
     let program = empty_program();
-    let compiler = Compiler::new(&program, &context);
+    let compiler = Compiler::new(&program, &context, OverflowPolicy::Ignore);
 
     let _ = compiler.builder();
     let _ = compiler.libc();

@@ -6,6 +6,7 @@ use std::{
 
 use gag::BufferRedirect;
 use inkwell::context::Context;
+use raptor_lib::backend::llvm::OverflowPolicy;
 
 use crate::{
     backend::{interpreter::interpreter::Interpreter, llvm::compiler::Compiler},
@@ -94,10 +95,10 @@ fn run_command(program: &str, args: &[&str], step_description: &str) {
     }
 }
 
-pub fn capture_compiled_output(program: &Program) -> String {
+pub fn capture_compiled_output_with_policy(program: &Program, overflow_policy: OverflowPolicy) -> (String, String, i32) {
     let context = Context::create();
 
-    let mut compiler = Compiler::new(program, &context);
+    let mut compiler = Compiler::new(program, &context, overflow_policy);
     compiler.compile().expect("compilation failed");
 
     let id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -129,13 +130,25 @@ pub fn capture_compiled_output(program: &Program) -> String {
 
     let output = Command::new(&exe_path).output().expect("failed to run compiled binary");
 
-    assert!(output.status.success(), "compiled binary exited with a non-zero status");
+    let stdout = String::from_utf8(output.stdout).expect("compiled binary produced non-UTF8 stdout");
+
+    let stderr = String::from_utf8(output.stderr).expect("compiled binary produced non-UTF8 stderr");
+
+    let exit_code = output.status.code().unwrap_or(1);
 
     let _ = std::fs::remove_file(&ir_path);
     let _ = std::fs::remove_file(&obj_path);
     let _ = std::fs::remove_file(&exe_path);
 
-    String::from_utf8(output.stdout).expect("compiled binary produced non-UTF8 output")
+    (stdout, stderr, exit_code)
+}
+
+pub fn capture_compiled_output(program: &Program) -> String {
+    let (stdout, _, exit_code) = capture_compiled_output_with_policy(program, OverflowPolicy::Ignore);
+
+    assert_eq!(exit_code, 0, "compiled binary exited with a non-zero status");
+
+    stdout
 }
 
 pub fn assert_same_output(text: BufReader<&[u8]>, expected: &str) {

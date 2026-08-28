@@ -28,6 +28,7 @@ impl LlvmAlu {
     }
 
     pub fn greater<'ctx>(
+        &self,
         builder: &Builder<'ctx>,
         _libc: &LibcFunctions<'ctx>,
         left: LlvmValue<'ctx>,
@@ -58,6 +59,7 @@ impl LlvmAlu {
     }
 
     pub fn greater_or_equal<'ctx>(
+        &self,
         builder: &Builder<'ctx>,
         _libc: &LibcFunctions<'ctx>,
         left: LlvmValue<'ctx>,
@@ -85,6 +87,7 @@ impl LlvmAlu {
     }
 
     pub fn less<'ctx>(
+        &self,
         builder: &Builder<'ctx>,
         _libc: &LibcFunctions<'ctx>,
         left: LlvmValue<'ctx>,
@@ -112,6 +115,7 @@ impl LlvmAlu {
     }
 
     pub fn less_or_equal<'ctx>(
+        &self,
         builder: &Builder<'ctx>,
         _libc: &LibcFunctions<'ctx>,
         left: LlvmValue<'ctx>,
@@ -139,6 +143,7 @@ impl LlvmAlu {
     }
 
     pub fn equal<'ctx>(
+        &self,
         builder: &Builder<'ctx>,
         libc: &LibcFunctions<'ctx>,
         left: LlvmValue<'ctx>,
@@ -179,6 +184,7 @@ impl LlvmAlu {
     }
 
     pub fn not_equal<'ctx>(
+        &self,
         builder: &Builder<'ctx>,
         libc: &LibcFunctions<'ctx>,
         left: LlvmValue<'ctx>,

@@ -1,5 +1,7 @@
 use inkwell::builder::Builder;
-use inkwell::AddressSpace;
+use inkwell::context::Context;
+use inkwell::values::IntValue;
+use inkwell::{AddressSpace, IntPredicate};
 
 use super::Compiler;
 use crate::common::types::Type;
@@ -25,7 +27,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         span: Span,
     ) -> Result<(), Box<dyn IError>>
     where
-        F: Fn(&Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, LlvmValue<'ctx>, Span) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
+        F: Fn(&LlvmAlu, &Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, LlvmValue<'ctx>, Span) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
     {
         self.visit_expression(lhs)?;
         let left_value = self.read_last_value()?;
@@ -33,7 +35,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.visit_expression(rhs)?;
         let right_value = self.read_last_value()?;
 
-        let value = op(&self.builder, &self.libc, left_value, right_value, span)?;
+        let value = op(&self.llvm_alu, &self.builder, &self.libc, left_value, right_value, span)?;
 
         self.last_value = Some(value);
 
@@ -47,12 +49,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         span: Span,
     ) -> Result<(), Box<dyn IError>>
     where
-        F: Fn(&Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, Span) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
+        F: Fn(&LlvmAlu, &Builder<'ctx>, &LibcFunctions<'ctx>, LlvmValue<'ctx>, Span) -> Result<LlvmValue<'ctx>, Box<dyn IError>>,
     {
         self.visit_expression(value)?;
         let computed_value = self.read_last_value()?;
 
-        let value = op(&self.builder, &self.libc, computed_value, span)?;
+        let value = op(&self.llvm_alu, &self.builder, &self.libc, computed_value, span)?;
 
         self.last_value = Some(value);
 
@@ -111,7 +113,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.visit_expression(value)?;
                 let source_value = self.read_last_value()?;
 
-                self.last_value = Some(LlvmAlu::cast_to_type(&self.builder, &self.libc, source_value, &to_type.value, span)?);
+                self.last_value = Some(
+                    self.llvm_alu
+                        .cast_to_type(&self.builder, &self.libc, source_value, &to_type.value, span)?,
+                );
 
                 Ok(())
             }
@@ -126,6 +131,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                         let struct_type = LlvmValue::vector_struct_type(self.context);
                         let ptr_type = self.context.ptr_type(AddressSpace::default());
+                        let i64_type = self.context.i64_type();
 
                         let inner_type = match &collection_type {
                             Type::Vector(inner) => self.resolve_type(inner),
@@ -144,16 +150,29 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             .build_struct_gep(struct_type, *vector_ptr, 0, "idx.data")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
+                        let length_field = self
+                            .builder
+                            .build_struct_gep(struct_type, *vector_ptr, 1, "idx.length")
+                            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
                         let data = self
                             .builder
                             .build_load(ptr_type, data_field, "idx.data.val")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                             .into_pointer_value();
 
+                        let length = self
+                            .builder
+                            .build_load(i64_type, length_field, "idx.length.val")
+                            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
+                            .into_int_value();
+
                         self.visit_expression(index)?;
 
                         let index_value = self.read_last_value()?;
                         let index_int = index_value.into_i64_value(index.span)?;
+
+                        self.emit_bounds_check(&self.builder, &self.libc, self.context, index_int, length, index.span)?;
 
                         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
@@ -186,6 +205,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let index_int = index_value.into_i64_value(index.span)?;
 
                         let i8_type = self.context.i8_type();
+
+                        let length = self
+                            .builder
+                            .build_call(self.libc.strlen_fn, &[(*str_ptr).into()], "str.idx.len")
+                            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
+                            .try_as_basic_value()
+                            .basic()
+                            .expect("strlen should return a value")
+                            .into_int_value();
+
+                        self.emit_bounds_check(&self.builder, &self.libc, self.context, index_int, length, index.span)?;
 
                         let element_ptr = unsafe {
                             self.builder
@@ -380,5 +410,75 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Ok(())
             }
         }
+    }
+
+    pub(in crate::backend::llvm::compiler) fn emit_bounds_check(
+        &self,
+        builder: &Builder<'ctx>,
+        libc: &LibcFunctions<'ctx>,
+        context: &'ctx Context,
+        index: IntValue<'ctx>,
+        length: IntValue<'ctx>,
+        span: Span,
+    ) -> Result<(), Box<dyn IError>> {
+        let i64_type = context.i64_type();
+        let zero = i64_type.const_int(0, false);
+
+        let lt_zero = builder
+            .build_int_compare(IntPredicate::SLT, index, zero, "bounds.lt_zero")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        let ge_length = builder
+            .build_int_compare(IntPredicate::SGE, index, length, "bounds.ge_length")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        let out_of_bounds = builder
+            .build_or(lt_zero, ge_length, "bounds.out_of_range")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        let function = builder
+            .get_insert_block()
+            .expect("builder should be positioned inside a function")
+            .get_parent()
+            .expect("basic block should belong to a function");
+
+        let error_block = context.append_basic_block(function, "bounds.error");
+        let merge_block = context.append_basic_block(function, "bounds.continue");
+
+        builder
+            .build_conditional_branch(out_of_bounds, error_block, merge_block)
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        builder.position_at_end(error_block);
+
+        let error = CompilerError::at(ErrorSeverity::HIGH, String::from("Index out of bounds."), span);
+
+        let message = error.get_stderr_message();
+
+        let format_str = builder
+            .build_global_string_ptr(&message, "bounds.msg")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        let stderr = builder
+            .build_load(context.ptr_type(AddressSpace::default()), libc.stderr.as_pointer_value(), "stderr")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        builder
+            .build_call(libc.fprintf_fn, &[stderr.into(), format_str.as_pointer_value().into()], "bounds.fprintf")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        let i32_type = context.i32_type();
+
+        builder
+            .build_call(libc.exit_fn, &[i32_type.const_int(1, false).into()], "bounds.exit")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        builder
+            .build_unreachable()
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        builder.position_at_end(merge_block);
+
+        Ok(())
     }
 }

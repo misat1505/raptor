@@ -3,16 +3,19 @@ use std::rc::Rc;
 use inkwell::context::Context;
 
 use crate::{
-    backend::llvm::compiler::{
-        tests::{empty_program, node, span},
-        Compiler,
+    backend::llvm::{
+        compiler::{
+            tests::{empty_program, node, span},
+            Compiler,
+        },
+        OverflowPolicy,
     },
     common::types::Type,
     frontend::ast::{Argument, Block, Expression, ExternFunctionDeclaration, FunctionDeclaration, Literal, Parameter, PassedBy, Program, Statement},
 };
 
 fn with_main<'a, 'ctx>(program: &'a Program, context: &'ctx Context) -> Compiler<'a, 'ctx> {
-    let mut c = Compiler::new(program, context);
+    let mut c = Compiler::new(program, context, OverflowPolicy::Ignore);
     c.declare_main_function();
     c
 }

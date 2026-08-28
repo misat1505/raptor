@@ -50,7 +50,7 @@ impl Debug for Type {
             Type::Void => Ok(write!(f, "void")?),
             Type::Vector(inner) => write!(f, "{:?}[]", inner),
             Type::Struct { identifier, .. } => write!(f, "{}", identifier),
-            Type::Unresolved(name) => write!(f, "{}", name),
+            Type::Unresolved(name) => write!(f, "Unresolved({})", name),
             Type::Any => Ok(write!(f, "any")?),
         }
     }

@@ -200,7 +200,9 @@ impl<'a> SemanticChecker<'a> {
                         }
                     }
 
-                    self.last_result = Some(function_declaration.value.return_type.value.clone());
+                    self.last_result = self
+                        .resolve_type_fully_checked(&function_declaration.value.return_type.value, function_declaration.value.return_type.span)
+                        .ok();
 
                     self.hovers.push(HoverInfo {
                         contents: format!(
@@ -283,7 +285,9 @@ impl<'a> SemanticChecker<'a> {
                         }
                     }
 
-                    self.last_result = Some(function_declaration.value.return_type.value.clone());
+                    self.last_result = self
+                        .resolve_type_fully_checked(&function_declaration.value.return_type.value, function_declaration.value.return_type.span)
+                        .ok();
 
                     self.hovers.push(HoverInfo {
                         contents: format!(

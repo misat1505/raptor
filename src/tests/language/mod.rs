@@ -3,6 +3,7 @@ mod control_flow;
 mod expressions;
 mod functions;
 mod misc;
+mod out_of_bounds;
 mod overflow;
 mod primitive_values;
 mod references;

@@ -358,6 +358,14 @@ impl<'a> SemanticChecker<'a> {
         };
 
         if let Some(expected) = self.current_function_return_type.clone() {
+            if expected == Type::Void && value.is_some() {
+                self.errors.push(Box::new(SemanticCheckerError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Functions returning '{:?}' must use 'return;' without a return value.", Type::Void),
+                    statement.span,
+                )));
+            }
+
             let is_ok = match (&actual_type, &expected) {
                 (None, Type::Void) => true,
                 (Some(t), exp) => exp.is_compatible(t),
@@ -369,7 +377,7 @@ impl<'a> SemanticChecker<'a> {
 
                 self.errors.push(Box::new(SemanticCheckerError::type_mismatch(
                     ErrorSeverity::HIGH,
-                    String::from("wrong return type"),
+                    String::from("Wrong return type"),
                     &expected,
                     &got,
                     statement.span,

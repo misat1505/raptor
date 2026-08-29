@@ -271,10 +271,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                 let (struct_type, field_indices) = self.struct_llvm_type(&identifier.value, span)?;
 
+                // let struct_ptr = self
+                //     .builder
+                //     .build_alloca(struct_type, identifier.value.as_str())
+                //     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+                let size = struct_type.size_of().expect("struct type should be sized");
                 let struct_ptr = self
                     .builder
-                    .build_alloca(struct_type, identifier.value.as_str())
-                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                    .build_call(self.libc.malloc_fn, &[size.into()], "struct.malloc")
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
+                    .try_as_basic_value()
+                    .basic()
+                    .expect("malloc should return a value")
+                    .into_pointer_value();
 
                 for field in fields {
                     let field_name = field.value.identifier.value.as_str();

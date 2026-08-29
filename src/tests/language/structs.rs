@@ -57,6 +57,76 @@ println(user_repository_stringify(&repo));
 }
 
 #[test]
+fn user_repository2() {
+    let text = BufReader::new(
+        r##"
+struct User {
+    u64 id,
+    str name
+};
+
+fn user_init(u64 id, str name): User {
+    return User { id, name };
+}
+
+fn user_repr(&User user): str {
+    let text = "User { id: " + user.id as str + ", name: \"" + user.name + "\" }";
+    return text;
+}
+
+struct UserRepository {
+    User[] users
+};
+
+fn user_repository_init(): UserRepository {
+    return UserRepository { users: [] };
+}
+
+fn user_repository_add_user(&UserRepository repo, User user): void {
+    vector_push(&repo.users, user);
+}
+
+fn user_repository_repr(&UserRepository repo): str {
+    let is_empty = vector_size(&repo.users) == 0;
+    let text = "UserRepository { users: [";
+    if (!is_empty) text += " ";
+
+    for (let i = 0; i < vector_size(&repo.users); i += 1) {
+        if (i != 0) text += ", ";
+        text += user_repr(&repo.users[i]);
+    }
+
+    if (!is_empty) text += " ";
+    text += "] }";
+
+    return text;
+}
+
+let repo = UserRepository { users: [] };
+println(user_repository_repr(&repo));
+
+let users_reference = repo.users;
+
+let user1 = user_init(1 as u64, "Elon");
+
+println(user_repr(&user1));
+
+user_repository_add_user(&repo, user1);
+println(user_repository_repr(&repo));
+
+vector_push(&users_reference, User { id: 2 as u64, name: "Fred" });
+println(user_repository_repr(&repo));
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(
+        text,
+        "UserRepository { users: [] }\nUser { id: 1, name: \"Elon\" }\nUserRepository { users: [ User { id: 1, name: \"Elon\" } ] }\nUserRepository { users: [ User { id: 1, name: \"Elon\" }, User { id: 2, name: \"Fred\" } ] }\n",
+    );
+}
+
+#[test]
 fn users_and_posts() {
     let text = BufReader::new(
         r##"

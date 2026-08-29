@@ -5,6 +5,7 @@ use inkwell::AddressSpace;
 
 pub struct LibcFunctions<'ctx> {
     pub printf_fn: FunctionValue<'ctx>,
+    pub fflush_fn: FunctionValue<'ctx>,
     pub snprintf_fn: FunctionValue<'ctx>,
     pub fprintf_fn: FunctionValue<'ctx>,
     pub stderr: GlobalValue<'ctx>,
@@ -55,6 +56,7 @@ impl<'ctx> LibcFunctions<'ctx> {
         let ptr_type = context.ptr_type(AddressSpace::default());
 
         let printf_fn = module.add_function("printf", i32_type.fn_type(&[str_type.into()], true), None);
+        let fflush_fn = module.add_function("fflush", i32_type.fn_type(&[str_type.into()], false), None);
         let snprintf_fn = module.add_function(
             "snprintf",
             i32_type.fn_type(&[str_type.into(), i64_type.into(), str_type.into()], true),
@@ -148,6 +150,7 @@ impl<'ctx> LibcFunctions<'ctx> {
 
         LibcFunctions {
             printf_fn,
+            fflush_fn,
             snprintf_fn,
             fprintf_fn,
             stderr,

@@ -194,3 +194,39 @@ println(user.posts[0][0].description.text);
 
     assert_same_output(text, "Elon\n123\ndescription\nnew description\n");
 }
+
+#[test]
+fn students() {
+    let text = BufReader::new(
+        r##"
+struct Student {
+    str first_name,
+    str last_name,
+    u8 age,
+    f64 average
+};
+
+fn student_repr(&Student student): str {
+    let text = "Student { first_name: \"" + student.first_name + "\", last_name: \"" + student.last_name + "\", age: " + student.age as str + ", average: " + student.average as str + " }";
+    return text;
+}
+
+fn students_repr(&Student[] students): str {
+    let text = "";
+    for (let i = 0; i < vector_size(&students); i += 1) {
+        text += student_repr(&students[i]) + "\n";
+    }
+    return text;
+}
+
+let students: Student[] = [];
+
+println(students_repr(&students));
+vector_push(&students, Student { first_name: "Bob", last_name: "Bobson", age: 12 as u8, average: 1.0 });
+println(students_repr(&students));
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(text, "\nStudent { first_name: \"Bob\", last_name: \"Bobson\", age: 12, average: 1 }\n\n");
+}

@@ -77,7 +77,7 @@ impl<'a> SemanticChecker<'a> {
                     Some(var_type) => {
                         let _ = self.visit_type(var_type);
                         let declared_type = match self.read_last_result(var_type.span) {
-                            Ok(declared_type) => declared_type,
+                            Ok(declared_type) => self.resolve_type_fully_checked(&declared_type, var_type.span)?,
                             Err(_) => return Ok(()),
                         };
 

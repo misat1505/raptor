@@ -152,8 +152,9 @@ impl<'a> Interpreter<'a> {
                                         )));
                                     }
 
+                                    let resolved_var_type = self.resolve_type(&var_type.value);
                                     computed_value = Value::Vector {
-                                        kind: Box::new(var_type.value.clone()),
+                                        kind: Box::new(resolved_var_type.clone()),
                                         values: values.clone(),
                                     };
                                 }
@@ -185,7 +186,8 @@ impl<'a> Interpreter<'a> {
                     let resolved_type = computed_value.to_type();
 
                     if let Some(var_type) = var_type {
-                        if var_type.value != resolved_type {
+                        let resolved_var_type = self.resolve_type(&var_type.value);
+                        if resolved_var_type != resolved_type {
                             return Err(Box::new(InterpreterError::expected_found(
                                 ErrorSeverity::HIGH,
                                 format!("Cannot assign value to variable '{}'.", identifier.value),

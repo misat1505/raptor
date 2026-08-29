@@ -111,20 +111,22 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             )));
                         };
 
-                        let Type::Vector(inner) = &var_type.value else {
+                        let resolved_var_type = self.resolve_type(&var_type.value);
+
+                        let Type::Vector(inner) = &resolved_var_type else {
                             return Err(Box::new(CompilerError::expected_found(
                                 ErrorSeverity::HIGH,
                                 format!("Cannot assign value to variable '{}'.", identifier.value),
-                                format!("{:?}", var_type.value),
+                                format!("{:?}", resolved_var_type),
                                 "empty vector".to_string(),
                                 span,
                             )));
                         };
 
-                        let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type.value, self.context).ok_or_else(|| {
+                        let llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_var_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling declarations of type '{:?}' is not yet supported.", var_type.value),
+                                format!("Compiling declarations of type '{:?}' is not yet supported.", resolved_var_type),
                                 span,
                             )) as Box<dyn IError>
                         })?;
@@ -140,7 +142,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             .build_store(ptr, vector_ptr)
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
-                        self.variables.insert(identifier.value.clone(), (ptr, var_type.value.clone()));
+                        self.variables.insert(identifier.value.clone(), (ptr, resolved_var_type.clone()));
 
                         return Ok(());
                     } else {

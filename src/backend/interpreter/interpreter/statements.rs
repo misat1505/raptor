@@ -138,7 +138,7 @@ impl<'a> Interpreter<'a> {
                         )) as Box<dyn IError>
                     })?;
 
-                    if let Value::Vector { kind: _, ref values } = computed_value {
+                    if let Value::Vector { ref kind, ref values } = computed_value {
                         if values.borrow().is_empty() {
                             match var_type {
                                 Some(var_type) => {
@@ -159,15 +159,24 @@ impl<'a> Interpreter<'a> {
                                 }
 
                                 None => {
-                                    return Err(Box::new(InterpreterError::at(
-                                        ErrorSeverity::HIGH,
-                                        format!(
-                                            "Cannot infer type of empty vector. Consider adding a type annotation, e.g. `let {}: {:?} = [];`.",
-                                            identifier.value,
-                                            Type::Vector(Box::new(Type::I64))
-                                        ),
-                                        statement.span,
-                                    )));
+                                    let resolved_kind = self.resolve_type(kind);
+
+                                    if !matches!(resolved_kind, Type::Unresolved(_)) {
+                                        computed_value = Value::Vector {
+                                            kind: Box::new(resolved_kind),
+                                            values: values.clone(),
+                                        };
+                                    } else {
+                                        return Err(Box::new(InterpreterError::at(
+                                            ErrorSeverity::HIGH,
+                                            format!(
+                                                "Cannot infer type of empty vector. Consider adding a type annotation, e.g. `let {}: {:?} = [];`.",
+                                                identifier.value,
+                                                Type::Vector(Box::new(Type::I64))
+                                            ),
+                                            statement.span,
+                                        )));
+                                    }
                                 }
                             }
                         }

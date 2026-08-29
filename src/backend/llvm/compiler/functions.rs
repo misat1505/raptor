@@ -274,9 +274,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
         let return_type = if let Some(function) = self.program.functions.get(name) {
-            &function.value.return_type.value
+            &self.resolve_type(&function.value.return_type.value)
         } else if let Some(function) = self.program.extern_functions.get(name) {
-            &function.value.return_type.value
+            &self.resolve_type(&function.value.return_type.value)
         } else {
             return Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,

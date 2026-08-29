@@ -463,7 +463,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let error = CompilerError::at(ErrorSeverity::HIGH, String::from("Index out of bounds."), span);
 
-        let message = error.get_stderr_message();
+        let message = format!("{}\n", error.get_stderr_message());
 
         let format_str = builder
             .build_global_string_ptr(&message, "bounds.msg")

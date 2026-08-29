@@ -730,7 +730,7 @@ impl LlvmAlu {
 
         let error = CompilerError::at(self.overflow_policy.severity(), description.to_string(), span);
 
-        let message = error.get_stderr_message();
+        let message = format!("{}\n", error.get_stderr_message());
 
         let format_str = builder
             .build_global_string_ptr(&message, "overflow.msg")

@@ -2,7 +2,7 @@ use super::common::{empty_program, node, run_check};
 use crate::{
     common::types::Type,
     frontend::ast::{Argument, Block, Expression, Literal, Parameter, PassedBy, Program, Statement, VariableDeclarationKind},
-    semantic::semantic_checker::tests::common::make_function,
+    semantic::semantic_checker::tests::common::{assert_one_unused_warning, make_function},
 };
 use std::{collections::HashMap, vec};
 
@@ -194,7 +194,7 @@ fn function_call_reference_with_index_expression_is_valid() {
             passed_by: PassedBy::Reference,
         }))],
     }));
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -315,7 +315,7 @@ fn function_call_expression_produces_return_type() {
             })),
         },
     }));
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -394,7 +394,7 @@ fn reference_parameter_with_correct_variable_is_valid() {
             passed_by: PassedBy::Reference,
         }))],
     }));
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]

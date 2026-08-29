@@ -2,7 +2,7 @@ use super::common::{empty_program, node, run_check};
 use crate::{
     common::types::Type,
     frontend::ast::{Accessor, Block, Expression, Literal, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
-    semantic::semantic_checker::tests::common::make_function,
+    semantic::semantic_checker::tests::common::{assert_one_unused_warning, make_function},
 };
 use std::{collections::HashMap, vec};
 
@@ -16,7 +16,7 @@ fn valid_declaration_has_no_errors() {
             value: Some(node!(Expression::Literal(Literal::I64(5)))),
         },
     }));
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -30,7 +30,8 @@ fn declaration_type_mismatch_reports_error() {
         },
     }));
     let errors = run_check(&program);
-    assert_eq!(errors.len(), 1);
+    // 1 error + 1 unused warning
+    assert_eq!(errors.len(), 2);
     assert!(errors[0].contains("Cannot assign a value of type `bool` to variable `x` of type `i64`."));
     assert!(errors[0].contains("expected: i64"));
     assert!(errors[0].contains("found:    bool"));
@@ -46,7 +47,7 @@ fn declaration_without_value_uses_default_type() {
             value: None,
         },
     }));
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -59,7 +60,7 @@ fn empty_vector_literal_matches_any_vector_type() {
             value: Some(node!(Expression::Vector(vec![]))),
         },
     }));
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]

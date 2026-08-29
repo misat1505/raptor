@@ -6,7 +6,7 @@ use std::{
 
 use gag::BufferRedirect;
 use inkwell::context::Context;
-use raptor_lib::backend::llvm::OverflowPolicy;
+use raptor_lib::{backend::llvm::OverflowPolicy, common::errors::ErrorSeverity};
 
 use crate::{
     backend::{interpreter::interpreter::Interpreter, llvm::compiler::Compiler},
@@ -52,7 +52,13 @@ fn setup_program_impl(text: BufReader<&[u8]>, skip_typecheck: bool) -> Program {
         let mut checker = SemanticChecker::new(&program).unwrap();
         checker.check();
 
-        assert_eq!(checker.errors.len(), 0, "semantic checker found unexpected errors");
+        let real_errors: Vec<_> = checker
+            .errors
+            .iter()
+            .filter(|e| matches!(e.get_severity(), ErrorSeverity::HIGH))
+            .collect();
+
+        assert_eq!(real_errors.len(), 0, "semantic checker found unexpected errors: {:?}", real_errors);
     }
 
     program

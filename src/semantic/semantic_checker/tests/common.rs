@@ -50,3 +50,14 @@ pub fn make_function(
         })),
     )
 }
+
+pub fn assert_one_unused_warning(errors: &Vec<String>) {
+    let unused: Vec<_> = errors.iter().filter(|e| e.contains("Unused variable")).collect();
+    assert_eq!(
+        unused.len(),
+        1,
+        "expected exactly 1 unused-variable warning, got {} in: {:?}",
+        unused.len(),
+        errors
+    );
+}

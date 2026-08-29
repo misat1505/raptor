@@ -107,7 +107,7 @@ fn index_expression_on_non_vector_reports_error() {
     }));
 
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("cannot index into value")));
+    assert!(errors.iter().any(|e| e.contains("Cannot index into a value of type")));
 }
 
 #[test]
@@ -134,7 +134,7 @@ fn index_with_non_i64_index_reports_error() {
     }));
 
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("array index must be `i64`")));
+    assert!(errors.iter().any(|e| e.contains("Array index must be of type `i64`.")));
 }
 
 #[test]

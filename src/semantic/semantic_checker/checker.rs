@@ -44,7 +44,7 @@ impl<'a> SemanticChecker<'a> {
         match self.last_result.take() {
             Some(t) => Ok(t),
             None => {
-                let error = SemanticCheckerError::at(ErrorSeverity::HIGH, String::from("No type produced where it is needed."), span);
+                let error = SemanticCheckerError::at(ErrorSeverity::HIGH, String::from("Expected a type, but none was produced."), span);
 
                 Err(Box::new(error))
             }

@@ -1,12 +1,10 @@
-use std::{collections::HashMap, vec};
-
+use super::common::{empty_program, node, run_check};
 use crate::{
     common::types::Type,
     frontend::ast::{Accessor, Block, Expression, Literal, Program, Statement, SwitchCase, SwitchExpression, VariableDeclarationKind},
     semantic::semantic_checker::tests::common::make_function,
 };
-
-use super::common::{empty_program, node, run_check};
+use std::{collections::HashMap, vec};
 
 #[test]
 fn valid_declaration_has_no_errors() {
@@ -18,7 +16,6 @@ fn valid_declaration_has_no_errors() {
             value: Some(node!(Expression::Literal(Literal::I64(5)))),
         },
     }));
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -32,10 +29,9 @@ fn declaration_type_mismatch_reports_error() {
             value: Some(node!(Expression::Literal(Literal::True))),
         },
     }));
-
     let errors = run_check(&program);
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].contains("Cannot assign `bool` to `x`."));
+    assert!(errors[0].contains("Cannot assign a value of type `bool` to variable `x` of type `i64`."));
     assert!(errors[0].contains("expected: i64"));
     assert!(errors[0].contains("found:    bool"));
 }
@@ -50,7 +46,6 @@ fn declaration_without_value_uses_default_type() {
             value: None,
         },
     }));
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -64,7 +59,6 @@ fn empty_vector_literal_matches_any_vector_type() {
             value: Some(node!(Expression::Vector(vec![]))),
         },
     }));
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -81,9 +75,8 @@ fn vector_literal_with_mixed_types_reports_error() {
             ]))),
         },
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("vector elements have mismatched types")));
+    assert!(errors.iter().any(|e| e.contains("Vector elements have mismatched types.")));
 }
 
 #[test]
@@ -94,7 +87,6 @@ fn assignment_to_undeclared_variable_reports_error() {
         accessors: vec![],
         value: node!(Expression::Literal(Literal::I64(5))),
     }));
-
     let errors = run_check(&program);
     assert!(errors.iter().any(|e| e.contains("not declared")));
 }
@@ -114,7 +106,6 @@ fn assignment_type_mismatch_reports_error() {
         accessors: vec![],
         value: node!(Expression::Literal(Literal::True)),
     }));
-
     let errors = run_check(&program);
     assert!(errors.iter().any(|e| e.contains("Cannot assign")));
 }
@@ -127,9 +118,8 @@ fn condition_must_be_bool_in_if() {
         if_block: node!(Block(vec![])),
         else_block: None,
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("if condition must be `bool`")));
+    assert!(errors.iter().any(|e| e.contains("If condition must be of type `bool`.")));
 }
 
 #[test]
@@ -141,20 +131,16 @@ fn condition_must_be_bool_in_for_loop() {
         assignment: None,
         block: node!(Block(vec![])),
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("for loop condition must be `bool`")));
+    assert!(errors.iter().any(|e| e.contains("For loop condition must be of type `bool`.")));
 }
 
 #[test]
 fn break_outside_loop_reports_error() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Break));
-
     let errors = run_check(&program);
-    assert!(errors
-        .iter()
-        .any(|e| e.contains("Break statement is not inside a loop nor inside a switch case")));
+    assert!(errors.iter().any(|e| e.contains("Break statement is not inside a loop or switch case.")));
 }
 
 #[test]
@@ -166,7 +152,6 @@ fn break_inside_for_loop_is_ok() {
         assignment: None,
         block: node!(Block(vec![node!(Statement::Break)])),
     }));
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -185,7 +170,7 @@ fn continue_outside_loop_reports_error() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Continue));
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("Continue statement is not inside a loop")));
+    assert!(errors.iter().any(|e| e.contains("Continue statement is not inside a loop.")));
 }
 
 #[test]
@@ -209,7 +194,7 @@ fn continue_inside_switch_case_reports_error() {
         })],
     }));
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("Continue statement is not inside a loop")));
+    assert!(errors.iter().any(|e| e.contains("Continue statement is not inside a loop.")));
 }
 
 #[test]
@@ -222,9 +207,8 @@ fn switch_case_condition_must_be_bool() {
             block: node!(Block(vec![])),
         })],
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("switch case condition must be `bool`")));
+    assert!(errors.iter().any(|e| e.contains("Switch case condition must be of type `bool`.")));
 }
 
 #[test]
@@ -256,7 +240,6 @@ fn switch_expression_alias_is_declared_in_scope() {
             block: node!(Block(vec![])),
         })],
     }));
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -270,7 +253,6 @@ fn break_inside_switch_case_is_ok() {
             block: node!(Block(vec![node!(Statement::Break)])),
         })],
     }));
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -287,7 +269,6 @@ fn break_inside_if_inside_for_loop_is_ok() {
             else_block: None,
         })])),
     }));
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -295,9 +276,8 @@ fn break_inside_if_inside_for_loop_is_ok() {
 fn return_outside_function_reports_error() {
     let mut program = empty_program();
     program.statements.push(node!(Statement::Return(None)));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("return statement is not inside a function")));
+    assert!(errors.iter().any(|e| e.contains("Return statement is not inside a function.")));
 }
 
 #[test]
@@ -306,9 +286,8 @@ fn return_with_value_outside_function_reports_error() {
     program
         .statements
         .push(node!(Statement::Return(Some(node!(Expression::Literal(Literal::I64(5)))))));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("return statement is not inside a function")));
+    assert!(errors.iter().any(|e| e.contains("Return statement is not inside a function.")));
 }
 
 #[test]
@@ -321,7 +300,6 @@ fn return_inside_function_does_not_report_placement_error() {
         Block(vec![node!(Statement::Return(Some(node!(Expression::Literal(Literal::I64(5))))))]),
     );
     functions.insert(name, func);
-
     let program = Program {
         statements: vec![],
         functions,
@@ -330,9 +308,8 @@ fn return_inside_function_does_not_report_placement_error() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     let errors = run_check(&program);
-    assert!(!errors.iter().any(|e| e.contains("return statement is not inside a function")));
+    assert!(!errors.iter().any(|e| e.contains("Return statement is not inside a function.")));
 }
 
 #[test]
@@ -349,7 +326,6 @@ fn return_inside_nested_if_inside_function_is_ok() {
         })]),
     );
     functions.insert(name, func);
-
     let program = Program {
         statements: vec![],
         functions,
@@ -358,9 +334,8 @@ fn return_inside_nested_if_inside_function_is_ok() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     let errors = run_check(&program);
-    assert!(!errors.iter().any(|e| e.contains("return statement is not inside a function")));
+    assert!(!errors.iter().any(|e| e.contains("Return statement is not inside a function.")));
 }
 
 #[test]
@@ -377,15 +352,15 @@ fn else_block_is_type_checked() {
             },
         })]))),
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("Cannot assign `bool` to `x`.")));
+    assert!(errors
+        .iter()
+        .any(|e| e.contains("Cannot assign a value of type `bool` to variable `x` of type `i64`.")));
 }
 
 #[test]
 fn nested_index_assignment_is_valid() {
     let mut program = empty_program();
-
     program.statements.push(node!(Statement::Declaration {
         identifier: node!(String::from("matrix")),
         kind: VariableDeclarationKind::TYPE {
@@ -395,7 +370,6 @@ fn nested_index_assignment_is_valid() {
             ),]))),]))),
         },
     }));
-
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("matrix")),
         accessors: vec![
@@ -404,14 +378,12 @@ fn nested_index_assignment_is_valid() {
         ],
         value: node!(Expression::Literal(Literal::I64(42))),
     }));
-
     assert!(run_check(&program).is_empty());
 }
 
 #[test]
 fn index_assignment_with_non_i64_index_reports_error() {
     let mut program = empty_program();
-
     program.statements.push(node!(Statement::Declaration {
         identifier: node!(String::from("arr")),
         kind: VariableDeclarationKind::TYPE {
@@ -419,21 +391,18 @@ fn index_assignment_with_non_i64_index_reports_error() {
             value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1)))),]))),
         },
     }));
-
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("arr")),
         accessors: vec![node!(Accessor::Index(node!(Expression::Literal(Literal::True))))],
         value: node!(Expression::Literal(Literal::I64(2))),
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("array index must be `i64`")));
+    assert!(errors.iter().any(|e| e.contains("Array index must be of type `i64`.")));
 }
 
 #[test]
 fn index_assignment_into_non_vector_reports_error() {
     let mut program = empty_program();
-
     program.statements.push(node!(Statement::Declaration {
         identifier: node!(String::from("x")),
         kind: VariableDeclarationKind::TYPE {
@@ -441,21 +410,18 @@ fn index_assignment_into_non_vector_reports_error() {
             value: Some(node!(Expression::Literal(Literal::I64(1)))),
         },
     }));
-
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("x")),
         accessors: vec![node!(Accessor::Index(node!(Expression::Literal(Literal::I64(0)))))],
         value: node!(Expression::Literal(Literal::I64(2))),
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("Cannot index into value of type")));
+    assert!(errors.iter().any(|e| e.contains("Cannot index into a value of type")));
 }
 
 #[test]
 fn index_assignment_type_mismatch_reports_error() {
     let mut program = empty_program();
-
     program.statements.push(node!(Statement::Declaration {
         identifier: node!(String::from("arr")),
         kind: VariableDeclarationKind::TYPE {
@@ -463,22 +429,21 @@ fn index_assignment_type_mismatch_reports_error() {
             value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1)))),]))),
         },
     }));
-
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("arr")),
         accessors: vec![node!(Accessor::Index(node!(Expression::Literal(Literal::I64(0)))))],
         value: node!(Expression::Literal(Literal::True)),
     }));
-
     let errors = run_check(&program);
     assert!(errors.len() != 0);
-    assert!(errors.iter().any(|e| e.contains("Cannot assign `bool` to value of type `i64`.")));
+    assert!(errors
+        .iter()
+        .any(|e| e.contains("Cannot assign a value of type `bool` to a target of type `i64`.")));
 }
 
 #[test]
 fn index_assignment_updates_element() {
     let mut program = empty_program();
-
     program.statements.push(node!(Statement::Declaration {
         identifier: node!(String::from("arr")),
         kind: VariableDeclarationKind::TYPE {
@@ -486,12 +451,10 @@ fn index_assignment_updates_element() {
             value: Some(node!(Expression::Vector(vec![Box::new(node!(Expression::Literal(Literal::I64(1)))),]))),
         },
     }));
-
     program.statements.push(node!(Statement::Assignment {
         identifier: node!(String::from("arr")),
         accessors: vec![node!(Accessor::Index(node!(Expression::Literal(Literal::I64(0)))))],
         value: node!(Expression::Literal(Literal::I64(99))),
     }));
-
     assert!(run_check(&program).is_empty());
 }

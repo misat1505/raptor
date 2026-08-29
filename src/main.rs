@@ -295,7 +295,7 @@ fn main() {
                     ErrorSeverity::LOW => warnings += 1,
                 }
 
-                eprintln!("{}", error.get_stderr_message());
+                eprintln!("{}\n", error.get_stderr_message());
             }
 
             eprintln!("Static analysis finished with {} errors, {} warnings.", errors, warnings);

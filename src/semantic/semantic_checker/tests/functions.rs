@@ -268,7 +268,7 @@ fn function_with_bad_return_type_reports_error() {
     };
 
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("wrong return type")));
+    assert!(errors.iter().any(|e| e.contains("must use 'return;' without a return value")));
 }
 
 #[test]
@@ -435,7 +435,7 @@ fn missing_return_value_for_non_void_function_reports_error() {
         types: HashMap::new(),
     };
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("wrong return type")));
+    assert!(errors.iter().any(|e| e.contains("Wrong return type")));
 }
 
 #[test]

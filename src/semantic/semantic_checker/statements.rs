@@ -357,7 +357,8 @@ impl<'a> SemanticChecker<'a> {
             None => None,
         };
 
-        if let Some(expected) = self.current_function_return_type.clone() {
+        if let Some(fn_declaration) = self.current_function_declaration.clone() {
+            let expected = fn_declaration.return_type.value.clone();
             if expected == Type::Void && value.is_some() {
                 self.errors.push(Box::new(SemanticCheckerError::at(
                     ErrorSeverity::HIGH,

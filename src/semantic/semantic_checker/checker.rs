@@ -5,7 +5,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Expression, Node, Program},
+    frontend::ast::{Expression, FunctionDeclaration, Node, Program},
     semantic::stack::stack::StaticCheckerStack,
 };
 
@@ -21,7 +21,7 @@ pub struct SemanticChecker<'a> {
     pub(in crate::semantic::semantic_checker) last_result: Option<Type>,
     pub errors: Vec<Box<dyn IError>>,
     pub hovers: Vec<HoverInfo>,
-    pub(in crate::semantic::semantic_checker) current_function_return_type: Option<Type>,
+    pub(in crate::semantic::semantic_checker) current_function_declaration: Option<FunctionDeclaration>,
 }
 
 impl<'a> SemanticChecker<'a> {
@@ -32,7 +32,7 @@ impl<'a> SemanticChecker<'a> {
             hovers: vec![],
             stack: StaticCheckerStack::new(),
             last_result: None,
-            current_function_return_type: None,
+            current_function_declaration: None,
         })
     }
 

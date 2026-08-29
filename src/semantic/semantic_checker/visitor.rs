@@ -22,20 +22,35 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         for (_name, function) in &program.functions {
             self.stack.push_stack_frame().map_err(|err| Box::new(err));
 
-            let _ = self.visit_type(&function.value.return_type);
-            let resolved = self.read_last_result(function.value.return_type.span).ok();
-            self.current_function_return_type = resolved
-                .map(|t| self.resolve_type_fully_checked(&t, function.value.return_type.span))
-                .transpose()
-                .unwrap_or(None);
+            // Oryginalny node żyje przez 'a, więc visit_type() może go przyjąć.
+            self.visit_type(&function.value.return_type)?;
+
+            let raw_return_type = self.read_last_result(function.value.return_type.span)?;
+
+            let resolved_return_type = self.resolve_type_fully_checked(&raw_return_type, function.value.return_type.span)?;
+
+            // Dopiero teraz robimy lokalną kopię deklaracji.
+            let mut function_declaration = function.value.clone();
+
+            let return_type_span = function_declaration.return_type.span;
+
+            function_declaration.return_type = Node {
+                value: resolved_return_type,
+                span: return_type_span,
+            };
+
+            self.current_function_declaration = Some(function_declaration);
 
             for param in &function.value.parameters {
                 let param_name = &param.value.identifier.value;
+
                 self.visit_type(&param.value.parameter_type)?;
+
                 let raw_t = self.read_last_result(param.value.parameter_type.span)?;
+
                 let t = self.resolve_type_fully_checked(&raw_t, param.value.parameter_type.span)?;
 
-                if let Err(err) = self.stack.declare_variable(param_name, t.clone(), param.span) {
+                if let Err(err) = self.stack.declare_variable(param_name, t, param.span) {
                     self.errors
                         .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), param.span)));
                 }
@@ -43,7 +58,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
             self.visit_block(&function.value.block);
 
-            self.current_function_return_type = None;
+            self.current_function_declaration = None;
             self.stack.pop_stack_frame();
         }
 

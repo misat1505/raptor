@@ -52,7 +52,7 @@ impl<'a> SemanticChecker<'a> {
                     None => Some(declared_type.clone()),
                 };
                 if let Some(resolved_type) = resolved_type.clone() {
-                    if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), resolved_type, statement.span) {
+                    if let Err(err) = self.stack.declare_variable(identifier.value.as_str(), resolved_type, identifier.span) {
                         self.errors
                             .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
                     }
@@ -95,7 +95,7 @@ impl<'a> SemanticChecker<'a> {
                         }
                         if let Err(err) = self
                             .stack
-                            .declare_variable(identifier.value.as_str(), declared_type.clone(), statement.span)
+                            .declare_variable(identifier.value.as_str(), declared_type.clone(), identifier.span)
                         {
                             self.errors
                                 .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
@@ -127,7 +127,7 @@ impl<'a> SemanticChecker<'a> {
                                 self.errors.push(Box::new(error));
                             } else if let Err(err) = self
                                 .stack
-                                .declare_variable(identifier.value.as_str(), resolved_type.clone(), statement.span)
+                                .declare_variable(identifier.value.as_str(), resolved_type.clone(), identifier.span)
                             {
                                 self.errors
                                     .push(Box::new(SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), statement.span)));
@@ -389,7 +389,7 @@ impl<'a> SemanticChecker<'a> {
             Ok(resolved_type) => match &switch_expression.value.alias {
                 None => {}
                 Some(id) => {
-                    if let Err(err) = self.stack.declare_variable(id.value.as_str(), resolved_type, expression.span) {
+                    if let Err(err) = self.stack.declare_variable(id.value.as_str(), resolved_type, id.span) {
                         self.errors.push(Box::new(SemanticCheckerError::at(
                             ErrorSeverity::HIGH,
                             err.message(),

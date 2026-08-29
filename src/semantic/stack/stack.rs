@@ -69,7 +69,6 @@ impl<'a> StaticCheckerStack<'a> {
                 ),
             ));
         }
-
         self.0.push(StaticCheckerStackFrame::new());
         Ok(())
     }
@@ -90,6 +89,13 @@ impl<'a> StaticCheckerStack<'a> {
         }
     }
 
+    pub(in crate::semantic) fn unused_variables_in_current_scope(&self) -> Vec<(&'a str, Span)> {
+        match self.0.last() {
+            Some(last_frame) => last_frame.scope_manager.unused_variables_in_current_scope(),
+            None => vec![],
+        }
+    }
+
     pub(in crate::semantic) fn get_variable(&mut self, name: &'a str, span: Span) -> Result<&Type, ScopeManagerError> {
         match self.0.last_mut() {
             Some(last_frame) => last_frame.scope_manager.get_variable(name, span),
@@ -101,7 +107,6 @@ impl<'a> StaticCheckerStack<'a> {
         if let Some(last_frame) = self.0.last_mut() {
             last_frame.scope_manager.assign_variable(name, value, span)?;
         }
-
         Ok(())
     }
 
@@ -109,7 +114,6 @@ impl<'a> StaticCheckerStack<'a> {
         if let Some(last_frame) = self.0.last_mut() {
             last_frame.scope_manager.declare_variable(name, value, span)?;
         }
-
         Ok(())
     }
 }

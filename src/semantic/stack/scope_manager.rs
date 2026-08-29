@@ -28,13 +28,20 @@ impl<'a> StaticCheckerScopeManager<'a> {
         self.scopes.pop();
     }
 
-    pub(in crate::semantic::stack) fn get_variable(&self, searched: &'a str, span: Span) -> Result<&Type, ScopeManagerError> {
-        for scope in &self.scopes {
-            if let Some(var) = scope.get_variable(searched) {
-                return Ok(var);
+    pub(in crate::semantic::stack) fn unused_variables_in_current_scope(&self) -> Vec<(&'a str, Span)> {
+        match self.scopes.last() {
+            Some(scope) => scope.unused_variables(),
+            None => vec![],
+        }
+    }
+
+    pub(in crate::semantic::stack) fn get_variable(&mut self, searched: &'a str, span: Span) -> Result<&Type, ScopeManagerError> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(var) = scope.get_variable_mut(searched) {
+                var.used = true;
+                return Ok(&var.ty);
             }
         }
-
         Err(ScopeManagerError::new(
             ErrorSeverity::HIGH,
             format!("Variable '{}' not declared in this scope.", searched),
@@ -43,12 +50,11 @@ impl<'a> StaticCheckerScopeManager<'a> {
     }
 
     pub(in crate::semantic::stack) fn assign_variable(&mut self, name: &'a str, value: Type, span: Span) -> Result<(), ScopeManagerError> {
-        for scope in &mut self.scopes {
+        for scope in self.scopes.iter_mut().rev() {
             if scope.get_variable(name).is_some() {
                 return scope.assign_variable(name, value, span);
             }
         }
-
         Err(ScopeManagerError::new(
             ErrorSeverity::HIGH,
             format!("Variable '{}' not declared in this scope.", name),
@@ -57,14 +63,13 @@ impl<'a> StaticCheckerScopeManager<'a> {
     }
 
     pub(in crate::semantic::stack) fn declare_variable(&mut self, name: &'a str, value: Type, span: Span) -> Result<(), ScopeManagerError> {
-        if self.get_variable(name, span).is_ok() {
+        if self.scopes.iter().any(|s| s.get_variable(name).is_some()) {
             return Err(ScopeManagerError::new(
                 ErrorSeverity::HIGH,
                 format!("Cannot redeclare variable '{}'.", name),
                 span,
             ));
         }
-
         if let Some(last_scope) = self.scopes.last_mut() {
             last_scope.declare_variable(name, value, span)?;
             Ok(())

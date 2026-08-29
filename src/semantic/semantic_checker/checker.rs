@@ -115,4 +115,14 @@ impl<'a> SemanticChecker<'a> {
 
         Ok(())
     }
+
+    pub(in crate::semantic::semantic_checker) fn unused_variables_in_last_scope_warn(&mut self) {
+        for (name, span) in self.stack.unused_variables_in_current_scope() {
+            self.errors.push(Box::new(SemanticCheckerError::at(
+                ErrorSeverity::LOW,
+                format!("Unused variable `{}`.", name),
+                span,
+            )));
+        }
+    }
 }

@@ -36,7 +36,7 @@ jobs:
           echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
 
       - name: Run tests
-        run: cargo test -- --nocapture --test-threads=1
+        run: cargo test
 
       - name: Build release
         run: cargo build --release

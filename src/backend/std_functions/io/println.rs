@@ -1,5 +1,7 @@
 use std::{cell::RefCell, rc::Rc, vec};
 
+use inkwell::AddressSpace;
+
 use crate::{
     backend::{
         interpreter::Value,
@@ -75,6 +77,13 @@ pub fn println() -> StdFunction {
         compiler
             .builder()
             .build_call(printf_fn, &[format_str.as_pointer_value().into(), owned_ptr.into()], "printf_call")
+            .map_err(err)?;
+
+        let null_stream = compiler.context().ptr_type(AddressSpace::default()).const_null();
+
+        compiler
+            .builder()
+            .build_call(compiler.libc().fflush_fn, &[null_stream.into()], "fflush.stdout")
             .map_err(err)?;
 
         compiler.builder().build_free(owned_ptr).map_err(err)?;

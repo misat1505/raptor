@@ -173,7 +173,7 @@ impl LlvmAlu {
             span,
         );
 
-        let message = error.get_stderr_message();
+        let message = format!("{}\n", error.get_stderr_message());
 
         let format_str = builder
             .build_global_string_ptr(&message, "overflow.msg")

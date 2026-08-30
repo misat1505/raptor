@@ -1,6 +1,6 @@
 use std::io::BufReader;
 
-use crate::tests::common::helpers::assert_same_output;
+use crate::common::assert_same_output;
 
 #[test]
 fn reference() {

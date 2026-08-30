@@ -1,14 +1,13 @@
 use std::{
-    io::{BufReader, Read},
+    io::{BufReader, Read, Write},
     process::Command,
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use gag::BufferRedirect;
 use inkwell::context::Context;
-use raptor_lib::backend::llvm::OverflowPolicy;
+use raptor_lib::{backend::llvm::OverflowPolicy, common::errors::ErrorSeverity};
 
-use crate::{
+use raptor_lib::{
     backend::{interpreter::interpreter::Interpreter, llvm::compiler::Compiler},
     common::errors::IError,
     frontend::{
@@ -52,7 +51,13 @@ fn setup_program_impl(text: BufReader<&[u8]>, skip_typecheck: bool) -> Program {
         let mut checker = SemanticChecker::new(&program).unwrap();
         checker.check();
 
-        assert_eq!(checker.errors.len(), 0, "semantic checker found unexpected errors");
+        let real_errors: Vec<_> = checker
+            .errors
+            .iter()
+            .filter(|e| matches!(e.get_severity(), ErrorSeverity::HIGH))
+            .collect();
+
+        assert_eq!(real_errors.len(), 0, "semantic checker found unexpected errors: {:?}", real_errors);
     }
 
     program
@@ -70,16 +75,45 @@ pub fn create_interpreter<'a>(program: &'a Program) -> Interpreter<'a> {
     Interpreter::new(program)
 }
 
-pub fn capture_interpreter_output(program: &Program) -> String {
-    let mut buf = BufferRedirect::stdout().expect("failed to redirect stdout");
+fn write_temp_source(content: &str) -> std::path::PathBuf {
+    let id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let path = std::env::temp_dir().join(format!("raptor_test_src_{}_{}.rp", std::process::id(), id));
 
-    let mut interpreter = create_interpreter(program);
-    interpreter.interpret().unwrap();
+    let mut f = std::fs::File::create(&path).expect("failed to write source temp file");
+    f.write_all(content.as_bytes()).unwrap();
 
-    let mut output = String::new();
-    buf.read_to_string(&mut output).unwrap();
+    path
+}
 
-    output
+pub fn capture_interpreter_output_subprocess(text: BufReader<&[u8]>, skip_typecheck: bool) -> String {
+    let mut text = text;
+    let mut content = String::new();
+    text.read_to_string(&mut content).unwrap();
+
+    let src_path = write_temp_source(&content);
+
+    let exe = std::env::var("CARGO_BIN_EXE_raptor")
+        .expect("CARGO_BIN_EXE_raptor not set — uruchamiaj testy jako integration tests w tests/, nie jako unit testy w src/");
+
+    let mut args = vec![src_path.to_str().unwrap().to_string()];
+    if skip_typecheck {
+        args.push("--unsafe".to_string());
+    }
+
+    let output = Command::new(exe)
+        .args(&args)
+        .output()
+        .unwrap_or_else(|err| panic!("failed to invoke raptor binary: {}", err));
+
+    let _ = std::fs::remove_file(&src_path);
+
+    assert!(
+        output.status.success(),
+        "raptor interpreter run failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    String::from_utf8(output.stdout).expect("interpreter produced non-UTF8 stdout")
 }
 
 fn run_command(program: &str, args: &[&str], step_description: &str) {
@@ -152,14 +186,16 @@ pub fn capture_compiled_output(program: &Program) -> String {
 }
 
 pub fn assert_same_output(text: BufReader<&[u8]>, expected: &str) {
-    let program = setup_program(text);
+    let mut text = text;
+    let mut content = String::new();
+    text.read_to_string(&mut content).unwrap();
 
-    let interpreter_output = capture_interpreter_output(&program);
+    let program = setup_program(BufReader::new(content.as_bytes()));
+
+    let interpreter_output = capture_interpreter_output_subprocess(BufReader::new(content.as_bytes()), false);
     let compiler_output = capture_compiled_output(&program);
 
     assert_eq!(interpreter_output, expected, "interpreter output mismatch");
-
     assert_eq!(compiler_output, expected, "compiler output mismatch");
-
     assert_eq!(interpreter_output, compiler_output, "interpreter and compiler outputs disagree");
 }

@@ -545,8 +545,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             }
 
             Type::Str => {
-                let empty = self.builder.build_global_string_ptr("", "str.default").map_err(&err)?.as_pointer_value();
-
+                let empty = self.build_empty_heap_string(span)?;
                 self.builder.build_store(ptr, empty).map_err(&err)?;
             }
 
@@ -565,5 +564,26 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         Ok(())
+    }
+
+    fn build_empty_heap_string(&mut self, span: Span) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let err = Self::builder_err(span);
+
+        let one = self.context.i64_type().const_int(1, false);
+
+        let ptr = self
+            .builder
+            .build_call(self.libc.malloc_fn, &[one.into()], "str.default.malloc")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+
+        let zero_byte = self.context.i8_type().const_int(0, false);
+
+        self.builder.build_store(ptr, zero_byte).map_err(&err)?;
+
+        Ok(ptr)
     }
 }

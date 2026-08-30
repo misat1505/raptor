@@ -22,7 +22,7 @@ fn scope_manager_redeclare_fails() {
 
 #[test]
 fn scope_manager_get_undeclared_fails() {
-    let manager = StaticCheckerScopeManager::new();
+    let mut manager = StaticCheckerScopeManager::new();
     assert_eq!(
         manager.get_variable("x", Span::default()).err().unwrap().message(),
         "Variable 'x' not declared in this scope."

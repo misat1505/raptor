@@ -5,7 +5,7 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Expression, Node, Program},
+    frontend::ast::{Expression, FunctionDeclaration, Node, Program},
     semantic::stack::stack::StaticCheckerStack,
 };
 
@@ -21,7 +21,7 @@ pub struct SemanticChecker<'a> {
     pub(in crate::semantic::semantic_checker) last_result: Option<Type>,
     pub errors: Vec<Box<dyn IError>>,
     pub hovers: Vec<HoverInfo>,
-    pub(in crate::semantic::semantic_checker) current_function_return_type: Option<Type>,
+    pub(in crate::semantic::semantic_checker) current_function_declaration: Option<FunctionDeclaration>,
 }
 
 impl<'a> SemanticChecker<'a> {
@@ -32,7 +32,7 @@ impl<'a> SemanticChecker<'a> {
             hovers: vec![],
             stack: StaticCheckerStack::new(),
             last_result: None,
-            current_function_return_type: None,
+            current_function_declaration: None,
         })
     }
 
@@ -44,7 +44,7 @@ impl<'a> SemanticChecker<'a> {
         match self.last_result.take() {
             Some(t) => Ok(t),
             None => {
-                let error = SemanticCheckerError::at(ErrorSeverity::HIGH, String::from("No type produced where it is needed."), span);
+                let error = SemanticCheckerError::at(ErrorSeverity::HIGH, String::from("Expected a type, but none was produced."), span);
 
                 Err(Box::new(error))
             }
@@ -114,5 +114,15 @@ impl<'a> SemanticChecker<'a> {
         }
 
         Ok(())
+    }
+
+    pub(in crate::semantic::semantic_checker) fn unused_variables_in_last_scope_warn(&mut self) {
+        for (name, span) in self.stack.unused_variables_in_current_scope() {
+            self.errors.push(Box::new(SemanticCheckerError::at(
+                ErrorSeverity::LOW,
+                format!("Unused variable `{}`.", name),
+                span,
+            )));
+        }
     }
 }

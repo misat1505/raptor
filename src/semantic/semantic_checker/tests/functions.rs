@@ -1,12 +1,10 @@
-use std::{collections::HashMap, vec};
-
+use super::common::{empty_program, node, run_check};
 use crate::{
     common::types::Type,
     frontend::ast::{Argument, Block, Expression, Literal, Parameter, PassedBy, Program, Statement, VariableDeclarationKind},
-    semantic::semantic_checker::tests::common::make_function,
+    semantic::semantic_checker::tests::common::{assert_one_unused_warning, make_function},
 };
-
-use super::common::{empty_program, node, run_check};
+use std::{collections::HashMap, vec};
 
 #[test]
 fn function_call_with_correct_arg_types_has_no_errors() {
@@ -32,7 +30,6 @@ fn function_call_with_correct_arg_types_has_no_errors() {
         )))))]),
     );
     functions.insert(name, func);
-
     let mut program = Program {
         statements: vec![],
         functions,
@@ -41,7 +38,6 @@ fn function_call_with_correct_arg_types_has_no_errors() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     program.statements.push(node!(Statement::FunctionCall {
         identifier: node!(String::from("add")),
         arguments: vec![
@@ -55,7 +51,6 @@ fn function_call_with_correct_arg_types_has_no_errors() {
             })),
         ],
     }));
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -73,7 +68,6 @@ fn function_call_wrong_arg_count_reports_error() {
         Block(vec![node!(Statement::Return(Some(node!(Expression::Variable(String::from("a"))))))]),
     );
     functions.insert(name, func);
-
     let mut program = Program {
         statements: vec![],
         functions,
@@ -82,14 +76,12 @@ fn function_call_wrong_arg_count_reports_error() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     program.statements.push(node!(Statement::FunctionCall {
         identifier: node!(String::from("add")),
         arguments: vec![],
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("invalid number of arguments")));
+    assert!(errors.iter().any(|e| e.contains("Invalid number of arguments")));
 }
 
 #[test]
@@ -106,7 +98,6 @@ fn function_call_wrong_arg_type_reports_error() {
         Block(vec![]),
     );
     functions.insert(name, func);
-
     let mut program = Program {
         statements: vec![],
         functions,
@@ -115,7 +106,6 @@ fn function_call_wrong_arg_type_reports_error() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     program.statements.push(node!(Statement::FunctionCall {
         identifier: node!(String::from("takes_i64")),
         arguments: vec![Box::new(node!(Argument {
@@ -123,9 +113,8 @@ fn function_call_wrong_arg_type_reports_error() {
             passed_by: PassedBy::Value,
         }))],
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("has the wrong type")));
+    assert!(errors.iter().any(|e| e.contains("has an incompatible type")));
 }
 
 #[test]
@@ -142,7 +131,6 @@ fn function_call_reference_with_non_variable_reports_error() {
         Block(vec![]),
     );
     functions.insert(name, func);
-
     let mut program = Program {
         statements: vec![],
         functions,
@@ -151,7 +139,6 @@ fn function_call_reference_with_non_variable_reports_error() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     program.statements.push(node!(Statement::FunctionCall {
         identifier: node!(String::from("takes_ref")),
         arguments: vec![Box::new(node!(Argument {
@@ -162,9 +149,10 @@ fn function_call_reference_with_non_variable_reports_error() {
             passed_by: PassedBy::Reference,
         }))],
     }));
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("must be a variable or index expression")));
+    assert!(errors
+        .iter()
+        .any(|e| e.contains("must be a variable, index, or field access when passed by reference")));
 }
 
 #[test]
@@ -181,7 +169,6 @@ fn function_call_reference_with_index_expression_is_valid() {
         Block(vec![]),
     );
     functions.insert(name, func);
-
     let mut program = Program {
         statements: vec![],
         functions,
@@ -190,7 +177,6 @@ fn function_call_reference_with_index_expression_is_valid() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     program.statements.push(node!(Statement::Declaration {
         identifier: node!(String::from("arr")),
         kind: VariableDeclarationKind::TYPE {
@@ -208,8 +194,7 @@ fn function_call_reference_with_index_expression_is_valid() {
             passed_by: PassedBy::Reference,
         }))],
     }));
-
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -219,7 +204,6 @@ fn undeclared_function_call_reports_error() {
         identifier: node!(String::from("nonexistent")),
         arguments: vec![],
     }));
-
     let errors = run_check(&program);
     assert!(errors.iter().any(|e| e.contains("Use of undeclared function `nonexistent`")));
 }
@@ -234,7 +218,6 @@ fn function_with_correct_return_type_has_no_errors() {
         Block(vec![node!(Statement::Return(Some(node!(Expression::Literal(Literal::I64(5))))))]),
     );
     functions.insert(name, func);
-
     let program = Program {
         statements: vec![],
         functions,
@@ -243,7 +226,6 @@ fn function_with_correct_return_type_has_no_errors() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -257,7 +239,6 @@ fn function_with_bad_return_type_reports_error() {
         Block(vec![node!(Statement::Return(Some(node!(Expression::Literal(Literal::I64(5))))))]),
     );
     functions.insert(name, func);
-
     let program = Program {
         statements: vec![],
         functions,
@@ -266,9 +247,8 @@ fn function_with_bad_return_type_reports_error() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("wrong return type")));
+    assert!(errors.iter().any(|e| e.contains("must use `return;` without a value")));
 }
 
 #[test]
@@ -276,7 +256,6 @@ fn void_function_without_return_has_no_errors() {
     let mut functions = HashMap::new();
     let (name, func) = make_function("do_nothing", vec![], Type::Void, Block(vec![]));
     functions.insert(name, func);
-
     let program = Program {
         statements: vec![],
         functions,
@@ -285,7 +264,6 @@ fn void_function_without_return_has_no_errors() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -303,7 +281,6 @@ fn function_parameters_are_declared_in_scope() {
         Block(vec![node!(Statement::Return(Some(node!(Expression::Variable(String::from("x"))))))]),
     );
     functions.insert(name, func);
-
     let program = Program {
         statements: vec![],
         functions,
@@ -312,7 +289,6 @@ fn function_parameters_are_declared_in_scope() {
         declared_types: HashMap::new(),
         types: HashMap::new(),
     };
-
     assert!(run_check(&program).is_empty());
 }
 
@@ -339,7 +315,7 @@ fn function_call_expression_produces_return_type() {
             })),
         },
     }));
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -379,7 +355,7 @@ fn function_call_with_wrong_passed_by_mode_reports_error() {
         }))],
     }));
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("passed by the wrong mode")));
+    assert!(errors.iter().any(|e| e.contains("expects to be passed by")));
 }
 
 #[test]
@@ -418,7 +394,7 @@ fn reference_parameter_with_correct_variable_is_valid() {
             passed_by: PassedBy::Reference,
         }))],
     }));
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -435,7 +411,7 @@ fn missing_return_value_for_non_void_function_reports_error() {
         types: HashMap::new(),
     };
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("wrong return type")));
+    assert!(errors.iter().any(|e| e.contains("does not match the declared return type")));
 }
 
 #[test]

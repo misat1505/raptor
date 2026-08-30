@@ -13,11 +13,11 @@ impl<L: ILexer> Parser<L> {
         // unary_term = [ ("-", "!") ], factor;
         let start_pos = self.current_token().span.start();
 
-        if let Some(token) = self.consume_if_matches(TokenCategory::Negate)? {
+        if self.consume_if_matches(TokenCategory::Negate)?.is_some() {
             let factor = self.parse_unary_term_factor()?;
             return Ok(Some(Node {
-                value: Expression::BooleanNegation(Box::new(factor)),
-                span: Span::new(start_pos, token.span.end()),
+                value: Expression::BooleanNegation(Box::new(factor.clone())),
+                span: Span::new(start_pos, factor.span.end()),
             }));
         }
 

@@ -28,7 +28,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     pub(in crate::frontend::parser) fn parse_parameter(&mut self) -> Result<Option<Node<Parameter>>, Box<dyn IError>> {
-        // parameter = ["&"], type, identifier, [ "=", expression ];
+        // parameter = ["&"], type, identifier;
         let start_pos = self.current_token().span.start();
         let passed_by = match self.consume_if_matches(TokenCategory::Reference)? {
             Some(_) => PassedBy::Reference,

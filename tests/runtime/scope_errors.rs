@@ -1,6 +1,6 @@
 use std::io::BufReader;
 
-use crate::tests::common::helpers::{create_interpreter, setup_program, setup_program_skip_typecheck};
+use crate::common::{create_interpreter, setup_program, setup_program_skip_typecheck};
 
 #[test]
 fn variable_out_of_scope_after_block() {

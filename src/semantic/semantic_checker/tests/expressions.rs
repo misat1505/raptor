@@ -3,6 +3,7 @@ use std::vec;
 use crate::{
     common::types::Type,
     frontend::ast::{Block, Expression, Literal, Statement, VariableDeclarationKind},
+    semantic::semantic_checker::tests::common::assert_one_unused_warning,
 };
 
 use super::common::{empty_program, node, run_check};
@@ -21,7 +22,7 @@ fn valid_binary_addition_has_no_errors() {
         },
     }));
 
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -80,7 +81,7 @@ fn index_expression_on_vector_returns_element_type() {
         },
     }));
 
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -107,7 +108,7 @@ fn index_expression_on_non_vector_reports_error() {
     }));
 
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("cannot index into value")));
+    assert!(errors.iter().any(|e| e.contains("Cannot index into a value of type")));
 }
 
 #[test]
@@ -134,7 +135,7 @@ fn index_with_non_i64_index_reports_error() {
     }));
 
     let errors = run_check(&program);
-    assert!(errors.iter().any(|e| e.contains("array index must be `i64`")));
+    assert!(errors.iter().any(|e| e.contains("Array index must be of type `i64`.")));
 }
 
 #[test]
@@ -152,7 +153,7 @@ fn casting_valid_types_has_no_errors() {
         },
     }));
 
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -186,7 +187,7 @@ fn boolean_negation_accepts_bool() {
         },
     }));
 
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]
@@ -218,7 +219,7 @@ fn arithmetic_negation_accepts_numeric_value() {
         },
     }));
 
-    assert!(run_check(&program).is_empty());
+    assert_one_unused_warning(&run_check(&program));
 }
 
 #[test]

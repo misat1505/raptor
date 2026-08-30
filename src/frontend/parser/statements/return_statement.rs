@@ -16,13 +16,11 @@ impl<L: ILexer> Parser<L> {
 
         let returned_value = self.parse_expression()?;
 
-        let _ = self.consume_must_be(TokenCategory::Semicolon)?;
-
-        let end = self.current_token().span.end();
+        let semicolon_token = self.consume_must_be(TokenCategory::Semicolon)?;
 
         let node = Node {
             value: Statement::Return(returned_value),
-            span: Span::new(token.span.start(), end),
+            span: Span::new(token.span.start(), semicolon_token.span.end()),
         };
 
         Ok(Some(node))

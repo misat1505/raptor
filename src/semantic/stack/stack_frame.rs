@@ -1,6 +1,5 @@
-use std::fmt::Debug;
-
 use crate::semantic::stack::scope_manager::StaticCheckerScopeManager;
+use std::fmt::Debug;
 
 #[derive(Clone)]
 pub(in crate::semantic::stack) struct StaticCheckerStackFrame<'a> {

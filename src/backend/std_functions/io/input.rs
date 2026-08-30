@@ -5,6 +5,8 @@ use std::{
     vec,
 };
 
+use inkwell::AddressSpace;
+
 use crate::{
     backend::{
         interpreter::Value,
@@ -82,6 +84,13 @@ pub fn input() -> StdFunction {
             .build_call(printf_fn, &[format_str.into(), owned_ptr.into()], "printf.prompt")
             .map_err(err)?;
 
+        let null_stream = compiler.context().ptr_type(AddressSpace::default()).const_null();
+
+        compiler
+            .builder()
+            .build_call(compiler.libc().fflush_fn, &[null_stream.into()], "fflush.stdout")
+            .map_err(err)?;
+
         let free_fn = compiler.libc().free_fn;
 
         compiler.builder().build_call(free_fn, &[owned_ptr.into()], "free.prompt").map_err(err)?;
@@ -131,6 +140,79 @@ pub fn input() -> StdFunction {
             .builder()
             .build_store(end_ptr, context.i8_type().const_int(0, false))
             .map_err(err)?;
+
+        // Sprawdź, czy ostatni znak to '\n'.
+        // Jeżeli tak, zamień go na '\0'.
+        let zero = context.i64_type().const_zero();
+        let one = context.i64_type().const_int(1, false);
+
+        let has_input = compiler
+            .builder()
+            .build_int_compare(inkwell::IntPredicate::UGT, n, zero, "input.has_input")
+            .map_err(err)?;
+
+        let current_function = compiler
+            .builder()
+            .get_insert_block()
+            .and_then(|block| block.get_parent())
+            .ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    "Cannot get current function while compiling input.".to_string(),
+                    span,
+                )) as Box<dyn IError>
+            })?;
+
+        let check_newline_block = context.append_basic_block(current_function, "input.check_newline");
+
+        let done_block = context.append_basic_block(current_function, "input.done");
+
+        compiler
+            .builder()
+            .build_conditional_branch(has_input, check_newline_block, done_block)
+            .map_err(err)?;
+
+        compiler.builder().position_at_end(check_newline_block);
+
+        let last_index = compiler.builder().build_int_sub(n, one, "input.last_index").map_err(err)?;
+
+        let last_ptr = unsafe {
+            compiler
+                .builder()
+                .build_gep(context.i8_type(), buf, &[last_index], "input.last")
+                .map_err(err)?
+        };
+
+        let last_char = compiler
+            .builder()
+            .build_load(context.i8_type(), last_ptr, "input.last_char")
+            .map_err(err)?
+            .into_int_value();
+
+        let newline = context.i8_type().const_int(b'\n' as u64, false);
+
+        let is_newline = compiler
+            .builder()
+            .build_int_compare(inkwell::IntPredicate::EQ, last_char, newline, "input.is_newline")
+            .map_err(err)?;
+
+        let remove_newline_block = context.append_basic_block(current_function, "input.remove_newline");
+
+        compiler
+            .builder()
+            .build_conditional_branch(is_newline, remove_newline_block, done_block)
+            .map_err(err)?;
+
+        compiler.builder().position_at_end(remove_newline_block);
+
+        compiler
+            .builder()
+            .build_store(last_ptr, context.i8_type().const_int(0, false))
+            .map_err(err)?;
+
+        compiler.builder().build_unconditional_branch(done_block).map_err(err)?;
+
+        compiler.builder().position_at_end(done_block);
 
         compiler.set_last_value(LlvmValue::Str(buf));
 

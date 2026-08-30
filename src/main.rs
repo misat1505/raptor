@@ -28,8 +28,6 @@ use raptor_lib::common;
 use raptor_lib::frontend;
 use raptor_lib::semantic;
 
-mod tests;
-
 const LLVM_VERSION: &str = "18";
 
 fn on_warning(warning: Box<dyn IError>) {
@@ -295,11 +293,14 @@ fn main() {
                     ErrorSeverity::LOW => warnings += 1,
                 }
 
-                eprintln!("{}", error.get_stderr_message());
+                eprintln!("{}\n", error.get_stderr_message());
             }
 
             eprintln!("Static analysis finished with {} errors, {} warnings.", errors, warnings);
-            exit(1);
+
+            if errors > 0 {
+                exit(1);
+            }
         }
     }
 

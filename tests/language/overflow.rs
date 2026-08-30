@@ -2,7 +2,7 @@ use std::io::BufReader;
 
 use raptor_lib::backend::llvm::OverflowPolicy;
 
-use crate::tests::common::helpers::{capture_compiled_output_with_policy, create_interpreter, setup_program, setup_program_skip_typecheck};
+use crate::common::{capture_compiled_output_with_policy, create_interpreter, setup_program, setup_program_skip_typecheck};
 
 #[test]
 fn integer_cast_without_overflow_is_unchanged() {

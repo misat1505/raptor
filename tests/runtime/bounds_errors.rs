@@ -1,14 +1,13 @@
 use std::io::BufReader;
 
-use crate::tests::common::helpers::{create_interpreter, setup_program};
+use crate::common::{create_interpreter, setup_program};
 
 #[test]
-fn division_by_zero_i64() {
+fn vector_index_out_of_bounds() {
     let text = BufReader::new(
         r#"
-    i64 a = 10;
-    i64 b = 0;
-    i64 c = a / b;
+    i64[] arr = [1, 2, 3];
+    i64 x = arr[10];
     "#
         .as_bytes(),
     );
@@ -19,12 +18,12 @@ fn division_by_zero_i64() {
 }
 
 #[test]
-fn division_by_zero_f64() {
+fn negative_index_fails() {
     let text = BufReader::new(
         r#"
-    f64 a = 10.0;
-    f64 b = 0.0;
-    f64 c = a / b;
+    i64[] arr = [1, 2, 3];
+    i64 idx = 0 - 1;
+    i64 x = arr[idx];
     "#
         .as_bytes(),
     );
@@ -35,11 +34,11 @@ fn division_by_zero_f64() {
 }
 
 #[test]
-fn i64_overflow() {
+fn index_assignment_out_of_bounds_fails() {
     let text = BufReader::new(
         r#"
-    i64 a = 9223372036854775807;
-    i64 b = a + 1;
+    i64[] arr = [1, 2, 3];
+    arr[10] = 99;
     "#
         .as_bytes(),
     );

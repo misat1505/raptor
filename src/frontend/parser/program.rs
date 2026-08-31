@@ -9,7 +9,7 @@ use crate::{
     frontend::{
         ast::{DeclaredType, ExternFunctionDeclaration, FunctionDeclaration, Node, Program, Statement},
         lexer::lexer::ILexer,
-        parser::Parser,
+        parser::{resolve_declared_types::resolve_declared_types, Parser},
         tokens::TokenCategory,
     },
 };
@@ -85,7 +85,7 @@ impl<L: ILexer> Parser<L> {
 
         self.consume_must_be(TokenCategory::ETX)?;
 
-        let types = Self::resolve_declared_types(&declared_types)?;
+        let types = resolve_declared_types(&declared_types)?;
 
         Ok(Program {
             statements,

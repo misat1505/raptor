@@ -21,7 +21,20 @@ Source ─────────►│    Lexer     │
                  ┌──────────────┐
                  │    Parser    │
                  └──────┬───────┘
-                        │ AST
+                        │ AST (per file)
+                        ▼
+                 ┌──────────────────────────┐
+                 │     Import Resolver      │
+                 │                          │
+                 │  for each `import` stmt: │
+                 │   ┌──────┐   ┌────────┐  │
+        ┌───────►│──►│ Lexer│──►│ Parser │──│
+        │        │   └──────┘   └────────┘  │
+        │        │        (new source file) │
+        │        └──────────────┬───────────┘
+        │                       │ merges AST 
+        └───────────────────────┘            
+                        │ merged AST (cycle-checked)
                         ▼
                  ┌──────────────┐
                  │   Semantic   │

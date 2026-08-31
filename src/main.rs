@@ -23,10 +23,13 @@ use crate::{
     semantic::semantic_checker::SemanticChecker,
 };
 
-use raptor_lib::backend::{self, llvm::OverflowPolicy};
 use raptor_lib::common;
 use raptor_lib::frontend;
 use raptor_lib::semantic;
+use raptor_lib::{
+    backend::{self, llvm::OverflowPolicy},
+    import_resolver::ImportResolver,
+};
 
 const LLVM_VERSION: &str = "18";
 
@@ -254,7 +257,7 @@ fn main() {
         max_identifier_length: 100,
     };
 
-    let lexer = match Lexer::new(reader, lexer_options, on_warning) {
+    let lexer = match Lexer::new(reader, lexer_options.clone(), on_warning) {
         Ok(lexer) => lexer,
         Err(err) => {
             eprintln!("{}", err.get_stderr_message());
@@ -272,8 +275,17 @@ fn main() {
         }
     };
 
+    let mut import_resolver = ImportResolver::new(lexer_options, on_warning);
+    let import_resolved_program = match import_resolver.resolve(filename, program) {
+        Ok(p) => p,
+        Err(err) => {
+            eprintln!("{}", err.get_stderr_message());
+            exit(1);
+        }
+    };
+
     if !is_unsafe {
-        let mut semantic_checker = match SemanticChecker::new(&program) {
+        let mut semantic_checker = match SemanticChecker::new(&import_resolved_program) {
             Ok(checker) => checker,
             Err(err) => {
                 eprintln!("{}", err.get_stderr_message());
@@ -308,7 +320,7 @@ fn main() {
         let (ir_path, obj_path, exe_path) = output_paths(&path);
 
         let context = Context::create();
-        let mut compiler = Compiler::new(&program, &context, overflow_policy);
+        let mut compiler = Compiler::new(&import_resolved_program, &context, overflow_policy);
         if let Err(err) = compiler.compile() {
             eprintln!("{}", err.get_stderr_message());
             exit(1);
@@ -343,7 +355,7 @@ fn main() {
             }
         }
     } else {
-        let mut interpreter = Interpreter::new(&program);
+        let mut interpreter = Interpreter::new(&import_resolved_program);
 
         if let Err(err) = interpreter.interpret() {
             eprintln!("{}", err.get_stderr_message());

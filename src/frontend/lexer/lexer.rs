@@ -12,6 +12,7 @@ use crate::{
     },
 };
 
+#[derive(Clone)]
 pub struct LexerOptions {
     pub max_comment_length: u32,
     pub max_identifier_length: u32,

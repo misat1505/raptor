@@ -1,0 +1,68 @@
+# This is a concept file. It doesn't work for now
+
+fn hash(&str key, i64 modulo): i64 {
+    let h = 0;
+
+    for (let i = 0; i < str_len(key); i += 1) {
+        let c = key[i];
+        h = (h * 31 + (c as u8) as i64) % modulo;
+    }
+
+    return h;
+}
+
+define_macro define_hashmap {
+    ($hashmap_name:ident, $node_name:ident, $value_type:type, $init_fn:ident, $insert_fn:ident, $get_fn:ident) {
+        struct $node_name {
+            str key,
+            $value_type value
+        };
+
+        struct $hashmap_name {
+            i64 buckets_count,
+            $node_name[][] buckets
+        };
+
+        fn $init_fn(): $hashmap_name {
+            let buckets_count = 7;
+            let buckets: $node_name[][] = [];
+
+            for (let i = 0; i < buckets_count; i += 1) {
+                let bucket: $node_name[] = [];
+                vector_push(&buckets, bucket);
+            }
+
+            return $hashmap_name { buckets, buckets_count };
+        }
+
+        fn $insert_fn(&$hashmap_name hashmap, str key, $value_type value): void {
+            let bucket_idx = hash(&key, hashmap.buckets_count);
+            let node = $node_name { key, value };
+            vector_push(&hashmap.buckets[bucket_idx], node);
+        }
+
+        fn $get_fn(&$hashmap_name hashmap, str key): $value_type {
+            let bucket_idx = hash(&key, hashmap.buckets_count);
+            let bucket = hashmap.buckets[bucket_idx];
+            let bucket_size = vector_size(&bucket);
+
+            for (let i = 0; i < bucket_size; i += 1) {
+                let node = bucket[i];
+                if (node.key != key) continue;
+                return node.value;
+            }
+
+            return "-1";
+        }
+    }
+}
+
+struct User {
+    i64 id,
+    str name
+};
+
+define_hashmap(UserHashmap, UserHashmapNode, User, userhashmap_init, userhashmap_insert, userhashmap_get);
+
+let hashmap = userhashmap_init();
+userhashmap_insert("bob", User { id: 1, name: "Bob" });

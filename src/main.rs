@@ -140,29 +140,27 @@ fn link_executable(obj_path: &str, exe_path: &str, ffi_objects: &[String]) -> Re
     run_command(&clang, &args, "clang")
 }
 
-fn build_executable(ir_path: &str, obj_path: &str, exe_path: &str, ffi_objects: &[String], verbose: bool) -> Result<(), String> {
-    let timer = Instant::now();
+fn build_executable(ir_path: &str, obj_path: &str, exe_path: &str, ffi_objects: &[String]) -> Result<(), String> {
     build_object_file(ir_path, obj_path)?;
-    if verbose {
-        print_duration("LLVM IR -> object", timer.elapsed());
-    }
 
-    let link_timer = Instant::now();
     link_executable(obj_path, exe_path, ffi_objects)?;
-    if verbose {
-        print_duration("object -> executable", link_timer.elapsed());
-    }
 
     Ok(())
 }
 
-fn run_executable(exe_path: &str) -> Result<i32, String> {
+fn run_executable(exe_path: &str, verbose: bool) -> Result<i32, String> {
     let path = if exe_path.starts_with('.') || exe_path.contains('/') || exe_path.contains('\\') {
         exe_path.to_string()
     } else {
         format!("./{}", exe_path)
     };
+    if verbose {
+        print_debug("Running executable...");
+    }
     let status = Command::new(&path).status().map_err(|err| format!("Failed to run '{}': {}", path, err))?;
+    if verbose {
+        print_debug("Finished running executable.");
+    }
     Ok(status.code().unwrap_or(1))
 }
 
@@ -415,18 +413,19 @@ fn main() {
         }
 
         let build_timer = Instant::now();
-        if let Err(err) = build_executable(&ir_path, &obj_path, &exe_path, &link_objects, verbose) {
+        if let Err(err) = build_executable(&ir_path, &obj_path, &exe_path, &link_objects) {
             eprintln!("{}", err);
             exit(1);
         }
         if verbose {
-            print_duration("build", build_timer.elapsed());
+            print_duration("LLVM -> exe", build_timer.elapsed());
             print_debug(&format!("Built executable '{}'.", exe_path));
+            print_debug(&format!("Build successful."));
         }
 
         if should_run {
             let run_timer = Instant::now();
-            match run_executable(&exe_path) {
+            match run_executable(&exe_path, verbose) {
                 Ok(code) => {
                     if verbose {
                         print_duration("program execution", run_timer.elapsed());

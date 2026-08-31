@@ -5,9 +5,6 @@ graph = Digraph(
     format="png",
 )
 
-# =============================================================
-# Global styling
-# =============================================================
 graph.attr(
     rankdir="TB",
     bgcolor="white",
@@ -39,10 +36,7 @@ graph.attr(
 )
 
 
-# =============================================================
-# Helper: node with an icon image above the text label
-# =============================================================
-ICON_SIZE = "36"  # <- change this one value to resize every icon at once
+ICON_SIZE = "36"
 
 
 def icon_node(g, name, icon, label, fill, border, icon_size=ICON_SIZE):
@@ -66,9 +60,6 @@ def icon_node(g, name, icon, label, fill, border, icon_size=ICON_SIZE):
     )
 
 
-# =============================================================
-# Main pipeline
-# =============================================================
 icon_node(graph, "source", "source", "Source (.rp)", "#F5EEFF", "#7C3AED")
 icon_node(graph, "lexer", "lexer", "Lexer", "#EEF4FF", "#2563EB")
 icon_node(graph, "parser", "parser", "Parser", "#EEF4FF", "#2563EB")
@@ -76,9 +67,6 @@ icon_node(graph, "parser", "parser", "Parser", "#EEF4FF", "#2563EB")
 graph.edge("source", "lexer", xlabel=" chars ")
 graph.edge("lexer", "parser", xlabel=" tokens ")
 
-# =============================================================
-# Import Resolver
-# =============================================================
 with graph.subgraph(name="cluster_import") as import_cluster:
     import_cluster.attr(
         label="  Import Resolver  ",
@@ -95,7 +83,6 @@ with graph.subgraph(name="cluster_import") as import_cluster:
         fontname="Arial",
     )
 
-    # Recursive import pipeline
     with import_cluster.subgraph(name="cluster_recursive") as recursive:
         recursive.attr(
             label="for each import: recurse",
@@ -110,7 +97,6 @@ with graph.subgraph(name="cluster_import") as import_cluster:
         icon_node(recursive, "sub_parser", "parser", "Parser", "#F1F5FF", "#2563EB")
         recursive.edge("sub_lexer", "sub_parser", xlabel=" tokens ")
 
-    # Merge node
     icon_node(
         import_cluster,
         "merge",
@@ -121,18 +107,11 @@ with graph.subgraph(name="cluster_import") as import_cluster:
     )
     import_cluster.edge("sub_parser", "merge", xlabel=" imported AST ")
 
-# Parser -> Import Resolver
 graph.edge("parser", "merge", xlabel=" AST ")
 
-# =============================================================
-# Semantic Checker
-# =============================================================
 icon_node(graph, "checker", "checker", "Semantic Checker", "#F0FDF4", "#16A34A")
 graph.edge("merge", "checker", xlabel=" merged AST ")
 
-# =============================================================
-# Backends
-# =============================================================
 with graph.subgraph(name="cluster_backends") as backends:
     backends.attr(
         label="  Backends  ",
@@ -160,15 +139,9 @@ with graph.subgraph(name="cluster_backends") as backends:
         same_rank.node("interpreter")
         same_rank.node("compiler")
 
-# =============================================================
-# Checker -> backends
-# =============================================================
 graph.edge("checker", "interpreter", xlabel=" checked AST ")
 graph.edge("checker", "compiler", xlabel=" checked AST ")
 
-# =============================================================
-# Render
-# =============================================================
 graph.render(
     "compiler_pipeline",
     cleanup=True,

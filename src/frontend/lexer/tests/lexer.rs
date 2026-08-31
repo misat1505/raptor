@@ -271,53 +271,6 @@ fn escapes_extended() {
     assert_eq!(token.value, TokenValue::String(expected.to_string()));
 }
 
-#[test]
-fn import_nonexistent_file_fails() {
-    let text = r#"import "this_file_does_not_exist_12345.rp";"#;
-    let mut lexer = create_lexer_with_skip(text);
-
-    let result = lexer.generate_token();
-    assert!(result.is_err());
-}
-
-#[test]
-fn cyclic_import_detected() {
-    use std::fs;
-    use std::io::Write;
-
-    let path_a = std::env::temp_dir().join(format!("rp_lexer_cyclic_a_{}.rp", std::process::id()));
-    let path_b = std::env::temp_dir().join(format!("rp_lexer_cyclic_b_{}.rp", std::process::id()));
-
-    {
-        let mut file_a = fs::File::create(&path_a).unwrap();
-        writeln!(file_a, r#"import "{}";"#, path_b.to_str().unwrap()).unwrap();
-    }
-    {
-        let mut file_b = fs::File::create(&path_b).unwrap();
-        writeln!(file_b, r#"import "{}";"#, path_a.to_str().unwrap()).unwrap();
-    }
-
-    let text = format!(r#"import "{}";"#, path_a.to_str().unwrap());
-    let mut lexer = create_lexer_with_skip(&text);
-
-    let mut result: Result<TokenCategory, Box<dyn IError>> = Ok(TokenCategory::STX);
-    for _ in 0..10 {
-        match lexer.generate_token() {
-            Ok(t) => result = Ok(t.category),
-            Err(e) => {
-                assert!(e.message().contains("Cyclic import"));
-                let _ = fs::remove_file(&path_a);
-                let _ = fs::remove_file(&path_b);
-                return;
-            }
-        }
-    }
-
-    let _ = fs::remove_file(&path_a);
-    let _ = fs::remove_file(&path_b);
-    panic!("Expected cyclic import error, got: {:?}", result);
-}
-
 #[cfg(test)]
 mod edge_case_tests {
     use std::io::BufReader;

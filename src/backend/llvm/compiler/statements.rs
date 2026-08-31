@@ -17,6 +17,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let span = statement.span;
 
         match &statement.value {
+            Statement::Import { .. } => unreachable!("Imports have to be resolved before compilation"),
             Statement::FunctionCall { identifier, arguments } => {
                 let name = identifier.value.as_str();
 

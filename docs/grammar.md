@@ -2,9 +2,14 @@
 
 ### Syntax Part
 
-**program** = { struct_declaration | function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration };
+**program** = { import_declaration | struct_declaration | function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration };
 
 **comment** = "#" , {unicode_character - "\n"}, "\n";
+
+**import_declaration** = "import", literal, ";";
+```
+import "../utils.rp";
+```
 
 **struct_declaration** = "struct", identifier, "{", [ struct_members ], "}", ";";
 ```text

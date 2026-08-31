@@ -47,6 +47,7 @@ impl<'a> Interpreter<'a> {
 
     pub(in crate::backend::interpreter::interpreter) fn exec_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
         match &statement.value {
+            Statement::Import { .. } => unreachable!("Imports have to be resolved before interpretation"),
             Statement::FunctionCall { identifier, arguments } => {
                 self.call_function(identifier, arguments, statement.span)?;
             }

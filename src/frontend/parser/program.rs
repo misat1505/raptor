@@ -16,7 +16,7 @@ use crate::{
 
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_program(&mut self) -> Result<Program, Box<dyn IError>> {
-        // program = { struct_declaration | function_declaration | extern_function_declaration | assign_or_call
+        // program = { import_declaration | struct_declaration | function_declaration | extern_function_declaration | assign_or_call
         //           | if_statement | for_statement | while_statement | switch_statement
         //           | declaration, ";" };
         let mut statements: Vec<Node<Statement>> = vec![];
@@ -121,7 +121,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     pub(in crate::frontend::parser) fn parse_program_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // program_statement = assign_or_call | if_statement | for_statement | while_statement
+        // program_statement = import_declaration | assign_or_call | if_statement | for_statement | while_statement
         //                    | switch_statement | (declaration, ";") | let_declaration;
         let generators = [
             Self::parse_assign_or_call,
@@ -131,6 +131,7 @@ impl<L: ILexer> Parser<L> {
             Self::parse_switch_statement,
             Self::parse_variable_declaration,
             Self::parse_let_variable_declaration,
+            Self::parse_import_declaration,
         ];
 
         for generator in &generators {

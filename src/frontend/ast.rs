@@ -141,6 +141,9 @@ pub enum Statement {
     Return(Option<Node<Expression>>),
     Break,
     Continue,
+    Import {
+        path: Node<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

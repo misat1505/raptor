@@ -55,6 +55,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
 
     fn visit_statement(&mut self, statement: &'a Node<Statement>) -> Result<(), Box<dyn IError>> {
         match statement.value {
+            Statement::Import { .. } => unreachable!("Imports have to be resolved before semantic check"),
             Statement::FunctionCall { .. } => self.check_function_call(FunctionCallType::Statement(statement)),
             Statement::Declaration { .. } => self.check_declaration(statement)?,
             Statement::Assignment { .. } => self.check_assignment(statement)?,

@@ -81,7 +81,7 @@ graph.edge("lexer", "parser", xlabel=" tokens ")
 # =============================================================
 with graph.subgraph(name="cluster_import") as import_cluster:
     import_cluster.attr(
-        label="  \u27f3  Import Resolver  ",
+        label="  Import Resolver  ",
         color="#8B5CF6",
         fontcolor="#5B21B6",
         fontsize="16",
@@ -135,7 +135,7 @@ graph.edge("merge", "checker", xlabel=" merged AST ")
 # =============================================================
 with graph.subgraph(name="cluster_backends") as backends:
     backends.attr(
-        label="  \u2699  Backends  ",
+        label="  Backends  ",
         color="#F59E0B",
         fontcolor="#A16207",
         fontsize="16",

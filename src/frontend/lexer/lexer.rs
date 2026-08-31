@@ -1,6 +1,7 @@
-use std::fs::File;
 use std::io::BufReader;
+use std::path::PathBuf;
 use std::vec;
+use std::{fs::File, path::Path};
 
 use phf::phf_map;
 
@@ -136,7 +137,7 @@ impl Lexer {
         let _ = self.consume_must_be(TokenCategory::Import)?;
         let path_token = self.consume_must_be(TokenCategory::StringValue)?;
 
-        let path = match path_token.value {
+        let raw_path = match path_token.value {
             TokenValue::String(p) => p,
             v => {
                 return Err(Box::new(LexerError::expected_found(
@@ -148,6 +149,11 @@ impl Lexer {
                 )));
             }
         };
+
+        let current_file = self.import_stack.last().cloned().unwrap_or_default();
+        let base_dir = Path::new(&current_file).parent().unwrap_or_else(|| Path::new(""));
+        let resolved_path = normalize_path(&base_dir.join(&raw_path));
+        let path = resolved_path.to_string_lossy().into_owned();
 
         let is_in_import_stack = self.import_stack.iter().any(|v| *v == path);
 
@@ -702,6 +708,20 @@ impl Lexer {
     fn prepare_warning_message_without_span(&self, text: String) -> String {
         text
     }
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                result.pop();
+            }
+            std::path::Component::CurDir => {}
+            other => result.push(other.as_os_str()),
+        }
+    }
+    result
 }
 
 static SIGNS: phf::Map<char, TokenCategory> = phf_map! {

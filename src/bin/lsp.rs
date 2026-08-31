@@ -18,10 +18,49 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 thread_local! {
     static LEXER_WARNINGS: RefCell<Vec<Box<dyn IError>>> = RefCell::new(Vec::new());
+    static FILENAME_CACHE: RefCell<HashMap<Url, &'static str>> = RefCell::new(HashMap::new());
 }
 
 fn on_warning(warning: Box<dyn IError>) {
     LEXER_WARNINGS.with(|w| w.borrow_mut().push(warning));
+}
+
+fn filename_for_uri(uri: &Url) -> &'static str {
+    FILENAME_CACHE.with(|cache| {
+        if let Some(name) = cache.borrow().get(uri) {
+            return *name;
+        }
+
+        let raw_path = uri
+            .to_file_path()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| uri.path().to_string());
+
+        let path_string = fix_wsl_drive_prefix(raw_path);
+
+        let leaked: &'static str = Box::leak(path_string.into_boxed_str());
+        cache.borrow_mut().insert(uri.clone(), leaked);
+        leaked
+    })
+}
+
+#[cfg(not(windows))]
+fn fix_wsl_drive_prefix(path: String) -> String {
+    let bytes = path.as_bytes();
+    let looks_like_drive_letter =
+        bytes.len() >= 4 && bytes[0] == b'/' && bytes[1].is_ascii_alphabetic() && bytes[2] == b':' && (bytes[3] == b'/' || bytes[3] == b'\\');
+
+    if looks_like_drive_letter {
+        let drive = (bytes[1] as char).to_ascii_lowercase();
+        format!("/mnt/{}{}", drive, &path[3..])
+    } else {
+        path
+    }
+}
+
+#[cfg(windows)]
+fn fix_wsl_drive_prefix(path: String) -> String {
+    path
 }
 
 struct DocumentState {
@@ -111,10 +150,12 @@ impl LanguageServer for Backend {
 
         let source = self.documents.lock().await.get(&uri).map(|doc| doc.text.clone()).unwrap_or_default();
 
+        let filename = filename_for_uri(&uri);
+
         let mut items = keyword_completions();
 
         items.extend(std_function_completions());
-        items.extend(identifier_completions(&source));
+        items.extend(identifier_completions(&source, filename));
 
         Ok(Some(CompletionResponse::Array(items)))
     }
@@ -144,7 +185,8 @@ impl LanguageServer for Backend {
 
 impl Backend {
     async fn validate(&self, uri: Url, text: String) {
-        let (diagnostics, hovers) = analyze(&text);
+        let filename = filename_for_uri(&uri);
+        let (diagnostics, hovers) = analyze(&text, filename);
 
         self.documents.lock().await.insert(uri.clone(), DocumentState { text, hovers });
 
@@ -152,13 +194,13 @@ impl Backend {
     }
 }
 
-fn analyze(source: &str) -> (Vec<Diagnostic>, Vec<HoverInfo>) {
+fn analyze(source: &str, filename: &'static str) -> (Vec<Diagnostic>, Vec<HoverInfo>) {
     let mut diagnostics = Vec::new();
 
     LEXER_WARNINGS.with(|w| w.borrow_mut().clear());
 
     let cursor = Cursor::new(source.as_bytes().to_vec());
-    let reader = LazyStreamReader::new(cursor, Some("current"));
+    let reader = LazyStreamReader::new(cursor, Some(filename));
 
     let lexer_options = LexerOptions {
         max_comment_length: 500,
@@ -234,9 +276,9 @@ fn keyword_completions() -> Vec<CompletionItem> {
     items
 }
 
-fn identifier_completions(source: &str) -> Vec<CompletionItem> {
+fn identifier_completions(source: &str, filename: &'static str) -> Vec<CompletionItem> {
     let cursor = Cursor::new(source.as_bytes().to_vec());
-    let reader = LazyStreamReader::new(cursor, Some("current"));
+    let reader = LazyStreamReader::new(cursor, Some(filename));
     let lexer_options = LexerOptions {
         max_comment_length: 500,
         max_identifier_length: 100,

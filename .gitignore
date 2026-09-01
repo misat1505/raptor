@@ -1,6 +1,5 @@
 /target
 /.vscode
-/countlines*
 
 build/
 examples/libs

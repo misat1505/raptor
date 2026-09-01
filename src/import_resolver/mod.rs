@@ -21,6 +21,9 @@ use crate::{
     },
 };
 
+#[cfg(test)]
+mod tests;
+
 pub struct ImportResolver {
     stack: Vec<String>,
     visited: HashMap<String, ()>,

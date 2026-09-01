@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::thread_local;
 
@@ -9,6 +9,7 @@ use raptor_lib::frontend::lexer::lazy_stream_reader::LazyStreamReader;
 use raptor_lib::frontend::lexer::lexer::{Lexer, LexerOptions};
 use raptor_lib::frontend::parser::{IParser, Parser};
 use raptor_lib::frontend::tokens::{TokenCategory, TokenValue};
+use raptor_lib::import_resolver::ImportResolver;
 use raptor_lib::semantic::semantic_checker::checker::{HoverInfo, SemanticChecker};
 
 use tokio::sync::Mutex;
@@ -18,10 +19,66 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 thread_local! {
     static LEXER_WARNINGS: RefCell<Vec<Box<dyn IError>>> = RefCell::new(Vec::new());
+    static FILENAME_CACHE: RefCell<HashMap<Url, &'static str>> = RefCell::new(HashMap::new());
+    static URI_CACHE: RefCell<HashMap<&'static str, Url>> = RefCell::new(HashMap::new());
 }
 
 fn on_warning(warning: Box<dyn IError>) {
     LEXER_WARNINGS.with(|w| w.borrow_mut().push(warning));
+}
+
+/// Resolves (and caches) the canonical, leaked `&'static str` filename for a given `Url`,
+/// also recording the reverse mapping so diagnostics for that file (even when it's an
+/// imported file that was never opened directly) can be routed back to a `Url`.
+fn filename_for_uri(uri: &Url) -> &'static str {
+    FILENAME_CACHE.with(|cache| {
+        if let Some(name) = cache.borrow().get(uri) {
+            return *name;
+        }
+
+        let raw_path = uri
+            .to_file_path()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| uri.path().to_string());
+
+        let path_string = fix_wsl_drive_prefix(raw_path);
+
+        let leaked: &'static str = Box::leak(path_string.into_boxed_str());
+        cache.borrow_mut().insert(uri.clone(), leaked);
+        URI_CACHE.with(|u| u.borrow_mut().insert(leaked, uri.clone()));
+        leaked
+    })
+}
+
+/// Finds a `Url` for a filename that a span points to. This covers files that were
+/// never opened as an LSP document (e.g. transitively imported files) by falling back
+/// to building a `file://` URL directly from the path.
+fn uri_for_filename(filename: &str) -> Option<Url> {
+    URI_CACHE.with(|cache| {
+        if let Some(uri) = cache.borrow().get(filename) {
+            return Some(uri.clone());
+        }
+        Url::from_file_path(filename).ok()
+    })
+}
+
+#[cfg(not(windows))]
+fn fix_wsl_drive_prefix(path: String) -> String {
+    let bytes = path.as_bytes();
+    let looks_like_drive_letter =
+        bytes.len() >= 4 && bytes[0] == b'/' && bytes[1].is_ascii_alphabetic() && bytes[2] == b':' && (bytes[3] == b'/' || bytes[3] == b'\\');
+
+    if looks_like_drive_letter {
+        let drive = (bytes[1] as char).to_ascii_lowercase();
+        format!("/mnt/{}{}", drive, &path[3..])
+    } else {
+        path
+    }
+}
+
+#[cfg(windows)]
+fn fix_wsl_drive_prefix(path: String) -> String {
+    path
 }
 
 struct DocumentState {
@@ -32,6 +89,10 @@ struct DocumentState {
 struct Backend {
     client: Client,
     documents: Mutex<HashMap<Url, DocumentState>>,
+    /// For each "entry" document we've validated, remembers which other files (by
+    /// filename) had diagnostics published last time, so that on the next validation
+    /// we can explicitly clear diagnostics for files that no longer have any.
+    published_files: Mutex<HashMap<Url, HashSet<&'static str>>>,
 }
 
 fn std_function_completions() -> Vec<CompletionItem> {
@@ -111,10 +172,12 @@ impl LanguageServer for Backend {
 
         let source = self.documents.lock().await.get(&uri).map(|doc| doc.text.clone()).unwrap_or_default();
 
+        let filename = filename_for_uri(&uri);
+
         let mut items = keyword_completions();
 
         items.extend(std_function_completions());
-        items.extend(identifier_completions(&source));
+        items.extend(identifier_completions(&source, filename));
 
         Ok(Some(CompletionResponse::Array(items)))
     }
@@ -144,38 +207,70 @@ impl LanguageServer for Backend {
 
 impl Backend {
     async fn validate(&self, uri: Url, text: String) {
-        let (diagnostics, hovers) = analyze(&text);
+        let filename = filename_for_uri(&uri);
+        let (diagnostics_by_file, hovers) = analyze(&text, filename);
 
         self.documents.lock().await.insert(uri.clone(), DocumentState { text, hovers });
 
-        self.client.publish_diagnostics(uri, diagnostics, None).await;
+        let mut current_files: HashSet<&'static str> = HashSet::new();
+
+        // Always publish for the entry document itself, even if it has no
+        // diagnostics right now (this clears any previously shown errors on it).
+        let own_diagnostics = diagnostics_by_file.get(filename).cloned().unwrap_or_default();
+        self.client.publish_diagnostics(uri.clone(), own_diagnostics, None).await;
+        current_files.insert(filename);
+
+        // Diagnostics that landed on other files (e.g. via imports) get published
+        // under their own Url.
+        for (other_filename, diags) in diagnostics_by_file.iter() {
+            if *other_filename == filename {
+                continue;
+            }
+
+            if let Some(other_uri) = uri_for_filename(other_filename) {
+                self.client.publish_diagnostics(other_uri, diags.clone(), None).await;
+                current_files.insert(other_filename);
+            }
+        }
+
+        // Clear diagnostics for files that had them last time around but don't
+        // anymore (e.g. a cyclic import that got fixed).
+        let mut published_files = self.published_files.lock().await;
+        if let Some(previous_files) = published_files.get(&uri) {
+            for stale_filename in previous_files.difference(&current_files) {
+                if let Some(stale_uri) = uri_for_filename(stale_filename) {
+                    self.client.publish_diagnostics(stale_uri, vec![], None).await;
+                }
+            }
+        }
+        published_files.insert(uri, current_files);
     }
 }
 
-fn analyze(source: &str) -> (Vec<Diagnostic>, Vec<HoverInfo>) {
-    let mut diagnostics = Vec::new();
+fn analyze(source: &str, filename: &'static str) -> (HashMap<&'static str, Vec<Diagnostic>>, Vec<HoverInfo>) {
+    let mut diagnostics: HashMap<&'static str, Vec<Diagnostic>> = HashMap::new();
 
     LEXER_WARNINGS.with(|w| w.borrow_mut().clear());
 
     let cursor = Cursor::new(source.as_bytes().to_vec());
-    let reader = LazyStreamReader::new(cursor, Some("current"));
+    let reader = LazyStreamReader::new(cursor, Some(filename));
 
     let lexer_options = LexerOptions {
         max_comment_length: 500,
         max_identifier_length: 100,
     };
 
-    let lexer = match Lexer::new(reader, lexer_options, on_warning) {
+    let lexer = match Lexer::new(reader, lexer_options.clone(), on_warning) {
         Ok(lexer) => lexer,
         Err(err) => {
-            diagnostics.push(error_to_diagnostic(err.as_ref(), DiagnosticSeverity::ERROR));
+            push_error(&mut diagnostics, err.as_ref(), DiagnosticSeverity::ERROR, filename);
             return (diagnostics, vec![]);
         }
     };
 
     LEXER_WARNINGS.with(|w| {
         for warning in w.borrow().iter() {
-            diagnostics.push(error_to_diagnostic(warning.as_ref(), DiagnosticSeverity::WARNING));
+            push_error(&mut diagnostics, warning.as_ref(), DiagnosticSeverity::WARNING, filename);
         }
     });
 
@@ -184,15 +279,24 @@ fn analyze(source: &str) -> (Vec<Diagnostic>, Vec<HoverInfo>) {
     let program = match parser.parse() {
         Ok(program) => program,
         Err(err) => {
-            diagnostics.push(error_to_diagnostic(err.as_ref(), DiagnosticSeverity::ERROR));
+            push_error(&mut diagnostics, err.as_ref(), DiagnosticSeverity::ERROR, filename);
             return (diagnostics, vec![]);
         }
     };
 
-    let mut semantic_checker = match SemanticChecker::new(&program) {
+    let mut import_resolver = ImportResolver::new(lexer_options, on_warning);
+    let import_resolved_program = match import_resolver.resolve(filename, program) {
+        Ok(program) => program,
+        Err(err) => {
+            push_error(&mut diagnostics, err.as_ref(), DiagnosticSeverity::ERROR, filename);
+            return (diagnostics, vec![]);
+        }
+    };
+
+    let mut semantic_checker = match SemanticChecker::new(&import_resolved_program) {
         Ok(checker) => checker,
         Err(err) => {
-            diagnostics.push(error_to_diagnostic(err.as_ref(), DiagnosticSeverity::ERROR));
+            push_error(&mut diagnostics, err.as_ref(), DiagnosticSeverity::ERROR, filename);
             return (diagnostics, vec![]);
         }
     };
@@ -204,10 +308,22 @@ fn analyze(source: &str) -> (Vec<Diagnostic>, Vec<HoverInfo>) {
             ErrorSeverity::HIGH => DiagnosticSeverity::ERROR,
             ErrorSeverity::LOW => DiagnosticSeverity::WARNING,
         };
-        diagnostics.push(error_to_diagnostic(error.as_ref(), severity));
+        push_error(&mut diagnostics, error.as_ref(), severity, filename);
     }
 
     (diagnostics, semantic_checker.hovers)
+}
+
+/// Adds a diagnostic to the bucket matching the file its span actually points to,
+/// falling back to `default_filename` if the span carries no filename of its own.
+fn push_error(
+    diagnostics: &mut HashMap<&'static str, Vec<Diagnostic>>,
+    err: &dyn IError,
+    severity: DiagnosticSeverity,
+    default_filename: &'static str,
+) {
+    let span_filename = err.get_span().start().filename.unwrap_or(default_filename);
+    diagnostics.entry(span_filename).or_default().push(error_to_diagnostic(err, severity));
 }
 
 fn keyword_completions() -> Vec<CompletionItem> {
@@ -234,9 +350,9 @@ fn keyword_completions() -> Vec<CompletionItem> {
     items
 }
 
-fn identifier_completions(source: &str) -> Vec<CompletionItem> {
+fn identifier_completions(source: &str, filename: &'static str) -> Vec<CompletionItem> {
     let cursor = Cursor::new(source.as_bytes().to_vec());
-    let reader = LazyStreamReader::new(cursor, Some("current"));
+    let reader = LazyStreamReader::new(cursor, Some(filename));
     let lexer_options = LexerOptions {
         max_comment_length: 500,
         max_identifier_length: 100,
@@ -307,6 +423,7 @@ async fn main() {
     let (service, socket) = LspService::new(|client| Backend {
         client,
         documents: Mutex::new(HashMap::new()),
+        published_files: Mutex::new(HashMap::new()),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }

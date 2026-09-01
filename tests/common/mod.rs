@@ -5,7 +5,7 @@ use std::{
 };
 
 use inkwell::context::Context;
-use raptor_lib::{backend::llvm::OverflowPolicy, common::errors::ErrorSeverity};
+use raptor_lib::{backend::llvm::OverflowPolicy, common::errors::ErrorSeverity, import_resolver::ImportResolver};
 
 use raptor_lib::{
     backend::{interpreter::interpreter::Interpreter, llvm::compiler::Compiler},
@@ -42,13 +42,16 @@ fn setup_program_impl(text: BufReader<&[u8]>, skip_typecheck: bool) -> Program {
         max_identifier_length: 100,
     };
 
-    let lexer = Lexer::new(reader, lexer_options, on_warning).unwrap();
+    let lexer = Lexer::new(reader, lexer_options.clone(), on_warning).unwrap();
     let mut parser = Parser::new(lexer);
 
     let program = parser.parse().unwrap();
 
+    let mut import_resolver = ImportResolver::new(lexer_options, on_warning);
+    let import_resolved_program = import_resolver.resolve("", program).unwrap();
+
     if !skip_typecheck {
-        let mut checker = SemanticChecker::new(&program).unwrap();
+        let mut checker = SemanticChecker::new(&import_resolved_program).unwrap();
         checker.check();
 
         let real_errors: Vec<_> = checker
@@ -60,7 +63,7 @@ fn setup_program_impl(text: BufReader<&[u8]>, skip_typecheck: bool) -> Program {
         assert_eq!(real_errors.len(), 0, "semantic checker found unexpected errors: {:?}", real_errors);
     }
 
-    program
+    import_resolved_program
 }
 
 pub fn setup_program(text: BufReader<&[u8]>) -> Program {

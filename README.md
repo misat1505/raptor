@@ -12,34 +12,7 @@ The project provides **two executables**:
 
 ## Language pipeline
 
-```text
-                 ┌──────────────┐
-Source ─────────►│    Lexer     │
-                 └──────┬───────┘
-                        │ tokens
-                        ▼
-                 ┌──────────────┐
-                 │    Parser    │
-                 └──────┬───────┘
-                        │ AST
-                        ▼
-                 ┌──────────────┐
-                 │   Semantic   │
-                 │    Checker   │
-                 └──────┬───────┘
-                        │ checked AST
-                 ┌──────┴───────┐
-                 ▼              ▼
-          ┌────────────┐  ┌────────────┐
-          │ Interpreter│  │  Compiler  │
-          └────────────┘  └─────┬──────┘
-                                │ LLVM IR
-                                ▼
-                           LLVM 18 tools
-                                │
-                                ▼
-                            executable
-```
+![](./docs/diagram/compiler_pipeline.png)
 
 The semantic checker performs **type checking** and other static validation before the
 program is interpreted or compiled, unless `--unsafe` is explicitly used.

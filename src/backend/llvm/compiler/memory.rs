@@ -322,7 +322,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .into_int_value();
 
             if element_is_owned {
-                println!("element is owned and the type is: {:?}", inner_type);
                 let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, compiler.context).ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,

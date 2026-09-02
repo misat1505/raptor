@@ -126,7 +126,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub(in crate::backend) fn expr_needs_release_in_function_call(expr: &Expression) -> bool {
         matches!(
             expr,
-            Expression::Literal(_) | Expression::FunctionCall { .. } | Expression::Index { .. } | Expression::FieldAccess { .. }
+            Expression::Literal(_)
+                | Expression::FunctionCall { .. }
+                | Expression::Index { .. }
+                | Expression::FieldAccess { .. }
+                | Expression::Casting { .. }
         )
     }
 

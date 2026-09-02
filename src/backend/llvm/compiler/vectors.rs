@@ -134,6 +134,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             let element_value = match &element_value {
                 LlvmValue::Str(str_ptr) => {
                     let copied = self.build_string_copy(*str_ptr, element.span)?;
+                    if Self::expr_needs_release(&element.as_ref().value) {
+                        self.release_value(&element_value, span)?;
+                    }
                     LlvmValue::Str(copied)
                 }
 

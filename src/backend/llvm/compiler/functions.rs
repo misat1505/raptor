@@ -272,11 +272,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             LlvmValue::Str(copy_ptr)
                         }
 
-                        LlvmValue::Vector(_, _) | LlvmValue::Struct(_, _) => {
+                        LlvmValue::Vector(ptr, ref inner) => {
+                            let copy_ptr = self.build_shallow_copy_vector(ptr, &inner, span)?;
                             if Self::expr_needs_retain(&argument.value.value.value) {
                                 self.retain_value(&value, span)?;
                             }
-                            value
+                            LlvmValue::Vector(copy_ptr, inner.clone())
+                        }
+
+                        LlvmValue::Struct(ptr, ref ty) => {
+                            let copy_ptr = self.build_shallow_copy_struct(ptr, &ty, span)?;
+                            if Self::expr_needs_retain(&argument.value.value.value) {
+                                self.retain_value(&value, span)?;
+                            }
+                            LlvmValue::Struct(copy_ptr, ty.clone())
                         }
 
                         other => other,
@@ -504,7 +513,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         ty: &Type,
         span: Span,
     ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
-        let Type::Struct { identifier, .. } = ty else {
+        let Type::Struct { identifier, fields, .. } = ty else {
             return Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!("Cannot build a shallow copy of non-struct type '{:?}'.", ty),
@@ -514,17 +523,35 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let (struct_type, field_indices) = self.struct_llvm_type(identifier, span)?;
 
+        let err = Self::builder_err(span);
+
+        // ---------------------------------------------------------------------
+        // Allocate the new struct.
+        // ---------------------------------------------------------------------
+
         let size = struct_type.size_of().expect("struct type should be sized");
+
         let new_ptr = self
             .builder
-            .build_call(self.libc.malloc_fn, &[size.into()], "struct.malloc")
-            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
+            .build_call(self.libc.malloc_fn, &[size.into()], "struct.copy.malloc")
+            .map_err(&err)?
             .try_as_basic_value()
             .basic()
             .expect("malloc should return a value")
             .into_pointer_value();
 
+        // ---------------------------------------------------------------------
+        // Copy fields.
+        //
+        // Primitive fields are copied directly.
+        //
+        // Heap-owned fields (str/vector/struct) are shallow-copied as pointers,
+        // but MUST receive retain(), because the new struct becomes another
+        // owner of the same heap object.
+        // ---------------------------------------------------------------------
+
         let mut sorted_fields: Vec<(&String, &u32)> = field_indices.iter().collect();
+
         sorted_fields.sort_by_key(|(_, idx)| **idx);
 
         for (field_name, field_index) in sorted_fields {
@@ -532,34 +559,75 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .get_field_type_at_index(*field_index)
                 .expect("field index should be valid, built from the same struct_type");
 
+            // -------------------------------------------------------------
+            // Source field.
+            // -------------------------------------------------------------
+
             let src_field_ptr = self
                 .builder
                 .build_struct_gep(struct_type, ptr, *field_index, format!("{}.src", field_name).as_str())
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                .map_err(&err)?;
 
             let field_value = self
                 .builder
                 .build_load(field_llvm_type, src_field_ptr, format!("{}.load", field_name).as_str())
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                .map_err(&err)?;
+
+            // -------------------------------------------------------------
+            // Destination field.
+            // -------------------------------------------------------------
 
             let dst_field_ptr = self
                 .builder
                 .build_struct_gep(struct_type, new_ptr, *field_index, format!("{}.dst", field_name).as_str())
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                .map_err(&err)?;
 
-            self.builder
-                .build_store(dst_field_ptr, field_value)
-                .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+            self.builder.build_store(dst_field_ptr, field_value).map_err(&err)?;
+
+            // -------------------------------------------------------------
+            // IMPORTANT:
+            //
+            // For heap objects the field contains only a pointer.
+            // build_store() does NOT increment the referenced object's
+            // refcount.
+            //
+            // The original struct owns one reference and the new struct
+            // becomes another owner, therefore retain().
+            // -------------------------------------------------------------
+
+            let field_type = fields.get(field_name).ok_or_else(|| {
+                Box::new(CompilerError::at(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Field '{}' was found in LLVM struct but not in \
+                         the source struct type.",
+                        field_name
+                    ),
+                    span,
+                )) as Box<dyn IError>
+            })?;
+
+            if matches!(field_type, Type::Str | Type::Vector(_) | Type::Struct { .. }) {
+                let field_llvm_value = LlvmValue::from_basic_value_enum(field_value, field_type);
+
+                self.retain_value(&field_llvm_value, span)?;
+            }
         }
 
+        // ---------------------------------------------------------------------
+        // New struct starts with exactly one owner: the caller of this function.
+        // ---------------------------------------------------------------------
+
         let refcount_index = Self::struct_refcount_field_index(struct_type);
+
         let refcount_field = self
             .builder
             .build_struct_gep(struct_type, new_ptr, refcount_index, "struct.copy.refcount")
-            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+            .map_err(&err)?;
+
         self.builder
             .build_store(refcount_field, self.context.i64_type().const_int(1, false))
-            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+            .map_err(&err)?;
 
         Ok(new_ptr)
     }

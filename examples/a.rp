@@ -23,43 +23,25 @@
 # let name = user.name;
 # println(user.name);
 
-struct User {
-    i64 id,
-    str name
+struct Inner {
+    i64 value
 };
 
-fn user_stringify(&User user): str {
-    return "User { id: " + user.id as str + ", name: \"" + user.name + "\" }"; 
-}
-
-struct UserRepository {
-    User[] users
+struct Outer {
+    i64 primitive_field,
+    Inner composite_field
 };
 
-fn user_repository_create_user(&UserRepository repo, User user): void {
-    vector_push(&repo.users, user);
+fn mutate(Outer o): void {
+    o.primitive_field = 99 as i64;
+    o.composite_field.value = 99 as i64;
 }
 
-fn user_repository_stringify(&UserRepository repo): str {
-    let text = "UserRepository { users: [ ";
+let inner = Inner { value: 1 as i64 };
+let outer = Outer { primitive_field: 1 as i64, composite_field: inner };
 
-    for (let i = 0; i < vector_size(&repo.users); i += 1) {
-        if (i != 0) text += ", ";
-        text += user_stringify(&repo.users[i]);
-    }
+mutate(outer);
 
-    text += " ] }";
+println(outer.primitive_field as str);
 
-    return text;
-}
-
-let repo = UserRepository { users: [] };
-
-let name = "Elon";
-let user = User { id: 420, name };
-
-println(user_repository_stringify(&repo));
-
-user_repository_create_user(&repo, user);
-
-println(user_repository_stringify(&repo));
+println(outer.composite_field.value as str);

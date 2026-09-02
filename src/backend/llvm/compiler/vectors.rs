@@ -1,5 +1,5 @@
 use inkwell::values::PointerValue;
-use inkwell::AddressSpace;
+use inkwell::{AddressSpace, IntPredicate};
 
 use super::Compiler;
 use crate::common::visitor::Visitor;
@@ -512,5 +512,243 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.builder.build_store(data_ptr, zero_byte).map_err(&err)?;
 
         self.build_str_header(data_ptr, span)
+    }
+
+    #[allow(dead_code)]
+    pub(in crate::backend::llvm::compiler) fn build_shallow_copy_vector(
+        &mut self,
+        vector_ptr: PointerValue<'ctx>,
+        inner_type: &Type,
+        span: Span,
+    ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let err = Self::builder_err(span);
+        let function = self.current_function();
+
+        let vector_type = LlvmValue::vector_struct_type(self.context);
+        let ptr_type = self.context.ptr_type(AddressSpace::default());
+        let i64_type = self.context.i64_type();
+
+        // ---------------------------------------------------------------------
+        // Load source header fields.
+        // ---------------------------------------------------------------------
+
+        let src_data_field = self
+            .builder
+            .build_struct_gep(vector_type, vector_ptr, VEC_DATA, "copy.src.data")
+            .map_err(&err)?;
+
+        let src_length_field = self
+            .builder
+            .build_struct_gep(vector_type, vector_ptr, VEC_LENGTH, "copy.src.length")
+            .map_err(&err)?;
+
+        let src_capacity_field = self
+            .builder
+            .build_struct_gep(vector_type, vector_ptr, VEC_CAPACITY, "copy.src.capacity")
+            .map_err(&err)?;
+
+        let old_data = self
+            .builder
+            .build_load(ptr_type, src_data_field, "copy.data.old")
+            .map_err(&err)?
+            .into_pointer_value();
+
+        let old_length = self
+            .builder
+            .build_load(i64_type, src_length_field, "copy.length.old")
+            .map_err(&err)?
+            .into_int_value();
+
+        let old_capacity = self
+            .builder
+            .build_load(i64_type, src_capacity_field, "copy.capacity.old")
+            .map_err(&err)?
+            .into_int_value();
+
+        // ---------------------------------------------------------------------
+        // Allocate/copy data array.
+        // ---------------------------------------------------------------------
+
+        let element_size = LlvmValue::element_byte_size(inner_type, i64_type, span)?;
+
+        let bytes = self.builder.build_int_mul(old_length, element_size, "copy.bytes").map_err(&err)?;
+
+        let new_data_alloca = self.builder.build_alloca(ptr_type, "copy.data.slot").map_err(&err)?;
+
+        self.builder.build_store(new_data_alloca, ptr_type.const_null()).map_err(&err)?;
+
+        let is_empty = self
+            .builder
+            .build_int_compare(IntPredicate::EQ, old_length, i64_type.const_zero(), "copy.is_empty")
+            .map_err(&err)?;
+
+        let copy_block = self.context.append_basic_block(function, "copy.data");
+
+        let retain_block = self.context.append_basic_block(function, "copy.retain.elements");
+
+        let merge_block = self.context.append_basic_block(function, "copy.merge");
+
+        self.builder.build_conditional_branch(is_empty, merge_block, copy_block).map_err(&err)?;
+
+        // ---------------------------------------------------------------------
+        // memcpy source array -> new array
+        // ---------------------------------------------------------------------
+
+        self.builder.position_at_end(copy_block);
+
+        let new_data = self
+            .builder
+            .build_call(self.libc.malloc_fn, &[bytes.into()], "copy.data.malloc")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+
+        self.builder
+            .build_call(self.libc.memcpy_fn, &[new_data.into(), old_data.into(), bytes.into()], "copy.memcpy")
+            .map_err(&err)?;
+
+        self.builder.build_store(new_data_alloca, new_data).map_err(&err)?;
+
+        self.builder.build_unconditional_branch(retain_block).map_err(&err)?;
+
+        // ---------------------------------------------------------------------
+        // IMPORTANT:
+        //
+        // memcpy copied the POINTER VALUES, not ownership.
+        //
+        // Therefore every heap-owned element needs +1 refcount.
+        // ---------------------------------------------------------------------
+
+        self.builder.position_at_end(retain_block);
+
+        let index_alloca = self.builder.build_alloca(i64_type, "copy.retain.index").map_err(&err)?;
+
+        self.builder.build_store(index_alloca, i64_type.const_zero()).map_err(&err)?;
+
+        let retain_cond = self.context.append_basic_block(function, "copy.retain.cond");
+
+        let retain_body = self.context.append_basic_block(function, "copy.retain.body");
+
+        let retain_done = self.context.append_basic_block(function, "copy.retain.done");
+
+        self.builder.build_unconditional_branch(retain_cond).map_err(&err)?;
+
+        // condition
+        self.builder.position_at_end(retain_cond);
+
+        let index = self
+            .builder
+            .build_load(i64_type, index_alloca, "copy.retain.index.load")
+            .map_err(&err)?
+            .into_int_value();
+
+        let has_next = self
+            .builder
+            .build_int_compare(IntPredicate::ULT, index, old_length, "copy.retain.has_next")
+            .map_err(&err)?;
+
+        self.builder.build_conditional_branch(has_next, retain_body, retain_done).map_err(&err)?;
+
+        // body
+        self.builder.position_at_end(retain_body);
+
+        let new_data_ptr = self
+            .builder
+            .build_load(ptr_type, new_data_alloca, "copy.retain.data")
+            .map_err(&err)?
+            .into_pointer_value();
+
+        let element_ptr = unsafe {
+            self.builder
+                .build_gep(ptr_type, new_data_ptr, &[index], "copy.retain.element.ptr")
+                .map_err(&err)?
+        };
+
+        let element_llvm_type =
+            LlvmValue::type_to_basic_type_enum(inner_type, self.context).expect("vector element type should be representable by LLVM");
+
+        let element_raw = self
+            .builder
+            .build_load(element_llvm_type, element_ptr, "copy.retain.element")
+            .map_err(&err)?;
+
+        if matches!(inner_type, Type::Str | Type::Vector(_) | Type::Struct { .. }) {
+            let element_value = LlvmValue::from_basic_value_enum(element_raw, inner_type);
+
+            self.retain_value(&element_value, span)?;
+        }
+
+        let next_index = self
+            .builder
+            .build_int_add(index, i64_type.const_int(1, false), "copy.retain.next")
+            .map_err(&err)?;
+
+        self.builder.build_store(index_alloca, next_index).map_err(&err)?;
+
+        self.builder.build_unconditional_branch(retain_cond).map_err(&err)?;
+
+        // done
+        self.builder.position_at_end(retain_done);
+
+        self.builder.build_unconditional_branch(merge_block).map_err(&err)?;
+
+        // ---------------------------------------------------------------------
+        // Build new vector header.
+        // ---------------------------------------------------------------------
+
+        self.builder.position_at_end(merge_block);
+
+        let final_data = self
+            .builder
+            .build_load(ptr_type, new_data_alloca, "copy.data.final")
+            .map_err(&err)?
+            .into_pointer_value();
+
+        let struct_size = vector_type.size_of().expect("vector type should be sized");
+
+        let new_struct_ptr = self
+            .builder
+            .build_call(self.libc.malloc_fn, &[struct_size.into()], "copy.header.malloc")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+
+        // refcount = 1
+        let refcount_field = self
+            .builder
+            .build_struct_gep(vector_type, new_struct_ptr, VEC_REFCOUNT, "copy.dst.refcount")
+            .map_err(&err)?;
+
+        self.builder.build_store(refcount_field, i64_type.const_int(1, false)).map_err(&err)?;
+
+        // data
+        let new_data_field = self
+            .builder
+            .build_struct_gep(vector_type, new_struct_ptr, VEC_DATA, "copy.dst.data")
+            .map_err(&err)?;
+
+        self.builder.build_store(new_data_field, final_data).map_err(&err)?;
+
+        // length
+        let new_length_field = self
+            .builder
+            .build_struct_gep(vector_type, new_struct_ptr, VEC_LENGTH, "copy.dst.length")
+            .map_err(&err)?;
+
+        self.builder.build_store(new_length_field, old_length).map_err(&err)?;
+
+        // capacity
+        let new_capacity_field = self
+            .builder
+            .build_struct_gep(vector_type, new_struct_ptr, VEC_CAPACITY, "copy.dst.capacity")
+            .map_err(&err)?;
+
+        self.builder.build_store(new_capacity_field, old_capacity).map_err(&err)?;
+
+        Ok(new_struct_ptr)
     }
 }

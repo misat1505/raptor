@@ -266,6 +266,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let value = match value {
                         LlvmValue::Str(ptr) => {
                             let copy_ptr = self.build_string_copy(ptr, span)?;
+                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
+                                self.release_value(&value, span)?;
+                            }
                             LlvmValue::Str(copy_ptr)
                         }
 
@@ -471,7 +474,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .into_int_value();
 
         // strlen + 1 for '\0'
-        let size = self.builder().build_int_add(strlen, i64_type.const_int(1, false), "str.copy.size").map_err(&err)?;
+        let size = self
+            .builder()
+            .build_int_add(strlen, i64_type.const_int(1, false), "str.copy.size")
+            .map_err(&err)?;
 
         // malloc(size)
         let new_data = self

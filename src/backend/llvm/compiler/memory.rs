@@ -119,6 +119,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         !matches!(expr, Expression::Variable(_))
     }
 
+    pub(in crate::backend) fn expr_needs_release_in_function_call(expr: &Expression) -> bool {
+        matches!(expr, Expression::Literal(_) | Expression::FunctionCall { .. })
+    }
+
     /// Increments the refcount of a heap-allocated value. No-op for
     /// primitives.
     pub(in crate::backend) fn retain_value(&mut self, value: &LlvmValue<'ctx>, span: Span) -> Result<(), Box<dyn IError>> {

@@ -5,7 +5,7 @@ use inkwell::AddressSpace;
 use crate::{
     backend::{
         interpreter::Value,
-        llvm::LlvmValue,
+        llvm::{compiler::Compiler, LlvmValue},
         std_functions::std_functions::{build_usage_error, LlvmCompileFn, StdFunction},
     },
     common::{
@@ -57,7 +57,23 @@ pub fn println() -> StdFunction {
         let text_value = compiler.read_last_value()?;
 
         let text_ptr = match text_value {
-            LlvmValue::Str(ptr) => ptr,
+            LlvmValue::Str(ptr) => {
+                let i8_type = compiler.context().i8_type();
+                let i8_ptr_type = compiler.context().ptr_type(AddressSpace::default());
+
+                let data_field = unsafe {
+                    compiler
+                        .builder()
+                        .build_gep(i8_type, ptr, &[compiler.context().i64_type().const_int(8, false)], "str.data.field")
+                }
+                .map_err(err)?;
+
+                compiler
+                    .builder()
+                    .build_load(i8_ptr_type, data_field, "str.data")
+                    .map_err(err)?
+                    .into_pointer_value()
+            }
 
             other => {
                 return Err(Box::new(CompilerError::at(
@@ -68,15 +84,13 @@ pub fn println() -> StdFunction {
             }
         };
 
-        let owned_ptr = compiler.build_string_copy(text_ptr, span)?;
-
         let printf_fn = compiler.libc().printf_fn;
 
         let format_str = compiler.builder().build_global_string_ptr("%s\n", "fmt").map_err(err)?;
 
         compiler
             .builder()
-            .build_call(printf_fn, &[format_str.as_pointer_value().into(), owned_ptr.into()], "printf_call")
+            .build_call(printf_fn, &[format_str.as_pointer_value().into(), text_ptr.into()], "printf_call")
             .map_err(err)?;
 
         let null_stream = compiler.context().ptr_type(AddressSpace::default()).const_null();
@@ -86,7 +100,9 @@ pub fn println() -> StdFunction {
             .build_call(compiler.libc().fflush_fn, &[null_stream.into()], "fflush.stdout")
             .map_err(err)?;
 
-        compiler.builder().build_free(owned_ptr).map_err(err)?;
+        if Compiler::expr_needs_release_in_function_call(&arg.value.value.value) {
+            compiler.release_value(&text_value, arg.value.value.span)?;
+        }
 
         Ok(())
     };

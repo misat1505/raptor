@@ -1,6 +1,10 @@
-let arr = [1, 2, 3];
+let text = "123456789";
+println(text);
 
-let text = "Hello world";
-let text2 = text + "world";
+println("Hello world");
 
-let text3 = text + "foo" + "bar";
+fn foo(str a): str {
+    return "foo bar baz";
+}
+
+println(foo(text));

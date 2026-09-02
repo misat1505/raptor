@@ -1,10 +1,24 @@
-let text = "123456789";
-println(text);
+# This example doesn't memory leak anymore
+# let text = "123456789";
+# println(text);
+# println("Hello world");
+# fn foo(str a): str {
+#     return "foo bar baz";
+# }
+# println(foo(text));
 
-println("Hello world");
 
-fn foo(str a): str {
-    return "foo bar baz";
-}
+# ----------------------------
+# We have a memory leak for strings inside the array, not array itself
+# let names = ["Elon", "Zuckerberg"];
+# let elon = names[0];
+# println(names[0]);
 
-println(foo(text));
+# ----------------------------
+# This example doesn't memory leak anymore
+# struct User {
+#     str name
+# };
+# let user = User { name: "Jeff Bezos" };
+# let name = user.name;
+# println(user.name);

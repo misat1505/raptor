@@ -115,12 +115,19 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     // Retain / release
     // ========================================================================
 
+    /// Function checks if we should release rhs of statements such as let x = <expr>;
+    /// Note: indexing and field accessing copy the value so we want to release it
     pub(in crate::backend) fn expr_needs_release(expr: &Expression) -> bool {
         !matches!(expr, Expression::Variable(_))
     }
 
+    /// Function checks if we should release arguments of a function.
+    /// Note: indexing and field accessing copy the value so we want to release it
     pub(in crate::backend) fn expr_needs_release_in_function_call(expr: &Expression) -> bool {
-        matches!(expr, Expression::Literal(_) | Expression::FunctionCall { .. })
+        matches!(
+            expr,
+            Expression::Literal(_) | Expression::FunctionCall { .. } | Expression::Index { .. } | Expression::FieldAccess { .. }
+        )
     }
 
     /// Increments the refcount of a heap-allocated value. No-op for

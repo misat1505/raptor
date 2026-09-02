@@ -2,6 +2,7 @@ mod control_flow;
 mod core;
 mod expressions;
 mod functions;
+mod memory;
 mod statements;
 mod stringify;
 mod utils;
@@ -37,11 +38,24 @@ pub(in crate::backend::llvm::compiler) enum ControlFrame<'ctx> {
     Loop {
         continue_block: BasicBlock<'ctx>,
         break_block: BasicBlock<'ctx>,
+        /// Number of active lexical scopes (`Compiler::scopes.len()`) at the
+        /// point the loop was entered, i.e. *before* the loop body's own
+        /// block scope was pushed. `break`/`continue` release every scope
+        /// from this depth onward, since those scopes only exist for the
+        /// duration of the loop.
+        scope_depth: usize,
     },
     Switch {
         break_block: BasicBlock<'ctx>,
+        /// See `Loop::scope_depth`.
+        scope_depth: usize,
     },
 }
+
+/// One entry in a lexical scope: a locally-declared variable that the
+/// refcounting runtime must release when the scope it was declared in is
+/// exited (normally, or via `return`/`break`/`continue`).
+pub(in crate::backend::llvm::compiler) type ScopedVariable<'ctx> = (String, PointerValue<'ctx>, Type);
 
 pub struct Compiler<'a, 'ctx> {
     program: &'a Program,
@@ -55,6 +69,13 @@ pub struct Compiler<'a, 'ctx> {
     control_stack: Vec<ControlFrame<'ctx>>,
 
     variables: HashMap<String, (PointerValue<'ctx>, Type)>,
+
+    /// Stack of lexical scopes currently active in the function being
+    /// compiled. Each entry is the list of variables declared directly in
+    /// that scope, in declaration order. Used by the refcounting runtime to
+    /// automatically release owned (`Str`/`Vector`/`Struct`) locals when a
+    /// block, function, loop iteration, or switch case is exited.
+    scopes: Vec<Vec<ScopedVariable<'ctx>>>,
 
     last_value: Option<LlvmValue<'ctx>>,
 
@@ -84,6 +105,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             libc,
             control_stack: vec![],
             variables: HashMap::new(),
+            scopes: vec![],
             last_value: None,
             span,
             llvm_alu,

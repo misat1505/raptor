@@ -9,6 +9,7 @@ use crate::{
         std_functions::std_functions::{build_usage_error, LlvmCompileFn, StdFunction},
         type_utils::type_accepts_value,
     },
+    backend::llvm::llvm_alu::llvm_value::{VEC_CAPACITY, VEC_DATA, VEC_LENGTH},
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
         span::Span,
@@ -118,6 +119,12 @@ pub fn vector_push() -> StdFunction {
             )));
         }
 
+        // The vector takes ownership of the pushed element: strings are
+        // always deep-copied, Vector/Struct values are retained only if the
+        // source expression was a bare variable read (see
+        // `Compiler::expr_needs_retain`).
+        let pushed_value = compiler.finalize_owned_value_for_new_slot(pushed_value, &value_arg.value.value.value, span)?;
+
         let context = compiler.context();
         let ptr_type = context.ptr_type(AddressSpace::default());
         let i64_type = context.i64_type();
@@ -138,17 +145,17 @@ pub fn vector_push() -> StdFunction {
 
         let data_field = compiler
             .builder()
-            .build_struct_gep(struct_type, struct_ptr, 0, "vector.data")
+            .build_struct_gep(struct_type, struct_ptr, VEC_DATA, "vector.data")
             .map_err(err)?;
 
         let length_field = compiler
             .builder()
-            .build_struct_gep(struct_type, struct_ptr, 1, "vector.length")
+            .build_struct_gep(struct_type, struct_ptr, VEC_LENGTH, "vector.length")
             .map_err(err)?;
 
         let capacity_field = compiler
             .builder()
-            .build_struct_gep(struct_type, struct_ptr, 2, "vector.capacity")
+            .build_struct_gep(struct_type, struct_ptr, VEC_CAPACITY, "vector.capacity")
             .map_err(err)?;
 
         let old_length = compiler

@@ -81,7 +81,7 @@ pub fn vector_size() -> StdFunction {
 
         let length_field = compiler
             .builder()
-            .build_struct_gep(struct_type, vector_ptr, 1, "vector.length")
+            .build_struct_gep(struct_type, vector_ptr, crate::backend::llvm::llvm_alu::llvm_value::VEC_LENGTH, "vector.length")
             .map_err(err)?;
 
         let length = compiler

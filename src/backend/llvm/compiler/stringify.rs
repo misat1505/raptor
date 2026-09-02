@@ -3,7 +3,7 @@ use inkwell::{AddressSpace, IntPredicate};
 
 use super::Compiler;
 use crate::{
-    backend::llvm::llvm_alu::llvm_value::LlvmValue,
+    backend::llvm::llvm_alu::llvm_value::{LlvmValue, VEC_DATA, VEC_LENGTH},
     common::{
         errors::{CompilerError, ErrorSeverity, IError},
         span::Span,
@@ -78,6 +78,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         Ok(new_length)
     }
 
+    /// Formats a scalar value into a raw, un-headered C string buffer. Only
+    /// used internally to build up `build_vector_to_string`'s result -
+    /// never exposed as an `LlvmValue::Str` directly (that always goes
+    /// through `build_str_header`).
     pub fn format_scalar_to_cstring(&mut self, value: LlvmValue<'ctx>, elem_type: &Type, span: Span) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
         let err = Self::builder_err(span);
         let i64_type = self.context.i64_type();
@@ -361,14 +365,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Ok(dup)
             }
 
-            (Type::Str, LlvmValue::Str(v)) => {
-                // wynik: "\"" + v + "\""
+            (Type::Str, LlvmValue::Str(header_ptr)) => {
+                // wynik: "\"" + data + "\""
+                let data = self.str_data_ptr(*header_ptr, span)?;
 
                 let quote = self.builder.build_global_string_ptr("\"", "quote").map_err(&err)?.as_pointer_value();
 
                 let len_v = self
                     .builder
-                    .build_call(self.libc.strlen_fn, &[(*v).into()], "str.len")
+                    .build_call(self.libc.strlen_fn, &[data.into()], "str.len")
                     .map_err(&err)?
                     .try_as_basic_value()
                     .basic()
@@ -401,7 +406,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     .map_err(&err)?;
 
                 self.builder
-                    .build_call(self.libc.strcat_fn, &[buf.into(), (*v).into()], "str.cat2")
+                    .build_call(self.libc.strcat_fn, &[buf.into(), data.into()], "str.cat2")
                     .map_err(&err)?;
 
                 self.builder
@@ -419,6 +424,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
+    /// Builds the `[...]` textual representation of a vector, returning it
+    /// as a properly-headered, refcounted `Str` (refcount 1).
     pub fn build_vector_to_string(
         &mut self,
         vector_ptr: PointerValue<'ctx>,
@@ -433,9 +440,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let i64_type = self.context.i64_type();
 
-        let data_field = self.builder.build_struct_gep(struct_type, vector_ptr, 0, "vec.data").map_err(&err)?;
+        let data_field = self.builder.build_struct_gep(struct_type, vector_ptr, VEC_DATA, "vec.data").map_err(&err)?;
 
-        let length_field = self.builder.build_struct_gep(struct_type, vector_ptr, 1, "vec.length").map_err(&err)?;
+        let length_field = self.builder.build_struct_gep(struct_type, vector_ptr, VEC_LENGTH, "vec.length").map_err(&err)?;
 
         let data = self
             .builder
@@ -539,15 +546,32 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             _ => self.format_scalar_to_cstring(elem_value.clone(), inner_type, span)?,
         };
 
+        // `build_vector_to_string` for nested vectors returns a proper
+        // `StrHeader`; unwrap it to the raw C buffer that
+        // `append_cstring_tracked` operates on. `format_scalar_to_cstring`
+        // already returns a raw buffer directly.
+        let elem_cstr = if matches!(inner_type, Type::Vector(_)) {
+            self.str_data_ptr(elem_str, span)?
+        } else {
+            elem_str
+        };
+
         let len_before_elem = self
             .builder
             .build_load(i64_type, length_alloca, "len.before_elem")
             .map_err(&err)?
             .into_int_value();
 
-        let len_after_elem = self.append_cstring_tracked(result_alloca, len_before_elem, elem_str, span)?;
+        let len_after_elem = self.append_cstring_tracked(result_alloca, len_before_elem, elem_cstr, span)?;
 
         self.builder.build_store(length_alloca, len_after_elem).map_err(&err)?;
+
+        // The nested-vector case allocated a temporary `StrHeader` just to
+        // get at its raw buffer above; its contents have now been copied
+        // into `result`, so release it.
+        if matches!(inner_type, Type::Vector(_)) {
+            self.release_value(&LlvmValue::Str(elem_str), span)?;
+        }
 
         let next_idx = self.builder.build_int_add(idx, i64_type.const_int(1, false), "i.next").map_err(&err)?;
 
@@ -573,6 +597,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .map_err(&err)?
             .into_pointer_value();
 
-        Ok(final_result)
+        self.build_str_header(final_result, span)
     }
 }

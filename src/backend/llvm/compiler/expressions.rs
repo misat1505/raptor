@@ -9,7 +9,10 @@ use crate::common::visitor::Visitor;
 use crate::{
     backend::llvm::{
         libc_functions::LibcFunctions,
-        llvm_alu::{llvm_value::LlvmValue, LlvmAlu},
+        llvm_alu::{
+            llvm_value::{LlvmValue, VEC_DATA, VEC_LENGTH},
+            LlvmAlu,
+        },
     },
     common::{
         errors::{CompilerError, ErrorSeverity, IError},
@@ -147,12 +150,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                         let data_field = self
                             .builder
-                            .build_struct_gep(struct_type, *vector_ptr, 0, "idx.data")
+                            .build_struct_gep(struct_type, *vector_ptr, VEC_DATA, "idx.data")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
                         let length_field = self
                             .builder
-                            .build_struct_gep(struct_type, *vector_ptr, 1, "idx.length")
+                            .build_struct_gep(struct_type, *vector_ptr, VEC_LENGTH, "idx.length")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
                         let data = self
@@ -193,22 +196,39 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             .build_load(element_llvm_type, element_ptr, "idx.load")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
-                        self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &inner_type));
+                        let element_value = LlvmValue::from_basic_value_enum(raw_value, &inner_type);
+
+                        // Reading an element out of a vector hands the
+                        // caller a *new* owned reference: the vector keeps
+                        // its own, this read gets an extra one. Strings are
+                        // additionally deep-copied to keep their value
+                        // semantics.
+                        let element_value = match element_value {
+                            LlvmValue::Str(ptr) => LlvmValue::Str(self.build_string_copy(ptr, span)?),
+                            other => {
+                                self.retain_value(&other, span)?;
+                                other
+                            }
+                        };
+
+                        self.last_value = Some(element_value);
 
                         Ok(())
                     }
 
-                    LlvmValue::Str(str_ptr) => {
+                    LlvmValue::Str(str_header) => {
                         self.visit_expression(index)?;
 
                         let index_value = self.read_last_value()?;
                         let index_int = index_value.into_i64_value(index.span)?;
 
                         let i8_type = self.context.i8_type();
+                        let str_ptr = *str_header;
+                        let data = self.str_data_ptr(str_ptr, span)?;
 
                         let length = self
                             .builder
-                            .build_call(self.libc.strlen_fn, &[(*str_ptr).into()], "str.idx.len")
+                            .build_call(self.libc.strlen_fn, &[data.into()], "str.idx.len")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                             .try_as_basic_value()
                             .basic()
@@ -219,7 +239,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                         let element_ptr = unsafe {
                             self.builder
-                                .build_gep(i8_type, *str_ptr, &[index_int], "str.idx.ptr")
+                                .build_gep(i8_type, data, &[index_int], "str.idx.ptr")
                                 .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                         };
 
@@ -270,11 +290,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 };
 
                 let (struct_type, field_indices) = self.struct_llvm_type(&identifier.value, span)?;
-
-                // let struct_ptr = self
-                //     .builder
-                //     .build_alloca(struct_type, identifier.value.as_str())
-                //     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
                 let size = struct_type.size_of().expect("struct type should be sized");
                 let struct_ptr = self
@@ -328,14 +343,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         LlvmValue::Vector(vector_ptr, inner.clone())
                     } else {
                         self.visit_expression(&field.value.value)?;
-                        self.read_last_value()?
-                    };
+                        let value = self.read_last_value()?;
 
-                    let field_value = if let LlvmValue::Str(str_ptr) = &field_value {
-                        let copied = self.build_string_copy(*str_ptr, field.span)?;
-                        LlvmValue::Str(copied)
-                    } else {
-                        field_value
+                        // Storing into a brand new struct field slot: same
+                        // "new owning slot" rule as `let`/assignment.
+                        self.finalize_owned_value_for_new_slot(value, &field.value.value.value, field.span)?
                     };
 
                     let field_ptr = self
@@ -347,6 +359,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .build_store(field_ptr, field_value.as_basic_value_enum())
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
                 }
+
+                let refcount_index = Self::struct_refcount_field_index(struct_type);
+                let refcount_field = self
+                    .builder
+                    .build_struct_gep(struct_type, struct_ptr, refcount_index, "struct.refcount")
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+                self.builder
+                    .build_store(refcount_field, self.context.i64_type().const_int(1, false))
+                    .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
                 self.last_value = Some(LlvmValue::Struct(struct_ptr, Box::new(declared_type.clone())));
 
@@ -415,7 +436,18 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     .build_load(field_llvm_type, field_ptr, "field.load")
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
 
-                self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &resolved_field_type));
+                let field_value = LlvmValue::from_basic_value_enum(raw_value, &resolved_field_type);
+
+                // Same "new owned reference" rule as vector element reads.
+                let field_value = match field_value {
+                    LlvmValue::Str(ptr) => LlvmValue::Str(self.build_string_copy(ptr, field.span)?),
+                    other => {
+                        self.retain_value(&other, field.span)?;
+                        other
+                    }
+                };
+
+                self.last_value = Some(field_value);
 
                 Ok(())
             }

@@ -11,9 +11,9 @@ use crate::{
                 tcp_accept::tcp_accept, tcp_close::tcp_close, tcp_connect::tcp_connect, tcp_listen::tcp_listen, tcp_read::tcp_read,
                 tcp_write::tcp_write,
             },
-            strings::{str_free::str_free, str_len::str_len},
+            strings::str_len::str_len,
             time::sleep_ms::sleep_ms,
-            vectors::{vector_free::vector_free, vector_push::vector_push, vector_size::vector_size, vector_stringify::vector_stringify},
+            vectors::{vector_push::vector_push, vector_size::vector_size, vector_stringify::vector_stringify},
         },
     },
     common::{
@@ -71,7 +71,6 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
         ("vector_stringify".into(), vector_stringify()),
         ("vector_push".into(), vector_push()),
         ("vector_size".into(), vector_size()),
-        ("vector_free".into(), vector_free()),
         ("tcp_listen".into(), tcp_listen()),
         ("tcp_accept".into(), tcp_accept()),
         ("tcp_read".into(), tcp_read()),
@@ -80,6 +79,5 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
         ("tcp_connect".into(), tcp_connect()),
         ("sleep_ms".into(), sleep_ms()),
         ("str_len".into(), str_len()),
-        ("str_free".into(), str_free()),
     ])
 }

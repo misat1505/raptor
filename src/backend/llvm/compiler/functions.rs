@@ -148,6 +148,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.builder.position_at_end(entry_block);
 
         let saved_variables = std::mem::take(&mut self.variables);
+        let saved_scopes = std::mem::take(&mut self.scopes);
+
+        // Parameters live in their own scope, opened before the function
+        // body's own block scope and closed (released) after it, on the
+        // fall-through path. `return` releases every active scope
+        // (parameters included) before jumping away, so this scope's own
+        // release below is skipped whenever the body always returns.
+        self.push_scope();
 
         for (index, parameter) in function_decl.parameters.iter().enumerate() {
             let identifier = parameter.value.identifier.value.as_str();
@@ -177,18 +185,27 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .build_store(ptr, param_value)
                         .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), parameter.span)) as Box<dyn IError>)?;
 
-                    self.variables.insert(identifier.to_string(), (ptr, param_type));
+                    // The caller already handed us an owned +1 reference
+                    // (see `build_function_call`), so the parameter is
+                    // tracked like any other owned local and released when
+                    // the function returns / falls off the end.
+                    self.declare_scoped_variable(identifier.to_string(), ptr, param_type);
                 }
 
                 PassedBy::Reference => {
                     let ptr = param_value.into_pointer_value();
 
+                    // Reference parameters alias the caller's storage - not
+                    // owned here, so they're just a lookup entry, never
+                    // released.
                     self.variables.insert(identifier.to_string(), (ptr, param_type));
                 }
             }
         }
 
         self.visit_block(&function_decl.block)?;
+
+        self.pop_scope_and_release(function_decl.return_type.span)?;
 
         let current_block = self.builder.get_insert_block().expect("builder should be positioned inside the function");
 
@@ -209,6 +226,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         self.variables = saved_variables;
+        self.scopes = saved_scopes;
 
         Ok(())
     }
@@ -238,20 +256,24 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                     let value = self.read_last_value()?;
 
+                    // The callee takes ownership of this argument (it will
+                    // release it like any other local when it returns).
+                    // Strings are always deep-copied. Vector/Struct values
+                    // only need an explicit retain if the argument
+                    // expression was a bare variable read (a "borrow") -
+                    // anything else already evaluates to an owned +1
+                    // reference and can be handed over as-is.
                     let value = match value {
-                        LlvmValue::Vector(ptr, inner) => {
-                            let copy_ptr = self.build_shallow_copy_vector(ptr, &inner, span)?;
-                            LlvmValue::Vector(copy_ptr, inner)
-                        }
-
                         LlvmValue::Str(ptr) => {
                             let copy_ptr = self.build_string_copy(ptr, span)?;
                             LlvmValue::Str(copy_ptr)
                         }
 
-                        LlvmValue::Struct(ptr, ty) => {
-                            let copy_ptr = self.build_shallow_copy_struct(ptr, &ty, span)?;
-                            LlvmValue::Struct(copy_ptr, ty)
+                        LlvmValue::Vector(_, _) | LlvmValue::Struct(_, _) => {
+                            if Self::expr_needs_retain(&argument.value.value.value) {
+                                self.retain_value(&value, span)?;
+                            }
+                            value
                         }
 
                         other => other,
@@ -356,7 +378,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                         let data_field = self
                             .builder
-                            .build_struct_gep(struct_type, *vector_ptr, 0, "idx.ref.data")
+                            .build_struct_gep(
+                                struct_type,
+                                *vector_ptr,
+                                crate::backend::llvm::llvm_alu::llvm_value::VEC_DATA,
+                                "idx.ref.data",
+                            )
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.span)) as Box<dyn IError>)?;
 
                         let data = self
@@ -393,10 +420,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let index_value = self.read_last_value()?;
                         let index_int = index_value.into_i64_value(index.span)?;
 
+                        let data = self.str_data_ptr(*str_ptr, expression.span)?;
+
                         let i8_type = self.context.i8_type();
 
                         let element_ptr = unsafe {
-                            self.builder.build_gep(i8_type, *str_ptr, &[index_int], "str.ref.ptr").map_err(|err| {
+                            self.builder.build_gep(i8_type, data, &[index_int], "str.ref.ptr").map_err(|err| {
                                 Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.span)) as Box<dyn IError>
                             })?
                         };
@@ -420,46 +449,49 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
+    /// Deep-copies a string: allocates a brand new `StrHeader` with its own
+    /// heap-allocated character buffer, refcount 1, independent from `ptr`.
+    /// This is what gives strings value semantics even though they're
+    /// heap-allocated and (internally) refcounted.
     pub(in crate::backend) fn build_string_copy(&mut self, ptr: PointerValue<'ctx>, span: Span) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
-        let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
+        let err = Self::builder_err(span);
 
-        let context = self.context();
-        let i64_type = context.i64_type();
+        let i64_type = self.context.i64_type();
 
-        // strlen(ptr)
+        let source_data = self.str_data_ptr(ptr, span)?;
+
+        // strlen(source_data)
         let strlen = self
             .builder()
-            .build_call(self.libc().strlen_fn, &[ptr.into()], "str.copy.len")
-            .map_err(err)?
+            .build_call(self.libc().strlen_fn, &[source_data.into()], "str.copy.len")
+            .map_err(&err)?
             .try_as_basic_value()
             .basic()
             .expect("strlen should return a value")
             .into_int_value();
 
         // strlen + 1 for '\0'
-        let size = self
-            .builder()
-            .build_int_add(strlen, i64_type.const_int(1, false), "str.copy.size")
-            .map_err(err)?;
+        let size = self.builder().build_int_add(strlen, i64_type.const_int(1, false), "str.copy.size").map_err(&err)?;
 
         // malloc(size)
-        let new_ptr = self
+        let new_data = self
             .builder()
             .build_call(self.libc().malloc_fn, &[size.into()], "str.copy.malloc")
-            .map_err(err)?
+            .map_err(&err)?
             .try_as_basic_value()
             .basic()
             .expect("malloc should return a value")
             .into_pointer_value();
 
-        // strcpy(new_ptr, ptr)
+        // strcpy(new_data, source_data)
         self.builder()
-            .build_call(self.libc().strcpy_fn, &[new_ptr.into(), ptr.into()], "str.copy")
-            .map_err(err)?;
+            .build_call(self.libc().strcpy_fn, &[new_data.into(), source_data.into()], "str.copy")
+            .map_err(&err)?;
 
-        Ok(new_ptr)
+        self.build_str_header(new_data, span)
     }
 
+    #[allow(dead_code)]
     pub(in crate::backend::llvm::compiler) fn build_shallow_copy_struct(
         &mut self,
         ptr: PointerValue<'ctx>,
@@ -475,11 +507,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         };
 
         let (struct_type, field_indices) = self.struct_llvm_type(identifier, span)?;
-
-        // let new_ptr = self
-        //     .builder
-        //     .build_alloca(struct_type, format!("{}.copy", identifier).as_str())
-        //     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
         let size = struct_type.size_of().expect("struct type should be sized");
         let new_ptr = self
@@ -518,6 +545,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .build_store(dst_field_ptr, field_value)
                 .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
         }
+
+        let refcount_index = Self::struct_refcount_field_index(struct_type);
+        let refcount_field = self
+            .builder
+            .build_struct_gep(struct_type, new_ptr, refcount_index, "struct.copy.refcount")
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+        self.builder
+            .build_store(refcount_field, self.context.i64_type().const_int(1, false))
+            .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
         Ok(new_ptr)
     }

@@ -221,14 +221,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let (var_ptr, var_type) = self.get_variable(identifier.value.as_str())?;
 
                 if accessors.is_empty() {
-                    // The variable is about to be overwritten: release
-                    // whatever it currently owns first.
-                    self.release_current_value(var_ptr, &var_type, span)?;
-
                     self.visit_expression(value)?;
 
                     let new_value = self.read_last_value()?;
                     let new_value = self.finalize_owned_value_for_new_slot(new_value, &value.value, span)?;
+
+                    // The variable is about to be overwritten: release
+                    // whatever it currently owns first.
+                    self.release_current_value(var_ptr, &var_type, span)?;
 
                     self.builder
                         .build_store(var_ptr, new_value.as_basic_value_enum())

@@ -542,6 +542,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         match value {
             LlvmValue::Str(ptr) => {
                 let copied = self.build_string_copy(ptr, span)?;
+                if Self::expr_needs_release(source_expr) {
+                    self.release_value(&value, span)?;
+                }
                 Ok(LlvmValue::Str(copied))
             }
 

@@ -1,0 +1,6 @@
+let arr = [1, 2, 3];
+
+let text = "Hello world";
+let text2 = text + "world";
+
+let text3 = text + "foo" + "bar";

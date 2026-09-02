@@ -79,39 +79,48 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             }
 
             Expression::Literal(literal) => self.visit_literal(literal),
-
             Expression::Variable(variable) => self.visit_variable(variable, span),
-
             Expression::BooleanNegation(expr) => self.build_unary_op(expr, LlvmAlu::boolean_negate, span),
-
             Expression::ArithmeticNegation(expr) => self.build_unary_op(expr, LlvmAlu::arithmetic_negate, span),
+            Expression::Addition(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left_value = self.read_last_value()?;
 
-            Expression::Addition(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::add, span),
+                self.visit_expression(rhs)?;
+                let right_value = self.read_last_value()?;
 
+                let value = self
+                    .llvm_alu
+                    .add(&self.builder, &self.libc, left_value.clone(), right_value.clone(), span)?;
+
+                if let LlvmValue::Str(_) = left_value {
+                    if Self::expr_needs_release(&lhs.as_ref().value) {
+                        self.release_value(&left_value, lhs.as_ref().span)?;
+                    }
+                }
+
+                if let LlvmValue::Str(_) = right_value {
+                    if Self::expr_needs_release(&rhs.as_ref().value) {
+                        self.release_value(&right_value, rhs.as_ref().span)?;
+                    }
+                }
+
+                self.last_value = Some(value);
+
+                Ok(())
+            }
             Expression::Subtraction(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::subtract, span),
-
             Expression::Multiplication(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::multiplication, span),
-
             Expression::Division(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::division, span),
-
             Expression::Modulo(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::modulo, span),
-
             Expression::Concatenation(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::concatenation, span),
-
             Expression::Alternative(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::alternative, span),
-
             Expression::Greater(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::greater, span),
-
             Expression::GreaterEqual(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::greater_or_equal, span),
-
             Expression::Less(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::less, span),
-
             Expression::LessEqual(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::less_or_equal, span),
-
             Expression::Equal(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::equal, span),
-
             Expression::NotEqual(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::not_equal, span),
-
             Expression::Casting { value, to_type } => {
                 self.visit_expression(value)?;
                 let source_value = self.read_last_value()?;

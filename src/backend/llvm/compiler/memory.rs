@@ -44,11 +44,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub(in crate::backend::llvm::compiler) fn pop_scope_and_release(&mut self, span: Span) -> Result<(), Box<dyn IError>> {
         let scope = self.scopes.pop().unwrap_or_default();
 
-        let has_terminator = self
-            .builder
-            .get_insert_block()
-            .and_then(|block| block.get_terminator())
-            .is_some();
+        let has_terminator = self.builder.get_insert_block().and_then(|block| block.get_terminator()).is_some();
 
         for (name, ptr, ty) in scope.iter().rev() {
             self.variables.remove(name);
@@ -118,6 +114,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     // ========================================================================
     // Retain / release
     // ========================================================================
+
+    pub(in crate::backend) fn expr_needs_release(expr: &Expression) -> bool {
+        !matches!(expr, Expression::Variable(_))
+    }
 
     /// Increments the refcount of a heap-allocated value. No-op for
     /// primitives.
@@ -212,7 +212,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let i64_type = self.context.i64_type();
         let function = self.current_function();
 
-        let rc_field = self.builder.build_struct_gep(header_type, ptr, refcount_index, "rc.field").map_err(&err)?;
+        let rc_field = self
+            .builder
+            .build_struct_gep(header_type, ptr, refcount_index, "rc.field")
+            .map_err(&err)?;
 
         let rc = self.builder.build_load(i64_type, rc_field, "rc.val").map_err(&err)?.into_int_value();
 
@@ -247,7 +250,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.with_last_reference(header_type, ptr, STR_REFCOUNT, span, "str.release", move |compiler| {
             let err = Self::builder_err(span);
 
-            let data_field = compiler.builder.build_struct_gep(header_type, ptr, STR_DATA, "str.data.field").map_err(&err)?;
+            let data_field = compiler
+                .builder
+                .build_struct_gep(header_type, ptr, STR_DATA, "str.data.field")
+                .map_err(&err)?;
 
             let data = compiler
                 .builder
@@ -255,8 +261,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .map_err(&err)?
                 .into_pointer_value();
 
-            compiler.builder.build_call(compiler.libc.free_fn, &[data.into()], "str.data.free").map_err(&err)?;
-            compiler.builder.build_call(compiler.libc.free_fn, &[ptr.into()], "str.header.free").map_err(&err)?;
+            compiler
+                .builder
+                .build_call(compiler.libc.free_fn, &[data.into()], "str.data.free")
+                .map_err(&err)?;
+            compiler
+                .builder
+                .build_call(compiler.libc.free_fn, &[ptr.into()], "str.header.free")
+                .map_err(&err)?;
 
             Ok(())
         })
@@ -273,8 +285,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.with_last_reference(header_type, ptr, VEC_REFCOUNT, span, "vec.release", move |compiler| {
             let err = Self::builder_err(span);
 
-            let data_field = compiler.builder.build_struct_gep(header_type, ptr, VEC_DATA, "vec.data.field").map_err(&err)?;
-            let length_field = compiler.builder.build_struct_gep(header_type, ptr, VEC_LENGTH, "vec.length.field").map_err(&err)?;
+            let data_field = compiler
+                .builder
+                .build_struct_gep(header_type, ptr, VEC_DATA, "vec.data.field")
+                .map_err(&err)?;
+            let length_field = compiler
+                .builder
+                .build_struct_gep(header_type, ptr, VEC_LENGTH, "vec.length.field")
+                .map_err(&err)?;
 
             let data = compiler
                 .builder
@@ -327,7 +345,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .build_gep(element_llvm_type, data, &[idx], "vec.release.elem")
                         .map_err(&err)?
                 };
-                let elem_raw = compiler.builder.build_load(element_llvm_type, elem_ptr, "vec.release.elem.val").map_err(&err)?;
+                let elem_raw = compiler
+                    .builder
+                    .build_load(element_llvm_type, elem_ptr, "vec.release.elem.val")
+                    .map_err(&err)?;
                 let elem_value = LlvmValue::from_basic_value_enum(elem_raw, &inner_type);
                 compiler.release_value(&elem_value, span)?;
 
@@ -341,8 +362,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 compiler.builder.position_at_end(after_block);
             }
 
-            compiler.builder.build_call(compiler.libc.free_fn, &[data.into()], "vec.data.free").map_err(&err)?;
-            compiler.builder.build_call(compiler.libc.free_fn, &[ptr.into()], "vec.header.free").map_err(&err)?;
+            compiler
+                .builder
+                .build_call(compiler.libc.free_fn, &[data.into()], "vec.data.free")
+                .map_err(&err)?;
+            compiler
+                .builder
+                .build_call(compiler.libc.free_fn, &[ptr.into()], "vec.header.free")
+                .map_err(&err)?;
 
             Ok(())
         })
@@ -372,8 +399,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             let err = Self::builder_err(span);
 
             for (field_index, field_type) in owned_fields.iter() {
-                let field_llvm_type = LlvmValue::type_to_basic_type_enum(field_type, compiler.context)
-                    .expect("Str, Vector and Struct always map to a pointer type");
+                let field_llvm_type =
+                    LlvmValue::type_to_basic_type_enum(field_type, compiler.context).expect("Str, Vector and Struct always map to a pointer type");
 
                 let field_ptr = compiler
                     .builder
@@ -389,7 +416,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 compiler.release_value(&field_value, span)?;
             }
 
-            compiler.builder.build_call(compiler.libc.free_fn, &[ptr.into()], "struct.free").map_err(&err)?;
+            compiler
+                .builder
+                .build_call(compiler.libc.free_fn, &[ptr.into()], "struct.free")
+                .map_err(&err)?;
 
             Ok(())
         })

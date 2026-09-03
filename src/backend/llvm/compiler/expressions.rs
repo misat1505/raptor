@@ -136,18 +136,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Expression::Index { collection, index } => {
                 self.visit_expression(collection)?;
                 let collection_value = self.read_last_value()?;
-
                 match &collection_value {
                     LlvmValue::Vector(vector_ptr, _) => {
                         let collection_type = self.resolve_type(&collection_value.to_type());
-
                         let struct_type = LlvmValue::vector_struct_type(self.context);
                         let ptr_type = self.context.ptr_type(AddressSpace::default());
                         let i64_type = self.context.i64_type();
-
                         let inner_type = match &collection_type {
                             Type::Vector(inner) => self.resolve_type(inner),
-
                             other => {
                                 return Err(Box::new(CompilerError::at(
                                     ErrorSeverity::HIGH,
@@ -156,36 +152,28 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                 )));
                             }
                         };
-
                         let data_field = self
                             .builder
                             .build_struct_gep(struct_type, *vector_ptr, VEC_DATA, "idx.data")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
-
                         let length_field = self
                             .builder
                             .build_struct_gep(struct_type, *vector_ptr, VEC_LENGTH, "idx.length")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
-
                         let data = self
                             .builder
                             .build_load(ptr_type, data_field, "idx.data.val")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                             .into_pointer_value();
-
                         let length = self
                             .builder
                             .build_load(i64_type, length_field, "idx.length.val")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                             .into_int_value();
-
                         self.visit_expression(index)?;
-
                         let index_value = self.read_last_value()?;
                         let index_int = index_value.into_i64_value(index.span)?;
-
                         self.emit_bounds_check(&self.builder, &self.libc, self.context, index_int, length, index.span)?;
-
                         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
@@ -193,25 +181,26 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                 index.span,
                             )) as Box<dyn IError>
                         })?;
-
                         let element_ptr = unsafe {
                             self.builder
                                 .build_gep(element_llvm_type, data, &[index_int], "idx.elem")
                                 .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                         };
 
+                        // Zwolnij owned temporary powstały przy ewaluacji collection
+                        // (FieldAccess na wektorze robi retain).
+                        if Self::expr_needs_release(&collection.value) {
+                            self.release_value(&collection_value, span)?;
+                        }
+
                         let raw_value = self
                             .builder
                             .build_load(element_llvm_type, element_ptr, "idx.load")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
-
                         let element_value = LlvmValue::from_basic_value_enum(raw_value, &inner_type);
 
                         // Reading an element out of a vector hands the
-                        // caller a *new* owned reference: the vector keeps
-                        // its own, this read gets an extra one. Strings are
-                        // additionally deep-copied to keep their value
-                        // semantics.
+                        // caller a *new* owned reference.
                         let element_value = match element_value {
                             LlvmValue::Str(ptr) => LlvmValue::Str(self.build_string_copy(ptr, span)?),
                             other => {
@@ -219,22 +208,16 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                 other
                             }
                         };
-
                         self.last_value = Some(element_value);
-
                         Ok(())
                     }
-
                     LlvmValue::Str(str_header) => {
                         self.visit_expression(index)?;
-
                         let index_value = self.read_last_value()?;
                         let index_int = index_value.into_i64_value(index.span)?;
-
                         let i8_type = self.context.i8_type();
                         let str_ptr = *str_header;
                         let data = self.str_data_ptr(str_ptr, span)?;
-
                         let length = self
                             .builder
                             .build_call(self.libc.strlen_fn, &[data.into()], "str.idx.len")
@@ -243,25 +226,25 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             .basic()
                             .expect("strlen should return a value")
                             .into_int_value();
-
                         self.emit_bounds_check(&self.builder, &self.libc, self.context, index_int, length, index.span)?;
-
                         let element_ptr = unsafe {
                             self.builder
                                 .build_gep(i8_type, data, &[index_int], "str.idx.ptr")
                                 .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                         };
 
+                        // Zwolnij owned temporary ze stringa (jeśli był)
+                        if Self::expr_needs_release(&collection.value) {
+                            self.release_value(&collection_value, span)?;
+                        }
+
                         let raw_value = self
                             .builder
                             .build_load(i8_type, element_ptr, "str.idx.load")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
-
                         self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &Type::Char));
-
                         Ok(())
                     }
-
                     other => Err(Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
                         format!("Cannot index into type '{:?}'.", other.to_type()),
@@ -389,7 +372,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                 let (struct_ptr, struct_type_info) = match &instance_value {
                     LlvmValue::Struct(ptr, ty) => (*ptr, ty.clone()),
-
                     other => {
                         return Err(Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
@@ -399,6 +381,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     }
                 };
 
+                // Zwolnij owned temporary powstały przy ewaluacji instance
+                // (np. gdy instance to wynik funkcji / inny FieldAccess / Index).
+                if Self::expr_needs_release(&instance.value) {
+                    self.release_value(&instance_value, span)?;
+                }
+
                 let Type::Struct { identifier, fields } = struct_type_info.as_ref() else {
                     return Err(Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
@@ -406,7 +394,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         span,
                     )));
                 };
-
                 let field_type = fields.get(&field.value).cloned().ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
@@ -414,11 +401,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         field.span,
                     )) as Box<dyn IError>
                 })?;
-
                 let resolved_field_type = self.resolve_type(&field_type);
-
                 let (struct_type, field_indices) = self.struct_llvm_type(identifier, span)?;
-
                 let field_index = *field_indices.get(&field.value).ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
@@ -426,12 +410,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         field.span,
                     )) as Box<dyn IError>
                 })?;
-
                 let field_ptr = self
                     .builder
                     .build_struct_gep(struct_type, struct_ptr, field_index, "field.access")
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
-
                 let field_llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_field_type, self.context).ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
@@ -439,12 +421,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         field.span,
                     )) as Box<dyn IError>
                 })?;
-
                 let raw_value = self
                     .builder
                     .build_load(field_llvm_type, field_ptr, "field.load")
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
-
                 let field_value = LlvmValue::from_basic_value_enum(raw_value, &resolved_field_type);
 
                 // Same "new owned reference" rule as vector element reads.
@@ -455,9 +435,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         other
                     }
                 };
-
                 self.last_value = Some(field_value);
-
                 Ok(())
             }
         }

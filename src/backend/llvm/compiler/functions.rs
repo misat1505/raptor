@@ -271,23 +271,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             }
                             LlvmValue::Str(copy_ptr)
                         }
-
                         LlvmValue::Vector(ptr, ref inner) => {
-                            let copy_ptr = self.build_shallow_copy_vector(ptr, &inner, span)?;
-                            if Self::expr_needs_retain(&argument.value.value.value) {
-                                self.retain_value(&value, span)?;
+                            let copy_ptr = self.build_shallow_copy_vector(ptr, inner, span)?;
+                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
+                                self.release_value(&value, span)?;
                             }
                             LlvmValue::Vector(copy_ptr, inner.clone())
                         }
-
                         LlvmValue::Struct(ptr, ref ty) => {
-                            let copy_ptr = self.build_shallow_copy_struct(ptr, &ty, span)?;
-                            if Self::expr_needs_retain(&argument.value.value.value) {
-                                self.retain_value(&value, span)?;
+                            let copy_ptr = self.build_shallow_copy_struct(ptr, ty, span)?;
+                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
+                                self.release_value(&value, span)?;
                             }
                             LlvmValue::Struct(copy_ptr, ty.clone())
                         }
-
                         other => other,
                     };
 
@@ -384,7 +381,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 match &collection_value {
                     LlvmValue::Vector(vector_ptr, inner) => {
                         let inner = self.resolve_type(inner);
-
                         let struct_type = LlvmValue::vector_struct_type(self.context);
                         let ptr_type = self.context.ptr_type(AddressSpace::default());
 
@@ -424,6 +420,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                 })?
                         };
 
+                        // === TO JEST BRAKUJĄCE ===
+                        // FieldAccess na collection zrobił retain wektora.
+                        // Musimy go zbalansować, bo używamy tylko wskaźnika.
+                        if Self::expr_needs_release(&collection.value) {
+                            self.release_value(&collection_value, expression.span)?;
+                        }
+                        // ========================
+
                         Ok(element_ptr)
                     }
 
@@ -433,7 +437,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let index_int = index_value.into_i64_value(index.span)?;
 
                         let data = self.str_data_ptr(*str_ptr, expression.span)?;
-
                         let i8_type = self.context.i8_type();
 
                         let element_ptr = unsafe {
@@ -441,6 +444,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                 Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), expression.span)) as Box<dyn IError>
                             })?
                         };
+
+                        if Self::expr_needs_release(&collection.value) {
+                            self.release_value(&collection_value, expression.span)?;
+                        }
 
                         Ok(element_ptr)
                     }

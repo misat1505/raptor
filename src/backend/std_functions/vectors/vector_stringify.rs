@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, vec};
 use crate::{
     backend::{
         interpreter::Value,
-        llvm::LlvmValue,
+        llvm::{compiler::Compiler, LlvmValue},
         std_functions::std_functions::{build_usage_error, LlvmCompileFn, StdFunction},
     },
     common::{
@@ -98,8 +98,8 @@ pub fn vector_stringify() -> StdFunction {
         compiler.visit_expression(&vector_arg.value.value)?;
         let vector_value = compiler.read_last_value()?;
 
-        let (vector_ptr, inner_type) = match vector_value {
-            LlvmValue::Vector(ptr, inner) => (ptr, *inner),
+        let (vector_ptr, inner_type) = match &vector_value {
+            LlvmValue::Vector(ptr, inner) => (*ptr, (**inner).clone()),
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
@@ -110,6 +110,11 @@ pub fn vector_stringify() -> StdFunction {
         };
 
         let result = compiler.build_vector_to_string(vector_ptr, &inner_type, span)?;
+
+        if Compiler::expr_needs_release(&vector_arg.value.value.value) {
+            compiler.release_value(&vector_value, span)?;
+        }
+
         compiler.set_last_value(LlvmValue::Str(result));
 
         Ok(())

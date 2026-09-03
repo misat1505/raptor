@@ -3,13 +3,13 @@ use std::{cell::RefCell, rc::Rc, vec};
 use inkwell::AddressSpace;
 
 use crate::{
+    backend::llvm::llvm_alu::llvm_value::{VEC_CAPACITY, VEC_DATA, VEC_LENGTH},
     backend::{
         interpreter::Value,
         llvm::LlvmValue,
         std_functions::std_functions::{build_usage_error, LlvmCompileFn, StdFunction},
         type_utils::type_accepts_value,
     },
-    backend::llvm::llvm_alu::llvm_value::{VEC_CAPACITY, VEC_DATA, VEC_LENGTH},
     common::{
         errors::{CompilerError, ErrorSeverity, IError, StdFunctionError},
         span::Span,
@@ -104,6 +104,10 @@ pub fn vector_push() -> StdFunction {
             }
         };
 
+        if crate::backend::llvm::compiler::Compiler::expr_needs_release(&vector_arg.value.value.value) {
+            compiler.release_value(&vector_value, span)?;
+        }
+
         compiler.visit_expression(&value_arg.value.value)?;
         let pushed_value = compiler.read_last_value()?;
 
@@ -119,10 +123,6 @@ pub fn vector_push() -> StdFunction {
             )));
         }
 
-        // The vector takes ownership of the pushed element: strings are
-        // always deep-copied, Vector/Struct values are retained only if the
-        // source expression was a bare variable read (see
-        // `Compiler::expr_needs_retain`).
         let pushed_value = compiler.finalize_owned_value_for_new_slot(pushed_value, &value_arg.value.value.value, span)?;
 
         let context = compiler.context();

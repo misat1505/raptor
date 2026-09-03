@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, vec};
 use crate::{
     backend::{
         interpreter::Value,
-        llvm::LlvmValue,
+        llvm::{compiler::Compiler, llvm_alu::llvm_value::VEC_LENGTH, LlvmValue},
         std_functions::std_functions::{build_usage_error, LlvmCompileFn, StdFunction},
     },
     common::{
@@ -81,7 +81,7 @@ pub fn vector_size() -> StdFunction {
 
         let length_field = compiler
             .builder()
-            .build_struct_gep(struct_type, vector_ptr, crate::backend::llvm::llvm_alu::llvm_value::VEC_LENGTH, "vector.length")
+            .build_struct_gep(struct_type, vector_ptr, VEC_LENGTH, "vector.length")
             .map_err(err)?;
 
         let length = compiler
@@ -89,6 +89,10 @@ pub fn vector_size() -> StdFunction {
             .build_load(i64_type, length_field, "vector.size")
             .map_err(err)?
             .into_int_value();
+
+        if Compiler::expr_needs_release(&vector_arg.value.value.value) {
+            compiler.release_value(&vector_value, span)?;
+        }
 
         compiler.set_last_value(LlvmValue::I64(length));
 

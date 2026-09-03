@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, vec};
 use crate::{
     backend::{
         interpreter::Value,
-        llvm::LlvmValue,
+        llvm::{compiler::Compiler, LlvmValue},
         std_functions::std_functions::{build_usage_error, LlvmCompileFn, StdFunction},
     },
     common::{
@@ -75,6 +75,10 @@ pub fn str_len() -> StdFunction {
             .basic()
             .expect("strlen should return a value")
             .into_int_value();
+
+        if Compiler::expr_needs_release(&arg.value.value.value) {
+            compiler.release_value(&str_value, span)?;
+        }
 
         compiler.set_last_value(LlvmValue::I64(length));
 

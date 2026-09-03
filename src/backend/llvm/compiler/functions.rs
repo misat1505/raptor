@@ -614,8 +614,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 )) as Box<dyn IError>
             })?;
 
-            if matches!(field_type, Type::Str | Type::Vector(_) | Type::Struct { .. }) {
-                let field_llvm_value = LlvmValue::from_basic_value_enum(field_value, field_type);
+            let resolved_field_type = self.resolve_type(field_type);
+
+            if matches!(resolved_field_type, Type::Str | Type::Vector(_) | Type::Struct { .. }) {
+                let field_llvm_value = LlvmValue::from_basic_value_enum(field_value, &resolved_field_type);
 
                 self.retain_value(&field_llvm_value, span)?;
             }

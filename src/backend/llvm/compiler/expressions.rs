@@ -109,8 +109,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let source_value = self.read_last_value()?;
                 self.last_value = Some(
                     self.llvm_alu
-                        .cast_to_type(&self.builder, &self.libc, source_value, &to_type.value, span)?,
+                        .cast_to_type(&self.builder, &self.libc, source_value.clone(), &to_type.value, span)?,
                 );
+                if let LlvmValue::Str(_) = source_value {
+                    if Self::expr_needs_release(&value.as_ref().value) {
+                        self.release_value(&source_value, expression.span)?;
+                    }
+                }
                 Ok(())
             }
             Expression::Index { collection, index } => {

@@ -107,7 +107,7 @@ fn run_command(program: &str, args: &[&str], step_description: &str) {
     }
 }
 
-pub fn capture_compiled_output_with_policy(program: &Program, overflow_policy: OverflowPolicy) -> (String, String, i32) {
+fn compile_to_exe(program: &Program, overflow_policy: OverflowPolicy) -> std::path::PathBuf {
     let context = Context::create();
     let mut compiler = Compiler::new(program, &context, overflow_policy);
     compiler.compile().expect("compilation failed");
@@ -134,6 +134,16 @@ pub fn capture_compiled_output_with_policy(program: &Program, overflow_policy: O
         "clang",
     );
 
+    // Sprzątamy pliki pośrednie od razu
+    let _ = std::fs::remove_file(&ir_path);
+    let _ = std::fs::remove_file(&obj_path);
+
+    exe_path
+}
+
+pub fn capture_compiled_output_with_policy(program: &Program, overflow_policy: OverflowPolicy) -> (String, String, i32) {
+    let exe_path = compile_to_exe(program, overflow_policy);
+
     let output = Command::new("valgrind")
         .args([
             "--leak-check=full",
@@ -149,13 +159,28 @@ pub fn capture_compiled_output_with_policy(program: &Program, overflow_policy: O
     let stderr = String::from_utf8(output.stderr).expect("compiled binary produced non-UTF8 stderr");
     let exit_code = output.status.code().unwrap_or(1);
 
-    let _ = std::fs::remove_file(&ir_path);
-    let _ = std::fs::remove_file(&obj_path);
     let _ = std::fs::remove_file(&exe_path);
 
     if exit_code != 0 {
-        panic!("valgrind detected memory errors / leaks (exit code {}):\n{}", exit_code, stderr);
+        panic!(
+            "valgrind detected memory errors / leaks or program exited non-zero (exit code {}):\n{}",
+            exit_code, stderr
+        );
     }
+
+    (stdout, stderr, exit_code)
+}
+
+pub fn capture_compiled_output_with_policy_no_valgrind(program: &Program, overflow_policy: OverflowPolicy) -> (String, String, i32) {
+    let exe_path = compile_to_exe(program, overflow_policy);
+
+    let output = Command::new(&exe_path).output().expect("failed to run compiled binary");
+
+    let stdout = String::from_utf8(output.stdout).expect("compiled binary produced non-UTF8 stdout");
+    let stderr = String::from_utf8(output.stderr).expect("compiled binary produced non-UTF8 stderr");
+    let exit_code = output.status.code().unwrap_or(1);
+
+    let _ = std::fs::remove_file(&exe_path);
 
     (stdout, stderr, exit_code)
 }

@@ -2,7 +2,10 @@ use std::io::BufReader;
 
 use raptor_lib::backend::llvm::OverflowPolicy;
 
-use crate::common::{capture_compiled_output_with_policy, create_interpreter, setup_program, setup_program_skip_typecheck};
+use crate::common::{
+    capture_compiled_output_with_policy, capture_compiled_output_with_policy_no_valgrind, create_interpreter, setup_program,
+    setup_program_skip_typecheck,
+};
 
 #[test]
 fn integer_cast_without_overflow_is_unchanged() {
@@ -89,7 +92,7 @@ println(result as str);
 
     let program = setup_program(text);
 
-    let (stdout, stderr, exit_code) = capture_compiled_output_with_policy(&program, OverflowPolicy::Error);
+    let (stdout, stderr, exit_code) = capture_compiled_output_with_policy_no_valgrind(&program, OverflowPolicy::Error);
 
     assert_eq!(exit_code, 1);
 
@@ -303,7 +306,7 @@ println(123 as str);
 
     let program = setup_program(text);
 
-    let (stdout, stderr, exit_code) = capture_compiled_output_with_policy(&program, OverflowPolicy::Error);
+    let (stdout, stderr, exit_code) = capture_compiled_output_with_policy_no_valgrind(&program, OverflowPolicy::Error);
 
     assert_eq!(exit_code, 1);
 

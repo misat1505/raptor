@@ -102,8 +102,48 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Expression::GreaterEqual(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::greater_or_equal, span),
             Expression::Less(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::less, span),
             Expression::LessEqual(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::less_or_equal, span),
-            Expression::Equal(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::equal, span),
-            Expression::NotEqual(lhs, rhs) => self.build_binary_op(lhs, rhs, LlvmAlu::not_equal, span),
+            Expression::Equal(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left_value = self.read_last_value()?;
+                self.visit_expression(rhs)?;
+                let right_value = self.read_last_value()?;
+                let value = self
+                    .llvm_alu
+                    .equal(&self.builder, &self.libc, left_value.clone(), right_value.clone(), span)?;
+                if let LlvmValue::Str(_) = left_value {
+                    if Self::expr_needs_release(&lhs.as_ref().value) {
+                        self.release_value(&left_value, lhs.as_ref().span)?;
+                    }
+                }
+                if let LlvmValue::Str(_) = right_value {
+                    if Self::expr_needs_release(&rhs.as_ref().value) {
+                        self.release_value(&right_value, rhs.as_ref().span)?;
+                    }
+                }
+                self.last_value = Some(value);
+                Ok(())
+            }
+            Expression::NotEqual(lhs, rhs) => {
+                self.visit_expression(lhs)?;
+                let left_value = self.read_last_value()?;
+                self.visit_expression(rhs)?;
+                let right_value = self.read_last_value()?;
+                let value = self
+                    .llvm_alu
+                    .not_equal(&self.builder, &self.libc, left_value.clone(), right_value.clone(), span)?;
+                if let LlvmValue::Str(_) = left_value {
+                    if Self::expr_needs_release(&lhs.as_ref().value) {
+                        self.release_value(&left_value, lhs.as_ref().span)?;
+                    }
+                }
+                if let LlvmValue::Str(_) = right_value {
+                    if Self::expr_needs_release(&rhs.as_ref().value) {
+                        self.release_value(&right_value, rhs.as_ref().span)?;
+                    }
+                }
+                self.last_value = Some(value);
+                Ok(())
+            }
             Expression::Casting { value, to_type } => {
                 self.visit_expression(value)?;
                 let source_value = self.read_last_value()?;
@@ -177,14 +217,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                 .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                         };
 
-                        // 1. Najpierw załaduj element (zanim zwolnimy collection)
                         let raw_value = self
                             .builder
                             .build_load(element_llvm_type, element_ptr, "idx.load")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
                         let element_value = LlvmValue::from_basic_value_enum(raw_value, &inner_type);
 
-                        // 2. Retain / deep-copy elementu (nowa owned referencja)
                         let element_value = match element_value {
                             LlvmValue::Str(ptr) => LlvmValue::Str(self.build_string_copy(ptr, span)?),
                             other => {
@@ -193,8 +231,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             }
                         };
 
-                        // 3. Dopiero teraz zwolnij temporary collection
-                        //    (FunctionCall / FieldAccess / Index / Literal itd.)
                         if Self::expr_needs_release(&collection.value) {
                             self.release_value(&collection_value, span)?;
                         }
@@ -225,13 +261,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                 .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?
                         };
 
-                        // Najpierw load
                         let raw_value = self
                             .builder
                             .build_load(i8_type, element_ptr, "str.idx.load")
                             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
-                        // Potem release temporary stringa (jeśli był)
                         if Self::expr_needs_release(&collection.value) {
                             self.release_value(&collection_value, span)?;
                         }

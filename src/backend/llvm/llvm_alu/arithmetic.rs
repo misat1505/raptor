@@ -238,7 +238,24 @@ impl LlvmAlu {
         Self::wrap_str_header(builder, libc, buf, span)
     }
 
+    fn free_temp_str<'ctx>(
+        builder: &Builder<'ctx>,
+        libc: &LibcFunctions<'ctx>,
+        header_ptr: PointerValue<'ctx>,
+        span: Span,
+    ) -> Result<(), Box<dyn IError>> {
+        let data_ptr = Self::str_data_ptr(builder, header_ptr, span)?;
 
+        builder
+            .build_call(libc.free_fn, &[data_ptr.into()], "temp_str.free_data")
+            .map_err(|err| Self::map_err(err, span))?;
+
+        builder
+            .build_call(libc.free_fn, &[header_ptr.into()], "temp_str.free_header")
+            .map_err(|err| Self::map_err(err, span))?;
+
+        Ok(())
+    }
 
     // ========================================================================
     // Addition
@@ -294,19 +311,32 @@ impl LlvmAlu {
                 let left_str = self.char_to_string(builder, libc, l, span)?;
                 let right_str = self.char_to_string(builder, libc, r, span)?;
 
-                self.concat_strings(builder, libc, left_str, right_str, span)
+                let result = self.concat_strings(builder, libc, left_str, right_str, span)?;
+
+                Self::free_temp_str(builder, libc, left_str, span)?;
+                Self::free_temp_str(builder, libc, right_str, span)?;
+
+                Ok(result)
             }
 
             (LlvmValue::Str(l), LlvmValue::Char(r)) => {
                 let right_str = self.char_to_string(builder, libc, r, span)?;
 
-                self.concat_strings(builder, libc, l, right_str, span)
+                let result = self.concat_strings(builder, libc, l, right_str, span)?;
+
+                Self::free_temp_str(builder, libc, right_str, span)?;
+
+                Ok(result)
             }
 
             (LlvmValue::Char(l), LlvmValue::Str(r)) => {
                 let left_str = self.char_to_string(builder, libc, l, span)?;
 
-                self.concat_strings(builder, libc, left_str, r, span)
+                let result = self.concat_strings(builder, libc, left_str, r, span)?;
+
+                Self::free_temp_str(builder, libc, left_str, span)?;
+
+                Ok(result)
             }
 
             (LlvmValue::Str(l), LlvmValue::Str(r)) => self.concat_strings(builder, libc, l, r, span),

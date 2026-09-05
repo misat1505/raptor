@@ -29,7 +29,8 @@ jobs:
             libzstd-dev \
             llvm-18-dev \
             clang-18 \
-            lld-18
+            lld-18 \
+            valgrind
 
       - name: Verify LLVM tools on PATH
         run: |

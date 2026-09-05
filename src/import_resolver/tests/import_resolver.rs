@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     backend::std_functions::std_functions::get_std_functions,
-    common::{position::Position, span::Span, types::Type},
+    common::{span::Span, types::Type},
     frontend::{
         ast::{Block, Expression, FunctionDeclaration, Literal, Node, Program, Statement},
         lexer::{
@@ -61,12 +61,11 @@ fn test_lexer_options() -> LexerOptions {
     }
 }
 
-fn dummy_span() -> Span {
-    Span::new(Position::new(1, 1, 0, None), Position::new(1, 1, 0, None))
-}
-
 fn dummy_node<T>(value: T) -> Node<T> {
-    Node { value, span: dummy_span() }
+    Node {
+        value,
+        span: Span::default(),
+    }
 }
 
 fn program_declaring_function(name: &str) -> Program {
@@ -105,9 +104,9 @@ fn extract_call_string_arg(stmt: &Statement) -> String {
     match stmt {
         Statement::FunctionCall { arguments, .. } => match &arguments[0].value.value.value {
             Expression::Literal(Literal::String(s)) => s.clone(),
-            other => panic!("expected a string literal argument, got {}", other),
+            other => panic!("expected a string literal argument, got {:?}", other),
         },
-        other => panic!("expected a FunctionCall statement, got {}", other),
+        other => panic!("expected a FunctionCall statement, got {:?}", other),
     }
 }
 

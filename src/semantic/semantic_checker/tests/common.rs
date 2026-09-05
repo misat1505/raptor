@@ -56,7 +56,7 @@ pub fn assert_one_unused_warning(errors: &Vec<String>) {
     assert_eq!(
         unused.len(),
         1,
-        "expected exactly 1 unused-variable warning, got {} in: {}",
+        "expected exactly 1 unused-variable warning, got {} in: {:?}",
         unused.len(),
         errors
     );

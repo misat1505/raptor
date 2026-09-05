@@ -22,7 +22,6 @@ use inkwell::types::{FloatType, IntType};
 use inkwell::values::{FunctionValue, PointerValue};
 
 use crate::backend::llvm::llvm_alu::{LlvmAlu, OverflowPolicy};
-use crate::common::position::Position;
 use crate::common::span::Span;
 use crate::{
     backend::llvm::{libc_functions::LibcFunctions, llvm_alu::llvm_value::LlvmValue},
@@ -89,9 +88,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let builder = context.create_builder();
         let libc = LibcFunctions::new(context, &module);
 
-        let position = Position::new(0, 0, 0, None);
-
-        let span = Span::new(position, position);
+        let span = Span::default();
 
         let llvm_alu = LlvmAlu::new(overflow_policy);
 

@@ -497,7 +497,7 @@ println(numbers[1] as str);
 
     assert!(
         result.is_ok(),
-        "expected interpreter to succeed, got: {}",
+        "expected interpreter to succeed, got: {:?}",
         result.err().map(|e| e.get_stderr_message())
     );
 }

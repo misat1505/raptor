@@ -48,7 +48,7 @@ fn setup_program_impl(text: BufReader<&[u8]>, skip_typecheck: bool) -> Program {
             .iter()
             .filter(|e| matches!(e.get_severity(), ErrorSeverity::HIGH))
             .collect();
-        assert_eq!(real_errors.len(), 0, "semantic checker found unexpected errors: {}", real_errors);
+        assert_eq!(real_errors.len(), 0, "semantic checker found unexpected errors: {:?}", real_errors);
     }
     import_resolved_program
 }

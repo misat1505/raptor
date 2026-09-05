@@ -316,10 +316,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             )));
         };
 
-        self.last_value = match call_site.try_as_basic_value().basic() {
-            Some(return_value) => Some(LlvmValue::from_basic_value_enum(return_value, return_type)),
-            None => None,
-        };
+        self.last_value = call_site.try_as_basic_value().basic().map(|return_value| LlvmValue::from_basic_value_enum(return_value, return_type));
 
         Ok(())
     }
@@ -462,7 +459,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
             _ => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Cannot pass expression by reference."),
+                "Cannot pass expression by reference.".to_string(),
                 expression.span,
             ))),
         }

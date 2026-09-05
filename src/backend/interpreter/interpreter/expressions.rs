@@ -167,7 +167,7 @@ impl<'a> Interpreter<'a> {
 
             if let (Type::Vector(_), Value::Vector { kind, .. }) = (expected_type, &mut value) {
                 if *kind.as_ref() == Type::Void {
-                    *kind = Box::new(expected_type.clone());
+                    **kind = expected_type.clone();
                 }
             }
 
@@ -183,11 +183,7 @@ impl<'a> Interpreter<'a> {
         Ok(())
     }
 
-    pub(in crate::backend::interpreter::interpreter) fn eval_variable(
-        &mut self,
-        variable: &'a String,
-        span: crate::common::span::Span,
-    ) -> Result<(), Box<dyn IError>> {
+    pub(in crate::backend::interpreter::interpreter) fn eval_variable(&mut self, variable: &'a String, span: Span) -> Result<(), Box<dyn IError>> {
         let value = self
             .stack
             .get_variable(variable.as_str(), span)

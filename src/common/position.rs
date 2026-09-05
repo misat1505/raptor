@@ -35,6 +35,6 @@ impl Position {
 
     pub fn location(&self) -> String {
         let file = self.filename.unwrap_or("<input>");
-        return format!("{}:{}:{}", file, self.line, self.column);
+        format!("{}:{}:{}", file, self.line, self.column)
     }
 }

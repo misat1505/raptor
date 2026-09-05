@@ -116,12 +116,9 @@ impl<'a> SemanticChecker<'a> {
     }
 
     pub(in crate::semantic::semantic_checker) fn check_expression(&mut self, expression: &'a Node<Expression>) -> Result<(), Box<dyn IError>> {
-        match &expression.value {
-            Expression::FunctionCall { .. } => {
-                self.check_function_call(FunctionCallType::Expression(expression));
-                return Ok(());
-            }
-            _ => {}
+        if let Expression::FunctionCall { .. } = &expression.value {
+            self.check_function_call(FunctionCallType::Expression(expression));
+            return Ok(());
         }
         match &expression.value {
             Expression::Alternative(lhs, rhs) => self.evaluate_binary_op(lhs, rhs, TypeALU::alternative)?,

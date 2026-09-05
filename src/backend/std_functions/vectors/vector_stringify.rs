@@ -66,7 +66,7 @@ pub fn vector_stringify() -> StdFunction {
         let expected_types = vec![Type::Vector(Box::new(Type::Void))];
         let mut actual_types: Vec<Type> = vec![];
 
-        if let Some(vector) = params.get(0) {
+        if let Some(vector) = params.first() {
             actual_types.push(vector.borrow().to_type());
 
             let vector = vector.borrow();
@@ -87,7 +87,7 @@ pub fn vector_stringify() -> StdFunction {
     };
 
     let compile: LlvmCompileFn = |compiler, arguments, span| {
-        let vector_arg = arguments.get(0).ok_or_else(|| {
+        let vector_arg = arguments.first().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'vector_stringify' expects exactly one argument."),

@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display};
 
 use crate::common::span::Span;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TokenCategory {
     // Comparison
     Greater,

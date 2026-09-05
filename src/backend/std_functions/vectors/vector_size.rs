@@ -24,7 +24,7 @@ pub fn vector_size() -> StdFunction {
 
         let mut actual_types: Vec<Type> = vec![];
 
-        if let Some(vector) = params.get(0) {
+        if let Some(vector) = params.first() {
             actual_types.push(vector.borrow().to_type());
 
             let vector = vector.borrow();
@@ -51,7 +51,7 @@ pub fn vector_size() -> StdFunction {
     let compile: LlvmCompileFn = |compiler, arguments, span| {
         let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
-        let vector_arg = arguments.get(0).ok_or_else(|| {
+        let vector_arg = arguments.first().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'vector_size' expects exactly one argument."),

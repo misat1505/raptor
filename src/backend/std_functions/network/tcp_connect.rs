@@ -28,7 +28,7 @@ pub fn tcp_connect() -> StdFunction {
         let expected_types = vec![Type::Str, Type::I64];
         let mut actual_types: Vec<Type> = vec![];
 
-        let host_val = params.get(0);
+        let host_val = params.first();
         let port_val = params.get(1);
 
         if let (Some(host), Some(port)) = (host_val, port_val) {
@@ -57,7 +57,7 @@ pub fn tcp_connect() -> StdFunction {
     let compile: LlvmCompileFn = |compiler, arguments, span| {
         let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
-        let host_arg = arguments.get(0).ok_or_else(|| {
+        let host_arg = arguments.first().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'tcp_connect' expects exactly two arguments (host, port)."),

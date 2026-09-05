@@ -381,21 +381,18 @@ impl<'a> SemanticChecker<'a> {
     ) -> Result<(), Box<dyn IError>> {
         let expression = &switch_expression.value.expression;
         let _ = self.visit_expression(expression);
-        match self.read_last_result(expression.span) {
-            Ok(resolved_type) => match &switch_expression.value.alias {
-                None => {}
-                Some(id) => {
-                    if let Err(err) = self.stack.declare_variable(id.value.as_str(), resolved_type, id.span) {
-                        self.errors.push(Box::new(SemanticCheckerError::at(
-                            ErrorSeverity::HIGH,
-                            err.message(),
-                            switch_expression.span,
-                        )));
-                    }
+        if let Ok(resolved_type) = self.read_last_result(expression.span) { match &switch_expression.value.alias {
+            None => {}
+            Some(id) => {
+                if let Err(err) = self.stack.declare_variable(id.value.as_str(), resolved_type, id.span) {
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        err.message(),
+                        switch_expression.span,
+                    )));
                 }
-            },
-            Err(_) => {}
-        }
+            }
+        } }
         Ok(())
     }
 }

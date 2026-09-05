@@ -17,8 +17,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             self.visit_statement(statement);
         }
         self.unused_variables_in_last_scope_warn();
-        for (_name, function) in &program.functions {
-            self.stack.push_stack_frame().map_err(|err| Box::new(err));
+        for function in program.functions.values() {
+            self.stack.push_stack_frame().map_err(Box::new);
             self.visit_type(&function.value.return_type)?;
             let raw_return_type = self.read_last_result(function.value.return_type.span)?;
             let resolved_return_type = self.resolve_type_fully_checked(&raw_return_type, function.value.return_type.span)?;
@@ -64,8 +64,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             Statement::ForLoop { .. } => self.check_for_loop(statement)?,
             Statement::Switch { .. } => self.check_switch(statement)?,
             Statement::Return { .. } => self.check_return(statement)?,
-            Statement::Break { .. } => self.check_break(statement)?,
-            Statement::Continue { .. } => self.check_continue(statement)?,
+            Statement::Break => self.check_break(statement)?,
+            Statement::Continue => self.check_continue(statement)?,
         }
         Ok(())
     }

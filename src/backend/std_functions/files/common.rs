@@ -18,7 +18,7 @@ pub fn compile_write_or_append<'a, 'ctx>(
 ) -> Result<(), Box<dyn IError>> {
     let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
-    let path_arg = arguments.get(0).ok_or_else(|| {
+    let path_arg = arguments.first().ok_or_else(|| {
         Box::new(CompilerError::at(
             ErrorSeverity::HIGH,
             String::from("Expected a file path argument."),

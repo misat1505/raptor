@@ -26,7 +26,7 @@ pub fn tcp_write() -> StdFunction {
         let expected_types = vec![Type::I64, Type::Str];
         let mut actual_types: Vec<Type> = vec![];
 
-        let handle_param = params.get(0);
+        let handle_param = params.first();
         let data_param = params.get(1);
 
         if let (Some(handle), Some(data)) = (handle_param, data_param) {
@@ -62,7 +62,7 @@ pub fn tcp_write() -> StdFunction {
     let compile: LlvmCompileFn = |compiler, arguments, span| {
         let err = |e: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, e.to_string(), span)) as Box<dyn IError>;
 
-        let fd_arg = arguments.get(0).ok_or_else(|| {
+        let fd_arg = arguments.first().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'tcp_write' expects exactly two arguments."),

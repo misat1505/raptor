@@ -25,7 +25,7 @@ pub fn print() -> StdFunction {
         let expected_types = vec![Type::Str];
         let mut actual_types: Vec<Type> = vec![];
 
-        if let Some(value) = params.get(0) {
+        if let Some(value) = params.first() {
             actual_types.push(value.borrow().to_type());
 
             let value = value.borrow();
@@ -45,7 +45,7 @@ pub fn print() -> StdFunction {
     let compile: LlvmCompileFn = |compiler, arguments, span| {
         let err = |err: inkwell::builder::BuilderError| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>;
 
-        let arg = arguments.get(0).ok_or_else(|| {
+        let arg = arguments.first().ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 String::from("'print' expects exactly one argument."),

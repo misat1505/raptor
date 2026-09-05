@@ -28,7 +28,7 @@ pub fn vector_push() -> StdFunction {
 
         let mut actual_types: Vec<Type> = vec![];
 
-        if let (Some(vector), Some(value)) = (params.get(0), params.get(1)) {
+        if let (Some(vector), Some(value)) = (params.first(), params.get(1)) {
             actual_types.push(vector.borrow().to_type());
             actual_types.push(value.borrow().to_type());
 
@@ -83,7 +83,7 @@ pub fn vector_push() -> StdFunction {
             )) as Box<dyn IError>
         };
 
-        let vector_arg = arguments.get(0).ok_or_else(err_arity)?;
+        let vector_arg = arguments.first().ok_or_else(err_arity)?;
         let value_arg = arguments.get(1).ok_or_else(err_arity)?;
 
         let vector_slot_ptr = compiler.resolve_reference(&vector_arg.value.value)?;

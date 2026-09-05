@@ -18,9 +18,11 @@ use crate::common::errors::{CompilerError, ErrorSeverity, IError};
 use crate::common::span::Span;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum OverflowPolicy {
     /// Default. No extra checks are generated - truncating casts silently
     /// wrap. Zero runtime cost.
+    #[default]
     Ignore,
     /// Emits a runtime check before truncating casts; if the value doesn't
     /// fit, prints a warning to stderr and continues with the wrapped value.
@@ -41,11 +43,6 @@ impl OverflowPolicy {
     }
 }
 
-impl Default for OverflowPolicy {
-    fn default() -> Self {
-        OverflowPolicy::Ignore
-    }
-}
 
 pub struct LlvmAlu {
     overflow_policy: OverflowPolicy,

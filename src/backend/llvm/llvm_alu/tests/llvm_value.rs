@@ -169,7 +169,7 @@ fn type_to_basic_type_enum_all_supported() {
         Type::Vector(Box::new(Type::I64)),
     ];
     for ty in supported {
-        assert!(LlvmValue::type_to_basic_type_enum(&ty, &context).is_some(), "expected Some for {:?}", ty);
+        assert!(LlvmValue::type_to_basic_type_enum(&ty, &context).is_some(), "expected Some for {}", ty);
     }
 
     assert!(LlvmValue::type_to_basic_type_enum(&Type::Void, &context).is_none());

@@ -43,7 +43,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type.value, self.context).ok_or_else(|| {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Compiling declarations of type '{:?}' is not yet supported.", var_type.value),
+                            format!("Compiling declarations of type '{}' is not yet supported.", var_type.value),
                             span,
                         )) as Box<dyn IError>
                     })?;
@@ -109,7 +109,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             return Err(Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
                                 format!(
-                                    "Cannot infer type of empty vector. Consider adding a type annotation, e.g. `let {}: {:?} = [];`.",
+                                    "Cannot infer type of empty vector. Consider adding a type annotation, e.g. `let {}: {} = [];`.",
                                     identifier.value,
                                     Type::Vector(Box::new(Type::I64))
                                 ),
@@ -123,7 +123,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             return Err(Box::new(CompilerError::expected_found(
                                 ErrorSeverity::HIGH,
                                 format!("Cannot assign value to variable '{}'.", identifier.value),
-                                format!("{:?}", resolved_var_type),
+                                format!("{}", resolved_var_type),
                                 "empty vector".to_string(),
                                 span,
                             )));
@@ -132,7 +132,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_var_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling declarations of type '{:?}' is not yet supported.", resolved_var_type),
+                                format!("Compiling declarations of type '{}' is not yet supported.", resolved_var_type),
                                 span,
                             )) as Box<dyn IError>
                         })?;
@@ -163,8 +163,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                     return Err(Box::new(CompilerError::expected_found(
                                         ErrorSeverity::HIGH,
                                         format!("Cannot assign value to variable '{}'.", identifier.value),
-                                        format!("{:?}", var_type.value),
-                                        format!("{:?}", resolved_type),
+                                        format!("{}", var_type.value),
+                                        format!("{}", resolved_type),
                                         span,
                                     )));
                                 }
@@ -193,7 +193,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let llvm_type = LlvmValue::type_to_basic_type_enum(&final_type, self.context).ok_or_else(|| {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Compiling declarations of type '{:?}' is not yet supported.", final_type),
+                            format!("Compiling declarations of type '{}' is not yet supported.", final_type),
                             span,
                         )) as Box<dyn IError>
                     })?;
@@ -260,7 +260,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     return Err(Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
                         format!(
-                            "Type mismatch in indexed assignment: expected '{:?}', got '{:?}'.",
+                            "Type mismatch in indexed assignment: expected '{}', got '{}'.",
                             element_type,
                             new_value.to_type()
                         ),
@@ -517,7 +517,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let llvm_type = LlvmValue::type_to_basic_type_enum(ty, self.context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Compiling values of type '{:?}' is not yet supported.", ty),
+                format!("Compiling values of type '{}' is not yet supported.", ty),
                 span,
             )) as Box<dyn IError>
         })?;

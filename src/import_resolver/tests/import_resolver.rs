@@ -105,9 +105,9 @@ fn extract_call_string_arg(stmt: &Statement) -> String {
     match stmt {
         Statement::FunctionCall { arguments, .. } => match &arguments[0].value.value.value {
             Expression::Literal(Literal::String(s)) => s.clone(),
-            other => panic!("expected a string literal argument, got {:?}", other),
+            other => panic!("expected a string literal argument, got {}", other),
         },
-        other => panic!("expected a FunctionCall statement, got {:?}", other),
+        other => panic!("expected a FunctionCall statement, got {}", other),
     }
 }
 

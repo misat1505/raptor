@@ -44,7 +44,7 @@ pub fn vector_size() -> StdFunction {
 
     let type_check: fn(&[Type]) -> Result<Type, String> = |arg_types: &[Type]| match arg_types {
         [Type::Vector(_)] => Ok(Type::I64),
-        [other] => Err(format!("vector_size expected a vector, but got '{:?}'.", other)),
+        [other] => Err(format!("vector_size expected a vector, but got '{}'.", other)),
         _ => Err(String::from("vector_size expects exactly 1 argument.")),
     };
 
@@ -69,7 +69,7 @@ pub fn vector_size() -> StdFunction {
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("'vector_size' expects a vector, got '{:?}'.", other.to_type()),
+                    format!("'vector_size' expects a vector, got '{}'.", other.to_type()),
                     span,
                 )))
             }

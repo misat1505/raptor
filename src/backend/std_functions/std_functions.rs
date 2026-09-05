@@ -43,7 +43,7 @@ impl PartialEq for StdFunction {
 }
 
 pub fn format_types(types: &[Type]) -> String {
-    types.iter().map(|t| format!("{:?}", t)).collect::<Vec<String>>().join(", ")
+    types.iter().map(|t| format!("{}", t)).collect::<Vec<String>>().join(", ")
 }
 
 pub fn build_usage_error(fn_name: &str, expected_types: Vec<Type>, actual_types: Vec<Type>, span: Span) -> StdFunctionError {

@@ -172,7 +172,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             other => {
                                 return Err(Box::new(CompilerError::at(
                                     ErrorSeverity::HIGH,
-                                    format!("Cannot index into type '{:?}'.", other),
+                                    format!("Cannot index into type '{}'.", other),
                                     span,
                                 )));
                             }
@@ -206,7 +206,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling vectors of type '{:?}' is not yet supported.", inner_type),
+                                format!("Compiling vectors of type '{}' is not yet supported.", inner_type),
                                 index.span,
                             )) as Box<dyn IError>
                         })?;
@@ -275,7 +275,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     }
                     other => Err(Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
-                        format!("Cannot index into type '{:?}'.", other.to_type()),
+                        format!("Cannot index into type '{}'.", other.to_type()),
                         span,
                     )) as Box<dyn IError>),
                 }
@@ -338,7 +338,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             return Err(Box::new(CompilerError::expected_found(
                                 ErrorSeverity::HIGH,
                                 format!("Cannot assign value to field '{}'.", field_name),
-                                format!("{:?}", resolved_field_type),
+                                format!("{}", resolved_field_type),
                                 "empty vector".to_string(),
                                 field.span,
                             )));
@@ -378,7 +378,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     other => {
                         return Err(Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Cannot access field '{}' on type '{:?}'.", field.value, other.to_type()),
+                            format!("Cannot access field '{}' on type '{}'.", field.value, other.to_type()),
                             span,
                         )));
                     }
@@ -419,7 +419,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let field_llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_field_type, self.context).ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
-                        format!("Compiling fields of type '{:?}' is not yet supported.", resolved_field_type),
+                        format!("Compiling fields of type '{}' is not yet supported.", resolved_field_type),
                         field.span,
                     )) as Box<dyn IError>
                 })?;

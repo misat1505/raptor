@@ -78,7 +78,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let element_llvm_type = LlvmValue::type_to_basic_type_enum(inner_type, self.context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Compiling vectors of type '{:?}' is not yet supported. 4", inner_type),
+                format!("Compiling vectors of type '{}' is not yet supported. 4", inner_type),
                 span,
             )) as Box<dyn IError>
         })?;
@@ -117,7 +117,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
                     format!(
-                        "Vector element type mismatch: expected '{:?}', got '{:?}'.",
+                        "Vector element type mismatch: expected '{}', got '{}'.",
                         inner_type,
                         element_value.to_type()
                     ),
@@ -309,7 +309,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling vectors of type '{:?}' is not yet supported. 5", inner_type),
+                                format!("Compiling vectors of type '{}' is not yet supported. 5", inner_type),
                                 index_expr.span,
                             )) as Box<dyn IError>
                         })?;
@@ -367,7 +367,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     other => {
                         return Err(Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Cannot index into type '{:?}'.", other),
+                            format!("Cannot index into type '{}'.", other),
                             index_expr.span,
                         )) as Box<dyn IError>);
                     }
@@ -379,7 +379,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let Type::Struct { identifier, fields } = &current_element_type else {
                         return Err(Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Cannot access field '{}' on type '{:?}'.", field_name, current_element_type),
+                            format!("Cannot access field '{}' on type '{}'.", field_name, current_element_type),
                             field_name_node.span,
                         )) as Box<dyn IError>);
                     };
@@ -430,7 +430,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         other => {
                             return Err(Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Cannot access further into type '{:?}'.", other),
+                                format!("Cannot access further into type '{}'.", other),
                                 field_name_node.span,
                             )) as Box<dyn IError>);
                         }
@@ -483,7 +483,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("Compiling default values of type '{:?}' is not yet supported.", other),
+                    format!("Compiling default values of type '{}' is not yet supported.", other),
                     span,
                 )) as Box<dyn IError>)
             }

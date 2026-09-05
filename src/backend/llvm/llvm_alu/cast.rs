@@ -376,7 +376,7 @@ impl LlvmAlu {
             // ============================================================
             (value, target_type) => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Cannot cast '{:?}' to '{:?}'.", value.to_type(), target_type),
+                format!("Cannot cast '{}' to '{}'.", value.to_type(), target_type),
                 span,
             ))),
         }

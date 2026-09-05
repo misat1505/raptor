@@ -47,10 +47,10 @@ println(numbers[1] as str);
     let (stdout, stderr, exit_code) = capture_compiled_output_with_policy_no_valgrind(&program, OverflowPolicy::Ignore);
 
     assert_ne!(exit_code, 0);
-    assert!(stdout.is_empty(), "program should abort before println, got: {:?}", stdout);
+    assert!(stdout.is_empty(), "program should abort before println, got: {}", stdout);
     assert!(
         stderr.to_lowercase().contains("out of bounds"),
-        "expected out-of-bounds message, got: {:?}",
+        "expected out-of-bounds message, got: {}",
         stderr
     );
 }
@@ -497,7 +497,7 @@ println(numbers[1] as str);
 
     assert!(
         result.is_ok(),
-        "expected interpreter to succeed, got: {:?}",
+        "expected interpreter to succeed, got: {}",
         result.err().map(|e| e.get_stderr_message())
     );
 }

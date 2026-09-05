@@ -110,7 +110,7 @@ impl<'ctx> LlvmValue<'ctx> {
 
             other => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Expected a boolean condition, got '{:?}'.", other.to_type()),
+                format!("Expected a boolean condition, got '{}'.", other.to_type()),
                 span,
             ))),
         }
@@ -224,7 +224,7 @@ impl<'ctx> LlvmValue<'ctx> {
             other => {
                 return Err(Box::new(CompilerError::new(
                     ErrorSeverity::HIGH,
-                    format!("Compiling vectors of type '{:?}' is not yet supported. 6", other),
+                    format!("Compiling vectors of type '{}' is not yet supported. 6", other),
                     span,
                 )))
             }
@@ -239,7 +239,7 @@ impl<'ctx> LlvmValue<'ctx> {
 
             other => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Expected an i64 index, got '{:?}'.", other.to_type()),
+                format!("Expected an i64 index, got '{}'.", other.to_type()),
                 span,
             ))),
         }
@@ -251,7 +251,7 @@ impl<'ctx> LlvmValue<'ctx> {
 
             other => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Expected a string, got '{:?}'.", other.to_type()),
+                format!("Expected a string, got '{}'.", other.to_type()),
                 span,
             ))),
         }
@@ -277,7 +277,7 @@ impl<'ctx> LlvmValue<'ctx> {
 
             other => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Expected a char, got '{:?}'.", other.to_type()),
+                format!("Expected a char, got '{}'.", other.to_type()),
                 span,
             ))),
         }

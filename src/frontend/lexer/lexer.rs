@@ -97,7 +97,7 @@ impl Lexer {
             TokenValue::I64(value) => value.to_string(),
             TokenValue::String(value) => value.clone(),
             TokenValue::Char(value) => value.to_string(),
-            TokenValue::Null => format!("{:?}", token.category),
+            TokenValue::Null => format!("{}", token.category),
         }
     }
 
@@ -118,7 +118,7 @@ impl Lexer {
         Err(Box::new(LexerError::expected_found(
             ErrorSeverity::HIGH,
             "Unexpected token".to_string(),
-            format!("{:?}", category),
+            format!("{}", category),
             Self::token_text(&current_token),
             current_token.span,
         )))

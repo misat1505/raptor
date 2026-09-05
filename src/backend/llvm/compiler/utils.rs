@@ -66,7 +66,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             let llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_type, self.context).ok_or_else(|| {
                 Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("Compiling struct fields of type '{:?}' is not yet supported.", resolved_type),
+                    format!("Compiling struct fields of type '{}' is not yet supported.", resolved_type),
                     member.span,
                 )) as Box<dyn IError>
             })?;

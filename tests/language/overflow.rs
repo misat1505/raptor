@@ -69,11 +69,11 @@ println(result as str);
 
     assert_eq!(stdout, "0\n");
 
-    assert!(stderr.contains("warning"), "expected warning in stderr, got: {:?}", stderr);
+    assert!(stderr.contains("warning"), "expected warning in stderr, got: {}", stderr);
 
     assert!(
         stderr.contains("Integer overflow in cast") || stderr.contains("Value does not fit in target type"),
-        "expected overflow description in stderr, got: {:?}",
+        "expected overflow description in stderr, got: {}",
         stderr
     );
 }
@@ -96,13 +96,13 @@ println(result as str);
 
     assert_eq!(exit_code, 1);
 
-    assert!(stdout.is_empty(), "program should abort before println, got: {:?}", stdout);
+    assert!(stdout.is_empty(), "program should abort before println, got: {}", stdout);
 
-    assert!(stderr.contains("error"), "expected error in stderr, got: {:?}", stderr);
+    assert!(stderr.contains("error"), "expected error in stderr, got: {}", stderr);
 
     assert!(
         stderr.contains("Integer overflow in cast") || stderr.contains("Value does not fit in target type"),
-        "expected overflow description in stderr, got: {:?}",
+        "expected overflow description in stderr, got: {}",
         stderr
     );
 }
@@ -135,7 +135,7 @@ println(result as str);
 
         assert_eq!(exit_code, 0);
 
-        assert!(stderr.contains("warning"), "expected warning, got: {:?}", stderr);
+        assert!(stderr.contains("warning"), "expected warning, got: {}", stderr);
     }
 }
 
@@ -159,7 +159,7 @@ println(result as str);
 
     assert_eq!(stdout, "255\n");
 
-    assert!(stderr.contains("warning"), "expected warning, got: {:?}", stderr);
+    assert!(stderr.contains("warning"), "expected warning, got: {}", stderr);
 }
 
 #[test]
@@ -185,11 +185,11 @@ println(negated as str);
     // -(-128i8) == -128i8
     assert_eq!(stdout, "-128\n");
 
-    assert!(stderr.contains("warning"), "expected warning, got: {:?}", stderr);
+    assert!(stderr.contains("warning"), "expected warning, got: {}", stderr);
 
     assert!(
         stderr.contains("Arithmetic negation overflow"),
-        "expected negation overflow diagnostic, got: {:?}",
+        "expected negation overflow diagnostic, got: {}",
         stderr
     );
 }
@@ -235,11 +235,11 @@ println(negated as str);
         assert_eq!(exit_code, 0);
         assert_eq!(stdout, expected);
 
-        assert!(stderr.contains("warning"), "expected warning, got: {:?}", stderr);
+        assert!(stderr.contains("warning"), "expected warning, got: {}", stderr);
 
         assert!(
             stderr.contains("Arithmetic negation overflow"),
-            "expected negation overflow diagnostic, got: {:?}",
+            "expected negation overflow diagnostic, got: {}",
             stderr
         );
     }
@@ -264,7 +264,7 @@ println(negated as str);
 
     assert_eq!(exit_code, 0);
     assert_eq!(stdout, "-127\n");
-    assert!(stderr.is_empty(), "unexpected stderr: {:?}", stderr);
+    assert!(stderr.is_empty(), "unexpected stderr: {}", stderr);
 }
 
 #[test]
@@ -288,7 +288,7 @@ println(123 as str);
 
     assert_eq!(stdout, "0\n123\n");
 
-    assert!(stderr.contains("warning"), "expected warning, got: {:?}", stderr);
+    assert!(stderr.contains("warning"), "expected warning, got: {}", stderr);
 }
 
 #[test]
@@ -310,9 +310,9 @@ println(123 as str);
 
     assert_eq!(exit_code, 1);
 
-    assert!(stdout.is_empty(), "program continued after overflow: {:?}", stdout);
+    assert!(stdout.is_empty(), "program continued after overflow: {}", stdout);
 
-    assert!(stderr.contains("error"), "expected error, got: {:?}", stderr);
+    assert!(stderr.contains("error"), "expected error, got: {}", stderr);
 }
 
 pub fn assert_interpreter_overflow(text: BufReader<&[u8]>) {

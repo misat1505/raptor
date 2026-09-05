@@ -65,10 +65,10 @@ pub fn vector_push() -> StdFunction {
             if inner.is_compatible(value_type) {
                 Ok(Type::Void)
             } else {
-                Err(format!("vector_push expected element of type '{:?}', but got '{:?}'.", inner, value_type))
+                Err(format!("vector_push expected element of type '{}', but got '{}'.", inner, value_type))
             }
         }
-        [other, _] => Err(format!("vector_push expected a vector as first argument, but got '{:?}'.", other)),
+        [other, _] => Err(format!("vector_push expected a vector as first argument, but got '{}'.", other)),
         _ => Err(String::from("vector_push expects exactly 2 arguments.")),
     };
 
@@ -98,7 +98,7 @@ pub fn vector_push() -> StdFunction {
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("'vector_push' expects a vector, got '{:?}'.", other),
+                    format!("'vector_push' expects a vector, got '{}'.", other),
                     span,
                 )))
             }
@@ -115,7 +115,7 @@ pub fn vector_push() -> StdFunction {
             return Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
                 format!(
-                    "Vector element type mismatch: expected '{:?}', got '{:?}'.",
+                    "Vector element type mismatch: expected '{}', got '{}'.",
                     inner_type,
                     pushed_value.to_type()
                 ),
@@ -173,7 +173,7 @@ pub fn vector_push() -> StdFunction {
         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner_type, context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Compiling vectors of type '{:?}' is not yet supported. 7", inner_type),
+                format!("Compiling vectors of type '{}' is not yet supported. 7", inner_type),
                 span,
             )) as Box<dyn IError>
         })?;

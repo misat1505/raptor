@@ -78,7 +78,7 @@ pub fn print() -> StdFunction {
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("'print' expects a string, got '{:?}'.", other.to_type()),
+                    format!("'print' expects a string, got '{}'.", other.to_type()),
                     span,
                 )));
             }

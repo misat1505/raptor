@@ -69,7 +69,7 @@ impl<'a> Interpreter<'a> {
                 ErrorSeverity::HIGH,
                 format!("Cannot access field '{}' on this value.", field.value),
                 String::from("struct"),
-                format!("{:?}", instance_value.to_type()),
+                format!("{}", instance_value.to_type()),
                 instance.span,
             )));
         };
@@ -246,7 +246,7 @@ impl<'a> Interpreter<'a> {
                 ErrorSeverity::HIGH,
                 String::from("Cannot index into this value."),
                 String::from("Vector or Str"),
-                format!("{:?}", other.to_type()),
+                format!("{}", other.to_type()),
                 collection.span,
             ))),
         }
@@ -264,7 +264,7 @@ impl<'a> Interpreter<'a> {
                 ErrorSeverity::HIGH,
                 String::from("Array index must be a non-negative i64."),
                 String::from("I64"),
-                format!("{:?}", other.to_type()),
+                format!("{}", other.to_type()),
                 index.span,
             ))),
         }
@@ -278,7 +278,7 @@ impl<'a> Interpreter<'a> {
                 ErrorSeverity::HIGH,
                 String::from("Array index must be a non-negative i64."),
                 String::from("I64"),
-                format!("{:?}", other.to_type()),
+                format!("{}", other.to_type()),
                 self.span,
             ))),
         }

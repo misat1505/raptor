@@ -31,7 +31,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling parameters of type '{:?}' is not yet supported.", resolved_type),
+                                format!("Compiling parameters of type '{}' is not yet supported.", resolved_type),
                                 parameter.span,
                             )) as Box<dyn IError>
                         })?;
@@ -52,7 +52,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let llvm_return_type = LlvmValue::type_to_basic_type_enum(return_type, self.context).ok_or_else(|| {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Compiling functions returning '{:?}' is not yet supported.", return_type),
+                            format!("Compiling functions returning '{}' is not yet supported.", return_type),
                             function_decl.return_type.span,
                         )) as Box<dyn IError>
                     })?;
@@ -85,7 +85,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_type, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling extern parameters of type '{:?}' is not yet supported.", resolved_type),
+                                format!("Compiling extern parameters of type '{}' is not yet supported.", resolved_type),
                                 parameter.span,
                             )) as Box<dyn IError>
                         })?;
@@ -106,7 +106,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let llvm_return_type = LlvmValue::type_to_basic_type_enum(return_type, self.context).ok_or_else(|| {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Compiling extern functions returning '{:?}' is not yet supported.", return_type),
+                            format!("Compiling extern functions returning '{}' is not yet supported.", return_type),
                             function_decl.return_type.span,
                         )) as Box<dyn IError>
                     })?;
@@ -171,7 +171,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let llvm_type = LlvmValue::type_to_basic_type_enum(&param_type, self.context).ok_or_else(|| {
                         Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Compiling parameters of type '{:?}' is not yet supported.", param_type),
+                            format!("Compiling parameters of type '{}' is not yet supported.", param_type),
                             parameter.span,
                         )) as Box<dyn IError>
                     })?;
@@ -342,7 +342,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     other => {
                         return Err(Box::new(CompilerError::at(
                             ErrorSeverity::HIGH,
-                            format!("Cannot access field '{}' on type '{:?}'.", field.value, other.to_type()),
+                            format!("Cannot access field '{}' on type '{}'.", field.value, other.to_type()),
                             expression.span,
                         )));
                     }
@@ -407,7 +407,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         let element_llvm_type = LlvmValue::type_to_basic_type_enum(&inner, self.context).ok_or_else(|| {
                             Box::new(CompilerError::at(
                                 ErrorSeverity::HIGH,
-                                format!("Compiling vectors of type '{:?}' is not yet supported.", inner),
+                                format!("Compiling vectors of type '{}' is not yet supported.", inner),
                                 index.span,
                             )) as Box<dyn IError>
                         })?;
@@ -454,15 +454,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                     other => Err(Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
-                        format!("Cannot index into type '{:?}'.", other.to_type()),
+                        format!("Cannot index into type '{}'.", other.to_type()),
                         expression.span,
                     ))),
                 }
             }
 
-            other => Err(Box::new(CompilerError::at(
+            _ => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Cannot pass expression '{:?}' by reference.", other),
+                format!("Cannot pass expression by reference."),
                 expression.span,
             ))),
         }
@@ -523,7 +523,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let Type::Struct { identifier, fields, .. } = ty else {
             return Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Cannot build a shallow copy of non-struct type '{:?}'.", ty),
+                format!("Cannot build a shallow copy of non-struct type '{}'.", ty),
                 span,
             )));
         };

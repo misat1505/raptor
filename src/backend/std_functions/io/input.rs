@@ -89,7 +89,7 @@ pub fn input() -> StdFunction {
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("'input' expects a string, got '{:?}'.", other.to_type()),
+                    format!("'input' expects a string, got '{}'.", other.to_type()),
                     span,
                 )));
             }

@@ -130,7 +130,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             Box::new(error) as Box<dyn IError>
         })?;
         self.hovers.push(HoverInfo {
-            contents: format!("```raptor\n{:?} {}\n```", value, variable),
+            contents: format!("```raptor\n{} {}\n```", value, variable),
             span,
         });
         self.last_result = Some(value.clone());
@@ -163,7 +163,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         if let (Some(first), Some(last)) = (vector.first(), vector.last()) {
             let span = Span::new(first.span.start(), last.span.end());
             self.hovers.push(HoverInfo {
-                contents: format!("```raptor\n{:?}\n```", vector_type),
+                contents: format!("```raptor\n{}\n```", vector_type),
                 span,
             });
         }
@@ -229,7 +229,7 @@ impl<'a> SemanticChecker<'a> {
                 let error = SemanticCheckerError::type_mismatch(
                     ErrorSeverity::HIGH,
                     format!(
-                        "Cannot assign a value of type `{:?}` to field `{}` of struct `{}`.",
+                        "Cannot assign a value of type `{}` to field `{}` of struct `{}`.",
                         actual_type, field_name, struct_name
                     ),
                     &expected_type,
@@ -258,7 +258,7 @@ impl<'a> SemanticChecker<'a> {
             }
         }
         self.hovers.push(HoverInfo {
-            contents: format!("```raptor\n{:?}\n```", declared_type),
+            contents: format!("```raptor\n{}\n```", declared_type),
             span: identifier.span,
         });
         self.last_result = Some(declared_type);

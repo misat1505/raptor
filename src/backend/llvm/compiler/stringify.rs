@@ -333,7 +333,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             }
             (other, _) => Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Compiling vector_stringify for element type '{:?}' is not yet supported.", other),
+                format!("Compiling vector_stringify for element type '{}' is not yet supported.", other),
                 span,
             ))),
         }
@@ -433,7 +433,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let element_llvm_type = LlvmValue::type_to_basic_type_enum(inner_type, self.context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Compiling vectors of type '{:?}' is not yet supported. 3", inner_type),
+                format!("Compiling vectors of type '{}' is not yet supported. 3", inner_type),
                 span,
             )) as Box<dyn IError>
         })?;

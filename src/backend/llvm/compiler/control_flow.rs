@@ -100,7 +100,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type, self.context).ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
-                        format!("Compiling switch bindings of type '{:?}' is not yet supported.", var_type),
+                        format!("Compiling switch bindings of type '{}' is not yet supported.", var_type),
                         switch_expr.span,
                     )) as Box<dyn IError>
                 })?;

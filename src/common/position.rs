@@ -1,6 +1,6 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Position {
     pub line: u32,
     pub column: u32,
@@ -8,7 +8,7 @@ pub struct Position {
     pub filename: Option<&'static str>,
 }
 
-impl Debug for Position {
+impl Display for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Ok(write!(
             f,

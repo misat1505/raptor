@@ -76,7 +76,7 @@ pub fn delete_file() -> StdFunction {
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("'delete_file' expects a string, got '{:?}'.", other.to_type()),
+                    format!("'delete_file' expects a string, got '{}'.", other.to_type()),
                     span,
                 )));
             }

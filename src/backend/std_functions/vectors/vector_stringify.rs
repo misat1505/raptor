@@ -82,7 +82,7 @@ pub fn vector_stringify() -> StdFunction {
 
     let type_check: fn(&[Type]) -> Result<Type, String> = |arg_types: &[Type]| match arg_types {
         [Type::Vector(_)] => Ok(Type::Str),
-        [other] => Err(format!("vector_stringify expected a vector, but got '{:?}'.", other)),
+        [other] => Err(format!("vector_stringify expected a vector, but got '{}'.", other)),
         _ => Err(String::from("vector_stringify expects exactly 1 argument.")),
     };
 
@@ -103,7 +103,7 @@ pub fn vector_stringify() -> StdFunction {
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("'vector_stringify' expects a vector, got '{:?}'.", other.to_type()),
+                    format!("'vector_stringify' expects a vector, got '{}'.", other.to_type()),
                     span,
                 )))
             }

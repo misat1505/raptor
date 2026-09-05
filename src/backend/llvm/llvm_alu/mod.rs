@@ -69,7 +69,7 @@ impl LlvmAlu {
         Box::new(CompilerError::at(
             ErrorSeverity::HIGH,
             format!(
-                "Cannot perform {} between values of type '{:?}' and '{:?}'.",
+                "Cannot perform {} between values of type '{}' and '{}'.",
                 op_name,
                 left.to_type(),
                 right.to_type()
@@ -81,7 +81,7 @@ impl LlvmAlu {
     pub(in crate::backend::llvm::llvm_alu) fn unary_type_error<'ctx>(op_name: &str, value: LlvmValue<'ctx>, span: Span) -> Box<dyn IError> {
         Box::new(CompilerError::at(
             ErrorSeverity::HIGH,
-            format!("Cannot perform {} on type '{:?}'.", op_name, value.to_type()),
+            format!("Cannot perform {} on type '{}'.", op_name, value.to_type()),
             span,
         ))
     }

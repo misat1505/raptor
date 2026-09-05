@@ -56,7 +56,7 @@ pub fn str_len() -> StdFunction {
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("'str_len' expects a string, got '{:?}'.", other.to_type()),
+                    format!("'str_len' expects a string, got '{}'.", other.to_type()),
                     span,
                 )))
             }

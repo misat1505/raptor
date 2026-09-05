@@ -54,7 +54,7 @@ pub fn compile_write_or_append<'a, 'ctx>(
         other => {
             return Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Expected a string path, got '{:?}'.", other.to_type()),
+                format!("Expected a string path, got '{}'.", other.to_type()),
                 span,
             )));
         }
@@ -84,7 +84,7 @@ pub fn compile_write_or_append<'a, 'ctx>(
         other => {
             return Err(Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Expected string content, got '{:?}'.", other.to_type()),
+                format!("Expected string content, got '{}'.", other.to_type()),
                 span,
             )));
         }

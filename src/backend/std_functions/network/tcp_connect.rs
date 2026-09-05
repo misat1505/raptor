@@ -97,7 +97,7 @@ pub fn tcp_connect() -> StdFunction {
             other => {
                 return Err(Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
-                    format!("'tcp_connect' expects a string host, got '{:?}'.", other.to_type()),
+                    format!("'tcp_connect' expects a string host, got '{}'.", other.to_type()),
                     span,
                 )));
             }

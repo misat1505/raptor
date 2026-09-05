@@ -137,7 +137,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type, self.context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
-                format!("Compiling variables of type '{:?}' is not yet supported.", var_type),
+                format!("Compiling variables of type '{}' is not yet supported.", var_type),
                 span,
             )) as Box<dyn IError>
         })?;

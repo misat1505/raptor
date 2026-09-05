@@ -82,15 +82,19 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     PassedBy::Value => {
                         let resolved_type = self.resolve_type(&parameter.value.parameter_type.value);
 
-                        let llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_type, self.context).ok_or_else(|| {
-                            Box::new(CompilerError::at(
-                                ErrorSeverity::HIGH,
-                                format!("Compiling extern parameters of type '{}' is not yet supported.", resolved_type),
-                                parameter.span,
-                            )) as Box<dyn IError>
-                        })?;
+                        if matches!(resolved_type, Type::Str) {
+                            self.context.ptr_type(AddressSpace::default()).into()
+                        } else {
+                            let llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_type, self.context).ok_or_else(|| {
+                                Box::new(CompilerError::at(
+                                    ErrorSeverity::HIGH,
+                                    format!("Compiling extern parameters of type '{}' is not yet supported.", resolved_type),
+                                    parameter.span,
+                                )) as Box<dyn IError>
+                            })?;
 
-                        llvm_type.into()
+                            llvm_type.into()
+                        }
                     }
                 };
 
@@ -238,6 +242,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         span: Span,
     ) -> Result<(), Box<dyn IError>> {
         let name = identifier.value.as_str();
+        let is_extern = self.program.extern_functions.contains_key(name);
 
         let function = *self.functions.get(name).ok_or_else(|| {
             Box::new(CompilerError::at(
@@ -256,39 +261,49 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                     let value = self.read_last_value()?;
 
-                    // The callee takes ownership of this argument (it will
-                    // release it like any other local when it returns).
-                    // Strings are always deep-copied. Vector/Struct values
-                    // only need an explicit retain if the argument
-                    // expression was a bare variable read (a "borrow") -
-                    // anything else already evaluates to an owned +1
-                    // reference and can be handed over as-is.
-                    let value = match value {
-                        LlvmValue::Str(ptr) => {
-                            let copy_ptr = self.build_string_copy(ptr, span)?;
-                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
-                                self.release_value(&value, span)?;
-                            }
-                            LlvmValue::Str(copy_ptr)
+                    match (is_extern, value) {
+                        (true, LlvmValue::Str(ptr)) => {
+                            let data_ptr = self.str_data_ptr(ptr, span)?;
+                            compiled_args.push(data_ptr.into());
                         }
-                        LlvmValue::Vector(ptr, ref inner) => {
-                            let copy_ptr = self.build_shallow_copy_vector(ptr, inner, span)?;
-                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
-                                self.release_value(&value, span)?;
-                            }
-                            LlvmValue::Vector(copy_ptr, inner.clone())
-                        }
-                        LlvmValue::Struct(ptr, ref ty) => {
-                            let copy_ptr = self.build_shallow_copy_struct(ptr, ty, span)?;
-                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
-                                self.release_value(&value, span)?;
-                            }
-                            LlvmValue::Struct(copy_ptr, ty.clone())
-                        }
-                        other => other,
-                    };
 
-                    compiled_args.push(value.as_basic_value_enum().into());
+                        (false, LlvmValue::Str(ptr)) => {
+                            let value = LlvmValue::Str(ptr);
+                            let copy_ptr = self.build_string_copy(ptr, span)?;
+
+                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
+                                self.release_value(&value, span)?;
+                            }
+
+                            compiled_args.push(LlvmValue::Str(copy_ptr).as_basic_value_enum().into());
+                        }
+
+                        (false, LlvmValue::Vector(ptr, inner)) => {
+                            let value = LlvmValue::Vector(ptr, inner.clone());
+                            let copy_ptr = self.build_shallow_copy_vector(ptr, &inner, span)?;
+
+                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
+                                self.release_value(&value, span)?;
+                            }
+
+                            compiled_args.push(LlvmValue::Vector(copy_ptr, inner).as_basic_value_enum().into());
+                        }
+
+                        (false, LlvmValue::Struct(ptr, ty)) => {
+                            let value = LlvmValue::Struct(ptr, ty.clone());
+                            let copy_ptr = self.build_shallow_copy_struct(ptr, &ty, span)?;
+
+                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
+                                self.release_value(&value, span)?;
+                            }
+
+                            compiled_args.push(LlvmValue::Struct(copy_ptr, ty).as_basic_value_enum().into());
+                        }
+
+                        (_, value) => {
+                            compiled_args.push(value.as_basic_value_enum().into());
+                        }
+                    }
                 }
 
                 PassedBy::Reference => {

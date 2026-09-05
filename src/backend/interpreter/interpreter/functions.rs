@@ -31,7 +31,7 @@ impl<'a> Interpreter<'a> {
     pub(in crate::backend::interpreter::interpreter) fn call_function(
         &mut self,
         identifier: &Node<String>,
-        arguments: &'a Vec<Box<Node<Argument>>>,
+        arguments: &'a [Box<Node<Argument>>],
         span: Span,
     ) -> Result<(), Box<dyn IError>> {
         let name = identifier.value.as_str();

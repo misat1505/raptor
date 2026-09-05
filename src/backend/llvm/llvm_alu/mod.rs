@@ -17,8 +17,7 @@ use crate::backend::llvm::llvm_alu::llvm_value::LlvmValue;
 use crate::common::errors::{CompilerError, ErrorSeverity, IError};
 use crate::common::span::Span;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OverflowPolicy {
     /// Default. No extra checks are generated - truncating casts silently
     /// wrap. Zero runtime cost.
@@ -42,7 +41,6 @@ impl OverflowPolicy {
         }
     }
 }
-
 
 pub struct LlvmAlu {
     overflow_policy: OverflowPolicy,
@@ -84,6 +82,7 @@ impl LlvmAlu {
     }
 
     #[allow(dead_code)]
+    #[allow(clippy::too_many_arguments)]
     fn emit_overflow_check<'ctx>(
         &self,
         builder: &Builder<'ctx>,

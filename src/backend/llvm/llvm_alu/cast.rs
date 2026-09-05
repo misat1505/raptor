@@ -386,6 +386,7 @@ impl LlvmAlu {
     // Integer casts + overflow checking
     // ========================================================================
 
+    #[allow(clippy::too_many_arguments)]
     fn int_cast<'ctx>(
         &self,
         builder: &Builder<'ctx>,
@@ -492,6 +493,7 @@ impl LlvmAlu {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn emit_integer_overflow_check<'ctx>(
         &self,
         builder: &Builder<'ctx>,

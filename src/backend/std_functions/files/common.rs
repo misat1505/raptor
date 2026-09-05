@@ -12,7 +12,7 @@ use crate::{
 
 pub fn compile_write_or_append<'a, 'ctx>(
     compiler: &mut Compiler<'a, 'ctx>,
-    arguments: &'a Vec<Box<Node<Argument>>>,
+    arguments: &'a [Box<Node<Argument>>],
     mode_str: &str,
     span: Span,
 ) -> Result<(), Box<dyn IError>> {

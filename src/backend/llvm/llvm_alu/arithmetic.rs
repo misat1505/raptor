@@ -608,6 +608,7 @@ impl LlvmAlu {
     // Generic integer overflow checker
     // ========================================================================
 
+    #[allow(clippy::too_many_arguments)]
     fn checked_integer_operation<'ctx>(
         &self,
         builder: &Builder<'ctx>,
@@ -664,6 +665,7 @@ impl LlvmAlu {
      * For add/sub this also makes the implementation very simple and avoids
      * subtle signed-overflow formulas.
      */
+    #[allow(clippy::too_many_arguments)]
     fn build_integer_overflow_condition<'ctx>(
         &self,
         builder: &Builder<'ctx>,

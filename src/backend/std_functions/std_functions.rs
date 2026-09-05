@@ -24,15 +24,17 @@ use crate::{
     frontend::ast::{Argument, Node, PassedBy},
 };
 
+type InterpreterExecuteFn = fn(&Vec<Rc<RefCell<Value>>>, span: Span) -> Result<Option<Value>, StdFunctionError>;
+type TypeChecker = fn(&[Type]) -> Result<Type, String>;
 pub type LlvmCompileFn = for<'a, 'ctx> fn(&mut Compiler<'a, 'ctx>, &'a Vec<Box<Node<Argument>>>, Span) -> Result<(), Box<dyn IError>>;
 
 #[derive(Debug, Clone)]
 pub struct StdFunction {
     pub params: Vec<Type>,
     pub passed_by: Vec<PassedBy>,
-    pub execute: fn(&Vec<Rc<RefCell<Value>>>, span: Span) -> Result<Option<Value>, StdFunctionError>,
+    pub execute: InterpreterExecuteFn,
     pub return_type: Type,
-    pub type_check: Option<fn(&[Type]) -> Result<Type, String>>,
+    pub type_check: Option<TypeChecker>,
     pub compile: LlvmCompileFn,
 }
 

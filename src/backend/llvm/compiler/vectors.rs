@@ -69,7 +69,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub(in crate::backend::llvm::compiler) fn build_vector_from_elements(
         &mut self,
         inner_type: &Type,
-        elements: &'a Vec<Box<Node<Expression>>>,
+        elements: &'a [Box<Node<Expression>>],
         precomputed_first: Option<LlvmValue<'ctx>>,
         span: Span,
     ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
@@ -222,7 +222,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     pub(in crate::backend::llvm::compiler) fn build_vector_expression(
         &mut self,
-        elements: &'a Vec<Box<Node<Expression>>>,
+        elements: &'a [Box<Node<Expression>>],
         span: Span,
     ) -> Result<(PointerValue<'ctx>, Type), Box<dyn IError>> {
         if elements.is_empty() {

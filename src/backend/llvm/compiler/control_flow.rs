@@ -36,12 +36,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.control_stack
             .iter()
             .rev()
-            .find_map(|frame| match frame {
+            .map(|frame| match frame {
                 ControlFrame::Loop {
                     break_block, scope_depth, ..
                 } => Some((*break_block, *scope_depth)),
                 ControlFrame::Switch { break_block, scope_depth } => Some((*break_block, *scope_depth)),
             })
+            .next()
+            .flatten()
             .ok_or_else(|| {
                 Box::new(CompilerError::at(
                     ErrorSeverity::HIGH,
@@ -73,8 +75,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     pub(in crate::backend::llvm::compiler) fn compile_switch(
         &mut self,
-        expressions: &'a Vec<Node<SwitchExpression>>,
-        cases: &'a Vec<Node<SwitchCase>>,
+        expressions: &'a [Node<SwitchExpression>],
+        cases: &'a [Node<SwitchCase>],
     ) -> Result<(), Box<dyn IError>> {
         let function = self.current_function();
 

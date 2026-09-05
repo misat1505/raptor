@@ -137,7 +137,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         Ok(())
     }
 
-    fn visit_vector_literal(&mut self, vector: &'a Vec<Box<Node<Expression>>>) -> Result<(), Box<dyn IError>> {
+    fn visit_vector_literal(&mut self, vector: &'a [Box<Node<Expression>>]) -> Result<(), Box<dyn IError>> {
         let mut element_type: Option<Type> = None;
         for expression in vector {
             self.visit_expression(expression)?;

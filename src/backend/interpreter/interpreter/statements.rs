@@ -464,7 +464,7 @@ impl<'a> Interpreter<'a> {
     pub(in crate::backend::interpreter::interpreter) fn exec_index_assignment(
         &mut self,
         identifier: &'a Node<String>,
-        accessors: &'a Vec<Node<Accessor>>,
+        accessors: &'a [Node<Accessor>],
         value: &'a Node<Expression>,
     ) -> Result<(), Box<dyn IError>> {
         let var_ref = self

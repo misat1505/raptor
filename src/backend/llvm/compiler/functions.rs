@@ -234,7 +234,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub(in crate::backend::llvm::compiler) fn build_function_call(
         &mut self,
         identifier: &'a Node<String>,
-        arguments: &'a Vec<Box<Node<Argument>>>,
+        arguments: &'a [Box<Node<Argument>>],
         span: Span,
     ) -> Result<(), Box<dyn IError>> {
         let name = identifier.value.as_str();
@@ -316,7 +316,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             )));
         };
 
-        self.last_value = call_site.try_as_basic_value().basic().map(|return_value| LlvmValue::from_basic_value_enum(return_value, return_type));
+        self.last_value = call_site
+            .try_as_basic_value()
+            .basic()
+            .map(|return_value| LlvmValue::from_basic_value_enum(return_value, return_type));
 
         Ok(())
     }

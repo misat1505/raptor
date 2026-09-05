@@ -124,7 +124,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         }
     }
 
-    fn visit_vector_literal(&mut self, _vector: &'a Vec<Box<Node<Expression>>>) -> Result<(), Box<dyn IError>> {
+    fn visit_vector_literal(&mut self, _vector: &'a [Box<Node<Expression>>]) -> Result<(), Box<dyn IError>> {
         Err(Box::new(CompilerError::at(
             ErrorSeverity::HIGH,
             String::from("Compiling vector literals is not yet supported."),

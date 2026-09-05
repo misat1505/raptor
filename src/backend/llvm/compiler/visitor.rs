@@ -132,8 +132,8 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
         )))
     }
 
-    fn visit_variable(&mut self, variable: &'a String, span: Span) -> Result<(), Box<dyn IError>> {
-        let (ptr, var_type) = self.get_variable(variable.as_str())?;
+    fn visit_variable(&mut self, variable: &'a str, span: Span) -> Result<(), Box<dyn IError>> {
+        let (ptr, var_type) = self.get_variable(variable)?;
         let llvm_type = LlvmValue::type_to_basic_type_enum(&var_type, self.context).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,
@@ -144,7 +144,7 @@ impl<'a, 'ctx> Visitor<'a> for Compiler<'a, 'ctx> {
 
         let raw_value = self
             .builder
-            .build_load(llvm_type, ptr, variable.as_str())
+            .build_load(llvm_type, ptr, variable)
             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
 
         self.last_value = Some(LlvmValue::from_basic_value_enum(raw_value, &var_type));

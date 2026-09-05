@@ -123,8 +123,8 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         Ok(())
     }
 
-    fn visit_variable(&mut self, variable: &'a String, span: Span) -> Result<(), Box<dyn IError>> {
-        let value = self.stack.get_variable(variable.as_str(), span).map_err(|err| {
+    fn visit_variable(&mut self, variable: &'a str, span: Span) -> Result<(), Box<dyn IError>> {
+        let value = self.stack.get_variable(variable, span).map_err(|err| {
             let error = SemanticCheckerError::at(ErrorSeverity::HIGH, err.message(), span);
             self.errors.push(Box::new(error.clone()));
             Box::new(error) as Box<dyn IError>

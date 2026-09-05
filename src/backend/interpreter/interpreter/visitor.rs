@@ -53,7 +53,7 @@ impl<'a> Visitor<'a> for Interpreter<'a> {
         self.eval_vector_literal(expressions)
     }
 
-    fn visit_variable(&mut self, variable: &'a String, span: Span) -> Result<(), Box<dyn IError>> {
+    fn visit_variable(&mut self, variable: &'a str, span: Span) -> Result<(), Box<dyn IError>> {
         self.eval_variable(variable, span)
     }
 }

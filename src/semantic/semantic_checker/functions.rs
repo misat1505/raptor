@@ -46,8 +46,7 @@ impl<'a> SemanticChecker<'a> {
                         )));
                     }
                     let mut collected_types: Vec<Type> = vec![];
-                    for idx in 0..arguments.len() {
-                        let argument = &arguments[idx];
+                    for (idx, argument) in arguments.iter().enumerate() {
                         let _ = self.visit_expression(&argument.value.value);
                         let actual_type = self.read_last_result(argument.span).ok();
                         let expected_passed_by = std_function.passed_by.get(idx).unwrap_or(&PassedBy::Value);
@@ -134,8 +133,7 @@ impl<'a> SemanticChecker<'a> {
                             *span,
                         )));
                     }
-                    for idx in 0..arguments.len() {
-                        let argument = &arguments[idx];
+                    for (idx, argument) in arguments.iter().enumerate() {
                         let _ = self.visit_expression(&argument.value.value);
                         let actual_type = self.read_last_result(argument.span).ok();
                         if let Some(parameter) = parameters.get(idx) {
@@ -206,8 +204,7 @@ impl<'a> SemanticChecker<'a> {
                             *span,
                         )));
                     }
-                    for idx in 0..arguments.len() {
-                        let argument = &arguments[idx];
+                    for (idx, argument) in arguments.iter().enumerate() {
                         let _ = self.visit_expression(&argument.value.value);
                         let actual_type = self.read_last_result(argument.span).ok();
                         if let Some(parameter) = parameters.get(idx) {

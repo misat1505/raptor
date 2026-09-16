@@ -434,11 +434,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     }
                 };
 
-                // Zwolnij temporary instance (po wyciągnięciu potrzebnych danych)
-                if Self::expr_needs_release(&instance.value) {
-                    self.release_value(&instance_value, span)?;
-                }
-
                 let Type::Struct { identifier, fields } = struct_type_info.as_ref() else {
                     return Err(Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
@@ -446,6 +441,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         span,
                     )));
                 };
+
                 let field_type = fields.get(&field.value).cloned().ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
@@ -453,8 +449,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         field.span,
                     )) as Box<dyn IError>
                 })?;
+
                 let resolved_field_type = self.resolve_type(&field_type);
+
                 let (struct_type, field_indices) = self.struct_llvm_type(identifier, span)?;
+
                 let field_index = *field_indices.get(&field.value).ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
@@ -462,10 +461,22 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         field.span,
                     )) as Box<dyn IError>
                 })?;
+
+                // IMPORTANT:
+                // Derive the field address BEFORE releasing a temporary instance.
+                //
+                // For:
+                //     lexer.source.position
+                //
+                // this gives:
+                //     Lexer* -> Source* -> Position*
+                //
+                // rather than loading/copying the Source first.
                 let field_ptr = self
                     .builder
                     .build_struct_gep(struct_type, struct_ptr, field_index, "field.access")
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
+
                 let field_llvm_type = LlvmValue::type_to_basic_type_enum(&resolved_field_type, self.context).ok_or_else(|| {
                     Box::new(CompilerError::at(
                         ErrorSeverity::HIGH,
@@ -473,20 +484,32 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         field.span,
                     )) as Box<dyn IError>
                 })?;
+
                 let raw_value = self
                     .builder
                     .build_load(field_llvm_type, field_ptr, "field.load")
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
+
                 let field_value = LlvmValue::from_basic_value_enum(raw_value, &resolved_field_type);
 
                 let field_value = match field_value {
                     LlvmValue::Str(ptr) => LlvmValue::Str(self.build_string_copy(ptr, field.span)?),
+
                     other => {
                         self.retain_value(&other, field.span)?;
+
                         other
                     }
                 };
+
+                // Release the temporary instance only AFTER we have
+                // completely extracted the field value.
+                if Self::expr_needs_release(&instance.value) {
+                    self.release_value(&instance_value, span)?;
+                }
+
                 self.last_value = Some(field_value);
+
                 Ok(())
             }
             Expression::EnumLiteral {

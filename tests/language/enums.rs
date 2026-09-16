@@ -1,3 +1,11 @@
+use std::io::BufReader;
+
+use crate::common::assert_same_output;
+
+#[test]
+fn tasks_example() {
+    let text = BufReader::new(
+        r##"
 struct Deadline {
     str date
 };
@@ -49,3 +57,12 @@ let repo = TaskRepository {
 };
 
 println(task_repository_repr(&repo));
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(
+        text,
+        "TaskRepository { tasks: [Task::InProgress(Deadline { date: \"today\" }), Task::Completed(\"completed\"), Task::Aborted] }\n",
+    );
+}

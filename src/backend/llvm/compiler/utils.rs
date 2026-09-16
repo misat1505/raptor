@@ -22,7 +22,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    fn struct_declaration(&self, identifier: &str, span: Span) -> Result<&'a StructDeclaration, Box<dyn IError>> {
+    pub(in crate::backend::llvm::compiler) fn struct_declaration(
+        &self,
+        identifier: &str,
+        span: Span,
+    ) -> Result<&'a StructDeclaration, Box<dyn IError>> {
         let declared = self.program.declared_types.get(identifier).ok_or_else(|| {
             Box::new(CompilerError::at(
                 ErrorSeverity::HIGH,

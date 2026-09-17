@@ -26,10 +26,7 @@ pub fn resolve_declared_types(declared_types: &HashMap<String, Rc<Node<DeclaredT
                 let mut fields = HashMap::new();
 
                 for member in &enum_declaration.members {
-                    let field_type = match member.value.member_type {
-                        Some(ref t) => Some(t.value.clone()),
-                        None => None,
-                    };
+                    let field_type = member.value.member_type.as_ref().map(|t| t.value.clone());
                     fields.insert(member.value.identifier.value.clone(), field_type.clone());
                 }
 

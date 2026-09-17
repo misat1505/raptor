@@ -113,14 +113,14 @@ impl<L: ILexer> Parser<L> {
             .parse_statement_block()?
             .ok_or_else(|| self.create_parser_error(String::from("Expected a block after match arm.")))?;
 
-        let span = Span::new(start, block.span.end().clone());
+        let span = Span::new(start, block.span.end());
 
         let node = Node {
             value: MatchArm {
                 enum_name,
                 variant_name,
                 variant_value,
-                block: block,
+                block,
             },
             span,
         };

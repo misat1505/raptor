@@ -76,6 +76,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     /// - `ordered_variants`: `(variant_name, payload_type)` in canonical
     ///   order, i.e. `ordered_variants[tag]` is the variant for that tag -
     ///   used by match codegen to know each arm's payload type.
+    #[allow(clippy::type_complexity)]
     pub(in crate::backend::llvm::compiler) fn enum_llvm_type(
         &self,
         identifier: &str,

@@ -123,7 +123,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             payload_size = payload_size.max(variant_size);
         }
 
-        let word_count = (payload_size + 7) / 8;
+        let word_count = payload_size.div_ceil(8);
         let payload_type = i64_type.array_type(word_count as u32);
 
         Ok(context.struct_type(

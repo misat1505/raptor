@@ -416,7 +416,7 @@ impl<'a> SemanticChecker<'a> {
             unreachable!();
         };
 
-        self.visit_expression(&expression)?;
+        self.visit_expression(expression)?;
         let actual_type = self.read_last_result(expression.span)?;
         let resolved_type = self.resolve_type_fully_checked(&actual_type, expression.span)?;
 
@@ -472,7 +472,7 @@ impl<'a> SemanticChecker<'a> {
                 span: match_arm.value.enum_name.span,
             });
 
-            if visited_fields.iter().any(|field| *field == match_arm.value.variant_name.value) {
+            if visited_fields.contains(&match_arm.value.variant_name.value) {
                 self.errors.push(Box::new(SemanticCheckerError::at(
                     ErrorSeverity::HIGH,
                     format!("Multiple arms for variant '{}'.", match_arm.value.variant_name.value),
@@ -590,7 +590,7 @@ impl<'a> SemanticChecker<'a> {
                     .filter(|variant| !visited_fields.contains(variant))
                     .collect::<Vec<_>>();
 
-                if missing_variants.len() > 0 {
+                if !missing_variants.is_empty() {
                     let variants_concat = missing_variants
                         .iter()
                         .map(|variant| format!("'{}'", variant))

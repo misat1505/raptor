@@ -177,7 +177,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         let binding = value.clone();
         let node = Node {
             value: variable.to_owned(),
-            span: span,
+            span,
         };
         self.identifier_hover(&binding, &node);
         self.last_result = Some(binding.clone());

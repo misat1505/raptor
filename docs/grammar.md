@@ -2,9 +2,32 @@
 
 ### Syntax Part
 
-**program** = { import_declaration | struct_declaration | function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration };
+**program** = { import_declaration | struct_declaration | enum_declaration | function_declaration | extern_function_declaration | assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration | match_statement };
 
 **comment** = "#" , {unicode_character - "\n"}, "\n";
+
+**match_statement** = "match", "(", expression, ")", "{", match_arms, [ ",", rest_arm ], "}";
+
+```
+match (task) {
+    Task::InProgress(deadline) {
+        #  deadline: Deadline - available only in this scope
+    },
+    Task::Aborted {
+        # Aborted doesn't contain any data
+    },
+    rest {
+        # have to match all the arms
+        # use else to catch the rest
+    }
+}
+```
+
+**match_arms** = [ match_arm, { ",", match_arm } ];
+
+**match_arm** = identifier, "::", identifier, [ "(", identifier, ")" ], statement_block;
+
+**rest_arm** = "rest", statement_block;
 
 **import_declaration** = "import", literal, ";";
 ```
@@ -27,6 +50,19 @@ struct Person {
 **struct_members** = struct_member, { ",", struct_member };
 
 **struct_member** = type, identifier;
+
+**enum_declaration** = "enum", identifier, "{", [ enum_members ], "}", ";";
+```text
+enum Task {
+    InProgress(Deadline),
+    Completed(str),
+    Aborted
+};
+```
+
+**enum_members** = enum_member, { ",", enum_member };
+
+**enum_member** = identifier, [ "(", type, ")" ];
 
 **extern_function_declaration** = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
 
@@ -53,7 +89,7 @@ fn add(i64 a, i64 b): i64 {
 
 **statement_block** = ("{", {statement}, "}") | statement;
 
-**statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration | return_statement | break_statement | continue_statement;
+**statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration | return_statement | break_statement | continue_statement | match_statement;
 
 **assign_or_call_without_semicolon** = identifier, ( { access_tail }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
 
@@ -221,7 +257,7 @@ x * 10 % 3
 !(x == 5)
 ```
 
-**factor** = literal | ( "(", expression, ")" ) | identifier_or_call_or_struct_literal | vector_literal;
+**factor** = literal | ( "(", expression, ")" ) | identifier_or_call_or_struct_literal_or_enum_literal | vector_literal;
 
 ```text
 5
@@ -247,7 +283,7 @@ fun(5)
 ]
 ```
 
-**identifier_or_call_or_struct_literal** = identifier, ( call_or_index_tail | struct_literal_tail );
+**identifier_or_call_or_struct_literal_or_enum_literal** = identifier, ( call_or_index_tail | struct_literal_tail | enum_literal_tail );
 ```text
 x
 fun(5)
@@ -259,9 +295,10 @@ Person { id: 123 as u64, name: "Bob" }
 Hobby { id: 1, description: "Play football" }
 
 person.hobbies[0].description
+
+HttpStatus::NotFound("user not found")
 ```
 
-<!-- **call_or_index_tail** = [ "(", arguments, ")" ], { "[", expression, "]" }; -->
 **call_or_index_tail** = [ "(", arguments, ")" ], { access_tail };
 **access_tail** = ("[", expression, "]") | (".", identifier);
 
@@ -271,6 +308,7 @@ person.hobbies[0].description
 
 **struct_literal_field** = identifier, ":", expression;
 
+**enum_literal_tail** = "::", identifier, [ "(", expression, ")" ];
 
 **literal** = integer_literal | float_literal | boolean_literal | string_literal | char_literal;
 

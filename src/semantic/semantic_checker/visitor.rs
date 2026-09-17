@@ -8,11 +8,7 @@ use crate::{
     frontend::ast::{
         Argument, Block, DeclaredType, Expression, Literal, Node, Parameter, Program, Statement, StructLiteral, SwitchCase, SwitchExpression,
     },
-    semantic::semantic_checker::{
-        checker::{DefinitionInfo, HoverInfo},
-        functions::FunctionCallType,
-        SemanticChecker,
-    },
+    semantic::semantic_checker::{checker::DefinitionInfo, functions::FunctionCallType, SemanticChecker},
 };
 use std::collections::HashSet;
 
@@ -77,6 +73,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             Statement::Return { .. } => self.check_return(statement)?,
             Statement::Break => self.check_break(statement)?,
             Statement::Continue => self.check_continue(statement)?,
+            Statement::Match { .. } => self.check_match_statement(statement)?,
         }
         Ok(())
     }
@@ -177,11 +174,13 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
             self.errors.push(Box::new(error.clone()));
             Box::new(error) as Box<dyn IError>
         })?;
-        self.hovers.push(HoverInfo {
-            contents: format!("```raptor\n{} {}\n```", value, variable),
+        let binding = value.clone();
+        let node = Node {
+            value: variable.to_owned(),
             span,
-        });
-        self.last_result = Some(value.clone());
+        };
+        self.identifier_hover(&binding, &node);
+        self.last_result = Some(binding.clone());
 
         let def_span = self.stack.get_variable_declaration_span(variable, span).unwrap();
         self.definitions.push(DefinitionInfo {
@@ -216,10 +215,7 @@ impl<'a> Visitor<'a> for SemanticChecker<'a> {
         let vector_type = Type::Vector(Box::new(element_type.unwrap_or(Type::Void)));
         if let (Some(first), Some(last)) = (vector.first(), vector.last()) {
             let span = Span::new(first.span.start(), last.span.end());
-            self.hovers.push(HoverInfo {
-                contents: format!("```raptor\n{}\n```", vector_type),
-                span,
-            });
+            self.type_hover(&vector_type, &span);
         }
         self.last_result = Some(vector_type);
         Ok(())
@@ -287,7 +283,14 @@ impl<'a> SemanticChecker<'a> {
                 continue;
             };
 
-            let DeclaredType::Struct(struct_declaration) = &type_declaration.value;
+            let DeclaredType::Struct(struct_declaration) = &type_declaration.value else {
+                self.errors.push(Box::new(SemanticCheckerError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("Cannot access a field of this type."),
+                    field.span,
+                )));
+                return Ok(());
+            };
 
             let Some(member_declaration) = struct_declaration
                 .members
@@ -358,10 +361,7 @@ impl<'a> SemanticChecker<'a> {
             }
         }
 
-        self.hovers.push(HoverInfo {
-            contents: format!("```raptor\n{}\n```", declared_type),
-            span: identifier.span,
-        });
+        self.type_hover(&declared_type, &identifier.span);
 
         self.last_result = Some(declared_type);
 

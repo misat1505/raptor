@@ -64,6 +64,7 @@ pub enum TokenCategory {
     DivideEquals,
     ModuloEquals,
     Colon,
+    DoubleColon,
     Semicolon,
     Comma,
     Reference,
@@ -83,6 +84,10 @@ pub enum TokenCategory {
     Let,
     Struct,
     Dot,
+
+    Enum,
+    Match,
+    Rest,
 }
 
 impl Display for TokenCategory {
@@ -143,6 +148,7 @@ impl Display for TokenCategory {
             DivideEquals => "/=",
             ModuloEquals => "%=",
             Colon => ":",
+            DoubleColon => "::",
             Semicolon => ";",
             Comma => ",",
             Reference => "&",
@@ -159,6 +165,9 @@ impl Display for TokenCategory {
             Let => "let",
             Struct => "struct",
             Dot => "dot",
+            Enum => "enum",
+            Match => "match",
+            Rest => "rest",
         };
 
         Ok(write!(f, "{}", text)?)

@@ -1,0 +1,158 @@
+import "./lexer.rp";
+import "./ast.rp";
+
+struct Parser {
+    Lexer lexer
+};
+
+fn parser_new(&Lexer lexer): Parser {
+    return Parser { lexer };
+}
+
+struct NamedNode {
+    str key,
+    Node node
+};
+
+fn parser_parse(&Parser parser): Node {
+    let position = position_clone(&parser.lexer.current_token.position);
+    let named = parser_parse_element(&parser);
+
+    let keys: str[] = [];
+    let nodes: Node[] = [];
+
+    vector_push(&keys, named.key);
+    vector_push(&nodes, named.node);
+
+    return Node {
+        kind: NodeKind::KeyValue(KeyValueNode { keys, nodes }),
+        position
+    };
+}
+
+fn parser_parse_element(&Parser parser): NamedNode {
+    lexer_next_token(&parser.lexer); # consume '<', current = tag name literal
+
+    let key = "";
+
+    match (parser.lexer.current_token.value) {
+        OptionTokenValue::Some(value) {
+            match (value) {
+                TokenValue::Str(text) { key = text; },
+                TokenValue::Number(num) { key = num as str; }
+            }
+        },
+        OptionTokenValue::None {}
+    }
+
+    lexer_next_token(&parser.lexer); # consume tag name, current = '>'
+    lexer_next_token(&parser.lexer); # consume '>', current = first token of value
+
+    let value_node = parser_parse_value(&parser);
+
+    lexer_next_token(&parser.lexer); # consume '<' of closing tag
+    lexer_next_token(&parser.lexer); # consume '/'
+    lexer_next_token(&parser.lexer); # consume tag name
+    lexer_next_token(&parser.lexer); # consume '>'
+
+    return NamedNode { key, node: value_node };
+}
+
+fn parser_parse_value(&Parser parser): Node {
+    match (parser.lexer.current_token.kind) {
+        TokenKind::Literal {
+            return parser_parse_literal_value(&parser);
+        },
+        rest {}
+    }
+
+    match (parser.lexer.next_token.value) {
+        OptionTokenValue::Some(value) {
+            match (value) {
+                TokenValue::Number return parser_parse_array_value(&parser);,
+                TokenValue::Str return parser_parse_object_value(&parser);
+            }
+        },
+        OptionTokenValue::None {}
+    }
+
+    return parser_parse_object_value(&parser);
+}
+
+fn parser_parse_literal_value(&Parser parser): Node {
+    let position = position_clone(&parser.lexer.current_token.position);
+    let node_literal = NodeLiteral::Number(0);
+
+    match (parser.lexer.current_token.value) {
+        OptionTokenValue::Some(value) {
+            match (value) {
+                TokenValue::Number(num) { node_literal = NodeLiteral::Number(num); },
+                TokenValue::Str(text) { node_literal = NodeLiteral::Str(text); }
+            }
+        },
+        OptionTokenValue::None {}
+    }
+
+    lexer_next_token(&parser.lexer); # consume literal, current = '<' of closing tag
+
+    return Node {
+        kind: NodeKind::Literal(node_literal),
+        position
+    };
+}
+
+fn parser_parse_object_value(&Parser parser): Node {
+    let position = position_clone(&parser.lexer.current_token.position);
+
+    let keys: str[] = [];
+    let nodes: Node[] = [];
+
+    while (true) {
+        match (parser.lexer.current_token.kind) {
+            TokenKind::Less {
+                match (parser.lexer.next_token.kind) {
+                    TokenKind::Slash break;,
+                    rest {}
+                }
+            },
+            rest break;
+        }
+
+        let named = parser_parse_element(&parser);
+
+        vector_push(&keys, named.key);
+        vector_push(&nodes, named.node);
+    }
+
+    return Node {
+        kind: NodeKind::KeyValue(KeyValueNode { keys, nodes }),
+        position
+    };
+}
+
+fn parser_parse_array_value(&Parser parser): Node {
+    let position = position_clone(&parser.lexer.current_token.position);
+
+    let nodes: Node[] = [];
+
+    while (true) {
+        match (parser.lexer.current_token.kind) {
+            TokenKind::Less {
+                match (parser.lexer.next_token.kind) {
+                    TokenKind::Slash break;,
+                    rest {}
+                }
+            },
+            rest break;
+        }
+
+        let named = parser_parse_element(&parser);
+
+        vector_push(&nodes, named.node);
+    }
+
+    return Node {
+        kind: NodeKind::Array(nodes),
+        position
+    };
+}

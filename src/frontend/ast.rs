@@ -72,6 +72,11 @@ pub enum Expression {
         arguments: Vec<BNode<Argument>>,
     },
     StructLiteral(Node<StructLiteral>),
+    EnumLiteral {
+        enum_name: Node<String>,
+        variant_name: Node<String>,
+        variant_value: Option<BNode<Expression>>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -157,6 +162,19 @@ pub enum Statement {
     Import {
         path: Node<String>,
     },
+    Match {
+        expression: Node<Expression>,
+        match_arms: Vec<Node<MatchArm>>,
+        rest_arm: Option<Node<Block>>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchArm {
+    pub enum_name: Node<String>,
+    pub variant_name: Node<String>,
+    pub variant_value: Option<Node<String>>,
+    pub block: Node<Block>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -210,8 +228,21 @@ pub struct StructDeclaration {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct EnumMember {
+    pub identifier: Node<String>,
+    pub member_type: Option<Node<Type>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumDeclaration {
+    pub identifier: Node<String>,
+    pub members: Vec<Node<EnumMember>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum DeclaredType {
     Struct(StructDeclaration),
+    Enum(EnumDeclaration),
 }
 
 #[derive(Debug, Clone, PartialEq)]

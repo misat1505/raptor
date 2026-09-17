@@ -11,6 +11,12 @@
       "include": "#keywords"
     },
     {
+      "include": "#enum-definitions"
+    },
+    {
+      "include": "#enum-variants"
+    },
+    {
       "include": "#types"
     },
     {
@@ -61,7 +67,79 @@
       "patterns": [
         {
           "name": "keyword.control.rp",
-          "match": "\\b(fn|extern|if|else|for|while|switch|return|break|continue|import|as)\\b"
+          "match": "\\b(fn|extern|if|else|for|while|switch|return|break|continue|import|as|match|rest)\\b"
+        }
+      ]
+    },
+    "enum-definitions": {
+      "patterns": [
+        {
+          "begin": "\\b(enum)\\s+([A-Z][a-zA-Z0-9_]*)\\s*\\{",
+          "beginCaptures": {
+            "1": {
+              "name": "constant.language.rp"
+            },
+            "2": {
+              "name": "entity.name.type.rp"
+            }
+          },
+          "end": "\\}",
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "include": "#enum-variant-definition"
+            },
+            {
+              "include": "#types"
+            },
+            {
+              "include": "#numbers"
+            },
+            {
+              "include": "#constants"
+            },
+            {
+              "include": "#operators"
+            },
+            {
+              "include": "#functions"
+            },
+            {
+              "include": "#variables"
+            }
+          ]
+        }
+      ]
+    },
+    "enum-variant-definition": {
+      "patterns": [
+        {
+          "match": "^\\s*([A-Z][a-zA-Z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "variable.other.enummember.rp"
+            }
+          }
+        }
+      ]
+    },
+    "enum-variants": {
+      "patterns": [
+        {
+          "match": "\\b([A-Z][a-zA-Z0-9_]*)::([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "entity.name.type.rp"
+            },
+            "2": {
+              "name": "variable.other.enummember.rp"
+            }
+          }
         }
       ]
     },
@@ -69,19 +147,19 @@
       "patterns": [
         {
           "name": "constant.language.rp",
-          "match": "\\b(true|false|let|struct)\\b"
+          "match": "\\b(true|false|let|struct|enum)\\b"
         }
       ]
     },
     "types": {
       "patterns": [
         {
-          "name": "entity.name.type.rp",
+          "name": "entity.name.type.primitive.rp",
           "match": "\\b(i8|i16|i32|i64|u8|u16|u32|u64|f64|bool|str|char|void)\\b"
         },
         {
           "name": "entity.name.type.rp",
-          "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+          "match": "(?<!::)\\b[A-Z][a-zA-Z0-9_]*\\b"
         }
       ]
     },
@@ -105,11 +183,11 @@
       "patterns": [
         {
           "name": "entity.name.function.rp",
-          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()"
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\s*(?=\\()"
         },
         {
           "name": "entity.name.function.definition.rp",
-          "match": "(?<=\\bfn\\s+)([a-zA-Z_][a-zA-Z0-9_]*)"
+          "match": "(?<=\\bfn\\s+)[a-zA-Z_][a-zA-Z0-9_]*"
         }
       ]
     },
@@ -117,7 +195,7 @@
       "patterns": [
         {
           "name": "variable.other.rp",
-          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b"
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
         }
       ]
     }

@@ -3,6 +3,7 @@ mod core;
 mod expressions;
 mod functions;
 mod memory;
+mod releases;
 mod statements;
 mod stringify;
 mod utils;
@@ -80,6 +81,8 @@ pub struct Compiler<'a, 'ctx> {
 
     span: Span,
     llvm_alu: LlvmAlu,
+
+    release_functions: HashMap<ReleaseKey, FunctionValue<'ctx>>,
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
@@ -106,6 +109,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             last_value: None,
             span,
             llvm_alu,
+            release_functions: HashMap::new(),
         }
     }
 
@@ -168,4 +172,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub(in crate::backend::llvm::compiler) fn builder_err(span: Span) -> impl Fn(inkwell::builder::BuilderError) -> Box<dyn IError> {
         move |err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(in crate::backend::llvm::compiler) enum ReleaseKey {
+    Str,
+    Vector(String),
+    Struct(String),
+    Enum(String),
 }

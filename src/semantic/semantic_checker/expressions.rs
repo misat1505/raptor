@@ -5,10 +5,13 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{Accessor, DeclaredType, Expression, Node},
+    frontend::{
+        ast::{Accessor, DeclaredType, EnumDeclaration, Expression, Node},
+        tokens::TokenCategory,
+    },
     semantic::{
         semantic_checker::{
-            checker::{DefinitionInfo, HoverInfo},
+            checker::{type_prefix, DefinitionInfo, HoverInfo},
             functions::FunctionCallType,
             SemanticChecker,
         },
@@ -33,10 +36,7 @@ impl<'a> SemanticChecker<'a> {
             }
         };
 
-        self.hovers.push(HoverInfo {
-            contents: format!("```raptor\n{} {}\n```", current_type, identifier.value),
-            span: identifier.span,
-        });
+        self.identifier_hover(&current_type, identifier);
 
         if let Ok(def_span) = self.stack.get_variable_declaration_span(identifier.value.as_str(), identifier.span) {
             self.definitions.push(DefinitionInfo {
@@ -110,10 +110,7 @@ impl<'a> SemanticChecker<'a> {
                         Err(_) => return,
                     };
 
-                    self.hovers.push(HoverInfo {
-                        contents: format!("```raptor\n{} {}\n```", current_type, field.value),
-                        span: field.span,
-                    });
+                    self.identifier_hover(&current_type, field);
 
                     let Some(type_declaration) = self.program.declared_types.get(&struct_name) else {
                         self.errors.push(Box::new(SemanticCheckerError::at(
@@ -124,7 +121,14 @@ impl<'a> SemanticChecker<'a> {
                         return;
                     };
 
-                    let DeclaredType::Struct(struct_declaration) = &type_declaration.value;
+                    let DeclaredType::Struct(struct_declaration) = &type_declaration.value else {
+                        self.errors.push(Box::new(SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            String::from("Cannot access a field of this type."),
+                            field.span,
+                        )));
+                        return;
+                    };
 
                     let Some(member_declaration) = struct_declaration
                         .members
@@ -280,10 +284,7 @@ impl<'a> SemanticChecker<'a> {
                     self.last_result = None;
                     return Ok(());
                 };
-                self.hovers.push(HoverInfo {
-                    contents: format!("```raptor\n{} {}\n```", field_type, field.value),
-                    span: field.span,
-                });
+                self.identifier_hover(&field_type, field);
                 self.last_result = Some(field_type);
 
                 let Some(type_declaration) = self.program.declared_types.get(identifier) else {
@@ -294,7 +295,14 @@ impl<'a> SemanticChecker<'a> {
                     )));
                     return Ok(());
                 };
-                let DeclaredType::Struct(struct_declaration) = &type_declaration.value;
+                let DeclaredType::Struct(struct_declaration) = &type_declaration.value else {
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        String::from("Cannot access a field of this type."),
+                        field.span,
+                    )));
+                    return Ok(());
+                };
                 let Some(member_declaration) = struct_declaration
                     .members
                     .iter()
@@ -311,6 +319,145 @@ impl<'a> SemanticChecker<'a> {
                     use_span: field.span,
                     def_span: member_declaration.value.identifier.span,
                 });
+            }
+            Expression::EnumLiteral {
+                variant_name,
+                variant_value,
+                enum_name,
+            } => {
+                let Some(Type::Enum {
+                    fields: declared_variants, ..
+                }) = self.program.types.get(&enum_name.value)
+                else {
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Use of undeclared type '{}'.", enum_name.value),
+                        enum_name.span,
+                    )));
+                    return Ok(());
+                };
+
+                let Some(enum_definition_node) = self.program.declared_types.get(&enum_name.value) else {
+                    unreachable!()
+                };
+
+                let DeclaredType::Enum(EnumDeclaration {
+                    members: ref enum_members_location,
+                    ..
+                }) = enum_definition_node.value
+                else {
+                    unreachable!();
+                };
+
+                self.definitions.push(DefinitionInfo {
+                    use_span: enum_name.span,
+                    def_span: enum_definition_node.span,
+                });
+
+                self.hovers.push(HoverInfo {
+                    contents: format!("```raptor\nenum {}\n```", enum_name.value),
+                    span: enum_name.span,
+                });
+
+                let Some(expected_type) = declared_variants.get(&variant_name.value) else {
+                    self.errors.push(Box::new(SemanticCheckerError::at(
+                        ErrorSeverity::HIGH,
+                        format!("Enum '{}' doesn't have field '{}'.", enum_name.value, variant_name.value),
+                        Span::new(enum_name.span.start(), variant_name.span.end()),
+                    )));
+                    return Ok(());
+                };
+
+                let member_definition_node = enum_members_location
+                    .iter()
+                    .find(|node| node.value.identifier.value == variant_name.value)
+                    .expect("Variant not found should be already handled");
+
+                self.definitions.push(DefinitionInfo {
+                    use_span: variant_name.span,
+                    def_span: member_definition_node.span,
+                });
+
+                let value_str = match variant_value {
+                    None => "".to_owned(),
+                    Some(var_node) => {
+                        self.visit_expression(var_node)?;
+                        let actual_type = self.read_last_result(var_node.span)?;
+                        let resolved_type = self.resolve_type_fully_checked(&actual_type, var_node.span)?;
+                        format!(
+                            "{}{}{}{}",
+                            TokenCategory::ParenOpen,
+                            type_prefix(&resolved_type),
+                            resolved_type,
+                            TokenCategory::ParenClose
+                        )
+                    }
+                };
+
+                self.hovers.push(HoverInfo {
+                    contents: format!(
+                        "```raptor\n{} {}{}{}{}\n```",
+                        TokenCategory::Enum,
+                        enum_name.value,
+                        TokenCategory::DoubleColon,
+                        variant_name.value,
+                        value_str
+                    ),
+                    span: variant_name.span,
+                });
+
+                match (expected_type, variant_value) {
+                    (Some(t), Some(var_node)) => {
+                        let resolved_expected_type = self.resolve_type_fully_checked(t, var_node.span)?;
+                        self.visit_expression(var_node)?;
+                        let actual_type = self.read_last_result(var_node.span)?;
+                        let mut resolved_type = self.resolve_type_fully_checked(&actual_type, var_node.span)?;
+                        if matches!(resolved_type, Type::Vector(ref inner) if matches!(**inner, Type::Void)) {
+                            resolved_type = self.resolve_type_fully_checked(t, var_node.span)?;
+                        }
+                        if !resolved_expected_type.is_compatible(&resolved_type) {
+                            self.errors.push(Box::new(SemanticCheckerError::at(
+                                ErrorSeverity::HIGH,
+                                format!(
+                                    "Enum '{}' variant '{}' expects value of type '{}', found '{}'.",
+                                    enum_name.value, variant_name.value, resolved_expected_type, resolved_type
+                                ),
+                                var_node.span,
+                            )));
+                            return Ok(());
+                        }
+                        self.last_result = Some(self.resolve_type_fully_checked(self.program.types.get(&enum_name.value).unwrap(), expression.span)?);
+                    }
+                    (None, None) => {
+                        self.last_result = Some(self.resolve_type_fully_checked(self.program.types.get(&enum_name.value).unwrap(), expression.span)?);
+                    }
+                    (Some(expected), None) => {
+                        let resolved_expected_type = self.resolve_type_fully_checked(expected, expression.span)?;
+                        self.errors.push(Box::new(SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Enum '{}' variant '{}' expected value of type '{}'.",
+                                enum_name.value, variant_name.value, resolved_expected_type
+                            ),
+                            Span::new(enum_name.span.start(), variant_name.span.end()),
+                        )));
+                        return Ok(());
+                    }
+                    (None, Some(var_node)) => {
+                        self.visit_expression(var_node)?;
+                        let actual_type = self.read_last_result(var_node.span)?;
+                        let resolved_type = self.resolve_type_fully_checked(&actual_type, var_node.span)?;
+                        self.errors.push(Box::new(SemanticCheckerError::at(
+                            ErrorSeverity::HIGH,
+                            format!(
+                                "Enum '{}' variant '{}' doesn't expect any value. Provided '{}'.",
+                                enum_name.value, variant_name.value, resolved_type
+                            ),
+                            enum_name.span,
+                        )));
+                        return Ok(());
+                    }
+                }
             }
         }
         Ok(())

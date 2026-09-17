@@ -5,7 +5,10 @@ use crate::{
         types::Type,
         visitor::Visitor,
     },
-    frontend::ast::{DeclaredType, Expression, FunctionDeclaration, Node, Program},
+    frontend::{
+        ast::{DeclaredType, Expression, FunctionDeclaration, Node, Program},
+        tokens::TokenCategory,
+    },
     semantic::stack::stack::StaticCheckerStack,
 };
 
@@ -141,8 +144,38 @@ impl<'a> SemanticChecker<'a> {
                     let _ = self.read_last_result(member.span)?;
                 }
             }
+            DeclaredType::Enum(ref enum_declaration) => {
+                for member in &enum_declaration.members {
+                    if let Some(ref member_type) = member.value.member_type {
+                        self.visit_type(member_type)?;
+                        let _ = self.read_last_result(member.span)?;
+                    }
+                }
+            }
         }
 
         Ok(())
+    }
+
+    pub(in crate::semantic::semantic_checker) fn identifier_hover(&mut self, data_type: &Type, identifier: &Node<String>) {
+        self.hovers.push(HoverInfo {
+            contents: format!("```raptor\n{}{} {}\n```", type_prefix(data_type), data_type, identifier.value),
+            span: identifier.span,
+        });
+    }
+
+    pub(in crate::semantic::semantic_checker) fn type_hover(&mut self, data_type: &Type, span: &Span) {
+        self.hovers.push(HoverInfo {
+            contents: format!("```raptor\n{}{}\n```", type_prefix(data_type), data_type),
+            span: *span,
+        });
+    }
+}
+
+pub fn type_prefix(data_type: &Type) -> String {
+    match data_type {
+        Type::Enum { .. } => format!("{} ", TokenCategory::Enum),
+        Type::Struct { .. } => format!("{} ", TokenCategory::Struct),
+        _ => String::new(),
     }
 }

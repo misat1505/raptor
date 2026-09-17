@@ -1,5 +1,6 @@
 mod composite_values;
 mod control_flow;
+mod enums;
 mod expressions;
 mod functions;
 mod misc;

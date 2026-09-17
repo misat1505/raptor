@@ -239,6 +239,7 @@ impl Lexer {
             '!' => Some(self.extend_to_next('=', TokenCategory::Negate, TokenCategory::NotEqual)),
             '=' => Some(self.extend_to_next('=', TokenCategory::Assign, TokenCategory::Equal)),
             '&' => Some(self.extend_to_next('&', TokenCategory::Reference, TokenCategory::And)),
+            ':' => Some(self.extend_to_next(':', TokenCategory::Colon, TokenCategory::DoubleColon)),
             '|' => Some(self.extend_to_next_or_warning('|', TokenCategory::Or)),
             '.' => Some(self.single_char(TokenCategory::Dot)),
             _ => None,
@@ -634,7 +635,6 @@ static SIGNS: phf::Map<char, TokenCategory> = phf_map! {
     '{'     => TokenCategory::BraceOpen,
     '}'     => TokenCategory::BraceClose,
     ';'     => TokenCategory::Semicolon,
-    ':'     => TokenCategory::Colon,
     ','     => TokenCategory::Comma,
     '\u{2}' => TokenCategory::STX,
     '\u{3}' => TokenCategory::ETX,
@@ -670,6 +670,9 @@ static KEYWORDS: phf::Map<&'static str, TokenCategory> = phf_map! {
     "extern" => TokenCategory::Extern,
     "let" => TokenCategory::Let,
     "struct" => TokenCategory::Struct,
+    "enum" => TokenCategory::Enum,
+    "match" => TokenCategory::Match,
+    "rest" => TokenCategory::Rest,
 };
 
 static ESCAPES: phf::Map<char, char> = phf_map! {

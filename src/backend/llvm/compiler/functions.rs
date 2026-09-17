@@ -386,6 +386,22 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     .build_struct_gep(struct_type, struct_ptr, field_index, "field.ref")
                     .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), field.span)) as Box<dyn IError>)?;
 
+                // `visit_expression(instance)` may have created an owned temporary.
+                //
+                // Example:
+                //
+                //     &lexer.source.position
+                //
+                // `instance` is `lexer.source`, and normal FieldAccess semantics
+                // retain the Source. We only need its address long enough to derive
+                // `position`'s address, so balance that temporary reference here.
+                //
+                // IMPORTANT: do this AFTER build_struct_gep(), because field_ptr
+                // was derived from struct_ptr.
+                if Self::expr_needs_release(&instance.value) {
+                    self.release_value(&instance_value, instance.span)?;
+                }
+
                 Ok(field_ptr)
             }
 

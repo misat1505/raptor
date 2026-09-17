@@ -1,17 +1,51 @@
-# This is a concept file. It doesn't work for now
+struct Deadline {
+    str date
+};
 
-# enum Task {
-#   InProgress(Deadline),
-#   Completed(CompletionTimestamp)
-# };
+fn deadline_repr(&Deadline deadline): str {
+    return "Deadline { date: \"" + deadline.date + "\" }";
+}
 
-# let task = Task();
-# switch (task) {
-#   case InProgress(deadline) {
-#     #  deadline: Deadline - available only in this scope
-#   }
-#   case Completed(timestamp) {
-#     #  timestamp: CompletionTimestamp
-#   }
-#   # have to match all the arms
-# };
+enum Task {
+    InProgress(Deadline),
+    Completed(str),
+    Aborted
+};
+
+fn task_repr(&Task task): str {
+    match (task) {
+        Task::InProgress(deadline) {
+            return "Task::InProgress(" + deadline_repr(&deadline) + ")";
+        },
+        Task::Completed(msg) {
+            return "Task::Completed(\"" + msg + "\")";
+        },
+        Task::Aborted {
+            return "Task::Aborted";
+        }
+    }
+}
+
+struct TaskRepository {
+    Task[] tasks
+};
+
+fn task_repository_repr(&TaskRepository repo): str {
+    let text = "TaskRepository { tasks: [";
+    for (let i = 0; i < vector_size(&repo.tasks); i += 1) {
+        if (i != 0) text += ", ";
+        text += task_repr(&repo.tasks[i]);
+    }
+    text += "] }";
+    return text;
+}
+
+let repo = TaskRepository {
+    tasks: [
+        Task::InProgress(Deadline { date: "today" }),
+        Task::Completed("completed"),
+        Task::Aborted
+    ]
+};
+
+println(task_repository_repr(&repo));

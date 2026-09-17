@@ -131,74 +131,85 @@ The `lsp` executable is a separate LSP server and does not use the `raptor` comm
 
 ## Example program
 
-The following program demonstrates several core Raptor features: variables, functions, references, loops, conditionals, vectors, and static typing.
+The following program demonstrates several core Raptor features: variables, functions, references, structs, enums with payloads, pattern matching, vectors, loops, conditionals, and static typing.
 
-```text
-fn sum(i64[] values): i64 {
-    i64 total = 0;
+```raptor
+enum AccountStatus {
+    Active,
+    Suspended(str),
+    Deleted
+};
 
-    for (i64 i = 0; i < vector_size(&values); i += 1) {
-        total = total + values[i];
-    }
+enum Role {
+    Admin,
+    Moderator,
+    User
+};
 
-    return total;
-}
+struct User {
+    str name,
+    AccountStatus status,
+    Role role
+};
 
-fn max(i64[] values): i64 {
-    i64 result = values[0];
-
-    for (i64 i = 1; i < vector_size(&values); i += 1) {
-        if (values[i] > result) result = values[i];
-    }
-
-    return result;
-}
-
-fn average(i64[] values): f64 {
-    return sum(values) as f64 / vector_size(&values) as f64;
-}
-
-fn add_bonus(&i64 score, i64 bonus): void {
-    score = score + bonus;
-
-    if (score > 100) score = 100;
-}
-
-fn main(): void {
-    i64[] scores = [72, 85, 91, 68, 94];
-
-    i64 total = sum(scores);
-    i64 best = max(scores);
-    f64 avg = average(scores);
-
-    println("Results:");
-    println("---------");
-
-    print("Total: ");
-    println(total as str);
-
-    print("Best: ");
-    println(best as str);
-
-    print("Average: ");
-    println(avg as str);
-
-    i64 final_score = best;
-    add_bonus(&final_score, 5);
-
-    print("Final score: ");
-    println(final_score as str);
-
-    if (final_score >= 90) {
-        println("Status: excellent");
-    } else if (final_score >= 75) {
-        println("Status: good");
-    } else {
-        println("Status: needs improvement");
+fn status_repr(&AccountStatus status): str {
+    match (status) {
+        AccountStatus::Active {
+            return "active";
+        },
+        AccountStatus::Suspended(reason) {
+            return "suspended: " + reason;
+        },
+        AccountStatus::Deleted {
+            return "deleted";
+        }
     }
 }
 
-main();
+fn role_repr(&Role role): str {
+    match (role) {
+        Role::Admin {
+            return "admin";
+        },
+        Role::Moderator {
+            return "moderator";
+        },
+        Role::User {
+            return "user";
+        }
+    }
+}
+
+fn user_repr(&User user): str {
+    return user.name
+        + " ["
+        + role_repr(&user.role)
+        + ", "
+        + status_repr(&user.status)
+        + "]";
+}
+
+let user1 = User {
+    name: "Alice",
+    status: AccountStatus::Active,
+    role: Role::Admin
+};
+
+let user2 = User {
+    name: "Bob",
+    status: AccountStatus::Suspended("too many failed logins"),
+    role: Role::User
+};
+
+let user3 = User {
+    name: "Charlie",
+    status: AccountStatus::Deleted,
+    role: Role::Moderator
+};
+
+println(user_repr(&user1));
+println(user_repr(&user2));
+println(user_repr(&user3));
 ```
 
 Save the program as `examples/demo.rp`, then run it with any of:
@@ -217,29 +228,195 @@ Raptor currently supports:
 * mutable variables with block-based scoping;
 * functions and recursion;
 * parameters passed by value or by reference;
-* structs, including fields of composite (`str`, vector, struct) type;
+* structs, including fields of composite (`str`, vector, struct, enum) type;
+* enums with unit variants and variants carrying payloads;
+* pattern matching with `match` over enum variants;
 * `if`, `for`, `while`, and `switch`;
 * `break`, `continue`, and `return`;
 * arithmetic, comparison, and logical operators;
 * explicit casts with `as`;
-* vectors, including multidimensional types such as `i64[][]`;
-* built-in functions such as `print`, `input`, and `mod`.
+* vectors, including multidimensional types such as `i64[][]` or `CustomStruct[][]`;
+* built-in functions such as `print`, `input`, etc.
+
+### Structs
+
+Structs define custom data types composed of named fields. Each field has a statically declared type and can contain primitive values, vectors, other structs, or enums.
+
+```raptor
+struct User {
+    str name,
+    i64 age,
+    bool active
+};
+```
+
+Struct values are created using the struct name followed by field initializers:
+
+```raptor
+let user = User {
+    name: "Alice",
+    age: 30,
+    active: true
+};
+```
+
+Fields are accessed using the `.` operator:
+
+```raptor
+println(user.name);
+println(user.age as str);
+```
+
+Structs can contain other user-defined types, allowing nested data structures:
+
+```raptor
+struct Address {
+    str city,
+    str street
+};
+
+struct User {
+    str name,
+    Address address
+};
+
+let user = User {
+    name: "Alice",
+    address: Address {
+        city: "Warsaw",
+        street: "Main Street"
+    }
+};
+```
+
+Structs can also contain vectors and enums:
+
+```raptor
+enum AccountStatus {
+    Active,
+    Suspended(str),
+    Deleted
+};
+
+struct User {
+    str name,
+    AccountStatus status,
+    i64[] scores
+};
+```
+
+Structs can be passed to functions either by value or by reference:
+
+```raptor
+fn print_user(&User user): void {
+    println(user.name);
+}
+
+let user = User {
+    name: "Alice",
+    age: 30,
+    active: true
+};
+
+print_user(&user);
+```
+
+Structs can be stored in vectors, returned from functions, used as fields of other structs, and used as payloads of enum variants.
+
+### Enums
+
+Enums define a type with a fixed set of named variants. A variant can either be a **unit variant** without associated data or carry a value of a specified type.
+
+```raptor
+enum AccountStatus {
+    Active,
+    Suspended(str),
+    Deleted
+};
+```
+
+Here, `Active` and `Deleted` are unit variants, while `Suspended` carries a `str` payload.
+
+Enum values are created using the `EnumName::Variant` syntax:
+
+```raptor
+let active = AccountStatus::Active;
+let suspended = AccountStatus::Suspended("too many failed logins");
+let deleted = AccountStatus::Deleted;
+```
+
+Variants can carry primitive values, structs, enums, or vectors:
+
+```raptor
+struct User {
+    str name
+};
+
+enum Event {
+    Login(User),
+    Message(str),
+    Batch(i64[])
+};
+```
+
+For example:
+
+```raptor
+let event = Event::Batch([10, 20, 30]);
+```
+
+Enums are commonly inspected using `match`. Payloads can be bound directly in a match arm:
+
+```raptor
+fn status_repr(&AccountStatus status): str {
+    match (status) {
+        AccountStatus::Active {
+            return "active";
+        },
+        AccountStatus::Suspended(reason) {
+            return "suspended: " + reason;
+        },
+        AccountStatus::Deleted {
+            return "deleted";
+        }
+    }
+}
+```
+
+A match arm for a unit variant does not bind any payload, while a payload-carrying variant binds its associated value:
+
+```raptor
+match (event) {
+    Event::Login(user) {
+        println(user.name);
+    },
+    Event::Message(message) {
+        println(message);
+    },
+    Event::Batch(values) {
+        println(vector_size(&values) as str);
+    }
+}
+```
+
+Enum values can be stored in variables, passed to functions, returned from functions, stored in vectors, and used as fields of structs.
 
 ### Vectors
 
 Vector types may have multiple dimensions:
 
 ```text
-i64[]       # one-dimensional vector
-i64[][]     # two-dimensional vector
-i64[][][]   # three-dimensional vector
+i64[]     # one-dimensional vector
+i64[][]   # two-dimensional vector
+i64[][][] # three-dimensional vector
 ```
 
 When a vector is passed **by value**, the language uses a **shallow copy**: the vector's own structure is copied, while any composite elements it contains are shared, not recursively deep-copied.
 
 ### Memory management
 
-`str`, vectors, and structs are heap-allocated and managed automatically through reference counting — there is no manual `free`/`delete` and no garbage collector pause. Assigning or passing these types follows consistent value/reference rules (e.g. strings are always deep-copied, vectors and structs are shared or shallow-copied depending on context). See [docs/memory-management.md](docs/memory-management.md) for the full model, including its current known limitations (reference cycles are not collected).
+`str`, `vectors`, `structs` and `enums` are heap-allocated and managed automatically through reference counting — there is no manual `free`/`delete` and no garbage collector pause. Assigning or passing these types follows consistent value/reference rules (e.g. strings are always deep-copied, vectors and structs are shared or shallow-copied depending on context). See [docs/memory-management.md](docs/memory-management.md) for the full model, including its current known limitations (reference cycles are not collected).
+
 
 ## Errors and diagnostics
 

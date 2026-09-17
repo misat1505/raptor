@@ -403,7 +403,23 @@ impl Pipeline {
 
     fn expand_macros(&self, program: &Program) {
         let mut macro_expander = MacroExpander::new(&program);
-        macro_expander.run()
+        macro_expander.run();
+        if macro_expander.errors.is_empty() {
+            return;
+        }
+
+        let mut warnings = 0;
+        let mut errors = 0;
+        for error in &macro_expander.errors {
+            match error.get_severity() {
+                ErrorSeverity::HIGH => errors += 1,
+                ErrorSeverity::LOW => warnings += 1,
+            }
+            eprintln!("{}\n", error.get_stderr_message());
+        }
+
+        eprintln!("Macro expander finished with {errors} errors, {warnings} warnings.");
+        exit(1);
     }
 
     fn run_semantic(&self, program: &Program) {

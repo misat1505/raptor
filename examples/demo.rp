@@ -4,13 +4,13 @@ enum AccountStatus derives Debug, Json {
     Deleted
 };
 
-enum Role {
+enum Role derives Debug {
     Admin,
     Moderator,
     User
 };
 
-struct User {
+struct User derives Debug {
     str name,
     AccountStatus status,
     Role role

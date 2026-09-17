@@ -219,10 +219,10 @@ fn parse_field(&str body, str key): str {
     if (idx < 0) return "";
 
     let start = idx + str_len(search_key);
-    let rest = str_substring(&body, start, str_len(body));
-    let end = str_index_of_str(&rest, "&");
-    if (end < 0) return rest;
-    return str_substring(&rest, 0, end);
+    let remaining = str_substring(&body, start, str_len(body));
+    let end = str_index_of_str(&remaining, "&");
+    if (end < 0) return remaining;
+    return str_substring(&remaining, 0, end);
 }
 
 # -------------------

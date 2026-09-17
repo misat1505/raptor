@@ -13,12 +13,14 @@ use crate::{
 
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_struct_declaration(&mut self) -> Result<Option<Node<StructDeclaration>>, Box<dyn IError>> {
-        // struct_declaration = "struct", identifier, "{", [ struct_members ], "}", ";";
+        // struct_declaration = "struct", identifier, [ derives_declaration ], "{", [ struct_members ], "}", ";";
         let struct_token = try_consume_token!(self, TokenCategory::Struct);
 
         let identifier = self
             .parse_identifier()?
             .ok_or_else(|| self.create_parser_error(String::from("Couldn't create identifier while parsing struct declaration.")))?;
+
+        let derives = self.parse_derive_declaration()?;
 
         let _ = self.consume_must_be(TokenCategory::BraceOpen)?;
         let members = self.parse_members()?;
@@ -26,7 +28,11 @@ impl<L: ILexer> Parser<L> {
         let semicolon_token = self.consume_must_be(TokenCategory::Semicolon)?;
 
         Ok(Some(Node {
-            value: StructDeclaration { identifier, members },
+            value: StructDeclaration {
+                identifier,
+                members,
+                derives,
+            },
             span: Span::new(struct_token.span.start(), semicolon_token.span.end()),
         }))
     }

@@ -13,12 +13,14 @@ use crate::{
 
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_enum_declaration(&mut self) -> Result<Option<Node<EnumDeclaration>>, Box<dyn IError>> {
-        // enum_declaration = "enum", identifier, "{", [ enum_members ], "}", ";";
+        // enum_declaration = "enum", identifier, [ derives_declaration ], "{", [ enum_members ], "}", ";";
         let struct_token = try_consume_token!(self, TokenCategory::Enum);
 
         let identifier = self
             .parse_identifier()?
             .ok_or_else(|| self.create_parser_error(String::from("Couldn't create identifier while parsing struct declaration.")))?;
+
+        let derives = self.parse_derive_declaration()?;
 
         let _ = self.consume_must_be(TokenCategory::BraceOpen)?;
         let members = self.parse_enum_members()?;
@@ -26,7 +28,11 @@ impl<L: ILexer> Parser<L> {
         let semicolon_token = self.consume_must_be(TokenCategory::Semicolon)?;
 
         Ok(Some(Node {
-            value: EnumDeclaration { identifier, members },
+            value: EnumDeclaration {
+                identifier,
+                members,
+                derives,
+            },
             span: Span::new(struct_token.span.start(), semicolon_token.span.end()),
         }))
     }

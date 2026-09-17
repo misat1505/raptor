@@ -411,7 +411,10 @@ impl<'a> SemanticChecker<'a> {
                         let resolved_expected_type = self.resolve_type_fully_checked(t, var_node.span)?;
                         self.visit_expression(var_node)?;
                         let actual_type = self.read_last_result(var_node.span)?;
-                        let resolved_type = self.resolve_type_fully_checked(&actual_type, var_node.span)?;
+                        let mut resolved_type = self.resolve_type_fully_checked(&actual_type, var_node.span)?;
+                        if matches!(resolved_type, Type::Vector(ref inner) if matches!(**inner, Type::Void)) {
+                            resolved_type = self.resolve_type_fully_checked(t, var_node.span)?;
+                        }
                         if !resolved_expected_type.is_compatible(&resolved_type) {
                             self.errors.push(Box::new(SemanticCheckerError::at(
                                 ErrorSeverity::HIGH,

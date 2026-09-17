@@ -494,3 +494,256 @@ print_result(&second);
 
     assert_same_output(text, "SUCCESS: everything is fine\nFAILURE: something went wrong\n");
 }
+
+#[test]
+fn enum_empty_vector_payload() {
+    let text = BufReader::new(
+        r##"
+enum Data {
+    Numbers(i64[]),
+    Text(str)
+};
+
+fn numbers_size(&Data data): i64 {
+    match (data) {
+        Data::Numbers(numbers) {
+            return vector_size(&numbers);
+        },
+        Data::Text {
+            return 0;
+        }
+    }
+}
+
+let data = Data::Numbers([]);
+
+println(numbers_size(&data) as str);
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(text, "0\n");
+}
+
+#[test]
+fn enum_empty_struct_vector_payload() {
+    let text = BufReader::new(
+        r##"
+struct Data {
+    str data
+};
+
+enum MyEnum {
+    Empty,
+    Complex(Data[])
+};
+
+let value = MyEnum::Complex([]);
+
+match (value) {
+    MyEnum::Empty {
+        println("empty");
+    },
+    MyEnum::Complex(data) {
+        println(vector_size(&data) as str);
+    }
+}
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(text, "0\n");
+}
+
+#[test]
+fn enum_empty_vector_payload_with_struct_variant() {
+    let text = BufReader::new(
+        r##"
+struct Data {
+    str data
+};
+
+enum MyEnum {
+    Empty,
+    Numbers(i64[]),
+    Complex(Data[])
+};
+
+fn enum_repr(&MyEnum value): str {
+    match (value) {
+        MyEnum::Empty {
+            return "empty";
+        },
+        MyEnum::Numbers(numbers) {
+            return "numbers:" + vector_size(&numbers) as str;
+        },
+        MyEnum::Complex(data) {
+            return "complex:" + vector_size(&data) as str;
+        }
+    }
+}
+
+let a = MyEnum::Numbers([]);
+let b = MyEnum::Complex([]);
+
+println(enum_repr(&a));
+println(enum_repr(&b));
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(text, "numbers:0\ncomplex:0\n");
+}
+
+#[test]
+fn enum_empty_struct_vector_passed_through_function() {
+    let text = BufReader::new(
+        r##"
+struct Data {
+    str data
+};
+
+enum MyEnum {
+    Complex(Data[])
+};
+
+fn create_empty(): MyEnum {
+    return MyEnum::Complex([]);
+}
+
+fn get_size(&MyEnum value): i64 {
+    match (value) {
+        MyEnum::Complex(data) {
+            return vector_size(&data);
+        }
+    }
+}
+
+let value = create_empty();
+
+println(get_size(&value) as str);
+println(get_size(&value) as str);
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(text, "0\n0\n");
+}
+
+#[test]
+fn enum_vector_payload_reference_mutation() {
+    let text = BufReader::new(
+        r##"
+enum Data {
+    Numbers(i64[])
+};
+
+fn add_number(&Data data, i64 value): void {
+    match (data) {
+        Data::Numbers(numbers) {
+            vector_push(&numbers, value);
+        }
+    }
+}
+
+fn print_numbers(&Data data): void {
+    match (data) {
+        Data::Numbers(numbers) {
+            for (let i = 0; i < vector_size(&numbers); i += 1) {
+                println(numbers[i] as str);
+            }
+        }
+    }
+}
+
+let numbers = [10, 20];
+
+let data = Data::Numbers(numbers);
+
+add_number(&data, 30);
+print_numbers(&data);
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(text, "10\n20\n30\n");
+}
+
+#[test]
+fn enum_vector_payload_reference_access() {
+    let text = BufReader::new(
+        r##"
+enum Data {
+    Numbers(i64[])
+};
+
+fn modify(&Data data): void {
+    match (data) {
+        Data::Numbers(numbers) {
+            numbers[0] = 999;
+        }
+    }
+}
+
+fn first(&Data data): i64 {
+    match (data) {
+        Data::Numbers(numbers) {
+            return numbers[0];
+        }
+    }
+}
+
+let numbers = [10, 20, 30];
+let data = Data::Numbers(numbers);
+
+println(first(&data) as str);
+
+modify(&data);
+
+println(first(&data) as str);
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(text, "10\n999\n");
+}
+
+#[test]
+fn enum_payload_preserves_reference() {
+    let text = BufReader::new(
+        r##"
+struct Data {
+    str value
+};
+
+enum Wrapper {
+    Data(Data)
+};
+
+fn modify(&Wrapper wrapper): void {
+    match (wrapper) {
+        Wrapper::Data(data) {
+            data.value = "modified";
+        }
+    }
+}
+
+let original = Data {
+    value: "original"
+};
+
+let wrapper = Wrapper::Data(original);
+
+modify(&wrapper);
+
+match (wrapper) {
+    Wrapper::Data(data) {
+        println(data.value);
+    }
+}
+    "##
+        .as_bytes(),
+    );
+
+    assert_same_output(text, "modified\n");
+}

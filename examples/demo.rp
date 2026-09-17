@@ -1,5 +1,5 @@
 enum AccountStatus derives Debug, Json {
-    Active,
+    Active(u8),
     Suspended(str),
     Deleted
 };
@@ -55,7 +55,7 @@ fn user_repr(&User user): str {
 
 let user1 = User {
     name: "Alice",
-    status: AccountStatus::Active,
+    status: AccountStatus::Active(5 as u8),
     role: Role::Admin
 };
 
@@ -71,6 +71,6 @@ let user3 = User {
     role: Role::Moderator
 };
 
-println(user_repr(&user1));
-println(user_repr(&user2));
-println(user_repr(&user3));
+println(account_status_debug(&user1.status));
+println(account_status_debug(&user2.status));
+println(account_status_debug(&user3.status));

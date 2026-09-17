@@ -99,6 +99,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 | Expression::Index { .. }
                 | Expression::FieldAccess { .. }
                 | Expression::Casting { .. }
+                | Expression::Addition(_, _) // addition of 2 Str values
         )
     }
 

@@ -292,7 +292,7 @@ fn analyze(source: &str, filename: &'static str) -> (HashMap<&'static str, Vec<D
     };
 
     let mut import_resolver = ImportResolver::new(lexer_options, on_warning);
-    let import_resolved_program = match import_resolver.resolve(filename, program) {
+    let mut import_resolved_program = match import_resolver.resolve(filename, program) {
         Ok(program) => program,
         Err(err) => {
             push_error(&mut diagnostics, err.as_ref(), DiagnosticSeverity::ERROR, filename);
@@ -301,7 +301,7 @@ fn analyze(source: &str, filename: &'static str) -> (HashMap<&'static str, Vec<D
     };
 
     // Macro expansion
-    let mut macro_expander = MacroExpander::new(&import_resolved_program);
+    let mut macro_expander = MacroExpander::new(&mut import_resolved_program);
     macro_expander.run();
     let mut has_macro_errors = false;
     for error in &macro_expander.errors {

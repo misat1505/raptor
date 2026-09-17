@@ -344,12 +344,12 @@ impl Pipeline {
             self.run_frontend(reader, lexer_options.clone())
         };
 
-        let program = {
+        let mut program = {
             let _t = self.timed("Import Resolver");
             self.resolve_imports(filename, program, lexer_options)
         };
 
-        self.expand_macros(&program);
+        self.expand_macros(&mut program);
 
         self.run_semantic(&program);
 
@@ -401,8 +401,8 @@ impl Pipeline {
         }
     }
 
-    fn expand_macros(&self, program: &Program) {
-        let mut macro_expander = MacroExpander::new(&program);
+    fn expand_macros(&self, program: &mut Program) {
+        let mut macro_expander = MacroExpander::new(program);
         macro_expander.run();
         if macro_expander.errors.is_empty() {
             return;

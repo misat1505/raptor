@@ -11,13 +11,13 @@ use crate::{
     semantic::semantic_checker::SemanticChecker,
 };
 use inkwell::{context::Context, OptimizationLevel};
-use raptor_lib::common;
 use raptor_lib::frontend;
 use raptor_lib::semantic;
 use raptor_lib::{
     backend::{self, llvm::OverflowPolicy},
     import_resolver::ImportResolver,
 };
+use raptor_lib::{common, frontend::ast::Program, macro_expander::macro_expander::MacroExpander};
 use std::{
     env::args,
     fs::File,
@@ -349,6 +349,8 @@ impl Pipeline {
             self.resolve_imports(filename, program, lexer_options)
         };
 
+        self.expand_macros(&program);
+
         self.run_semantic(&program);
 
         if self.opts.is_compile {
@@ -370,7 +372,7 @@ impl Pipeline {
         (BufReader::new(file), filename)
     }
 
-    fn run_frontend(&self, reader: LazyStreamReader<impl BufRead + 'static>, lexer_options: LexerOptions) -> frontend::ast::Program {
+    fn run_frontend(&self, reader: LazyStreamReader<impl BufRead + 'static>, lexer_options: LexerOptions) -> Program {
         let lexer = match Lexer::new(reader, lexer_options, on_warning) {
             Ok(lexer) => lexer,
             Err(err) => {
@@ -388,7 +390,7 @@ impl Pipeline {
         }
     }
 
-    fn resolve_imports(&self, filename: &'static str, program: frontend::ast::Program, lexer_options: LexerOptions) -> frontend::ast::Program {
+    fn resolve_imports(&self, filename: &'static str, program: Program, lexer_options: LexerOptions) -> Program {
         let mut import_resolver = ImportResolver::new(lexer_options, on_warning);
         match import_resolver.resolve(filename, program) {
             Ok(p) => p,
@@ -399,7 +401,12 @@ impl Pipeline {
         }
     }
 
-    fn run_semantic(&self, program: &frontend::ast::Program) {
+    fn expand_macros(&self, program: &Program) {
+        let mut macro_expander = MacroExpander::new(&program);
+        macro_expander.run()
+    }
+
+    fn run_semantic(&self, program: &Program) {
         if self.opts.is_unsafe {
             if self.verbose() {
                 println!("{CYAN}[time]{RESET}  {:<22} {DIM}│{RESET} skipped (--unsafe)", "semantic checker",);
@@ -438,7 +445,7 @@ impl Pipeline {
         }
     }
 
-    fn interpret(&self, program: &frontend::ast::Program) {
+    fn interpret(&self, program: &Program) {
         let _t = self.timed("Interpreter");
         let mut interpreter = Interpreter::new(program);
         self.debug("Running interpreter...");
@@ -449,7 +456,7 @@ impl Pipeline {
         self.debug("Finished interpretation.");
     }
 
-    fn compile_and_maybe_run(&self, program: &frontend::ast::Program) {
+    fn compile_and_maybe_run(&self, program: &Program) {
         let artifacts = output_paths(&self.opts.path, self.opts.output_path.as_deref());
         let context = Context::create();
 

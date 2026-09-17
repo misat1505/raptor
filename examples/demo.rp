@@ -1,86 +1,76 @@
-# enum AccountStatus {
-#     Active,
-#     Suspended(str),
-#     Deleted
-# };
-
-# enum Role {
-#     Admin,
-#     Moderator,
-#     User
-# };
-
-# struct User {
-#     str name,
-#     AccountStatus status,
-#     Role role
-# };
-
-# fn status_repr(&AccountStatus status): str {
-#     match (status) {
-#         AccountStatus::Active {
-#             return "active";
-#         },
-#         AccountStatus::Suspended(reason) {
-#             return "suspended: " + reason;
-#         },
-#         AccountStatus::Deleted {
-#             return "deleted";
-#         }
-#     }
-# }
-
-# fn role_repr(&Role role): str {
-#     match (role) {
-#         Role::Admin {
-#             return "admin";
-#         },
-#         Role::Moderator {
-#             return "moderator";
-#         },
-#         Role::User {
-#             return "user";
-#         }
-#     }
-# }
-
-# fn user_repr(&User user): str {
-#     return user.name
-#         + " ["
-#         + role_repr(&user.role)
-#         + ", "
-#         + status_repr(&user.status)
-#         + "]";
-# }
-
-# let user1 = User {
-#     name: "Alice",
-#     status: AccountStatus::Active,
-#     role: Role::Admin
-# };
-
-# let user2 = User {
-#     name: "Bob",
-#     status: AccountStatus::Suspended("too many failed logins"),
-#     role: Role::User
-# };
-
-# let user3 = User {
-#     name: "Charlie",
-#     status: AccountStatus::Deleted,
-#     role: Role::Moderator
-# };
-
-# println(user_repr(&user1));
-# println(user_repr(&user2));
-# println(user_repr(&user3));
-
-struct Node {
-    i64 value,
-    Node[] children
+enum AccountStatus {
+    Active,
+    Suspended(str),
+    Deleted
 };
 
-let root = Node {
-    value: 1,
-    children: []
+enum Role {
+    Admin,
+    Moderator,
+    User
 };
+
+struct User {
+    str name,
+    AccountStatus status,
+    Role role
+};
+
+fn status_repr(&AccountStatus status): str {
+    match (status) {
+        AccountStatus::Active {
+            return "active";
+        },
+        AccountStatus::Suspended(reason) {
+            return "suspended: " + reason;
+        },
+        AccountStatus::Deleted {
+            return "deleted";
+        }
+    }
+}
+
+fn role_repr(&Role role): str {
+    match (role) {
+        Role::Admin {
+            return "admin";
+        },
+        Role::Moderator {
+            return "moderator";
+        },
+        Role::User {
+            return "user";
+        }
+    }
+}
+
+fn user_repr(&User user): str {
+    return user.name
+        + " ["
+        + role_repr(&user.role)
+        + ", "
+        + status_repr(&user.status)
+        + "]";
+}
+
+let user1 = User {
+    name: "Alice",
+    status: AccountStatus::Active,
+    role: Role::Admin
+};
+
+let user2 = User {
+    name: "Bob",
+    status: AccountStatus::Suspended("too many failed logins"),
+    role: Role::User
+};
+
+let user3 = User {
+    name: "Charlie",
+    status: AccountStatus::Deleted,
+    role: Role::Moderator
+};
+
+println(user_repr(&user1));
+println(user_repr(&user2));
+println(user_repr(&user3));

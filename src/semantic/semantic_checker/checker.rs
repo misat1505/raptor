@@ -9,6 +9,7 @@ use crate::{
         ast::{DeclaredType, Expression, FunctionDeclaration, Node, Program},
         tokens::TokenCategory,
     },
+    macro_expander::macro_expander::to_snake_case,
     semantic::stack::stack::StaticCheckerStack,
 };
 
@@ -143,6 +144,10 @@ impl<'a> SemanticChecker<'a> {
                     self.visit_type(&member.value.member_type)?;
                     let _ = self.read_last_result(member.span)?;
                 }
+
+                for derive in &struct_declaration.derives {
+                    self.derive_hover(&struct_declaration.identifier.value, derive);
+                }
             }
             DeclaredType::Enum(ref enum_declaration) => {
                 for member in &enum_declaration.members {
@@ -151,10 +156,40 @@ impl<'a> SemanticChecker<'a> {
                         let _ = self.read_last_result(member.span)?;
                     }
                 }
+
+                for derive in &enum_declaration.derives {
+                    self.derive_hover(&enum_declaration.identifier.value, derive);
+                }
             }
         }
 
         Ok(())
+    }
+
+    fn derive_hover(&mut self, identifier_name: &String, derive: &Node<String>) {
+        if derive.value == "Debug" {
+            self.hovers.push(HoverInfo {
+                contents: format!(
+                    "Creates a function to display `{}`.\n\n```raptor\nfn {}_debug(&{} {}): str\n```",
+                    identifier_name,
+                    to_snake_case(identifier_name.as_str()),
+                    identifier_name,
+                    to_snake_case(identifier_name.as_str())
+                ),
+                span: derive.span,
+            });
+        } else if derive.value == "Json" {
+            self.hovers.push(HoverInfo {
+                contents: format!(
+                    "Creates a function to encode `{}` as JSON.\n\n```raptor\nfn {}_json_encode(&{} {}): str\n```",
+                    identifier_name,
+                    to_snake_case(identifier_name.as_str()),
+                    identifier_name,
+                    to_snake_case(identifier_name.as_str())
+                ),
+                span: derive.span,
+            });
+        }
     }
 
     pub(in crate::semantic::semantic_checker) fn identifier_hover(&mut self, data_type: &Type, identifier: &Node<String>) {

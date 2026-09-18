@@ -1,6 +1,5 @@
 import "./ast.rp";
 
-
 struct JsonSerializer {
     str serialized,
     i64 indentation

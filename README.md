@@ -131,85 +131,70 @@ The `lsp` executable is a separate LSP server and does not use the `raptor` comm
 
 ## Example program
 
-The following program demonstrates several core Raptor features: variables, functions, references, structs, enums with payloads, pattern matching, vectors, loops, conditionals, and static typing.
+The following program demonstrates several core Raptor features: variables, functions, references, structs, enums with payloads, pattern matching, vectors, loops, conditionals, macros and static typing.
 
 ```raptor
-enum AccountStatus {
+enum AccountStatus derives Debug, Json {
     Active,
     Suspended(str),
-    Deleted
+    Deleted(Timestamp)
 };
 
-enum Role {
+struct Timestamp derives Debug {
+    i64 day,
+    i64 month,
+    i64 year
+};
+
+enum Role derives Debug {
     Admin,
     Moderator,
     User
 };
 
-struct User {
+struct User derives Debug {
     str name,
     AccountStatus status,
     Role role
 };
 
-fn status_repr(&AccountStatus status): str {
-    match (status) {
-        AccountStatus::Active {
-            return "active";
-        },
-        AccountStatus::Suspended(reason) {
-            return "suspended: " + reason;
-        },
-        AccountStatus::Deleted {
-            return "deleted";
-        }
+fn pretty_timestamp(&Timestamp timestamp): str {
+    let day = timestamp.day as str;
+    if (timestamp.day < 10) day = "0" + timestamp.day as str;
+
+    let month = timestamp.month as str;
+    if (timestamp.month < 10) month = "0" + timestamp.month as str;
+
+    return day as str + "-" + month as str + "-" + timestamp.year as str;
+}
+
+let users = [
+    User {
+        name: "Alice",
+        status: AccountStatus::Active,
+        role: Role::Admin
+    },
+    User {
+        name: "Bob",
+        status: AccountStatus::Suspended("too many failed logins"),
+        role: Role::User
+    },
+    User {
+        name: "Charlie",
+        status: AccountStatus::Deleted(Timestamp { day: 17, month: 9, year: 2026 }),
+        role: Role::Moderator
     }
+];
+
+let idx = 2;
+match (users[idx].status) {
+    AccountStatus::Deleted(timestamp) { println(pretty_timestamp(&timestamp)); },
+    rest println(account_status_debug(&users[idx].status) + " doesn't contain data of type 'Timestamp'.");
 }
 
-fn role_repr(&Role role): str {
-    match (role) {
-        Role::Admin {
-            return "admin";
-        },
-        Role::Moderator {
-            return "moderator";
-        },
-        Role::User {
-            return "user";
-        }
-    }
+for (let i = 0; i < vector_size(&users); i += 1) {
+    println(user_debug(&users[i]));
 }
-
-fn user_repr(&User user): str {
-    return user.name
-        + " ["
-        + role_repr(&user.role)
-        + ", "
-        + status_repr(&user.status)
-        + "]";
-}
-
-let user1 = User {
-    name: "Alice",
-    status: AccountStatus::Active,
-    role: Role::Admin
-};
-
-let user2 = User {
-    name: "Bob",
-    status: AccountStatus::Suspended("too many failed logins"),
-    role: Role::User
-};
-
-let user3 = User {
-    name: "Charlie",
-    status: AccountStatus::Deleted,
-    role: Role::Moderator
-};
-
-println(user_repr(&user1));
-println(user_repr(&user2));
-println(user_repr(&user3));
 ```
 
 Save the program as `examples/demo.rp`, then run it with any of:

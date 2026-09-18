@@ -349,7 +349,10 @@ impl Pipeline {
             self.resolve_imports(filename, program, lexer_options)
         };
 
-        self.expand_macros(&mut program);
+        {
+            let _t = self.timed("Macro Expansion");
+            self.expand_macros(&mut program);
+        }
 
         self.run_semantic(&program);
 

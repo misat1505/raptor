@@ -1,4 +1,5 @@
 use inkwell::context::Context;
+use raptor_lib::macro_expander::macro_expander::MacroExpander;
 use raptor_lib::{backend::llvm::OverflowPolicy, common::errors::ErrorSeverity, import_resolver::ImportResolver};
 use raptor_lib::{
     backend::{interpreter::interpreter::Interpreter, llvm::compiler::Compiler},
@@ -39,7 +40,17 @@ fn setup_program_impl(text: BufReader<&[u8]>, skip_typecheck: bool) -> Program {
     let mut parser = Parser::new(lexer);
     let program = parser.parse().unwrap();
     let mut import_resolver = ImportResolver::new(lexer_options, on_warning);
-    let import_resolved_program = import_resolver.resolve("", program).unwrap();
+    let mut import_resolved_program = import_resolver.resolve("", program).unwrap();
+
+    let mut macro_expander = MacroExpander::new(&mut import_resolved_program);
+    macro_expander.run();
+    let real_errors: Vec<_> = macro_expander
+        .errors
+        .iter()
+        .filter(|e| matches!(e.get_severity(), ErrorSeverity::HIGH))
+        .collect();
+    assert_eq!(real_errors.len(), 0, "macro expander found unexpected errors: {:?}", real_errors);
+
     if !skip_typecheck {
         let mut checker = SemanticChecker::new(&import_resolved_program).unwrap();
         checker.check();

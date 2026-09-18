@@ -3,6 +3,7 @@ mod control_flow;
 mod enums;
 mod expressions;
 mod functions;
+mod macros;
 mod misc;
 mod out_of_bounds;
 mod overflow;

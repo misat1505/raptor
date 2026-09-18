@@ -73,6 +73,8 @@ impl<'a> MacroExpander<'a> {
 
             if derive.value == "Debug" {
                 self.derive_debug(declared_type);
+            } else if derive.value == "Json" {
+                self.derive_json(declared_type);
             }
         }
     }

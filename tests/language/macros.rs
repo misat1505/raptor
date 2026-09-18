@@ -73,3 +73,64 @@ for (let i = 0; i < vector_size(&users); i += 1) {
 
     assert_same_output(text, "17-09-2026\nUser { name: \"Alice\", status: AccountStatus::Active, role: Role::Admin }\nUser { name: \"Bob\", status: AccountStatus::Suspended(\"too many failed logins\"), role: Role::User }\nUser { name: \"Charlie\", status: AccountStatus::Deleted(Timestamp { day: 17, month: 9, year: 2026 }), role: Role::Moderator }\n");
 }
+
+#[test]
+fn json_macro() {
+    let text = BufReader::new(
+        r#"
+enum AccountStatus derives Json {
+    Active,
+    Suspended(str),
+    Deleted(Timestamp)
+};
+
+struct Timestamp derives Json {
+    i64 day,
+    i64 month,
+    i64 year
+};
+
+enum Role derives Json {
+    Admin,
+    Moderator,
+    User
+};
+
+struct User derives Json {
+    str name,
+    AccountStatus status,
+    Role role
+};
+
+struct UserRepository derives Json {
+    User[] users
+};
+
+let users = [
+    User {
+        name: "Alice",
+        status: AccountStatus::Active,
+        role: Role::Admin
+    },
+    User {
+        name: "Bob",
+        status: AccountStatus::Suspended("too many failed logins"),
+        role: Role::User
+    },
+    User {
+        name: "Charlie",
+        status: AccountStatus::Deleted(Timestamp { day: 17, month: 9, year: 2026 }),
+        role: Role::Moderator
+    }
+];
+
+
+let user_repository = UserRepository { users };
+
+println(user_repository_json_encode(&user_repository));
+        "#
+        .as_bytes(),
+    );
+
+    assert_same_output(text, "{\"users\":[{\"name\":\"Alice\",\"status\":\"Active\",\"role\":\"Admin\"},{\"name\":\"Bob\",\"status\":{\"Suspended\":\"too many failed logins\"},\"role\":\"User\"},{\"name\":\"Charlie\",\"status\":{\"Deleted\":{\"day\":17,\"month\":9,\"year\":2026}},\"role\":\"Moderator\"}]}\n");
+}

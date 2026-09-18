@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, MacroExpanderError},
+        span::Span,
         types::Type,
     },
     frontend::ast::{
@@ -12,15 +13,13 @@ use crate::{
     macro_expander::macro_expander::{macro_node, to_snake_case, MacroExpander},
 };
 
-use crate::common::span::Span;
-
 impl<'a> MacroExpander<'a> {
-    pub(in crate::macro_expander) fn derive_debug(&mut self, declared_type: &DeclaredType) {
+    pub(in crate::macro_expander) fn derive_debug(&mut self, declared_type: &DeclaredType, derive_span: Span) {
         /*
          * Before generating the debug function, make sure that every
          * type used by this type can also be debugged.
          */
-        if !self.check_debug_dependencies(declared_type) {
+        if !self.check_debug_dependencies(declared_type, derive_span) {
             return;
         }
 
@@ -56,7 +55,7 @@ impl<'a> MacroExpander<'a> {
     // DEBUG DEPENDENCY CHECKING
     // -------------------------------------------------------------------------
 
-    fn check_debug_dependencies(&mut self, declared_type: &DeclaredType) -> bool {
+    fn check_debug_dependencies(&mut self, declared_type: &DeclaredType, derive_span: Span) -> bool {
         let (parent_type, members) = match declared_type {
             DeclaredType::Struct(struct_declaration) => (
                 struct_declaration.identifier.value.clone(),
@@ -81,7 +80,7 @@ impl<'a> MacroExpander<'a> {
         let mut valid = true;
 
         for member_type in members {
-            if !self.check_debug_type(&parent_type, &member_type) {
+            if !self.check_debug_type(&parent_type, &member_type, derive_span) {
                 valid = false;
             }
         }
@@ -89,7 +88,7 @@ impl<'a> MacroExpander<'a> {
         valid
     }
 
-    fn check_debug_type(&mut self, parent_type: &str, member_type: &Type) -> bool {
+    fn check_debug_type(&mut self, parent_type: &str, member_type: &Type, derive_span: Span) -> bool {
         match member_type {
             /*
              * Primitive types do not require a generated debug function.
@@ -110,7 +109,7 @@ impl<'a> MacroExpander<'a> {
             /*
              * Vectors require their elements to be debuggable.
              */
-            Type::Vector(inner_type) => self.check_debug_type(parent_type, inner_type),
+            Type::Vector(inner_type) => self.check_debug_type(parent_type, inner_type, derive_span),
 
             /*
              * Named types require either:
@@ -124,28 +123,50 @@ impl<'a> MacroExpander<'a> {
             }
             | Type::Enum {
                 identifier: dependency_type, ..
-            } => self.check_debug_dependency(parent_type, dependency_type),
+            } => self.check_debug_dependency(parent_type, dependency_type, derive_span),
 
             /*
-             * These types are not expected to appear in a valid debug-able
-             * member type, but we keep the same behaviour as the generator.
+             * These types are not expected to appear in a valid
+             * debug-able member type.
              */
-            Type::Any | Type::Void => true,
+            Type::Any => {
+                self.errors.push(Box::new(MacroExpanderError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Type '{}' contains a field with type 'any', which cannot be debugged.", parent_type),
+                    derive_span,
+                )));
+
+                false
+            }
+
+            Type::Void => {
+                self.errors.push(Box::new(MacroExpanderError::at(
+                    ErrorSeverity::HIGH,
+                    format!("Type '{}' contains a field with type 'void', which cannot be debugged.", parent_type),
+                    derive_span,
+                )));
+
+                false
+            }
         }
     }
 
-    fn check_debug_dependency(&mut self, parent_type: &str, dependency_type: &str) -> bool {
+    fn check_debug_dependency(&mut self, parent_type: &str, dependency_type: &str, derive_span: Span) -> bool {
         let debug_fn_name = format!("{}_debug", to_snake_case(dependency_type));
 
         /*
-         * A manually implemented debug function is enough.
+         * First check for an actual function.
+         *
+         * This is important because the user may implement
+         * `foo_debug` manually without using `derive Debug`.
          */
         if self.program.functions.contains_key(&debug_fn_name) {
             return true;
         }
 
         /*
-         * Otherwise check whether the type has `Debug` in its derives.
+         * If there is no manually implemented function, check
+         * whether the dependency has `Debug` derive.
          */
         let has_debug = self
             .program
@@ -169,20 +190,24 @@ impl<'a> MacroExpander<'a> {
         }
 
         /*
-         * The dependency cannot be debugged.
+         * Neither a manual function nor a Debug derive exists.
+         *
+         * Point the error at the `Debug` derive of the parent type.
          */
-        self.errors.push(Box::new(MacroExpanderError::at(
-            ErrorSeverity::HIGH,
-            format!(
-                "Type '{}' used by '{}' cannot be debugged. Hint: add 'Debug' to the derives of '{}', or implement the function 'fn {}_debug(&{} value): str'.",
-                dependency_type,
-                parent_type,
-                dependency_type,
-                to_snake_case(dependency_type),
-                dependency_type,
+        self.errors.push(Box::new(
+            MacroExpanderError::at(
+                ErrorSeverity::HIGH,
+                format!(
+                    "Type '{}' used by '{}' cannot be debugged. Hint: add 'Debug' to the derives of '{}', or implement the function 'fn {}_debug(&{} value): str'.",
+                    dependency_type,
+                    parent_type,
+                    dependency_type,
+                    to_snake_case(dependency_type),
+                    dependency_type,
+                ),
+                derive_span,
             ),
-            Span::default(),
-        )));
+        ));
 
         false
     }
@@ -390,7 +415,7 @@ impl<'a> MacroExpander<'a> {
         /*
          * return struct_str;
          */
-        statements.push(macro_node!(Statement::Return(Some(macro_node!(Expression::Variable(result_variable)),))));
+        statements.push(macro_node!(Statement::Return(Some(macro_node!(Expression::Variable(result_variable))))));
 
         Block(statements)
     }
@@ -473,6 +498,7 @@ impl<'a> MacroExpander<'a> {
                     Box::new(macro_node!(Expression::Literal(Literal::String(", ".to_owned())))),
                 ))
             })])),
+
             else_block: None,
         };
 
@@ -537,6 +563,7 @@ impl<'a> MacroExpander<'a> {
 
     fn enum_debug_block(&self, enum_declaration: &crate::frontend::ast::EnumDeclaration) -> Block {
         let enum_name = enum_declaration.identifier.value.clone();
+
         let variable_name = to_snake_case(enum_name.as_str());
 
         let mut match_arms = Vec::new();
@@ -553,17 +580,20 @@ impl<'a> MacroExpander<'a> {
                      */
                     match_arms.push(macro_node!(crate::frontend::ast::MatchArm {
                         enum_name: macro_node!(enum_name.clone()),
+
                         variant_name: macro_node!(variant_name.clone()),
+
                         variant_value: None,
 
                         block: macro_node!(Block(vec![macro_node!(Statement::Return(Some(macro_node!(Expression::Literal(
                             Literal::String(format!("{}::{}", enum_name, variant_name))
-                        ))))),])),
+                        )))))])),
                     }));
                 }
 
                 Some(member_type) => {
                     let member_type = member_type.value.clone();
+
                     let payload_variable = self.debug_variable_name(&member_type);
 
                     /*
@@ -590,6 +620,7 @@ impl<'a> MacroExpander<'a> {
 
                             match_arms.push(macro_node!(MatchArm {
                                 enum_name: macro_node!(enum_name.clone()),
+
                                 variant_name: macro_node!(variant_name.clone()),
 
                                 variant_value: Some(macro_node!(payload_variable.clone())),
@@ -601,11 +632,12 @@ impl<'a> MacroExpander<'a> {
                         _ => {
                             match_arms.push(macro_node!(crate::frontend::ast::MatchArm {
                                 enum_name: macro_node!(enum_name.clone()),
+
                                 variant_name: macro_node!(variant_name.clone()),
 
                                 variant_value: Some(macro_node!(payload_variable.clone())),
 
-                                block: macro_node!(Block(vec![macro_node!(Statement::Return(Some(macro_node!(return_expression)))),])),
+                                block: macro_node!(Block(vec![macro_node!(Statement::Return(Some(macro_node!(return_expression))))])),
                             }));
                         }
                     }
@@ -622,8 +654,13 @@ impl<'a> MacroExpander<'a> {
         })])
     }
 
+    // -------------------------------------------------------------------------
+    // ENUM VECTOR DEBUG
+    // -------------------------------------------------------------------------
+
     fn vector_enum_debug_block(&self, enum_name: &str, variant_name: &str, vector_variable: &str, inner_type: &Type) -> Block {
         let vector_str = "vector_str".to_owned();
+
         let index = "i".to_owned();
 
         let mut statements = Vec::new();
@@ -696,7 +733,7 @@ impl<'a> MacroExpander<'a> {
                     Box::new(macro_node!(Expression::Variable(vector_str.clone()))),
                     Box::new(macro_node!(Expression::Literal(Literal::String(", ".to_owned())))),
                 )),
-            }),])),
+            })])),
 
             else_block: None,
         };

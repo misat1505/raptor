@@ -14,8 +14,8 @@ use crate::{
 };
 
 impl<'a> MacroExpander<'a> {
-    pub(in crate::macro_expander) fn derive_json(&mut self, declared_type: &DeclaredType) {
-        if !self.check_json_dependencies(declared_type) {
+    pub(in crate::macro_expander) fn derive_json(&mut self, declared_type: &DeclaredType, derive_span: Span) {
+        if !self.check_json_dependencies(declared_type, derive_span) {
             return;
         }
 
@@ -52,7 +52,7 @@ impl<'a> MacroExpander<'a> {
     // JSON DEPENDENCIES
     // -------------------------------------------------------------------------
 
-    fn check_json_dependencies(&mut self, declared_type: &DeclaredType) -> bool {
+    fn check_json_dependencies(&mut self, declared_type: &DeclaredType, derive_span: Span) -> bool {
         let (type_name, members) = match declared_type {
             DeclaredType::Struct(struct_declaration) => (
                 struct_declaration.identifier.value.clone(),
@@ -76,7 +76,7 @@ impl<'a> MacroExpander<'a> {
         let mut valid = true;
 
         for member_type in members {
-            if !self.check_json_type_dependency(&type_name, &member_type) {
+            if !self.check_json_type_dependency(&type_name, &member_type, derive_span) {
                 valid = false;
             }
         }
@@ -84,7 +84,7 @@ impl<'a> MacroExpander<'a> {
         valid
     }
 
-    fn check_json_type_dependency(&mut self, parent_type: &str, member_type: &Type) -> bool {
+    fn check_json_type_dependency(&mut self, parent_type: &str, member_type: &Type, derive_span: Span) -> bool {
         match member_type {
             /*
              * Primitive values can always be encoded directly.
@@ -103,17 +103,20 @@ impl<'a> MacroExpander<'a> {
             | Type::F64 => true,
 
             /*
-             * A vector itself does not need Json derive.
+             * A vector itself does not need Json.
              *
              * Its element type does.
              */
-            Type::Vector(inner_type) => self.check_json_type_dependency(parent_type, inner_type),
+            Type::Vector(inner_type) => self.check_json_type_dependency(parent_type, inner_type, derive_span),
 
             /*
-             * User-defined types need Json derive.
+             * User-defined types need either:
+             *
+             * - a manually implemented *_json_encode function
+             * - or a Json derive.
              */
             Type::Struct { identifier, .. } | Type::Enum { identifier, .. } | Type::Unresolved(identifier) => {
-                self.check_json_derive(parent_type, identifier)
+                self.check_json_dependency(parent_type, identifier, derive_span)
             }
 
             /*
@@ -126,7 +129,7 @@ impl<'a> MacroExpander<'a> {
                         "Type '{}' contains a field with type 'void', which cannot be encoded as JSON.",
                         parent_type
                     ),
-                    crate::common::span::Span::default(),
+                    derive_span,
                 )));
 
                 false
@@ -139,7 +142,7 @@ impl<'a> MacroExpander<'a> {
                         "Type '{}' contains a field with type 'any', which cannot be encoded as JSON.",
                         parent_type
                     ),
-                    crate::common::span::Span::default(),
+                    derive_span,
                 )));
 
                 false
@@ -147,41 +150,61 @@ impl<'a> MacroExpander<'a> {
         }
     }
 
-    fn check_json_derive(&mut self, parent_type: &str, dependency_type: &str) -> bool {
-        /*
-         * Look through the declared types instead of checking
-         * generated functions. This is important because the
-         * dependency may appear later in the source file.
-         */
-        let declared_type = self.program.declared_types.values().find(|type_declaration| {
-            let declared_type = &type_declaration.value;
+    fn check_json_dependency(&mut self, parent_type: &str, dependency_type: &str, derive_span: Span) -> bool {
+        let json_fn_name = format!("{}_json_encode", to_snake_case(dependency_type));
 
-            match declared_type {
+        /*
+         * A manually implemented function always satisfies
+         * the dependency.
+         *
+         * This must be checked before looking for `Json` derive.
+         */
+        if self.program.functions.contains_key(&json_fn_name) {
+            return true;
+        }
+
+        /*
+         * No manual function exists, so look for the declared type.
+         */
+        let declared_type = self
+            .program
+            .declared_types
+            .values()
+            .find(|type_declaration| match &type_declaration.value {
                 DeclaredType::Struct(struct_declaration) => struct_declaration.identifier.value == dependency_type,
 
                 DeclaredType::Enum(enum_declaration) => enum_declaration.identifier.value == dependency_type,
-            }
-        });
+            });
 
         let Some(declared_type) = declared_type else {
             self.errors.push(Box::new(MacroExpanderError::at(
                 ErrorSeverity::HIGH,
                 format!("Type '{}' used by '{}' does not exist.", dependency_type, parent_type),
-                crate::common::span::Span::default(),
+                derive_span,
             )));
 
             return false;
         };
 
+        /*
+         * No manual function exists.
+         *
+         * Now check whether the type derives Json.
+         */
         let has_json = match &declared_type.value {
             DeclaredType::Struct(struct_declaration) => struct_declaration.derives.iter().any(|derive| derive.value == "Json"),
 
             DeclaredType::Enum(enum_declaration) => enum_declaration.derives.iter().any(|derive| derive.value == "Json"),
         };
 
-        if !has_json {
-            self.errors.push(Box::new(MacroExpanderError::at(
+        if has_json {
+            return true;
+        }
+
+        self.errors.push(Box::new(
+            MacroExpanderError::at(
                 ErrorSeverity::HIGH,
+
                 format!(
                     "Type '{}' used by '{}' cannot be encoded to Json. Hint: add 'Json' to the derives of '{}', or implement the function 'fn {}_json_encode(&{} value): str'.",
                     dependency_type,
@@ -190,13 +213,12 @@ impl<'a> MacroExpander<'a> {
                     to_snake_case(dependency_type),
                     dependency_type,
                 ),
-                Span::default(),
-            )));
 
-            return false;
-        }
+                derive_span,
+            ),
+        ));
 
-        true
+        false
     }
 
     // -------------------------------------------------------------------------
@@ -500,7 +522,7 @@ impl<'a> MacroExpander<'a> {
         let while_block = Block(vec![macro_node!(separator), append_expression, macro_node!(increment)]);
 
         let condition = Expression::Less(
-            Box::new(macro_node!(Expression::Variable(index))),
+            Box::new(macro_node!(Expression::Variable(index.clone()))),
             Box::new(macro_node!(Expression::FunctionCall {
                 identifier: macro_node!("vector_size".to_owned()),
 
@@ -622,22 +644,39 @@ impl<'a> MacroExpander<'a> {
     fn json_variable_name(&self, member_type: &Type) -> String {
         match member_type {
             Type::Any => "any_var",
+
             Type::Bool => "bool_var",
+
             Type::Str => "str_var",
+
             Type::Char => "char_var",
+
             Type::I8 => "i8_var",
+
             Type::I16 => "i16_var",
+
             Type::I32 => "i32_var",
+
             Type::I64 => "i64_var",
+
             Type::U8 => "u8_var",
+
             Type::U16 => "u16_var",
+
             Type::U32 => "u32_var",
+
             Type::U64 => "u64_var",
+
             Type::F64 => "f64_var",
+
             Type::Void => "void_var",
+
             Type::Vector(_) => "vector_var",
+
             Type::Struct { .. } => "struct_var",
+
             Type::Enum { .. } => "enum_var",
+
             Type::Unresolved(_) => "unresolved_var",
         }
         .to_owned()

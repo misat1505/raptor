@@ -1,18 +1,32 @@
 use std::rc::Rc;
 
 use crate::{
-    common::types::Type,
+    common::{
+        errors::{ErrorSeverity, IError, MacroExpanderError},
+        types::Type,
+    },
     frontend::ast::{
-        Argument, Block, DeclaredType, EnumDeclaration, Expression, FunctionDeclaration, Literal, MatchArm, Node, Parameter, PassedBy, Statement,
-        StructDeclaration, VariableDeclarationKind,
+        Argument, Block, DeclaredType, Expression, FunctionDeclaration, Literal, MatchArm, Node, Parameter, PassedBy, Statement, StructDeclaration,
+        VariableDeclarationKind,
     },
     macro_expander::macro_expander::{macro_node, to_snake_case, MacroExpander},
 };
 
+use crate::common::span::Span;
+
 impl<'a> MacroExpander<'a> {
     pub(in crate::macro_expander) fn derive_debug(&mut self, declared_type: &DeclaredType) {
+        /*
+         * Before generating the debug function, make sure that every
+         * type used by this type can also be debugged.
+         */
+        if !self.check_debug_dependencies(declared_type) {
+            return;
+        }
+
         let (type_name, block) = match declared_type {
             DeclaredType::Enum(enum_declaration) => (enum_declaration.identifier.value.clone(), self.enum_debug_block(enum_declaration)),
+
             DeclaredType::Struct(struct_declaration) => (struct_declaration.identifier.value.clone(), self.struct_debug_block(struct_declaration)),
         };
 
@@ -31,10 +45,146 @@ impl<'a> MacroExpander<'a> {
             })],
 
             return_type: macro_node!(Type::Str),
+
             block: macro_node!(block),
         };
 
         self.program.functions.insert(debug_fn_name, Rc::new(macro_node!(debug_fn)));
+    }
+
+    // -------------------------------------------------------------------------
+    // DEBUG DEPENDENCY CHECKING
+    // -------------------------------------------------------------------------
+
+    fn check_debug_dependencies(&mut self, declared_type: &DeclaredType) -> bool {
+        let (parent_type, members) = match declared_type {
+            DeclaredType::Struct(struct_declaration) => (
+                struct_declaration.identifier.value.clone(),
+                struct_declaration
+                    .members
+                    .iter()
+                    .map(|member| member.value.member_type.value.clone())
+                    .collect::<Vec<_>>(),
+            ),
+
+            DeclaredType::Enum(enum_declaration) => (
+                enum_declaration.identifier.value.clone(),
+                enum_declaration
+                    .members
+                    .iter()
+                    .filter_map(|member| member.value.member_type.as_ref())
+                    .map(|member_type| member_type.value.clone())
+                    .collect::<Vec<_>>(),
+            ),
+        };
+
+        let mut valid = true;
+
+        for member_type in members {
+            if !self.check_debug_type(&parent_type, &member_type) {
+                valid = false;
+            }
+        }
+
+        valid
+    }
+
+    fn check_debug_type(&mut self, parent_type: &str, member_type: &Type) -> bool {
+        match member_type {
+            /*
+             * Primitive types do not require a generated debug function.
+             */
+            Type::Bool
+            | Type::Str
+            | Type::Char
+            | Type::I8
+            | Type::I16
+            | Type::I32
+            | Type::I64
+            | Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::F64 => true,
+
+            /*
+             * Vectors require their elements to be debuggable.
+             */
+            Type::Vector(inner_type) => self.check_debug_type(parent_type, inner_type),
+
+            /*
+             * Named types require either:
+             *
+             * - an existing manually implemented *_debug function
+             * - or a Debug derive.
+             */
+            Type::Unresolved(dependency_type)
+            | Type::Struct {
+                identifier: dependency_type, ..
+            }
+            | Type::Enum {
+                identifier: dependency_type, ..
+            } => self.check_debug_dependency(parent_type, dependency_type),
+
+            /*
+             * These types are not expected to appear in a valid debug-able
+             * member type, but we keep the same behaviour as the generator.
+             */
+            Type::Any | Type::Void => true,
+        }
+    }
+
+    fn check_debug_dependency(&mut self, parent_type: &str, dependency_type: &str) -> bool {
+        let debug_fn_name = format!("{}_debug", to_snake_case(dependency_type));
+
+        /*
+         * A manually implemented debug function is enough.
+         */
+        if self.program.functions.contains_key(&debug_fn_name) {
+            return true;
+        }
+
+        /*
+         * Otherwise check whether the type has `Debug` in its derives.
+         */
+        let has_debug = self
+            .program
+            .declared_types
+            .iter()
+            .find_map(|(_, declared_type)| match &declared_type.value {
+                DeclaredType::Struct(struct_declaration) if struct_declaration.identifier.value == dependency_type => {
+                    Some(struct_declaration.derives.iter().any(|derive| derive.value == "Debug"))
+                }
+
+                DeclaredType::Enum(enum_declaration) if enum_declaration.identifier.value == dependency_type => {
+                    Some(enum_declaration.derives.iter().any(|derive| derive.value == "Debug"))
+                }
+
+                _ => None,
+            })
+            .unwrap_or(false);
+
+        if has_debug {
+            return true;
+        }
+
+        /*
+         * The dependency cannot be debugged.
+         */
+        self.errors.push(Box::new(MacroExpanderError::at(
+            ErrorSeverity::HIGH,
+            format!(
+                "Type '{}' used by '{}' cannot be debugged. Hint: add 'Debug' to the derives of '{}', or implement the function 'fn {}_debug(&{} value): str'.",
+                dependency_type,
+                parent_type,
+                dependency_type,
+                to_snake_case(dependency_type),
+                dependency_type,
+            ),
+            Span::default(),
+        )));
+
+        false
     }
 
     // -------------------------------------------------------------------------
@@ -119,7 +269,7 @@ impl<'a> MacroExpander<'a> {
 
         let return_expression = self.combine_string_expressions(expressions);
 
-        Block(vec![macro_node!(Statement::Return(Some(macro_node!(return_expression))))])
+        Block(vec![macro_node!(Statement::Return(Some(macro_node!(return_expression),)))])
     }
 
     fn struct_debug_block_with_vectors(&self, struct_declaration: &StructDeclaration, variable_name: &str) -> Block {
@@ -240,7 +390,7 @@ impl<'a> MacroExpander<'a> {
         /*
          * return struct_str;
          */
-        statements.push(macro_node!(Statement::Return(Some(macro_node!(Expression::Variable(result_variable))))));
+        statements.push(macro_node!(Statement::Return(Some(macro_node!(Expression::Variable(result_variable)),))));
 
         Block(statements)
     }
@@ -321,9 +471,8 @@ impl<'a> MacroExpander<'a> {
                 value: macro_node!(Expression::Addition(
                     Box::new(macro_node!(Expression::Variable(result_variable.to_owned()))),
                     Box::new(macro_node!(Expression::Literal(Literal::String(", ".to_owned())))),
-                )),
+                ))
             })])),
-
             else_block: None,
         };
 
@@ -386,68 +535,86 @@ impl<'a> MacroExpander<'a> {
     // ENUM DEBUG
     // -------------------------------------------------------------------------
 
-    fn enum_debug_block(&self, enum_declaration: &EnumDeclaration) -> Block {
-        let param_name = to_snake_case(enum_declaration.identifier.value.as_str());
+    fn enum_debug_block(&self, enum_declaration: &crate::frontend::ast::EnumDeclaration) -> Block {
+        let enum_name = enum_declaration.identifier.value.clone();
+        let variable_name = to_snake_case(enum_name.as_str());
 
-        let mut match_arms = vec![];
+        let mut match_arms = Vec::new();
 
         for member in &enum_declaration.members {
             let variant_name = member.value.identifier.value.clone();
 
-            let member_type = member.value.member_type.as_ref().map(|member_type| member_type.value.clone());
-
-            let variant_value_name = member_type.as_ref().map(|member_type| self.debug_variable_name(member_type));
-
-            let arm_block = match member_type.as_ref() {
+            match &member.value.member_type {
                 None => {
-                    let return_expression = Expression::Literal(Literal::String(format!("{}::{}", enum_declaration.identifier.value, variant_name)));
+                    /*
+                     * AccountStatus::Active
+                     *
+                     * => "AccountStatus::Active"
+                     */
+                    match_arms.push(macro_node!(crate::frontend::ast::MatchArm {
+                        enum_name: macro_node!(enum_name.clone()),
+                        variant_name: macro_node!(variant_name.clone()),
+                        variant_value: None,
 
-                    Block(vec![macro_node!(Statement::Return(Some(macro_node!(return_expression))))])
-                }
-
-                Some(Type::Vector(inner_type)) => {
-                    let vector_variable = variant_value_name.clone().unwrap();
-
-                    self.vector_enum_debug_block(&enum_declaration.identifier.value, &variant_name, &vector_variable, inner_type)
+                        block: macro_node!(Block(vec![macro_node!(Statement::Return(Some(macro_node!(Expression::Literal(
+                            Literal::String(format!("{}::{}", enum_name, variant_name))
+                        ))))),])),
+                    }));
                 }
 
                 Some(member_type) => {
-                    let value_variable = variant_value_name.clone().unwrap();
+                    let member_type = member_type.value.clone();
+                    let payload_variable = self.debug_variable_name(&member_type);
 
-                    let inner_expr = self.debug_expression_for_variable(member_type, &value_variable);
+                    /*
+                     * AccountStatus::Suspended(value)
+                     *
+                     * => "AccountStatus::Suspended(" + debug(value) + ")"
+                     */
+                    let debug_expression = self.debug_expression_for_variable(&member_type, payload_variable.as_str());
 
                     let return_expression = Expression::Addition(
                         Box::new(macro_node!(Expression::Literal(Literal::String(format!(
                             "{}::{}(",
-                            enum_declaration.identifier.value, variant_name
+                            enum_name, variant_name
                         ))))),
                         Box::new(macro_node!(Expression::Addition(
-                            Box::new(macro_node!(inner_expr)),
+                            Box::new(macro_node!(debug_expression)),
                             Box::new(macro_node!(Expression::Literal(Literal::String(")".to_owned())))),
                         ))),
                     );
 
-                    Block(vec![macro_node!(Statement::Return(Some(macro_node!(return_expression))))])
+                    match member_type {
+                        Type::Vector(inner_type) => {
+                            let vector_block = self.vector_enum_debug_block(&enum_name, &variant_name, payload_variable.as_str(), &inner_type);
+
+                            match_arms.push(macro_node!(MatchArm {
+                                enum_name: macro_node!(enum_name.clone()),
+                                variant_name: macro_node!(variant_name.clone()),
+
+                                variant_value: Some(macro_node!(payload_variable.clone())),
+
+                                block: macro_node!(vector_block),
+                            }));
+                        }
+
+                        _ => {
+                            match_arms.push(macro_node!(crate::frontend::ast::MatchArm {
+                                enum_name: macro_node!(enum_name.clone()),
+                                variant_name: macro_node!(variant_name.clone()),
+
+                                variant_value: Some(macro_node!(payload_variable.clone())),
+
+                                block: macro_node!(Block(vec![macro_node!(Statement::Return(Some(macro_node!(return_expression)))),])),
+                            }));
+                        }
+                    }
                 }
-            };
-
-            let variant_value_node = variant_value_name.map(|value| macro_node!(value));
-
-            let arm = MatchArm {
-                enum_name: macro_node!(enum_declaration.identifier.value.clone()),
-
-                variant_name: macro_node!(variant_name),
-
-                variant_value: variant_value_node,
-
-                block: macro_node!(arm_block),
-            };
-
-            match_arms.push(macro_node!(arm));
+            }
         }
 
         Block(vec![macro_node!(Statement::Match {
-            expression: macro_node!(Expression::Variable(param_name)),
+            expression: macro_node!(Expression::Variable(variable_name)),
 
             match_arms,
 
@@ -457,7 +624,6 @@ impl<'a> MacroExpander<'a> {
 
     fn vector_enum_debug_block(&self, enum_name: &str, variant_name: &str, vector_variable: &str, inner_type: &Type) -> Block {
         let vector_str = "vector_str".to_owned();
-
         let index = "i".to_owned();
 
         let mut statements = Vec::new();
@@ -496,6 +662,9 @@ impl<'a> MacroExpander<'a> {
 
         let element_expression = self.debug_expression_for_expression(inner_type, indexed_expression);
 
+        /*
+         * vector_str = vector_str + element;
+         */
         let append_expression = Statement::Assignment {
             identifier: macro_node!(vector_str.clone()),
 
@@ -507,6 +676,11 @@ impl<'a> MacroExpander<'a> {
             )),
         };
 
+        /*
+         * if (i > 0) {
+         *     vector_str = vector_str + ", ";
+         * }
+         */
         let separator = Statement::Conditional {
             condition: macro_node!(Expression::Greater(
                 Box::new(macro_node!(Expression::Variable(index.clone()))),
@@ -522,11 +696,14 @@ impl<'a> MacroExpander<'a> {
                     Box::new(macro_node!(Expression::Variable(vector_str.clone()))),
                     Box::new(macro_node!(Expression::Literal(Literal::String(", ".to_owned())))),
                 )),
-            })])),
+            }),])),
 
             else_block: None,
         };
 
+        /*
+         * i = i + 1;
+         */
         let increment = Statement::Assignment {
             identifier: macro_node!(index.clone()),
 
@@ -538,10 +715,17 @@ impl<'a> MacroExpander<'a> {
             )),
         };
 
+        /*
+         * while (i < vector_size(&vector)) {
+         *     separator;
+         *     append_element;
+         *     increment;
+         * }
+         */
         let while_block = Block(vec![macro_node!(separator), macro_node!(append_expression), macro_node!(increment)]);
 
         let condition = Expression::Less(
-            Box::new(macro_node!(Expression::Variable(index))),
+            Box::new(macro_node!(Expression::Variable(index.clone()))),
             Box::new(macro_node!(Expression::FunctionCall {
                 identifier: macro_node!("vector_size".to_owned()),
 
@@ -659,22 +843,39 @@ impl<'a> MacroExpander<'a> {
     fn debug_variable_name(&self, member_type: &Type) -> String {
         match member_type {
             Type::Any => "any_var",
+
             Type::Bool => "bool_var",
+
             Type::Str => "str_var",
+
             Type::Char => "char_var",
+
             Type::I8 => "i8_var",
+
             Type::I16 => "i16_var",
+
             Type::I32 => "i32_var",
+
             Type::I64 => "i64_var",
+
             Type::U8 => "u8_var",
+
             Type::U16 => "u16_var",
+
             Type::U32 => "u32_var",
+
             Type::U64 => "u64_var",
+
             Type::F64 => "f64_var",
+
             Type::Void => "void_var",
+
             Type::Vector(_) => "vector_var",
+
             Type::Struct { .. } => "struct_var",
+
             Type::Enum { .. } => "enum_var",
+
             Type::Unresolved(_) => "unresolved_var",
         }
         .to_owned()

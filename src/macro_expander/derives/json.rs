@@ -1,7 +1,11 @@
 use std::rc::Rc;
 
 use crate::{
-    common::types::Type,
+    common::{
+        errors::{ErrorSeverity, IError, MacroExpanderError},
+        span::Span,
+        types::Type,
+    },
     frontend::ast::{
         Argument, Block, DeclaredType, EnumDeclaration, Expression, FunctionDeclaration, Literal, MatchArm, Node, Parameter, PassedBy, Statement,
         StructDeclaration, VariableDeclarationKind,
@@ -11,6 +15,10 @@ use crate::{
 
 impl<'a> MacroExpander<'a> {
     pub(in crate::macro_expander) fn derive_json(&mut self, declared_type: &DeclaredType) {
+        if !self.check_json_dependencies(declared_type) {
+            return;
+        }
+
         let (type_name, block) = match declared_type {
             DeclaredType::Enum(enum_declaration) => (enum_declaration.identifier.value.clone(), self.enum_json_block(enum_declaration)),
 
@@ -18,6 +26,7 @@ impl<'a> MacroExpander<'a> {
         };
 
         let json_fn_name = format!("{}_json_encode", to_snake_case(type_name.as_str()));
+
         let param_name = to_snake_case(type_name.as_str());
 
         let json_fn = FunctionDeclaration {
@@ -40,20 +49,169 @@ impl<'a> MacroExpander<'a> {
     }
 
     // -------------------------------------------------------------------------
+    // JSON DEPENDENCIES
+    // -------------------------------------------------------------------------
+
+    fn check_json_dependencies(&mut self, declared_type: &DeclaredType) -> bool {
+        let (type_name, members) = match declared_type {
+            DeclaredType::Struct(struct_declaration) => (
+                struct_declaration.identifier.value.clone(),
+                struct_declaration
+                    .members
+                    .iter()
+                    .map(|member| member.value.member_type.value.clone())
+                    .collect::<Vec<_>>(),
+            ),
+
+            DeclaredType::Enum(enum_declaration) => (
+                enum_declaration.identifier.value.clone(),
+                enum_declaration
+                    .members
+                    .iter()
+                    .filter_map(|member| member.value.member_type.as_ref().map(|member_type| member_type.value.clone()))
+                    .collect::<Vec<_>>(),
+            ),
+        };
+
+        let mut valid = true;
+
+        for member_type in members {
+            if !self.check_json_type_dependency(&type_name, &member_type) {
+                valid = false;
+            }
+        }
+
+        valid
+    }
+
+    fn check_json_type_dependency(&mut self, parent_type: &str, member_type: &Type) -> bool {
+        match member_type {
+            /*
+             * Primitive values can always be encoded directly.
+             */
+            Type::Bool
+            | Type::Str
+            | Type::Char
+            | Type::I8
+            | Type::I16
+            | Type::I32
+            | Type::I64
+            | Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::F64 => true,
+
+            /*
+             * A vector itself does not need Json derive.
+             *
+             * Its element type does.
+             */
+            Type::Vector(inner_type) => self.check_json_type_dependency(parent_type, inner_type),
+
+            /*
+             * User-defined types need Json derive.
+             */
+            Type::Struct { identifier, .. } | Type::Enum { identifier, .. } | Type::Unresolved(identifier) => {
+                self.check_json_derive(parent_type, identifier)
+            }
+
+            /*
+             * These types cannot be JSON encoded.
+             */
+            Type::Void => {
+                self.errors.push(Box::new(MacroExpanderError::at(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Type '{}' contains a field with type 'void', which cannot be encoded as JSON.",
+                        parent_type
+                    ),
+                    crate::common::span::Span::default(),
+                )));
+
+                false
+            }
+
+            Type::Any => {
+                self.errors.push(Box::new(MacroExpanderError::at(
+                    ErrorSeverity::HIGH,
+                    format!(
+                        "Type '{}' contains a field with type 'any', which cannot be encoded as JSON.",
+                        parent_type
+                    ),
+                    crate::common::span::Span::default(),
+                )));
+
+                false
+            }
+        }
+    }
+
+    fn check_json_derive(&mut self, parent_type: &str, dependency_type: &str) -> bool {
+        /*
+         * Look through the declared types instead of checking
+         * generated functions. This is important because the
+         * dependency may appear later in the source file.
+         */
+        let declared_type = self.program.declared_types.values().find(|type_declaration| {
+            let declared_type = &type_declaration.value;
+
+            match declared_type {
+                DeclaredType::Struct(struct_declaration) => struct_declaration.identifier.value == dependency_type,
+
+                DeclaredType::Enum(enum_declaration) => enum_declaration.identifier.value == dependency_type,
+            }
+        });
+
+        let Some(declared_type) = declared_type else {
+            self.errors.push(Box::new(MacroExpanderError::at(
+                ErrorSeverity::HIGH,
+                format!("Type '{}' used by '{}' does not exist.", dependency_type, parent_type),
+                crate::common::span::Span::default(),
+            )));
+
+            return false;
+        };
+
+        let has_json = match &declared_type.value {
+            DeclaredType::Struct(struct_declaration) => struct_declaration.derives.iter().any(|derive| derive.value == "Json"),
+
+            DeclaredType::Enum(enum_declaration) => enum_declaration.derives.iter().any(|derive| derive.value == "Json"),
+        };
+
+        if !has_json {
+            self.errors.push(Box::new(MacroExpanderError::at(
+                ErrorSeverity::HIGH,
+                format!(
+                    "Type '{}' used by '{}' cannot be encoded to Json. Hint: add 'Json' to the derives of '{}', or implement the function 'fn {}_json_encode(&{} value): str'.",
+                    dependency_type,
+                    parent_type,
+                    dependency_type,
+                    to_snake_case(dependency_type),
+                    dependency_type,
+                ),
+                Span::default(),
+            )));
+
+            return false;
+        }
+
+        true
+    }
+
+    // -------------------------------------------------------------------------
     // STRUCT JSON
     // -------------------------------------------------------------------------
 
     fn struct_json_block(&self, struct_declaration: &StructDeclaration) -> Block {
         let struct_name = struct_declaration.identifier.value.clone();
+
         let variable_name = to_snake_case(struct_name.as_str());
 
         let result_variable = "json_str".to_owned();
 
         let mut statements = Vec::new();
 
-        /*
-         * let json_str = "{";
-         */
         statements.push(macro_node!(Statement::Declaration {
             identifier: macro_node!(result_variable.clone()),
 
@@ -66,27 +224,19 @@ impl<'a> MacroExpander<'a> {
 
         for (index, member) in struct_declaration.members.iter().enumerate() {
             let field_name = member.value.identifier.value.clone();
+
             let field_type = member.value.member_type.value.clone();
 
-            /*
-             * ,
-             */
             if index > 0 {
                 statements.push(macro_node!(
                     self.append_to_string_statement(&result_variable, Expression::Literal(Literal::String(",".to_owned())),)
                 ));
             }
 
-            /*
-             * "field_name":
-             */
             let field_name_expression = Expression::Literal(Literal::String(format!("\"{}\":", field_name)));
 
             statements.push(macro_node!(self.append_to_string_statement(&result_variable, field_name_expression,)));
 
-            /*
-             * node.field
-             */
             let field_expression = Expression::FieldAccess {
                 instance: Box::new(macro_node!(Expression::Variable(variable_name.clone()))),
 
@@ -94,10 +244,6 @@ impl<'a> MacroExpander<'a> {
             };
 
             match field_type {
-                /*
-                 * Vectors require a loop, therefore they
-                 * are generated as statements.
-                 */
                 Type::Vector(inner_type) => {
                     let vector_variable = format!("{}_{}_json_encode", variable_name, field_name);
 
@@ -118,16 +264,10 @@ impl<'a> MacroExpander<'a> {
             }
         }
 
-        /*
-         * }
-         */
         statements.push(macro_node!(
             self.append_to_string_statement(&result_variable, Expression::Literal(Literal::String("}".to_owned())),)
         ));
 
-        /*
-         * return json_str;
-         */
         statements.push(macro_node!(Statement::Return(Some(macro_node!(Expression::Variable(result_variable))))));
 
         Block(statements)
@@ -142,9 +282,6 @@ impl<'a> MacroExpander<'a> {
 
         let mut statements = Vec::new();
 
-        /*
-         * let foo_json = "[";
-         */
         statements.push(macro_node!(Statement::Declaration {
             identifier: macro_node!(result_variable.to_owned()),
 
@@ -155,9 +292,6 @@ impl<'a> MacroExpander<'a> {
             },
         }));
 
-        /*
-         * let foo_i = 0;
-         */
         statements.push(macro_node!(Statement::Declaration {
             identifier: macro_node!(index_variable.clone()),
 
@@ -168,11 +302,6 @@ impl<'a> MacroExpander<'a> {
             },
         }));
 
-        /*
-         * while (
-         *     foo_i < vector_size(&vector)
-         * )
-         */
         let condition = Expression::Less(
             Box::new(macro_node!(Expression::Variable(index_variable.clone()))),
             Box::new(macro_node!(Expression::FunctionCall {
@@ -192,11 +321,6 @@ impl<'a> MacroExpander<'a> {
             index: Box::new(macro_node!(Expression::Variable(index_variable.clone()))),
         };
 
-        /*
-         * if (i > 0) {
-         *     foo_json = foo_json + ",";
-         * }
-         */
         let separator_if = Statement::Conditional {
             condition: macro_node!(Expression::Greater(
                 Box::new(macro_node!(Expression::Variable(index_variable.clone()))),
@@ -210,16 +334,10 @@ impl<'a> MacroExpander<'a> {
             else_block: None,
         };
 
-        /*
-         * foo_json = foo_json + json(value);
-         */
         let element_expression = self.json_expression_for_expression(inner_type, indexed_expression);
 
         let append_element = macro_node!(self.append_to_string_statement(result_variable, element_expression,));
 
-        /*
-         * i = i + 1;
-         */
         let increment = Statement::Assignment {
             identifier: macro_node!(index_variable.clone()),
 
@@ -239,9 +357,6 @@ impl<'a> MacroExpander<'a> {
             block: macro_node!(while_block),
         }));
 
-        /*
-         * foo_json = foo_json + "]";
-         */
         statements.push(macro_node!(
             self.append_to_string_statement(result_variable, Expression::Literal(Literal::String("]".to_owned())),)
         ));
@@ -266,29 +381,18 @@ impl<'a> MacroExpander<'a> {
             let variant_value_name = member_type.as_ref().map(|member_type| self.json_variable_name(member_type));
 
             let arm_block = match member_type.as_ref() {
-                /*
-                 * Active
-                 *
-                 * {"Active":null}
-                 */
                 None => {
                     let return_expression = Expression::Literal(Literal::String(format!("\"{}\"", variant_name)));
 
                     Block(vec![macro_node!(Statement::Return(Some(macro_node!(return_expression))))])
                 }
 
-                /*
-                 * Variant containing Vector.
-                 */
                 Some(Type::Vector(inner_type)) => {
                     let vector_variable = variant_value_name.clone().unwrap();
 
                     self.vector_enum_json_block(&variant_name, &vector_variable, inner_type)
                 }
 
-                /*
-                 * Variant containing a normal value.
-                 */
                 Some(member_type) => {
                     let value_variable = variant_value_name.clone().unwrap();
 
@@ -308,7 +412,7 @@ impl<'a> MacroExpander<'a> {
 
             let variant_value_node = variant_value_name.map(|value| macro_node!(value));
 
-            let arm = MatchArm {
+            match_arms.push(macro_node!(MatchArm {
                 enum_name: macro_node!(enum_declaration.identifier.value.clone()),
 
                 variant_name: macro_node!(variant_name),
@@ -316,16 +420,9 @@ impl<'a> MacroExpander<'a> {
                 variant_value: variant_value_node,
 
                 block: macro_node!(arm_block),
-            };
-
-            match_arms.push(macro_node!(arm));
+            }));
         }
 
-        /*
-         * match enum_value {
-         *     ...
-         * }
-         */
         Block(vec![macro_node!(Statement::Match {
             expression: macro_node!(Expression::Variable(param_name)),
 
@@ -346,9 +443,6 @@ impl<'a> MacroExpander<'a> {
 
         let mut statements = Vec::new();
 
-        /*
-         * let vector_json = "[";
-         */
         statements.push(macro_node!(Statement::Declaration {
             identifier: macro_node!(vector_str.clone()),
 
@@ -359,9 +453,6 @@ impl<'a> MacroExpander<'a> {
             },
         }));
 
-        /*
-         * let i = 0;
-         */
         statements.push(macro_node!(Statement::Declaration {
             identifier: macro_node!(index.clone()),
 
@@ -380,9 +471,6 @@ impl<'a> MacroExpander<'a> {
 
         let element_expression = self.json_expression_for_expression(inner_type, indexed_expression);
 
-        /*
-         * separator
-         */
         let separator = Statement::Conditional {
             condition: macro_node!(Expression::Greater(
                 Box::new(macro_node!(Expression::Variable(index.clone()))),
@@ -398,9 +486,6 @@ impl<'a> MacroExpander<'a> {
 
         let append_expression = macro_node!(self.append_to_string_statement(&vector_str, element_expression,));
 
-        /*
-         * i = i + 1
-         */
         let increment = Statement::Assignment {
             identifier: macro_node!(index.clone()),
 
@@ -433,16 +518,10 @@ impl<'a> MacroExpander<'a> {
             block: macro_node!(while_block),
         }));
 
-        /*
-         * vector_json = vector_json + "]";
-         */
         statements.push(macro_node!(
             self.append_to_string_statement(&vector_str, Expression::Literal(Literal::String("]".to_owned())),)
         ));
 
-        /*
-         * return {"Variant":[...]}
-         */
         let return_expression = Expression::Addition(
             Box::new(macro_node!(Expression::Literal(Literal::String(format!("{{\"{}\":", variant_name))))),
             Box::new(macro_node!(Expression::Addition(
@@ -466,59 +545,30 @@ impl<'a> MacroExpander<'a> {
 
     fn json_expression_for_expression(&self, member_type: &Type, expression: Expression) -> Expression {
         match member_type {
-            /*
-             * String:
-             *
-             * "value"
-             *
-             * Same mechanism as Debug for now.
-             */
             Type::Str => self.json_string_expression(expression),
 
-            /*
-             * JSON does not have a char type,
-             * so serialize char as a string.
-             */
             Type::Char => self.json_string_expression(Expression::Casting {
                 value: Box::new(macro_node!(expression)),
 
                 to_type: macro_node!(Type::Str),
             }),
 
-            /*
-             * bool -> "true" / "false"
-             *
-             * We cast because the result is ultimately
-             * concatenated into a string.
-             */
             Type::Bool => Expression::Casting {
                 value: Box::new(macro_node!(expression)),
 
                 to_type: macro_node!(Type::Str),
             },
 
-            /*
-             * Numbers -> string representation.
-             */
             Type::I8 | Type::I16 | Type::I32 | Type::I64 | Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::F64 => Expression::Casting {
                 value: Box::new(macro_node!(expression)),
 
                 to_type: macro_node!(Type::Str),
             },
 
-            /*
-             * Nested user-defined types.
-             */
-            Type::Unresolved(identifier) => self.json_function_call(identifier, expression),
+            Type::Unresolved(identifier) | Type::Struct { identifier, .. } | Type::Enum { identifier, .. } => {
+                self.json_function_call(identifier, expression)
+            }
 
-            Type::Struct { identifier, .. } => self.json_function_call(identifier, expression),
-
-            Type::Enum { identifier, .. } => self.json_function_call(identifier, expression),
-
-            /*
-             * Vector requires statement-level
-             * generation.
-             */
             Type::Vector(_) => {
                 unreachable!("Vector requires statement-level JSON generation")
             }
@@ -538,20 +588,6 @@ impl<'a> MacroExpander<'a> {
     // -------------------------------------------------------------------------
 
     fn json_string_expression(&self, expression: Expression) -> Expression {
-        /*
-         * IMPORTANT:
-         *
-         * This intentionally behaves like Debug:
-         *
-         *     "\"" + value + "\""
-         *
-         * There is no json_escape() call here because
-         * json_escape is not currently a language/runtime
-         * function.
-         *
-         * Once you add a string escaping builtin, this
-         * function is the only place that needs to change.
-         */
         Expression::Addition(
             Box::new(macro_node!(Expression::Literal(Literal::String("\"".to_owned())))),
             Box::new(macro_node!(Expression::Addition(
@@ -586,39 +622,22 @@ impl<'a> MacroExpander<'a> {
     fn json_variable_name(&self, member_type: &Type) -> String {
         match member_type {
             Type::Any => "any_var",
-
             Type::Bool => "bool_var",
-
             Type::Str => "str_var",
-
             Type::Char => "char_var",
-
             Type::I8 => "i8_var",
-
             Type::I16 => "i16_var",
-
             Type::I32 => "i32_var",
-
             Type::I64 => "i64_var",
-
             Type::U8 => "u8_var",
-
             Type::U16 => "u16_var",
-
             Type::U32 => "u32_var",
-
             Type::U64 => "u64_var",
-
             Type::F64 => "f64_var",
-
             Type::Void => "void_var",
-
             Type::Vector(_) => "vector_var",
-
             Type::Struct { .. } => "struct_var",
-
             Type::Enum { .. } => "enum_var",
-
             Type::Unresolved(_) => "unresolved_var",
         }
         .to_owned()

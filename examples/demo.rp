@@ -1,4 +1,4 @@
-enum AccountStatus derives Debug {
+enum AccountStatus derives Json {
     Active,
     Suspended(str),
     Deleted(Timestamp)

@@ -42,9 +42,7 @@ impl<'a> MacroExpander<'a> {
     fn expand_derive_macros(&mut self) {
         let declared_types = self
             .program
-            .declared_types
-            .iter()
-            .map(|(_, type_declaration)| type_declaration.value.clone())
+            .declared_types.values().map(|type_declaration| type_declaration.value.clone())
             .collect::<Vec<_>>();
 
         for declared_type in declared_types {

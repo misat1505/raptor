@@ -189,6 +189,18 @@ impl<'a> SemanticChecker<'a> {
                 ),
                 span: derive.span,
             });
+        } else if derive.value == "Clone" {
+            self.hovers.push(HoverInfo {
+                contents: format!(
+                    "Creates a function to recursively clone `{}`.\n\n```raptor\nfn {}_clone(&{} {}): {}\n```",
+                    identifier_name,
+                    to_snake_case(identifier_name.as_str()),
+                    identifier_name,
+                    to_snake_case(identifier_name.as_str()),
+                    identifier_name
+                ),
+                span: derive.span,
+            });
         }
     }
 

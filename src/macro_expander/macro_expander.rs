@@ -26,7 +26,7 @@ pub struct MacroExpander<'a> {
 
 impl<'a> MacroExpander<'a> {
     pub fn new(program: &'a mut Program) -> Self {
-        let supported_derives = vec!["Debug".to_owned(), "Json".to_owned()];
+        let supported_derives = vec!["Debug".to_owned(), "Json".to_owned(), "Clone".to_owned()];
 
         MacroExpander {
             program,
@@ -80,6 +80,8 @@ impl<'a> MacroExpander<'a> {
                 self.derive_debug(declared_type, derive.span);
             } else if derive.value == "Json" {
                 self.derive_json(declared_type, derive.span);
+            } else if derive.value == "Clone" {
+                self.derive_clone(declared_type, derive.span);
             }
         }
     }

@@ -1,13 +1,5 @@
-struct Position derives Debug {
+struct Position derives Debug, Clone {
     i64 offset,
     i64 line,
     i64 column
 };
-
-fn position_clone(&Position position): Position {
-    return Position {
-        offset: position.offset,
-        line: position.line,
-        column: position.column
-    };
-}

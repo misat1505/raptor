@@ -134,3 +134,66 @@ println(user_repository_json_encode(&user_repository));
 
     assert_same_output(text, "{\"users\":[{\"name\":\"Alice\",\"status\":\"Active\",\"role\":\"Admin\"},{\"name\":\"Bob\",\"status\":{\"Suspended\":\"too many failed logins\"},\"role\":\"User\"},{\"name\":\"Charlie\",\"status\":{\"Deleted\":{\"day\":17,\"month\":9,\"year\":2026}},\"role\":\"Moderator\"}]}\n");
 }
+
+#[test]
+fn clone_macro() {
+    let text = BufReader::new(
+        r#"
+enum AccountStatus derives Debug, Clone {
+    Active,
+    Suspended(str),
+    Deleted(Timestamp)
+};
+
+struct Timestamp derives Debug, Clone {
+    i64 day,
+    i64 month,
+    i64 year
+};
+
+enum Role derives Debug, Clone {
+    Admin,
+    Moderator,
+    User
+};
+
+struct User derives Debug, Clone {
+    str name,
+    AccountStatus status,
+    Role role
+};
+
+let original = User {
+    name: "Alice",
+    status: AccountStatus::Deleted(Timestamp {
+        day: 17,
+        month: 9,
+        year: 2026
+    }),
+    role: Role::Moderator
+};
+
+let cloned = user_clone(&original);
+
+original.name = "Changed";
+match (original.status) {
+    AccountStatus::Deleted(timestamp) {
+        timestamp.day = 1;
+    },
+    rest {}
+}
+original.role = Role::Admin;
+
+println(user_debug(&original));
+
+println(user_debug(&cloned));
+        "#
+        .as_bytes(),
+    );
+
+    assert_same_output(
+        text,
+        "User { name: \"Changed\", status: AccountStatus::Deleted(Timestamp { day: 1, month: 9, year: 2026 }), role: Role::Admin }
+User { name: \"Alice\", status: AccountStatus::Deleted(Timestamp { day: 17, month: 9, year: 2026 }), role: Role::Moderator }\n",
+    );
+}

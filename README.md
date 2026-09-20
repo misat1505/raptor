@@ -134,7 +134,7 @@ The `lsp` executable is a separate LSP server and does not use the `raptor` comm
 The following program demonstrates several core Raptor features: variables, functions, references, structs, enums with payloads, pattern matching, vectors, loops, conditionals, macros and static typing.
 
 ```raptor
-enum AccountStatus derives Debug, Json {
+enum AccountStatus derives Debug {
     Active,
     Suspended(str),
     Deleted(Timestamp)

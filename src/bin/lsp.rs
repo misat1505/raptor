@@ -10,8 +10,8 @@ use raptor_lib::frontend::lexer::lexer::{Lexer, LexerOptions};
 use raptor_lib::frontend::parser::{IParser, Parser};
 use raptor_lib::frontend::tokens::{TokenCategory, TokenValue};
 use raptor_lib::import_resolver::ImportResolver;
+use raptor_lib::macro_expander::macro_expander::MacroExpander;
 use raptor_lib::semantic::semantic_checker::checker::{DefinitionInfo, HoverInfo, SemanticChecker};
-
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result as LspResult;
 use tower_lsp::lsp_types::*;
@@ -35,14 +35,11 @@ fn filename_for_uri(uri: &Url) -> &'static str {
         if let Some(name) = cache.borrow().get(uri) {
             return *name;
         }
-
         let raw_path = uri
             .to_file_path()
             .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_else(|_| uri.path().to_string());
-
         let path_string = fix_wsl_drive_prefix(raw_path);
-
         let leaked: &'static str = Box::leak(path_string.into_boxed_str());
         cache.borrow_mut().insert(uri.clone(), leaked);
         URI_CACHE.with(|u| u.borrow_mut().insert(leaked, uri.clone()));
@@ -67,7 +64,6 @@ fn fix_wsl_drive_prefix(path: String) -> String {
     let bytes = path.as_bytes();
     let looks_like_drive_letter =
         bytes.len() >= 4 && bytes[0] == b'/' && bytes[1].is_ascii_alphabetic() && bytes[2] == b':' && (bytes[3] == b'/' || bytes[3] == b'\\');
-
     if looks_like_drive_letter {
         let drive = (bytes[1] as char).to_ascii_lowercase();
         format!("/mnt/{}{}", drive, &path[3..])
@@ -117,7 +113,6 @@ fn std_function_completions() -> Vec<CompletionItem> {
         "vector_size",
         "vector_stringify",
     ];
-
     functions
         .iter()
         .map(|name| CompletionItem {
@@ -169,35 +164,26 @@ impl LanguageServer for Backend {
 
     async fn completion(&self, params: CompletionParams) -> LspResult<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
-
         let source = self.documents.lock().await.get(&uri).map(|doc| doc.text.clone()).unwrap_or_default();
-
         let filename = filename_for_uri(&uri);
-
         let mut items = keyword_completions();
-
         items.extend(std_function_completions());
         items.extend(identifier_completions(&source, filename));
-
         Ok(Some(CompletionResponse::Array(items)))
     }
 
     async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
-
         let documents = self.documents.lock().await;
-
         let Some(doc) = documents.get(&uri) else {
             return Ok(None);
         };
-
         let best = doc
             .hovers
             .iter()
             .filter(|h| span_contains_position(&h.span, position))
             .min_by_key(|h| span_len(&h.span));
-
         Ok(best.map(|h| Hover {
             contents: HoverContents::Scalar(MarkedString::String(h.contents.clone())),
             range: Some(span_to_range(&h.span)),
@@ -207,25 +193,20 @@ impl LanguageServer for Backend {
     async fn goto_definition(&self, params: GotoDefinitionParams) -> LspResult<Option<GotoDefinitionResponse>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
-
         let documents = self.documents.lock().await;
         let Some(doc) = documents.get(&uri) else {
             return Ok(None);
         };
-
         let best = doc
             .definitions
             .iter()
             .filter(|d| span_contains_position(&d.use_span, position))
             .min_by_key(|d| span_len(&d.use_span));
-
         let Some(def) = best else {
             return Ok(None);
         };
-
         let def_filename = def.def_span.start().filename.unwrap_or_else(|| filename_for_uri(&uri));
         let target_uri = uri_for_filename(def_filename).unwrap_or_else(|| uri.clone());
-
         Ok(Some(GotoDefinitionResponse::Scalar(Location {
             uri: target_uri,
             range: span_to_range(&def.def_span),
@@ -237,12 +218,10 @@ impl Backend {
     async fn validate(&self, uri: Url, text: String) {
         let filename = filename_for_uri(&uri);
         let (diagnostics_by_file, hovers, definitions) = analyze(&text, filename);
-
         self.documents
             .lock()
             .await
             .insert(uri.clone(), DocumentState { text, hovers, definitions });
-
         let mut current_files: HashSet<&'static str> = HashSet::new();
 
         // Always publish for the entry document itself, even if it has no
@@ -257,7 +236,6 @@ impl Backend {
             if *other_filename == filename {
                 continue;
             }
-
             if let Some(other_uri) = uri_for_filename(other_filename) {
                 self.client.publish_diagnostics(other_uri, diags.clone(), None).await;
                 current_files.insert(other_filename);
@@ -285,7 +263,6 @@ fn analyze(source: &str, filename: &'static str) -> (HashMap<&'static str, Vec<D
 
     let cursor = Cursor::new(source.as_bytes().to_vec());
     let reader = LazyStreamReader::new(cursor, Some(filename));
-
     let lexer_options = LexerOptions {
         max_comment_length: 500,
         max_identifier_length: 100,
@@ -306,7 +283,6 @@ fn analyze(source: &str, filename: &'static str) -> (HashMap<&'static str, Vec<D
     });
 
     let mut parser = Parser::new(lexer);
-
     let program = match parser.parse() {
         Ok(program) => program,
         Err(err) => {
@@ -316,13 +292,33 @@ fn analyze(source: &str, filename: &'static str) -> (HashMap<&'static str, Vec<D
     };
 
     let mut import_resolver = ImportResolver::new(lexer_options, on_warning);
-    let import_resolved_program = match import_resolver.resolve(filename, program) {
+    let mut import_resolved_program = match import_resolver.resolve(filename, program) {
         Ok(program) => program,
         Err(err) => {
             push_error(&mut diagnostics, err.as_ref(), DiagnosticSeverity::ERROR, filename);
             return (diagnostics, vec![], vec![]);
         }
     };
+
+    // Macro expansion
+    let mut macro_expander = MacroExpander::new(&mut import_resolved_program);
+    macro_expander.run();
+    let mut has_macro_errors = false;
+    for error in &macro_expander.errors {
+        let severity = match error.get_severity() {
+            ErrorSeverity::HIGH => {
+                has_macro_errors = true;
+                DiagnosticSeverity::ERROR
+            }
+            ErrorSeverity::LOW => DiagnosticSeverity::WARNING,
+        };
+        push_error(&mut diagnostics, error.as_ref(), severity, filename);
+    }
+    // If there were hard macro errors, stop before semantic analysis
+    // (same behaviour as the CLI which exits on any macro expander errors).
+    if has_macro_errors {
+        return (diagnostics, vec![], vec![]);
+    }
 
     let mut semantic_checker = match SemanticChecker::new(&import_resolved_program) {
         Ok(checker) => checker,
@@ -331,9 +327,7 @@ fn analyze(source: &str, filename: &'static str) -> (HashMap<&'static str, Vec<D
             return (diagnostics, vec![], vec![]);
         }
     };
-
     semantic_checker.check();
-
     for error in &semantic_checker.errors {
         let severity = match error.get_severity() {
             ErrorSeverity::HIGH => DiagnosticSeverity::ERROR,
@@ -362,7 +356,6 @@ fn keyword_completions() -> Vec<CompletionItem> {
         "for", "while", "if", "else", "as", "fn", "true", "false", "return", "switch", "break", "continue", "import", "extern",
     ];
     let types = ["bool", "str", "i64", "f64", "void"];
-
     let mut items: Vec<CompletionItem> = keywords
         .iter()
         .map(|kw| CompletionItem {
@@ -371,13 +364,11 @@ fn keyword_completions() -> Vec<CompletionItem> {
             ..Default::default()
         })
         .collect();
-
     items.extend(types.iter().map(|ty| CompletionItem {
         label: ty.to_string(),
         kind: Some(CompletionItemKind::TYPE_PARAMETER),
         ..Default::default()
     }));
-
     items
 }
 
@@ -388,9 +379,7 @@ fn identifier_completions(source: &str, filename: &'static str) -> Vec<Completio
         max_comment_length: 500,
         max_identifier_length: 100,
     };
-
     let mut names = std::collections::HashSet::new();
-
     if let Ok(mut lexer) = Lexer::new(reader, lexer_options, |_| {}) {
         while let Ok(token) = lexer.generate_token() {
             if token.category == TokenCategory::Identifier {
@@ -403,7 +392,6 @@ fn identifier_completions(source: &str, filename: &'static str) -> Vec<Completio
             }
         }
     }
-
     names
         .into_iter()
         .map(|name| CompletionItem {
@@ -417,7 +405,6 @@ fn identifier_completions(source: &str, filename: &'static str) -> Vec<Completio
 fn error_to_diagnostic(err: &dyn IError, severity: DiagnosticSeverity) -> Diagnostic {
     let span = err.get_span();
     let range = span_to_range(&span);
-
     Diagnostic {
         range,
         severity: Some(severity),
@@ -450,7 +437,6 @@ fn span_len(span: &Span) -> (u32, u32) {
 async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-
     let (service, socket) = LspService::new(|client| Backend {
         client,
         documents: Mutex::new(HashMap::new()),

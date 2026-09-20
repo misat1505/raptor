@@ -2,7 +2,6 @@ import "./lexer.rp";
 import "./parser.rp";
 import "./json-serializer.rp";
 
-
 fn main(): void {
     let source = read_file("./projects/xml-to-json/data/data1.xml");
     let lexer = lexer_new(source);

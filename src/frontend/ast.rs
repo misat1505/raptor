@@ -225,6 +225,7 @@ pub struct StructMember {
 pub struct StructDeclaration {
     pub identifier: Node<String>,
     pub members: Vec<Node<StructMember>>,
+    pub derives: Vec<Node<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -237,6 +238,7 @@ pub struct EnumMember {
 pub struct EnumDeclaration {
     pub identifier: Node<String>,
     pub members: Vec<Node<EnumMember>>,
+    pub derives: Vec<Node<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -8,7 +8,7 @@
 
 **match_statement** = "match", "(", expression, ")", "{", match_arms, [ ",", rest_arm ], "}";
 
-```
+```raptor
 match (task) {
     Task::InProgress(deadline) {
         #  deadline: Deadline - available only in this scope
@@ -30,12 +30,18 @@ match (task) {
 **rest_arm** = "rest", statement_block;
 
 **import_declaration** = "import", literal, ";";
-```
+```raptor
 import "../utils.rp";
 ```
 
-**struct_declaration** = "struct", identifier, "{", [ struct_members ], "}", ";";
-```text
+**derives_declaration** = derives, identifier, { ",", identifier };
+
+```raptor
+derives Debug, Json
+```
+
+**struct_declaration** = "struct", identifier, [ derives_declaration ], "{", [ struct_members ], "}", ";";
+```raptor
 struct Hobby {
   u64 id,
   str description
@@ -51,8 +57,8 @@ struct Person {
 
 **struct_member** = type, identifier;
 
-**enum_declaration** = "enum", identifier, "{", [ enum_members ], "}", ";";
-```text
+**enum_declaration** = "enum", identifier, [ derives_declaration ], "{", [ enum_members ], "}", ";";
+```raptor
 enum Task {
     InProgress(Deadline),
     Completed(str),
@@ -66,14 +72,14 @@ enum Task {
 
 **extern_function_declaration** = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
 
-```text
+```raptor
 extern fn InitWindow(i64 x, i64 y, str name): void as init_window;
 extern fn PrintValue(i64 value): void as print_value;
 ```
 
 **function_declaration** = "fn", identifier, "(", parameters, ")", ":", type | "void", statement_block;
 
-```text
+```raptor
 fn is_prime(i64 x, &i64 total_iters): bool {
     return true;
 }
@@ -95,7 +101,7 @@ fn add(i64 a, i64 b): i64 {
 
 **assign_or_call** = assign_or_call_without_semicolon, ";";
 
-```text
+```raptor
 x = 5;
 my_fun(5, 2);
 
@@ -107,7 +113,7 @@ result = add(10, 20);
 
 **declaration** = type, identifier, [ "=", expression ];
 
-```text
+```raptor
 bool is_valid = true;
 i64 counter = 0;
 f64 result = 10.5;
@@ -116,7 +122,7 @@ str message = "Hello, Raptor!";
 
 **let_declaration** = let, identifier, [ ":", identifier ], "=", expression, ";";
 
-```text
+```raptor
 let is_valid = true;
 let counter = 0;
 let result = 10.5;
@@ -127,7 +133,7 @@ let array: str[] = [];
 
 **if_statement** = "if", "(", expression, ")", statement_block, [ "else", statement_block ];
 
-```text
+```raptor
 if (x == 5) {
     println("x is five.");
 } else {
@@ -137,7 +143,7 @@ if (x == 5) {
 
 **for_statement** = "for", "(", [ declaration ], ";", expression, ";", [ assign_or_call_without_semicolon ], ")", statement_block;
 
-```text
+```raptor
 for (i64 i = 0; i < 10; i = i + 1) {
     println(i as str);
 }
@@ -145,7 +151,7 @@ for (i64 i = 0; i < 10; i = i + 1) {
 
 **while_statement** = "while", "(", expression, ")", statement_block
 
-```text
+```raptor
 while (x < 5) {
     x += 1;
 }
@@ -153,7 +159,7 @@ while (x < 5) {
 
 A `for` loop may also omit its initialization and increment expressions:
 
-```text
+```raptor
 i64 i = 0;
 
 for (; i < 10 ;) {
@@ -163,19 +169,19 @@ for (; i < 10 ;) {
 
 **break_statement** = "break", ";";
 
-```text
+```raptor
 break;
 ```
 
 **continue_statement** = "continue", ";";
 
-```text
+```raptor
 continue;
 ```
 
 **return_statement** = "return", [ expression ], ";";
 
-```text
+```raptor
 return a + 2 * b;
 ```
 
@@ -183,7 +189,7 @@ return a + 2 * b;
 
 **arguments** = [ argument, {",", argument} ];
 
-```text
+```raptor
 a + 2
 &b
 c
@@ -191,46 +197,46 @@ c
 
 Multiple arguments are separated by commas:
 
-```text
+```raptor
 calculate(a + 2, &b, c);
 ```
 
 **expression** = concatenation_term { "||", concatenation_term };
 
-```text
+```raptor
 a == b && b || c
 ```
 
 **concatenation_term** = relation_term, { "&&", relation_term };
 
-```text
+```raptor
 a == b && b
 ```
 
 **relation_term** = additive_term, [ relation_operands, additive_term ];
 
-```text
+```raptor
 x == y
 x >= y
 ```
 
 **additive_term** = multiplicative_term , { ("+" | "-"), multiplicative_term };
 
-```text
+```raptor
 1 + (1 + 2) / (2 + 3)
 x + 10 - y
 ```
 
 **multiplicative_term** = casted_term, { ("*" | "/" | "%"), casted_term };
 
-```text
+```raptor
 (1 + 2) / (2 + 3)
 x * 10 % 3
 ```
 
 **casted_term** = unary_term, [ "as", type ];
 
-```text
+```raptor
 (x + add(2, 2)) as f64
 
 2 as i64      # 2
@@ -249,7 +255,7 @@ x * 10 % 3
 
 **unary_term** = [ ("-", "!") ], factor;
 
-```text
+```raptor
 -2
 -(x + 5)
 
@@ -259,7 +265,7 @@ x * 10 % 3
 
 **factor** = literal | ( "(", expression, ")" ) | identifier_or_call_or_struct_literal_or_enum_literal | vector_literal;
 
-```text
+```raptor
 5
 2.2
 (2.2 + 3 as f64)
@@ -270,7 +276,7 @@ fun(5)
 
 **vector_literal** = "[", [ expression, { ",", expression } ], "]";
 
-```text
+```raptor
 []
 
 [1, 2, 3]
@@ -284,7 +290,7 @@ fun(5)
 ```
 
 **identifier_or_call_or_struct_literal_or_enum_literal** = identifier, ( call_or_index_tail | struct_literal_tail | enum_literal_tail );
-```text
+```raptor
 x
 fun(5)
 
@@ -314,7 +320,7 @@ HttpStatus::NotFound("user not found")
 
 **identifier** = letter, {character};
 
-```text
+```raptor
 super_variable_123
 counter
 result_value
@@ -328,7 +334,7 @@ result_value
 
 **switch_case** = "(", expression, ")", "->", statement_block;
 
-```text
+```raptor
 switch (x: temp1, y: temp2) {
     (x < 5 && temp2 < 5) -> {
         print("Less than 5.");
@@ -355,7 +361,7 @@ switch (x: temp1, y: temp2) {
 
 **integer_literal** = ( non_zero_digit, {digit} ) | "0";
 
-```text
+```raptor
 1
 12
 10
@@ -364,7 +370,7 @@ switch (x: temp1, y: temp2) {
 
 **float_literal** = integer_literal, ".", {digit}
 
-```text
+```raptor
 1.0
 1.2
 10.0

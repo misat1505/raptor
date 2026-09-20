@@ -147,7 +147,7 @@
       "patterns": [
         {
           "name": "constant.language.rp",
-          "match": "\\b(true|false|let|struct|enum)\\b"
+          "match": "\\b(true|false|let|struct|enum|derives)\\b"
         }
       ]
     },

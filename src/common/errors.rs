@@ -134,6 +134,7 @@ define_error!(ScopeManagerError);
 define_error!(StackOverflowError);
 define_error!(StdFunctionError);
 define_error!(CompilerError);
+define_error!(MacroExpanderError);
 
 #[allow(dead_code)]
 pub struct ErrorsManager;

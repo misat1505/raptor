@@ -35,7 +35,6 @@ graph.attr(
     arrowsize="0.7",
 )
 
-
 ICON_SIZE = "36"
 
 
@@ -109,8 +108,26 @@ with graph.subgraph(name="cluster_import") as import_cluster:
 
 graph.edge("parser", "merge", xlabel=" AST ")
 
-icon_node(graph, "checker", "checker", "Semantic Checker", "#F0FDF4", "#16A34A")
-graph.edge("merge", "checker", xlabel=" merged AST ")
+icon_node(
+    graph,
+    "macro_expander",
+    "macro",
+    "Macro Expander",
+    "#FFF7ED",
+    "#EA580C",
+)
+
+icon_node(
+    graph,
+    "checker",
+    "checker",
+    "Semantic Checker",
+    "#F0FDF4",
+    "#16A34A",
+)
+
+graph.edge("merge", "macro_expander", xlabel=" merged AST ")
+graph.edge("macro_expander", "checker", xlabel=" expanded AST ")
 
 with graph.subgraph(name="cluster_backends") as backends:
     backends.attr(
@@ -125,11 +142,37 @@ with graph.subgraph(name="cluster_backends") as backends:
     )
 
     icon_node(
-        backends, "interpreter", "interpreter", "Interpreter", "#FFF7E6", "#F59E0B"
+        backends,
+        "interpreter",
+        "interpreter",
+        "Interpreter",
+        "#FFF7E6",
+        "#F59E0B",
     )
-    icon_node(backends, "compiler", "compiler", "Compiler", "#FFF7E6", "#F59E0B")
-    icon_node(backends, "llvm", "llvm", "LLVM 18 tools", "#F8FAFC", "#64748B")
-    icon_node(backends, "executable", "executable", "executable", "#F5EEFF", "#7C3AED")
+    icon_node(
+        backends,
+        "compiler",
+        "compiler",
+        "Compiler",
+        "#FFF7E6",
+        "#F59E0B",
+    )
+    icon_node(
+        backends,
+        "llvm",
+        "llvm",
+        "LLVM 18 tools",
+        "#F8FAFC",
+        "#64748B",
+    )
+    icon_node(
+        backends,
+        "executable",
+        "executable",
+        "executable",
+        "#F5EEFF",
+        "#7C3AED",
+    )
 
     backends.edge("compiler", "llvm", xlabel=" LLVM IR ")
     backends.edge("llvm", "executable")

@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, MacroExpanderError},
@@ -48,7 +46,7 @@ impl<'a> MacroExpander<'a> {
             block: macro_node!(block),
         };
 
-        self.program.functions.insert(debug_fn_name, Rc::new(macro_node!(debug_fn)));
+        self.insert_function(debug_fn, derive_span);
     }
 
     // -------------------------------------------------------------------------

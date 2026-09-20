@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::{
     common::{
         errors::{ErrorSeverity, IError, MacroExpanderError},
@@ -45,7 +43,7 @@ impl<'a> MacroExpander<'a> {
             block: macro_node!(block),
         };
 
-        self.program.functions.insert(json_fn_name, Rc::new(macro_node!(json_fn)));
+        self.insert_function(json_fn, derive_span);
     }
 
     // -------------------------------------------------------------------------

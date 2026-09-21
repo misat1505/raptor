@@ -67,7 +67,7 @@
       "patterns": [
         {
           "name": "keyword.control.rp",
-          "match": "\\b(fn|extern|if|else|for|while|switch|return|break|continue|import|as|match|rest)\\b"
+          "match": "\\b(fn|extern|if|else|for|while|switch|return|break|continue|import|as|match|rest|matches|not)\\b"
         }
       ]
     },

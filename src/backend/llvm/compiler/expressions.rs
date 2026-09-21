@@ -493,15 +493,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                 let field_value = LlvmValue::from_basic_value_enum(raw_value, &resolved_field_type);
 
-                let field_value = match field_value {
-                    LlvmValue::Str(ptr) => LlvmValue::Str(self.build_string_copy(ptr, field.span)?),
-
-                    other => {
-                        self.retain_value(&other, field.span)?;
-
-                        other
-                    }
-                };
+                self.retain_value(&field_value, field.span)?;
 
                 // Release the temporary instance only AFTER we have
                 // completely extracted the field value.

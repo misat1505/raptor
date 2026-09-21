@@ -1,4 +1,3 @@
-
 use std::io::BufReader;
 
 use crate::frontend::lexer::lazy_stream_reader::{ILazyStreamReader, LazyStreamReader, ETX, STX};

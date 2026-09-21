@@ -1,9 +1,9 @@
 use crate::frontend::parser::tests::{create_token, LexerMock};
 use crate::frontend::{
-        ast::{Expression, Literal},
-        parser::{tests::test_node, IParser, Parser},
-        tokens::{TokenCategory, TokenValue},
-    };
+    ast::{Expression, Literal},
+    parser::{tests::test_node, IParser, Parser},
+    tokens::{TokenCategory, TokenValue},
+};
 
 #[test]
 fn parse_vector_literal() {

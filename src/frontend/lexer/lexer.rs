@@ -674,6 +674,8 @@ static KEYWORDS: phf::Map<&'static str, TokenCategory> = phf_map! {
     "match" => TokenCategory::Match,
     "rest" => TokenCategory::Rest,
     "derives" => TokenCategory::Derives,
+    "matches" => TokenCategory::Matches,
+    "not" => TokenCategory::Not,
 };
 
 static ESCAPES: phf::Map<char, char> = phf_map! {

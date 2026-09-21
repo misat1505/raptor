@@ -16,7 +16,7 @@ fn synthetic_break_block(span: Span) -> Node<Block> {
     Node {
         value: Block(vec![Node {
             value: Statement::Break,
-            span: span.clone(),
+            span,
         }]),
         span,
     }
@@ -76,18 +76,18 @@ impl<L: ILexer> Parser<L> {
                 return Err(Box::new(ParserError::at(
                     ErrorSeverity::HIGH,
                     String::from("Cannot take the inner value of enum variant in while-not-matches statement."),
-                    var_val.span.clone(),
+                    var_val.span,
                 )));
             }
         }
 
         let match_span = Span::new(condition.span.start(), body.span.end());
         let loop_span = Span::new(start_pos, body.span.end());
-        let break_block = synthetic_break_block(condition.span.clone());
+        let break_block = synthetic_break_block(condition.span);
 
         let true_condition = Node {
             value: Expression::Literal(Literal::True),
-            span: condition.span.clone(),
+            span: condition.span,
         };
 
         let (arm_block, rest_block) = if is_negating { (break_block, body) } else { (body, break_block) };
@@ -99,7 +99,7 @@ impl<L: ILexer> Parser<L> {
                 match_arms: vec![arm],
                 rest_arm: Some(rest_block),
             },
-            span: match_span.clone(),
+            span: match_span,
         };
 
         let loop_block = Node {

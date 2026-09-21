@@ -11,5 +11,6 @@ mod primitive_values;
 mod references;
 mod structs;
 mod switch;
+mod syntactic_sugars;
 mod types_and_casts;
 mod vectors;

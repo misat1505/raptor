@@ -35,14 +35,11 @@ fn parser_parse_element(&Parser parser): NamedNode {
 
     let key = "";
 
-    match (parser.lexer.current_token.value) {
-        OptionTokenValue::Some(value) {
-            match (value) {
-                TokenValue::Str(text) { key = text; },
-                TokenValue::Number(num) { key = num as str; }
-            }
-        },
-        OptionTokenValue::None {}
+    if (parser.lexer.current_token.value matches OptionTokenValue::Some(value)) {
+        match (value) {
+            TokenValue::Str(text) { key = text; },
+            TokenValue::Number(num) { key = num as str; }
+        }
     }
 
     lexer_next_token(&parser.lexer); # consume tag name, current = '>'
@@ -59,21 +56,13 @@ fn parser_parse_element(&Parser parser): NamedNode {
 }
 
 fn parser_parse_value(&Parser parser): Node {
-    match (parser.lexer.current_token.kind) {
-        TokenKind::Literal {
-            return parser_parse_literal_value(&parser);
-        },
-        rest {}
-    }
-
-    match (parser.lexer.next_token.value) {
-        OptionTokenValue::Some(value) {
-            match (value) {
-                TokenValue::Number return parser_parse_array_value(&parser);,
-                TokenValue::Str return parser_parse_object_value(&parser);
-            }
-        },
-        OptionTokenValue::None {}
+    if (parser.lexer.current_token.kind matches TokenKind::Literal) {
+        return parser_parse_literal_value(&parser);
+    } else if (parser.lexer.next_token.value matches OptionTokenValue::Some(value)) {
+        match (value) {
+            TokenValue::Number return parser_parse_array_value(&parser);,
+            TokenValue::Str return parser_parse_object_value(&parser);
+        }
     }
 
     return parser_parse_object_value(&parser);
@@ -83,14 +72,11 @@ fn parser_parse_literal_value(&Parser parser): Node {
     let position = position_clone(&parser.lexer.current_token.position);
     let node_literal = NodeLiteral::Number(0);
 
-    match (parser.lexer.current_token.value) {
-        OptionTokenValue::Some(value) {
-            match (value) {
-                TokenValue::Number(num) { node_literal = NodeLiteral::Number(num); },
-                TokenValue::Str(text) { node_literal = NodeLiteral::Str(text); }
-            }
-        },
-        OptionTokenValue::None {}
+    if (parser.lexer.current_token.value matches OptionTokenValue::Some(value)) {
+        match (value) {
+            TokenValue::Number(num) { node_literal = NodeLiteral::Number(num); },
+            TokenValue::Str(text) { node_literal = NodeLiteral::Str(text); }
+        }
     }
 
     lexer_next_token(&parser.lexer); # consume literal, current = '<' of closing tag
@@ -107,16 +93,8 @@ fn parser_parse_object_value(&Parser parser): Node {
     let keys: str[] = [];
     let nodes: Node[] = [];
 
-    while (true) {
-        match (parser.lexer.current_token.kind) {
-            TokenKind::Less {
-                match (parser.lexer.next_token.kind) {
-                    TokenKind::Slash break;,
-                    rest {}
-                }
-            },
-            rest break;
-        }
+    while (parser.lexer.current_token.kind matches TokenKind::Less) {
+        if (parser.lexer.next_token.kind matches TokenKind::Slash) break;
 
         let named = parser_parse_element(&parser);
 
@@ -135,19 +113,10 @@ fn parser_parse_array_value(&Parser parser): Node {
 
     let nodes: Node[] = [];
 
-    while (true) {
-        match (parser.lexer.current_token.kind) {
-            TokenKind::Less {
-                match (parser.lexer.next_token.kind) {
-                    TokenKind::Slash break;,
-                    rest {}
-                }
-            },
-            rest break;
-        }
+    while (parser.lexer.current_token.kind matches TokenKind::Less) {
+        if (parser.lexer.next_token.kind matches TokenKind::Slash) break;
 
         let named = parser_parse_element(&parser);
-
         vector_push(&nodes, named.node);
     }
 

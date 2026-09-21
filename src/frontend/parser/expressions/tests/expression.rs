@@ -1,9 +1,9 @@
 use crate::frontend::parser::tests::{create_token, LexerMock};
 use crate::frontend::{
-        ast::Expression,
-        parser::{tests::test_node, IParser, Parser},
-        tokens::{TokenCategory, TokenValue},
-    };
+    ast::Expression,
+    parser::{tests::test_node, IParser, Parser},
+    tokens::{TokenCategory, TokenValue},
+};
 
 #[test]
 fn parse_expression() {

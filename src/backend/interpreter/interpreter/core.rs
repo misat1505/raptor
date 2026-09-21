@@ -10,10 +10,10 @@ impl<'a> Interpreter<'a> {
             match this {
                 Some(v) => Ok(v),
                 None => Err(Box::new(InterpreterError::at(
-                        ErrorSeverity::HIGH,
-                        String::from("No value produced where it is needed."),
-                        self.span,
-                    ))),
+                    ErrorSeverity::HIGH,
+                    String::from("No value produced where it is needed."),
+                    self.span,
+                ))),
             }
         }
     }

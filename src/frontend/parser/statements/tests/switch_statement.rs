@@ -1,9 +1,9 @@
 use crate::frontend::parser::tests::{create_token, LexerMock};
 use crate::frontend::{
-        ast::{Block, Expression, Literal, Statement, SwitchCase, SwitchExpression},
-        parser::{tests::test_node, IParser, Parser},
-        tokens::{TokenCategory, TokenValue},
-    };
+    ast::{Block, Expression, Literal, Statement, SwitchCase, SwitchExpression},
+    parser::{tests::test_node, IParser, Parser},
+    tokens::{TokenCategory, TokenValue},
+};
 
 #[test]
 fn parse_switch_statement() {

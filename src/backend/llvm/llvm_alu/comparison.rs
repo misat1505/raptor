@@ -30,7 +30,12 @@ impl LlvmAlu {
         let header_type = context.struct_type(&[i64_type.into(), ptr_type.into()], false);
 
         let left_data_field = builder
-            .build_struct_gep(header_type, left, crate::backend::llvm::llvm_alu::llvm_value::STR_DATA, "strcmp.left.data")
+            .build_struct_gep(
+                header_type,
+                left,
+                crate::backend::llvm::llvm_alu::llvm_value::STR_DATA,
+                "strcmp.left.data",
+            )
             .map_err(|err| Self::map_err(err, span))?;
         let left_data = builder
             .build_load(ptr_type, left_data_field, "strcmp.left.data.val")
@@ -38,7 +43,12 @@ impl LlvmAlu {
             .into_pointer_value();
 
         let right_data_field = builder
-            .build_struct_gep(header_type, right, crate::backend::llvm::llvm_alu::llvm_value::STR_DATA, "strcmp.right.data")
+            .build_struct_gep(
+                header_type,
+                right,
+                crate::backend::llvm::llvm_alu::llvm_value::STR_DATA,
+                "strcmp.right.data",
+            )
             .map_err(|err| Self::map_err(err, span))?;
         let right_data = builder
             .build_load(ptr_type, right_data_field, "strcmp.right.data.val")

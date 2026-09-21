@@ -62,15 +62,13 @@ impl<L: ILexer> Parser<L> {
                 value: Type::Void,
                 span: token.span,
             }),
-            None => {
-                Err(Box::new(ParserError::expected_found(
-                    ErrorSeverity::HIGH,
-                    "Bad return type".to_string(),
-                    "'i64', 'f64', 'bool', 'str', or 'void'".to_string(),
-                    format!("{}", self.current_token().category),
-                    self.current_token().span,
-                )))
-            }
+            None => Err(Box::new(ParserError::expected_found(
+                ErrorSeverity::HIGH,
+                "Bad return type".to_string(),
+                "'i64', 'f64', 'bool', 'str', or 'void'".to_string(),
+                format!("{}", self.current_token().category),
+                self.current_token().span,
+            ))),
         }
     }
 }

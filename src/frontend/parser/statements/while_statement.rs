@@ -24,8 +24,9 @@ fn synthetic_break_block(span: Span) -> Node<Block> {
 
 impl<L: ILexer> Parser<L> {
     pub(in crate::frontend::parser) fn parse_while_statement(&mut self) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
-        // while_statement = "while", "(", expression, ")", statement_block
-        //                 | "while", "(", expression, [ "not" ], "matches", match_arm_without_block, ")", statement_block;
+        // while_statement = "while", "(", expression, (
+        //      ( ")", statement_block ) |
+        //      ( [ "not" ], "matches", match_arm_without_block, ")", statement_block ) );
 
         let while_token = try_consume_token!(self, TokenCategory::While);
 

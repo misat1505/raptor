@@ -131,13 +131,23 @@ let colors = ["white", "black"];
 let array: str[] = [];
 ```
 
-**if_statement** = "if", "(", expression, ")", statement_block, [ "else", statement_block ];
+**if_statement** = "if", "(", expression, ( ( ")", statement_block ) | ( [ "not" ], "matches", match_arm_without_block, ")", statement_block ) ), [ "else", statement_block ];
 
 ```raptor
 if (x == 5) {
     println("x is five.");
 } else {
     println("x is not five.");
+}
+
+if (foo matches MyEnum::Variant(boo)) {
+    println(boo);
+} else {}
+
+if (foo not matches MyEnum::Variant) {
+    println("doesn't match");
+} else {
+    println("matches");
 }
 ```
 
@@ -149,11 +159,19 @@ for (i64 i = 0; i < 10; i = i + 1) {
 }
 ```
 
-**while_statement** = "while", "(", expression, ")", statement_block
+**while_statement** = "while", "(", expression, ( ( ")", statement_block ) | ( [ "not" ], "matches", match_arm_without_block, ")", statement_block ) );
 
 ```raptor
 while (x < 5) {
     x += 1;
+}
+
+while (foo matches MyEnum::Variant(boo)) {
+    println("still matches");
+}
+
+while (foo not matches MyEnum::Variant(boo)) {
+    println("still doesn't match");
 }
 ```
 

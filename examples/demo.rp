@@ -56,6 +56,10 @@ match (users[idx].status) {
     rest println(account_status_debug(&users[idx].status) + " doesn't contain data of type 'Timestamp'.");
 }
 
+if (users[idx].status matches AccountStatus::Deleted(timestamp)) {
+    println(pretty_timestamp(&timestamp));
+}
+
 for (let i = 0; i < vector_size(&users); i += 1) {
     println(user_debug(&users[i]));
 }

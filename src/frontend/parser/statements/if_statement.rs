@@ -1,7 +1,7 @@
 use crate::{
-    common::{errors::IError, span::Span},
+    common::{errors::IError, position::Position, span::Span},
     frontend::{
-        ast::{Node, Statement},
+        ast::{Block, Expression, Node, Statement},
         lexer::lexer::ILexer,
         parser::{core::try_consume_token, Parser},
         tokens::TokenCategory,
@@ -20,7 +20,9 @@ impl<L: ILexer> Parser<L> {
             .parse_expression()?
             .ok_or_else(|| self.create_parser_error(String::from("Couldn't create expression while parsing if statement.")))?;
 
-        let _ = self.consume_must_be(TokenCategory::ParenClose)?;
+        if self.consume_if_matches(TokenCategory::ParenClose)?.is_none() {
+            return self.finish_if_matches_statement(&condition, if_token.span.start());
+        }
 
         let true_block = self
             .parse_statement_block()?
@@ -46,5 +48,42 @@ impl<L: ILexer> Parser<L> {
         };
 
         Ok(Some(node))
+    }
+
+    fn finish_if_matches_statement(&mut self, condition: &Node<Expression>, start_pos: Position) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        let _ = self.consume_must_be(TokenCategory::Matches)?;
+
+        let mut arm = self
+            .parse_match_arm_without_block()?
+            .ok_or_else(|| self.create_parser_error(String::from("Couldn't create match arm while parsing if-matches statement.")))?;
+
+        let _ = self.consume_must_be(TokenCategory::ParenClose)?;
+
+        let match_block = self
+            .parse_statement_block()?
+            .ok_or_else(|| self.create_parser_error(String::from("Couldn't create statement block while parsing if-matches statement.")))?;
+
+        arm.value.block = match_block.clone();
+
+        let rest_block = match self.consume_if_matches(TokenCategory::Else)? {
+            Some(_) => self
+                .parse_statement_block()?
+                .ok_or_else(|| self.create_parser_error(String::from("Couldn't create statement block while parsing if-matches else statement.")))?,
+            None => Node {
+                value: Block(vec![]),
+                span: Span::new(match_block.span.end(), match_block.span.end()),
+            },
+        };
+
+        let stmt = Statement::Match {
+            expression: condition.clone(),
+            match_arms: vec![arm],
+            rest_arm: Some(rest_block.clone()),
+        };
+
+        Ok(Some(Node {
+            value: stmt,
+            span: Span::new(start_pos, rest_block.span.end()),
+        }))
     }
 }

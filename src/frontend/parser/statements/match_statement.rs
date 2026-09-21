@@ -128,6 +128,47 @@ impl<L: ILexer> Parser<L> {
         Ok(Some(node))
     }
 
+    pub(in crate::frontend::parser) fn parse_match_arm_without_block(&mut self) -> Result<Option<Node<MatchArm>>, Box<dyn IError>> {
+        // match_arm = identifier, "::", identifier, [ "(", identifier, ")" ];
+        let start = self.current_token().span.start();
+
+        let enum_name = self
+            .parse_identifier()?
+            .ok_or_else(|| self.create_parser_error(String::from("Expected an enum name in match arm.")))?;
+
+        self.consume_must_be(TokenCategory::DoubleColon)?;
+
+        let variant_name = self
+            .parse_identifier()?
+            .ok_or_else(|| self.create_parser_error(String::from("Expected an enum variant name in match arm.")))?;
+
+        let (variant_value, end_pos) = if self.consume_if_matches(TokenCategory::ParenOpen)?.is_some() {
+            let value = self
+                .parse_identifier()?
+                .ok_or_else(|| self.create_parser_error(String::from("Expected an identifier inside match arm.")))?;
+
+            let paren_close_token = self.consume_must_be(TokenCategory::ParenClose)?;
+
+            (Some(value), paren_close_token.span.end())
+        } else {
+            (None, variant_name.span.end())
+        };
+
+        let span = Span::new(start, end_pos);
+
+        let node = Node {
+            value: MatchArm {
+                enum_name,
+                variant_name,
+                variant_value,
+                block: Node { value: Block(vec![]), span },
+            },
+            span,
+        };
+
+        Ok(Some(node))
+    }
+
     fn parse_rest_arm_block(&mut self) -> Result<Option<Node<Block>>, Box<dyn IError>> {
         // rest_arm = "rest", statement_block;
 

@@ -90,6 +90,7 @@ pub enum TokenCategory {
     Rest,
     Derives,
     Matches,
+    Not,
 }
 
 impl Display for TokenCategory {
@@ -172,6 +173,7 @@ impl Display for TokenCategory {
             Rest => "rest",
             Derives => "derives",
             Matches => "matches",
+            Not => "not",
         };
 
         Ok(write!(f, "{}", text)?)

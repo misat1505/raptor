@@ -1,5 +1,9 @@
 use crate::{
-    common::{errors::IError, position::Position, span::Span},
+    common::{
+        errors::{ErrorSeverity, IError, ParserError},
+        position::Position,
+        span::Span,
+    },
     frontend::{
         ast::{Block, Expression, Node, Statement},
         lexer::lexer::ILexer,
@@ -51,6 +55,7 @@ impl<L: ILexer> Parser<L> {
     }
 
     fn finish_if_matches_statement(&mut self, condition: &Node<Expression>, start_pos: Position) -> Result<Option<Node<Statement>>, Box<dyn IError>> {
+        let is_negating = self.consume_if_matches(TokenCategory::Not)?.is_some();
         let _ = self.consume_must_be(TokenCategory::Matches)?;
 
         let mut arm = self
@@ -63,8 +68,6 @@ impl<L: ILexer> Parser<L> {
             .parse_statement_block()?
             .ok_or_else(|| self.create_parser_error(String::from("Couldn't create statement block while parsing if-matches statement.")))?;
 
-        arm.value.block = match_block.clone();
-
         let rest_block = match self.consume_if_matches(TokenCategory::Else)? {
             Some(_) => self
                 .parse_statement_block()?
@@ -75,10 +78,30 @@ impl<L: ILexer> Parser<L> {
             },
         };
 
-        let stmt = Statement::Match {
-            expression: condition.clone(),
-            match_arms: vec![arm],
-            rest_arm: Some(rest_block.clone()),
+        let stmt = if is_negating {
+            arm.value.block = rest_block.clone();
+
+            if let Some(var_val) = arm.value.variant_value {
+                return Err(Box::new(ParserError::at(
+                    ErrorSeverity::HIGH,
+                    String::from("Cannot take the inner value of enum variant in if-not-matches statement."),
+                    var_val.span,
+                )));
+            }
+
+            Statement::Match {
+                expression: condition.clone(),
+                match_arms: vec![arm],
+                rest_arm: Some(match_block.clone()),
+            }
+        } else {
+            arm.value.block = match_block.clone();
+
+            Statement::Match {
+                expression: condition.clone(),
+                match_arms: vec![arm],
+                rest_arm: Some(rest_block.clone()),
+            }
         };
 
         Ok(Some(Node {

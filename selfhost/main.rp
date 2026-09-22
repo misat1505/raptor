@@ -30,6 +30,12 @@ fn main(): void {
                 if (value.category matches TokenCategory::ETX) {
                     break;
                 }
+
+                let stringified = token_category_to_string(value.category);
+                let whitespaces = 20 - str_len(stringified);
+                print(token_category_to_string(value.category));
+                for (let i = 0; i < whitespaces; i += 1) print(" ");
+                println(position_display(&value.span.start) + "\t-> " + position_display(&value.span.end));
             },
 
             OptionToken::None {

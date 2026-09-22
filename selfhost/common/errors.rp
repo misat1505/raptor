@@ -1,0 +1,524 @@
+import "./span.rp";
+import "./position.rp";
+
+
+enum ErrorSeverity derives Debug {
+    HIGH,
+    LOW
+};
+
+
+struct LexerError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+struct ParserError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+struct SemanticCheckerError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+struct InterpreterError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+struct ComputationError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+struct ScopeManagerError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+struct StackOverflowError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+struct StdFunctionError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+struct CompilerError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+struct MacroExpanderError derives Debug {
+    str message,
+    ErrorSeverity level,
+    Span span
+};
+
+
+fn error_severity_to_string(ErrorSeverity severity): str {
+    match (severity) {
+        ErrorSeverity::HIGH return "\x1b[1;31merror\x1b[0m";,
+        ErrorSeverity::LOW return "\x1b[1;33mwarning\x1b[0m";
+    }
+}
+
+
+fn error_severity_color(ErrorSeverity severity): str {
+    match (severity) {
+        ErrorSeverity::HIGH return "\x1b[1;31m";,
+        ErrorSeverity::LOW return "\x1b[1;33m";
+    }
+}
+
+
+fn lexer_error_new(ErrorSeverity level, str message, Span span): LexerError {
+    return LexerError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn lexer_error_at(ErrorSeverity level, str summary, Span span): LexerError {
+    return LexerError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn lexer_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): LexerError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return LexerError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn parser_error_new(ErrorSeverity level, str message, Span span): ParserError {
+    return ParserError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn parser_error_at(ErrorSeverity level, str summary, Span span): ParserError {
+    return ParserError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn parser_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): ParserError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return ParserError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn semantic_checker_error_new(
+    ErrorSeverity level,
+    str message,
+    Span span
+): SemanticCheckerError {
+    return SemanticCheckerError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn semantic_checker_error_at(
+    ErrorSeverity level,
+    str summary,
+    Span span
+): SemanticCheckerError {
+    return SemanticCheckerError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn semantic_checker_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): SemanticCheckerError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return SemanticCheckerError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn interpreter_error_new(
+    ErrorSeverity level,
+    str message,
+    Span span
+): InterpreterError {
+    return InterpreterError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn interpreter_error_at(
+    ErrorSeverity level,
+    str summary,
+    Span span
+): InterpreterError {
+    return InterpreterError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn interpreter_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): InterpreterError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return InterpreterError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn computation_error_new(
+    ErrorSeverity level,
+    str message,
+    Span span
+): ComputationError {
+    return ComputationError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn computation_error_at(
+    ErrorSeverity level,
+    str summary,
+    Span span
+): ComputationError {
+    return ComputationError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn computation_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): ComputationError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return ComputationError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn scope_manager_error_new(
+    ErrorSeverity level,
+    str message,
+    Span span
+): ScopeManagerError {
+    return ScopeManagerError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn scope_manager_error_at(
+    ErrorSeverity level,
+    str summary,
+    Span span
+): ScopeManagerError {
+    return ScopeManagerError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn scope_manager_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): ScopeManagerError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return ScopeManagerError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn stack_overflow_error_new(
+    ErrorSeverity level,
+    str message,
+    Span span
+): StackOverflowError {
+    return StackOverflowError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn stack_overflow_error_at(
+    ErrorSeverity level,
+    str summary,
+    Span span
+): StackOverflowError {
+    return StackOverflowError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn stack_overflow_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): StackOverflowError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return StackOverflowError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn std_function_error_new(
+    ErrorSeverity level,
+    str message,
+    Span span
+): StdFunctionError {
+    return StdFunctionError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn std_function_error_at(
+    ErrorSeverity level,
+    str summary,
+    Span span
+): StdFunctionError {
+    return StdFunctionError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn std_function_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): StdFunctionError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return StdFunctionError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn compiler_error_new(
+    ErrorSeverity level,
+    str message,
+    Span span
+): CompilerError {
+    return CompilerError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn compiler_error_at(
+    ErrorSeverity level,
+    str summary,
+    Span span
+): CompilerError {
+    return CompilerError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn compiler_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): CompilerError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return CompilerError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn macro_expander_error_new(
+    ErrorSeverity level,
+    str message,
+    Span span
+): MacroExpanderError {
+    return MacroExpanderError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn macro_expander_error_at(
+    ErrorSeverity level,
+    str summary,
+    Span span
+): MacroExpanderError {
+    return MacroExpanderError {
+        message: summary,
+        level,
+        span
+    };
+}
+
+
+fn macro_expander_error_expected_found(
+    ErrorSeverity level,
+    str summary,
+    str expected,
+    str found,
+    Span span
+): MacroExpanderError {
+    let message = summary
+        + "\n  expected: " + expected
+        + "\n  found:    " + found;
+
+    return MacroExpanderError {
+        message,
+        level,
+        span
+    };
+}
+
+
+fn errors_append_position(str message, Position position): str {
+    return message + "\nAt " + position_location(&position) + ".";
+}

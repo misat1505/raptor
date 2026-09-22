@@ -1,13 +1,48 @@
 import "./frontend/lexer/lazy-stream-reader.rp";
+import "./frontend/lexer/lexer.rp";
+
+struct TokenCapture derives Debug {
+    Token[] tokens
+};
 
 fn main(): void {
-    let code = "let a = 2 + 3;";
-    let lsr = lazy_stream_reader_new(code, OptionStr::Some("foo.rp"));
-    
-    while (lazy_stream_reader_current(&lsr) != (3 as u8) as char) {
-        println(lazy_stream_reader_current(&lsr) as str);
-        lazy_stream_reader_next(&lsr);
+    let myself = "./selfhost/main.rp";
+    let source = read_file(myself);
+
+    let src = lazy_stream_reader_new(source, OptionStr::Some(myself));
+
+    let options = LexerOptions {
+        max_comment_length: 1024,
+        max_identifier_length: 256
+    };
+
+    let lexer = lexer_new(src, options);
+
+    let token_capture = TokenCapture { tokens: [] };
+
+    while (true) {
+        let token = lexer_next(&lexer);
+
+        match (token) {
+            OptionToken::Some(value) {
+                vector_push(&token_capture.tokens, value);
+
+                if (value.category matches TokenCategory::ETX) {
+                    break;
+                }
+            },
+
+            OptionToken::None {
+                println("LEXER ERROR / UNKNOWN TOKEN");
+                break;
+            }
+        }
     }
+
+    # Dump into rust file only to use it's formatter since Raptor code and Rust code are similar.
+    let output_path = "./selfhost/tokens.rs";
+    let rust_code = "fn main() {let foo = " + token_capture_debug(&token_capture) + ";}";
+    write_file(output_path, rust_code);
 }
 
 main();

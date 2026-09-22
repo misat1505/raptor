@@ -103,92 +103,55 @@ fn lexer_generate_token(&Lexer lexer): OptionToken {
 
     let token = lexer_try_generating_sign(&lexer);
 
-    match (token) {
-        OptionToken::Some(value) {
-            lexer.current = OptionToken::Some(value);
+    if (token matches OptionToken::Some(value)) {
+        lexer.current = OptionToken::Some(value);
 
-            if (value.category matches TokenCategory::ETX) {
-                return lexer.current;
-            }
+        if (value.category matches TokenCategory::ETX) return lexer.current;
+        if (value.category matches TokenCategory::Comment) return lexer_generate_token(&lexer);
 
-            if (value.category matches TokenCategory::Comment) {
-                return lexer_generate_token(&lexer);
-            }
-
-            return lexer.current;
-        },
-
-        OptionToken::None {}
+        return lexer.current;
     }
 
     token = lexer_try_generating_operator(&lexer);
 
-    match (token) {
-        OptionToken::Some(value) {
-            lexer.current = OptionToken::Some(value);
-            return lexer.current;
-        },
-
-        OptionToken::None {}
+    if (token matches OptionToken::Some(value)) {
+        lexer.current = OptionToken::Some(value);
+        return lexer.current;
     }
 
     token = lexer_try_generating_comment(&lexer);
 
-    match (token) {
-        OptionToken::Some(value) {
-            if (value.category matches TokenCategory::Comment) {
-                return lexer_generate_token(&lexer);
-            }
-
-            lexer.current = OptionToken::Some(value);
-            return lexer.current;
-        },
-
-        OptionToken::None {}
+    if (token matches OptionToken::Some(value)) {
+        if (value.category matches TokenCategory::Comment) return lexer_generate_token(&lexer);
+        lexer.current = OptionToken::Some(value);
     }
 
     token = lexer_try_generating_string(&lexer);
 
-    match (token) {
-        OptionToken::Some(value) {
-            lexer.current = OptionToken::Some(value);
-            return lexer.current;
-        },
-
-        OptionToken::None {}
+    if (token matches OptionToken::Some(value)) {
+        lexer.current = OptionToken::Some(value);
+        return lexer.current;
     }
 
     token = lexer_try_generating_char(&lexer);
 
-    match (token) {
-        OptionToken::Some(value) {
-            lexer.current = OptionToken::Some(value);
-            return lexer.current;
-        },
-
-        OptionToken::None {}
+    if (token matches OptionToken::Some(value)) {
+        lexer.current = OptionToken::Some(value);
+        return lexer.current;
     }
 
     token = lexer_try_generating_number(&lexer);
 
-    match (token) {
-        OptionToken::Some(value) {
-            lexer.current = OptionToken::Some(value);
-            return lexer.current;
-        },
-
-        OptionToken::None {}
+    if (token matches OptionToken::Some(value)) {
+        lexer.current = OptionToken::Some(value);
+        return lexer.current;
     }
 
     token = lexer_try_creating_identifier_or_keyword(&lexer);
 
-    match (token) {
-        OptionToken::Some(value) {
-            lexer.current = OptionToken::Some(value);
-            return lexer.current;
-        },
-
-        OptionToken::None {}
+    if (token matches OptionToken::Some(value)) {
+        lexer.current = OptionToken::Some(value);
+        return lexer.current;
     }
 
     return OptionToken::None;
@@ -534,13 +497,13 @@ fn lexer_try_generating_char(&Lexer lexer): OptionToken {
 
     let current_char = lazy_stream_reader_current(&lexer.src);
 
-    if (current_char != (92 as u8) as char) {
+    if (current_char != (39 as u8) as char) {
         return OptionToken::None;
     }
 
     let next_char = lazy_stream_reader_next(&lexer.src);
 
-    if (next_char == (92 as u8) as char) {
+    if (next_char == (39 as u8) as char) {
         return OptionToken::None;
     }
 
@@ -561,7 +524,7 @@ fn lexer_try_generating_char(&Lexer lexer): OptionToken {
 
     let closing_char = lazy_stream_reader_next(&lexer.src);
 
-    if (closing_char != (92 as u8) as char) {
+    if (closing_char != (39 as u8) as char) {
         return OptionToken::None;
     }
 
@@ -755,7 +718,7 @@ fn lexer_parse_integer(&Lexer lexer): i64[] {
 
     while (true) {
         if (char_is_digit(current_char)) {
-            # TODO: it has to i64 not let - there is some bug
+            # TODO: it has to i64 not let - there is some bug in the compiler
             i64 digit = ((current_char as u8) as i64) - (('0' as u8) as i64);
 
             total = total * 10;
@@ -781,11 +744,7 @@ fn lexer_parse_integer(&Lexer lexer): i64[] {
 }
 
 
-fn lexer_merge_to_float(
-    i64 decimal,
-    i64 fraction,
-    i64 fraction_length
-): f64 {
+fn lexer_merge_to_float(i64 decimal, i64 fraction, i64 fraction_length): f64 {
     let divisor = 10.0;
     let power = 1.0;
     let i = 0;
@@ -796,6 +755,13 @@ fn lexer_merge_to_float(
     }
 
     return decimal as f64 + fraction as f64 / power;
+}
+
+
+fn lexer_char_is_still_identifier(char current_char): bool {
+    return char_is_digit(current_char)
+        || char_is_letter(current_char)
+        || current_char == '_';
 }
 
 
@@ -810,11 +776,7 @@ fn lexer_try_creating_identifier_or_keyword(&Lexer lexer): OptionToken {
 
     let created_string = "";
 
-    while (
-        char_is_digit(current_char)
-        || char_is_letter(current_char)
-        || current_char == '_'
-    ) {
+    while (lexer_char_is_still_identifier(current_char)) {
         if (str_len(created_string) >= lexer.options.max_identifier_length) {
             return OptionToken::None;
         }

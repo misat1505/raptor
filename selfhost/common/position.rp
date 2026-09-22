@@ -1,0 +1,27 @@
+enum OptionStr derives Debug {
+    Some(str),
+    None
+};
+
+struct Position derives Debug {
+    i64 line,
+    i64 column,
+    i64 offset,
+    OptionStr filename
+};
+
+fn position_display(&Position position): str {
+    let prefix = "";
+    if (position.filename matches OptionStr::Some(path)) prefix = path + ":";
+    return prefix + position.line as str + ":" + position.column as str;
+}
+
+fn position_new(i64 line, i64 column, i64 offset, OptionStr filename): Position {
+    return Position { line, column, offset, filename };
+}
+
+fn position_location(&Position position): str {
+    let location = "<input>";
+    if (position.filename matches OptionStr::Some(path)) location = path;
+    return location + ":" + position.line as str + ":" + position.column as str;
+}

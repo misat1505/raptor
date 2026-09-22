@@ -1,0 +1,14 @@
+import "./position.rp";
+
+struct Span derives Debug {
+    Position start,
+    Position end
+};
+
+fn span_new(Position start, Position end): Span {
+    return Span { start, end };
+}
+
+fn span_join(Span start, Span end): Span {
+    return span_new(start.start, end.end);
+}

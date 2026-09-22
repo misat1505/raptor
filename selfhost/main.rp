@@ -1,0 +1,13 @@
+import "./common/span.rp";
+
+fn main(): void {
+    let code = "let a = 2 + 3;";
+    let span = span_new(
+        Position { line: 21, column: 37, offset: 420, filename: OptionStr::Some("foo.rp") },
+        Position { line: 21, column: 37, offset: 420, filename: OptionStr::Some("foo.rp") }
+    );
+    println(span_debug(&span));
+    println(position_display(&span.start));
+}
+
+main();

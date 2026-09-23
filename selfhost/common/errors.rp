@@ -1,5 +1,6 @@
 import "./span.rp";
 import "./position.rp";
+import "../../stdlib/string.rp";
 
 
 enum ErrorSeverity derives Debug {
@@ -69,18 +70,48 @@ struct MacroExpanderError derives Debug {
 };
 
 
+fn console_red(): str {
+    let bytes = [27, 91, 49, 59, 51, 49, 109];
+    let output = "";
+    for (let i = 0; i < vector_size(&bytes); i += 1) {
+        output += (bytes[i] as u8) as char;
+    }
+    return output;
+}
+
+
+fn console_yellow(): str {
+    let bytes = [27, 91, 49, 59, 51, 51, 109];
+    let output = "";
+    for (let i = 0; i < vector_size(&bytes); i += 1) {
+        output += (bytes[i] as u8) as char;
+    }
+    return output;
+}
+
+
+fn console_standard(): str {
+    let bytes = [27, 91, 48, 109];
+    let output = "";
+    for (let i = 0; i < vector_size(&bytes); i += 1) {
+        output += (bytes[i] as u8) as char;
+    }
+    return output;
+}
+
+
 fn error_severity_to_string(ErrorSeverity severity): str {
     match (severity) {
-        ErrorSeverity::HIGH return "\x1b[1;31merror\x1b[0m";,
-        ErrorSeverity::LOW return "\x1b[1;33mwarning\x1b[0m";
+        ErrorSeverity::HIGH return console_red() + "error" + console_standard();,
+        ErrorSeverity::LOW return console_yellow() + "warning" + console_standard();
     }
 }
 
 
 fn error_severity_color(ErrorSeverity severity): str {
     match (severity) {
-        ErrorSeverity::HIGH return "\x1b[1;31m";,
-        ErrorSeverity::LOW return "\x1b[1;33m";
+        ErrorSeverity::HIGH return console_red();,
+        ErrorSeverity::LOW return console_yellow();
     }
 }
 
@@ -101,6 +132,39 @@ fn lexer_error_at(ErrorSeverity level, str summary, Span span): LexerError {
         span
     };
 }
+
+
+fn lexer_error_get_stderr_message(&LexerError error): str {
+    let text = error_severity_to_string(error.level) + ": " + error.message;
+
+    let filename = "";
+    match (error.span.start.filename) {
+        OptionStr::None return text;,
+        OptionStr::Some(t) filename = t;
+    }
+
+    if (!exists_file(filename)) return text;
+
+    let file_content = read_file(filename);
+    let lines = str_split(file_content, "\n");
+
+    let normalized_line = error.span.start.line - 1;
+    if (normalized_line >= vector_size(&lines)) return text;
+
+    let line = lines[normalized_line];
+    let underline_length = error.span.end.column - error.span.start.column;
+
+    let underline_offset = "";
+    for (let i = 0; i < error.span.start.column - 1; i += 1) underline_offset += ' ';
+
+    let underline = error_severity_color(error.level);
+    for (let i = 0; i < underline_length; i += 1) underline += '^';
+    underline += console_standard();
+
+    text += "\n  --> " + filename + ":" + error.span.start.line as str + ":" + error.span.start.column as str + "\n\n     | " + line + "\n     | " + underline_offset + underline;
+
+    return text;
+}   
 
 
 fn lexer_error_expected_found(

@@ -25,8 +25,7 @@ fn main(): void {
 
         match (token_result) {
             ResultOptionToken::Err(err) {
-                println("Lexer error");
-                println(err.message);
+                println(lexer_error_get_stderr_message(&err));
                 break;
             },
             ResultOptionToken::Ok(token) {

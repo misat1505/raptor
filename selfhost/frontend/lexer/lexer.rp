@@ -196,7 +196,9 @@ fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
         }
     }
 
-    return ResultOptionToken::Ok(OptionToken::None);
+    return ResultOptionToken::Err(
+        lexer_create_error(&lexer, "Unexpected token")
+    );
 }
 
 fn lexer_skip_whitespaces(&Lexer lexer): void {
@@ -519,7 +521,12 @@ fn lexer_try_generating_comment(&Lexer lexer): ResultOptionToken {
         }
 
         if (str_len(comment) >= lexer.options.max_comment_length) {
-            return ResultOptionToken::Ok(OptionToken::None);
+            return ResultOptionToken::Err(
+                lexer_create_error(
+                    &lexer,
+                    "Comment too long. Max comment length: " + lexer.options.max_comment_length as str
+                )
+            );
         }
 
         comment += current;
@@ -545,28 +552,50 @@ fn lexer_try_generating_char(&Lexer lexer): ResultOptionToken {
     let next_char = lazy_stream_reader_next(&lexer.src);
 
     if (next_char == (39 as u8) as char) {
-        return ResultOptionToken::Ok(OptionToken::None);
+        return ResultOptionToken::Err(
+            lexer_create_error(&lexer, "Empty char literal")
+        );
     }
 
     if (next_char == '\n') {
-        return ResultOptionToken::Ok(OptionToken::None);
+        return ResultOptionToken::Err(
+            lexer_create_error(&lexer, "Unexpected newline in char literal")
+        );
     }
 
     if (next_char == (3 as u8) as char) {
-        return ResultOptionToken::Ok(OptionToken::None);
+        return ResultOptionToken::Err(
+            lexer_create_error(&lexer, "Unexpected end of file in char literal")
+        );
     }
 
     let value = next_char;
 
     if (next_char == '\\') {
         let escaped_char = lazy_stream_reader_next(&lexer.src);
-        value = lexer_escape_char(escaped_char);
+        let escaped = lexer_escape_char_or_invalid(escaped_char);
+
+        if (escaped == '\0' && escaped_char != '0') {
+            return ResultOptionToken::Err(
+                lexer_create_error(
+                    &lexer,
+                    "Invalid escape symbol detected '\\" + escaped_char + "'"
+                )
+            );
+        }
+
+        value = escaped;
     }
 
     let closing_char = lazy_stream_reader_next(&lexer.src);
 
     if (closing_char != (39 as u8) as char) {
-        return ResultOptionToken::Ok(OptionToken::None);
+        return ResultOptionToken::Err(
+            lexer_create_error(
+                &lexer,
+                "Char literal must contain exactly one character"
+            )
+        );
     }
 
     lazy_stream_reader_next(&lexer.src);
@@ -583,7 +612,6 @@ fn lexer_try_generating_char(&Lexer lexer): ResultOptionToken {
         }
     }));
 }
-
 
 fn lexer_escape_char(char value): char {
     if (value == 'n') {
@@ -628,22 +656,42 @@ fn lexer_try_generating_string(&Lexer lexer): ResultOptionToken {
             if (escaped != '\0' || next_char == '0') {
                 created_string += escaped;
             } else {
+                let warning = lexer_error_at(
+                    ErrorSeverity::LOW,
+                    "Invalid escape symbol detected '\\" + next_char + "'",
+                    lexer_current_span(&lexer)
+                );
+
+                println(warning.message);
+
                 created_string += '\\';
                 created_string += next_char;
             }
         } else if (current == '\n') {
-            return ResultOptionToken::Ok(OptionToken::None);
+            return ResultOptionToken::Err(
+                lexer_create_error(&lexer, "Unexpected newline in string")
+            );
         } else if (current == (3 as u8) as char) {
             let binding = lazy_stream_reader_position(&lexer.src);
             let end = position_clone(&binding);
 
+            let span = Span {
+                start,
+                end
+            };
+
+            let warning = lexer_error_at(
+                ErrorSeverity::LOW,
+                "String not closed",
+                span
+            );
+
+            println(warning.message);
+
             return ResultOptionToken::Ok(OptionToken::Some(Token {
                 category: TokenCategory::StringValue,
                 value: TokenValue::String(created_string),
-                span: Span {
-                    start,
-                    end
-                }
+                span
             }));
         } else {
             created_string += current;
@@ -666,7 +714,6 @@ fn lexer_try_generating_string(&Lexer lexer): ResultOptionToken {
         }
     }));
 }
-
 
 fn lexer_escape_char_or_invalid(char value): char {
     if (value == 'n') {
@@ -702,12 +749,18 @@ fn lexer_try_generating_number(&Lexer lexer): ResultOptionToken {
 
     if (current_char != '0') {
         let parsed = lexer_parse_integer(&lexer);
-        decimal = parsed[0];
+
+        match (parsed) {
+            ResultI64Array::Err(err) return ResultOptionToken::Err(err);,
+            ResultI64Array::Ok(values) decimal = values[0];
+        }
     } else {
         let next_char = lazy_stream_reader_next(&lexer.src);
 
         if (char_is_digit(next_char)) {
-            return ResultOptionToken::Ok(OptionToken::None);
+            return ResultOptionToken::Err(
+                lexer_create_error(&lexer, "Cannot prefix number with 0's.")
+            );
         }
     }
 
@@ -731,10 +784,19 @@ fn lexer_try_generating_number(&Lexer lexer): ResultOptionToken {
 
     let fraction = lexer_parse_integer(&lexer);
 
+    let fraction_values: i64[] = [];
+
+    match (fraction) {
+        ResultI64Array::Err(err) {
+            return ResultOptionToken::Err(err);
+        },
+        ResultI64Array::Ok(values) fraction_values = values;
+    }
+
     let float_value = lexer_merge_to_float(
         decimal,
-        fraction[0],
-        fraction[1]
+        fraction_values[0],
+        fraction_values[1]
     );
 
     let binding = lazy_stream_reader_position(&lexer.src);
@@ -750,8 +812,13 @@ fn lexer_try_generating_number(&Lexer lexer): ResultOptionToken {
     }));
 }
 
+enum ResultI64Array derives Debug {
+    Ok(i64[]),
+    Err(LexerError)
+};
 
-fn lexer_parse_integer(&Lexer lexer): i64[] {
+
+fn lexer_parse_integer(&Lexer lexer): ResultI64Array {
     let current_char = lazy_stream_reader_current(&lexer.src);
 
     let length = 0 as i64;
@@ -762,17 +829,40 @@ fn lexer_parse_integer(&Lexer lexer): i64[] {
             # TODO: it has to i64 not let - there is some bug in the compiler
             i64 digit = ((current_char as u8) as i64) - (('0' as u8) as i64);
 
+            if (total > 922337203685477580) {
+                return ResultI64Array::Err(
+                    lexer_create_error(
+                        &lexer,
+                        "Overflow occurred while parsing integer"
+                    )
+                );
+            }
+
+            if (total == 922337203685477580 && digit > 7) {
+                return ResultI64Array::Err(
+                    lexer_create_error(
+                        &lexer,
+                        "Overflow occurred while parsing integer"
+                    )
+                );
+            }
+
             total = total * 10;
             total += digit;
 
             length += 1;
 
             current_char = lazy_stream_reader_next(&lexer.src);
-        } else if (current_char == (92 as u8) as char) {
+        } else if (current_char == (39 as u8) as char) {
             let next_char = lazy_stream_reader_next(&lexer.src);
 
             if (!char_is_digit(next_char)) {
-                return [total, length];
+                return ResultI64Array::Err(
+                    lexer_create_error(
+                        &lexer,
+                        "Digit separator ' must be placed between two digits"
+                    )
+                );
             }
 
             current_char = next_char;
@@ -781,9 +871,8 @@ fn lexer_parse_integer(&Lexer lexer): i64[] {
         }
     }
 
-    return [total, length];
+    return ResultI64Array::Ok([total, length]);
 }
-
 
 fn lexer_merge_to_float(i64 decimal, i64 fraction, i64 fraction_length): f64 {
     let divisor = 10.0;
@@ -819,7 +908,12 @@ fn lexer_try_creating_identifier_or_keyword(&Lexer lexer): ResultOptionToken {
 
     while (lexer_char_is_still_identifier(current_char)) {
         if (str_len(created_string) >= lexer.options.max_identifier_length) {
-            return ResultOptionToken::Ok(OptionToken::None);
+            return ResultOptionToken::Err(
+                lexer_create_error(
+                    &lexer,
+                    "Identifier name too long. Max identifier length: " + lexer.options.max_identifier_length as str
+                )
+            );
         }
 
         created_string += current_char;

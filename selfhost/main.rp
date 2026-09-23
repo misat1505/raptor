@@ -21,26 +21,35 @@ fn main(): void {
     let token_capture = TokenCapture { tokens: [] };
 
     while (true) {
-        let token = lexer_next(&lexer);
+        let token_result = lexer_next(&lexer);
 
-        match (token) {
-            OptionToken::Some(value) {
-                vector_push(&token_capture.tokens, value);
-
-                if (value.category matches TokenCategory::ETX) {
-                    break;
-                }
-
-                let stringified = token_category_to_string(value.category);
-                let whitespaces = 20 - str_len(stringified);
-                print(token_category_to_string(value.category));
-                for (let i = 0; i < whitespaces; i += 1) print(" ");
-                println(position_display(&value.span.start) + "\t-> " + position_display(&value.span.end));
-            },
-
-            OptionToken::None {
-                println("LEXER ERROR / UNKNOWN TOKEN");
+        match (token_result) {
+            ResultOptionToken::Err(err) {
+                println("Lexer error");
+                println(err.message);
                 break;
+            },
+            ResultOptionToken::Ok(token) {
+                match (token) {
+                    OptionToken::Some(value) {
+                        vector_push(&token_capture.tokens, value);
+
+                        if (value.category matches TokenCategory::ETX) {
+                            break;
+                        }
+
+                        let stringified = token_category_to_string(value.category);
+                        let whitespaces = 20 - str_len(stringified);
+                        print(token_category_to_string(value.category));
+                        for (let i = 0; i < whitespaces; i += 1) print(" ");
+                        println(position_display(&value.span.start) + "\t-> " + position_display(&value.span.end));
+                    },
+
+                    OptionToken::None {
+                        println("No token produced");
+                        break;
+                    }
+                }
             }
         }
     }

@@ -6,6 +6,12 @@ import "./lazy-stream-reader.rp";
 import "../../../stdlib/string.rp";
 
 
+enum ResultOptionToken derives Debug {
+    Ok(OptionToken),
+    Err(LexerError)
+};
+
+
 enum OptionToken derives Debug {
     Some(Token),
     None
@@ -90,12 +96,12 @@ fn lexer_create_error(&Lexer lexer, str message): LexerError {
 }
 
 
-fn lexer_next(&Lexer lexer): OptionToken {
+fn lexer_next(&Lexer lexer): ResultOptionToken {
     return lexer_generate_token(&lexer);
 }
 
 
-fn lexer_generate_token(&Lexer lexer): OptionToken {
+fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
     lexer_skip_whitespaces(&lexer);
 
     let binding = lazy_stream_reader_position(&lexer.src);
@@ -103,60 +109,95 @@ fn lexer_generate_token(&Lexer lexer): OptionToken {
 
     let token = lexer_try_generating_sign(&lexer);
 
-    if (token matches OptionToken::Some(value)) {
-        lexer.current = OptionToken::Some(value);
+    match (token) {
+        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Ok(option_token) {
+            if (option_token matches OptionToken::Some(value)) {
+                lexer.current = OptionToken::Some(value);
 
-        if (value.category matches TokenCategory::ETX) return lexer.current;
-        if (value.category matches TokenCategory::Comment) return lexer_generate_token(&lexer);
+                if (value.category matches TokenCategory::ETX) return ResultOptionToken::Ok(lexer.current);
+                if (value.category matches TokenCategory::Comment) return lexer_generate_token(&lexer);
 
-        return lexer.current;
+                return ResultOptionToken::Ok(lexer.current);
+            }
+        }
     }
 
     token = lexer_try_generating_operator(&lexer);
 
-    if (token matches OptionToken::Some(value)) {
-        lexer.current = OptionToken::Some(value);
-        return lexer.current;
+    match (token) {
+        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Ok(option_token) {
+            if (option_token matches OptionToken::Some(value)) {
+                lexer.current = OptionToken::Some(value);
+                return ResultOptionToken::Ok(lexer.current);
+            }
+        }
     }
 
     token = lexer_try_generating_comment(&lexer);
 
-    if (token matches OptionToken::Some(value)) {
-        if (value.category matches TokenCategory::Comment) return lexer_generate_token(&lexer);
-        lexer.current = OptionToken::Some(value);
+    match (token) {
+        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Ok(option_token) {
+            if (option_token matches OptionToken::Some(value)) {
+                if (value.category matches TokenCategory::Comment) return lexer_generate_token(&lexer);
+                lexer.current = OptionToken::Some(value);
+                return ResultOptionToken::Ok(lexer.current);
+            }
+        }
     }
 
     token = lexer_try_generating_string(&lexer);
 
-    if (token matches OptionToken::Some(value)) {
-        lexer.current = OptionToken::Some(value);
-        return lexer.current;
+    match (token) {
+        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Ok(option_token) {
+            if (option_token matches OptionToken::Some(value)) {
+                lexer.current = OptionToken::Some(value);
+                return ResultOptionToken::Ok(lexer.current);
+            }
+        }
     }
 
     token = lexer_try_generating_char(&lexer);
 
-    if (token matches OptionToken::Some(value)) {
-        lexer.current = OptionToken::Some(value);
-        return lexer.current;
+    match (token) {
+        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Ok(option_token) {
+            if (option_token matches OptionToken::Some(value)) {
+                lexer.current = OptionToken::Some(value);
+                return ResultOptionToken::Ok(lexer.current);
+            }
+        }
     }
 
     token = lexer_try_generating_number(&lexer);
 
-    if (token matches OptionToken::Some(value)) {
-        lexer.current = OptionToken::Some(value);
-        return lexer.current;
+    match (token) {
+        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Ok(option_token) {
+            if (option_token matches OptionToken::Some(value)) {
+                lexer.current = OptionToken::Some(value);
+                return ResultOptionToken::Ok(lexer.current);
+            }
+        }
     }
 
     token = lexer_try_creating_identifier_or_keyword(&lexer);
 
-    if (token matches OptionToken::Some(value)) {
-        lexer.current = OptionToken::Some(value);
-        return lexer.current;
+    match (token) {
+        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Ok(option_token) {
+            if (option_token matches OptionToken::Some(value)) {
+                lexer.current = OptionToken::Some(value);
+                return ResultOptionToken::Ok(lexer.current);
+            }
+        }
     }
 
-    return OptionToken::None;
+    return ResultOptionToken::Ok(OptionToken::None);
 }
-
 
 fn lexer_skip_whitespaces(&Lexer lexer): void {
     while (char_is_whitespace(lazy_stream_reader_current(&lexer.src))) {
@@ -165,143 +206,143 @@ fn lexer_skip_whitespaces(&Lexer lexer): void {
 }
 
 
-fn lexer_try_generating_sign(&Lexer lexer): OptionToken {
+fn lexer_try_generating_sign(&Lexer lexer): ResultOptionToken {
     let current_char = lazy_stream_reader_current(&lexer.src);
 
     if (current_char == '(') {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::ParenOpen)
-        );
+        ));
     } else if (current_char == ')') {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::ParenClose)
-        );
+        ));
     } else if (current_char == '[') {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::BracketOpen)
-        );
+        ));
     } else if (current_char == ']') {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::BracketClose)
-        );
+        ));
     } else if (current_char == '{') {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::BraceOpen)
-        );
+        ));
     } else if (current_char == '}') {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::BraceClose)
-        );
+        ));
     } else if (current_char == ';') {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::Semicolon)
-        );
+        ));
     } else if (current_char == ',') {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::Comma)
-        );
+        ));
     } else if (current_char == (2 as u8) as char) {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::STX)
-        );
+        ));
     } else if (current_char == (3 as u8) as char) {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::ETX)
-        );
+        ));
     }
 
-    return OptionToken::None;
+    return ResultOptionToken::Ok(OptionToken::None);
 }
 
 
-fn lexer_try_generating_operator(&Lexer lexer): OptionToken {
+fn lexer_try_generating_operator(&Lexer lexer): ResultOptionToken {
     let current_char = lazy_stream_reader_current(&lexer.src);
 
     if (current_char == '+') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             '=',
             TokenCategory::Plus,
             TokenCategory::PlusEquals
-        ));
+        )));
     } else if (current_char == '-') {
-        return OptionToken::Some(lexer_extend_minus(&lexer));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_minus(&lexer)));
     } else if (current_char == '*') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             '=',
             TokenCategory::Multiply,
             TokenCategory::TimesEquals
-        ));
+        )));
     } else if (current_char == '/') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             '=',
             TokenCategory::Divide,
             TokenCategory::DivideEquals
-        ));
+        )));
     } else if (current_char == '%') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             '=',
             TokenCategory::Modulo,
             TokenCategory::ModuloEquals
-        ));
+        )));
     } else if (current_char == '<') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             '=',
             TokenCategory::Less,
             TokenCategory::LessOrEqual
-        ));
+        )));
     } else if (current_char == '>') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             '=',
             TokenCategory::Greater,
             TokenCategory::GreaterOrEqual
-        ));
+        )));
     } else if (current_char == '!') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             '=',
             TokenCategory::Negate,
             TokenCategory::NotEqual
-        ));
+        )));
     } else if (current_char == '=') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             '=',
             TokenCategory::Assign,
             TokenCategory::Equal
-        ));
+        )));
     } else if (current_char == '&') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             '&',
             TokenCategory::Reference,
             TokenCategory::And
-        ));
+        )));
     } else if (current_char == ':') {
-        return OptionToken::Some(lexer_extend_to_next(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next(
             &lexer,
             ':',
             TokenCategory::Colon,
             TokenCategory::DoubleColon
-        ));
+        )));
     } else if (current_char == '|') {
-        return OptionToken::Some(lexer_extend_to_next_or_warning(
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_extend_to_next_or_warning(
             &lexer,
             '|',
             TokenCategory::Or
-        ));
+        )));
     } else if (current_char == '.') {
-        return OptionToken::Some(
+        return ResultOptionToken::Ok(OptionToken::Some(
             lexer_single_char(&lexer, TokenCategory::Dot)
-        );
+        ));
     }
 
-    return OptionToken::None;
+    return ResultOptionToken::Ok(OptionToken::None);
 }
 
 
@@ -461,11 +502,11 @@ fn lexer_extend_minus(&Lexer lexer): Token {
 }
 
 
-fn lexer_try_generating_comment(&Lexer lexer): OptionToken {
+fn lexer_try_generating_comment(&Lexer lexer): ResultOptionToken {
     let current_char = lazy_stream_reader_current(&lexer.src);
 
     if (current_char != '#') {
-        return OptionToken::None;
+        return ResultOptionToken::Ok(OptionToken::None);
     }
 
     let comment = "";
@@ -478,41 +519,41 @@ fn lexer_try_generating_comment(&Lexer lexer): OptionToken {
         }
 
         if (str_len(comment) >= lexer.options.max_comment_length) {
-            return OptionToken::None;
+            return ResultOptionToken::Ok(OptionToken::None);
         }
 
         comment += current;
     }
 
-    return OptionToken::Some(Token {
+    return ResultOptionToken::Ok(OptionToken::Some(Token {
         category: TokenCategory::Comment,
         value: TokenValue::String(comment),
         span: lexer_current_span(&lexer)
-    });
+    }));
 }
 
 
-fn lexer_try_generating_char(&Lexer lexer): OptionToken {
+fn lexer_try_generating_char(&Lexer lexer): ResultOptionToken {
     let start = position_clone(&lexer.position);
 
     let current_char = lazy_stream_reader_current(&lexer.src);
 
     if (current_char != (39 as u8) as char) {
-        return OptionToken::None;
+        return ResultOptionToken::Ok(OptionToken::None);
     }
 
     let next_char = lazy_stream_reader_next(&lexer.src);
 
     if (next_char == (39 as u8) as char) {
-        return OptionToken::None;
+        return ResultOptionToken::Ok(OptionToken::None);
     }
 
     if (next_char == '\n') {
-        return OptionToken::None;
+        return ResultOptionToken::Ok(OptionToken::None);
     }
 
     if (next_char == (3 as u8) as char) {
-        return OptionToken::None;
+        return ResultOptionToken::Ok(OptionToken::None);
     }
 
     let value = next_char;
@@ -525,7 +566,7 @@ fn lexer_try_generating_char(&Lexer lexer): OptionToken {
     let closing_char = lazy_stream_reader_next(&lexer.src);
 
     if (closing_char != (39 as u8) as char) {
-        return OptionToken::None;
+        return ResultOptionToken::Ok(OptionToken::None);
     }
 
     lazy_stream_reader_next(&lexer.src);
@@ -533,14 +574,14 @@ fn lexer_try_generating_char(&Lexer lexer): OptionToken {
     let binding = lazy_stream_reader_position(&lexer.src);
     let end = position_clone(&binding);
 
-    return OptionToken::Some(Token {
+    return ResultOptionToken::Ok(OptionToken::Some(Token {
         category: TokenCategory::CharValue,
         value: TokenValue::Char(value),
         span: Span {
             start,
             end
         }
-    });
+    }));
 }
 
 
@@ -565,13 +606,13 @@ fn lexer_escape_char(char value): char {
 }
 
 
-fn lexer_try_generating_string(&Lexer lexer): OptionToken {
+fn lexer_try_generating_string(&Lexer lexer): ResultOptionToken {
     let start = position_clone(&lexer.position);
 
     let current_char = lazy_stream_reader_current(&lexer.src);
 
     if (current_char != '"') {
-        return OptionToken::None;
+        return ResultOptionToken::Ok(OptionToken::None);
     }
 
     let created_string = "";
@@ -591,19 +632,19 @@ fn lexer_try_generating_string(&Lexer lexer): OptionToken {
                 created_string += next_char;
             }
         } else if (current == '\n') {
-            return OptionToken::None;
+            return ResultOptionToken::Ok(OptionToken::None);
         } else if (current == (3 as u8) as char) {
             let binding = lazy_stream_reader_position(&lexer.src);
             let end = position_clone(&binding);
 
-            return OptionToken::Some(Token {
+            return ResultOptionToken::Ok(OptionToken::Some(Token {
                 category: TokenCategory::StringValue,
                 value: TokenValue::String(created_string),
                 span: Span {
                     start,
                     end
                 }
-            });
+            }));
         } else {
             created_string += current;
         }
@@ -616,14 +657,14 @@ fn lexer_try_generating_string(&Lexer lexer): OptionToken {
     let binding = lazy_stream_reader_position(&lexer.src);
     let end = position_clone(&binding);
 
-    return OptionToken::Some(Token {
+    return ResultOptionToken::Ok(OptionToken::Some(Token {
         category: TokenCategory::StringValue,
         value: TokenValue::String(created_string),
         span: Span {
             start,
             end
         }
-    });
+    }));
 }
 
 
@@ -648,13 +689,13 @@ fn lexer_escape_char_or_invalid(char value): char {
 }
 
 
-fn lexer_try_generating_number(&Lexer lexer): OptionToken {
+fn lexer_try_generating_number(&Lexer lexer): ResultOptionToken {
     let start = position_clone(&lexer.position);
 
     let current_char = lazy_stream_reader_current(&lexer.src);
 
     if (!char_is_digit(current_char)) {
-        return OptionToken::None;
+        return ResultOptionToken::Ok(OptionToken::None);
     }
 
     let decimal = 0 as i64;
@@ -666,7 +707,7 @@ fn lexer_try_generating_number(&Lexer lexer): OptionToken {
         let next_char = lazy_stream_reader_next(&lexer.src);
 
         if (char_is_digit(next_char)) {
-            return OptionToken::None;
+            return ResultOptionToken::Ok(OptionToken::None);
         }
     }
 
@@ -676,14 +717,14 @@ fn lexer_try_generating_number(&Lexer lexer): OptionToken {
         let binding = lazy_stream_reader_position(&lexer.src);
         let end = position_clone(&binding);
 
-        return OptionToken::Some(Token {
+        return ResultOptionToken::Ok(OptionToken::Some(Token {
             category: TokenCategory::I64Value,
             value: TokenValue::I64(decimal),
             span: Span {
                 start,
                 end
             }
-        });
+        }));
     }
 
     lazy_stream_reader_next(&lexer.src);
@@ -699,14 +740,14 @@ fn lexer_try_generating_number(&Lexer lexer): OptionToken {
     let binding = lazy_stream_reader_position(&lexer.src);
     let end = position_clone(&binding);
 
-    return OptionToken::Some(Token {
+    return ResultOptionToken::Ok(OptionToken::Some(Token {
         category: TokenCategory::F64Value,
         value: TokenValue::F64(float_value),
         span: Span {
             start,
             end
         }
-    });
+    }));
 }
 
 
@@ -765,20 +806,20 @@ fn lexer_char_is_still_identifier(char current_char): bool {
 }
 
 
-fn lexer_try_creating_identifier_or_keyword(&Lexer lexer): OptionToken {
+fn lexer_try_creating_identifier_or_keyword(&Lexer lexer): ResultOptionToken {
     let start = position_clone(&lexer.position);
 
     let current_char = lazy_stream_reader_current(&lexer.src);
 
     if (!char_is_letter(current_char)) {
-        return OptionToken::None;
+        return ResultOptionToken::Ok(OptionToken::None);
     }
 
     let created_string = "";
 
     while (lexer_char_is_still_identifier(current_char)) {
         if (str_len(created_string) >= lexer.options.max_identifier_length) {
-            return OptionToken::None;
+            return ResultOptionToken::Ok(OptionToken::None);
         }
 
         created_string += current_char;
@@ -797,17 +838,17 @@ fn lexer_try_creating_identifier_or_keyword(&Lexer lexer): OptionToken {
     let category = lexer_keyword_category(created_string);
 
     match (category) {
-        OptionTokenCategory::Some(value) return OptionToken::Some(Token {
+        OptionTokenCategory::Some(value) return ResultOptionToken::Ok(OptionToken::Some(Token {
             category: value,
             value: TokenValue::Null,
             span
-        });,
+        }));,
 
-        OptionTokenCategory::None return OptionToken::Some(Token {
+        OptionTokenCategory::None return ResultOptionToken::Ok(OptionToken::Some(Token {
             category: TokenCategory::Identifier,
             value: TokenValue::String(created_string),
             span
-        });
+        }));
     }
 }
 

@@ -1,0 +1,123 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
+    # for_statement = "for", "(", [ declaration | let_declaration ], ";", expression, ";", [ identifier, "=", expression ], ")", statement_block;
+    let for_consumed = parser_consume_if_matches(&parser, TokenCategory::For);
+
+    let for_token = parser_current_token(&parser);
+    let has_for = false;
+    match (for_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_for) {
+            match (option_for) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    for_token = token;
+                    has_for = true;
+                }
+            }
+        }
+    }
+
+    if (!has_for) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
+
+    let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
+    match (paren_open) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let declaration = OptionStatementNode::None;
+    if (parser_current_token(&parser).category matches TokenCategory::Let) {
+        let let_call = parser_parse_let_declaration(&parser);
+        match (let_call) {
+            ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+            ResultOptionStatementNode::Ok(option_decl) declaration = option_decl;
+        }
+    } else {
+        let decl_call = parser_parse_declaration(&parser);
+        match (decl_call) {
+            ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+            ResultOptionStatementNode::Ok(option_decl) declaration = option_decl;
+        }
+    }
+
+    let semicolon_1 = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    match (semicolon_1) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let condition_call = parser_parse_expression(&parser);
+    let condition = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_condition = false;
+    match (condition_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_condition) {
+            match (option_condition) {
+                OptionExpressionNode::None {},
+                OptionExpressionNode::Some(expr) {
+                    condition = expr;
+                    found_condition = true;
+                }
+            }
+        }
+    }
+
+    if (!found_condition) return ResultOptionStatementNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create expression while parsing for statement.")
+    );
+
+    let semicolon_2 = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    match (semicolon_2) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let assignment = OptionStatementNode::None;
+    if (parser_current_token(&parser).category matches TokenCategory::Identifier) {
+        let assign_call = parser_parse_assign_or_call_without_semicolon(&parser);
+        match (assign_call) {
+            ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+            ResultOptionStatementNode::Ok(option_assignment) {
+                match (option_assignment) {
+                    OptionStatementNode::None return ResultOptionStatementNode::Err(
+                        parser_create_parser_error(&parser, "Couldn't create assignment or call while parsing for statement.")
+                    );,
+                    OptionStatementNode::Some(assignment_statement) assignment = OptionStatementNode::Some(assignment_statement);
+                }
+            }
+        }
+    }
+
+    let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+    match (paren_close) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let block_call = parser_parse_statement_block(&parser);
+    match (block_call) {
+        ResultOptionBlockNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionBlockNode::Ok(option_block) {
+            match (option_block) {
+                OptionBlockNode::None return ResultOptionStatementNode::Err(
+                    parser_create_parser_error(&parser, "Couldn't create statement block while parsing for statement.")
+                );,
+                OptionBlockNode::Some(block) return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+                    value: Statement::ForLoop(ForLoopStatement {
+                        declaration: declaration,
+                        condition: condition,
+                        assignment: assignment,
+                        block: block
+                    }),
+                    span: span_new(for_token.span.start, block.span.end)
+                }));
+            }
+        }
+    }
+}

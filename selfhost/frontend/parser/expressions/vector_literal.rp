@@ -1,0 +1,64 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "./expression.rp";
+
+fn parser_parse_vector_literal(&Parser parser): ResultOptionExpressionNode {
+    # vector_literal = "[", [ expression, { ",", expression } ], "]";
+    let open_bracket_consumed = parser_consume_if_matches(&parser, TokenCategory::BracketOpen);
+
+    let open_bracket_token = parser_current_token(&parser);
+    let has_open_bracket = false;
+    match (open_bracket_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_bracket) {
+            if (option_bracket matches OptionToken::Some(token)) {
+                open_bracket_token = token;
+                has_open_bracket = true;
+            }
+        }
+    }
+
+    if (!has_open_bracket) return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+
+    let expressions: ExpressionNode[] = [];
+
+    let first_expression_call = parser_parse_expression(&parser);
+    match (first_expression_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_expression) {
+            if (option_expression matches OptionExpressionNode::Some(first_expression)) {
+                vector_push(&expressions, first_expression);
+
+                while (parser_current_token(&parser).category matches TokenCategory::Comma) {
+                    let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
+                    if (comma_consumed matches ResultToken::Err(err)) return ResultOptionExpressionNode::Err(err);
+
+                    let next_expression_call = parser_parse_expression(&parser);
+                    match (next_expression_call) {
+                        ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+                        ResultOptionExpressionNode::Ok(next_option_expression) {
+                            match (next_option_expression) {
+                                OptionExpressionNode::None return ResultOptionExpressionNode::Err(
+                                    parser_create_parser_error(&parser, "Couldn't create expression while parsing vector literal.")
+                                );,
+                                OptionExpressionNode::Some(next_expression) vector_push(&expressions, next_expression);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let close_bracket_consumed = parser_consume_must_be(&parser, TokenCategory::BracketClose);
+    match (close_bracket_consumed) {
+        ResultToken::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultToken::Ok(close_bracket_token) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(ExpressionNode {
+            value: Expression::Vector(expressions),
+            span: span_new(open_bracket_token.span.start, close_bracket_token.span.end)
+        }));
+    }
+}

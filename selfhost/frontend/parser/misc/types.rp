@@ -1,0 +1,97 @@
+import "../../../common/errors.rp";
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_type(&Parser parser): ResultOptionTypeNode {
+    # type = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str" | identifier), { "[]" };
+    let token = parser_current_token(&parser);
+
+    let result = Type::Void;
+    let matched = true;
+
+    match (token.category) {
+        TokenCategory::Bool result = Type::Bool;,
+        TokenCategory::String result = Type::Str;,
+        TokenCategory::Char result = Type::Char;,
+        TokenCategory::I8 result = Type::I8;,
+        TokenCategory::I16 result = Type::I16;,
+        TokenCategory::I32 result = Type::I32;,
+        TokenCategory::I64 result = Type::I64;,
+        TokenCategory::U8 result = Type::U8;,
+        TokenCategory::U16 result = Type::U16;,
+        TokenCategory::U32 result = Type::U32;,
+        TokenCategory::U64 result = Type::U64;,
+        TokenCategory::F64 result = Type::F64;,
+        TokenCategory::Identifier {
+            match (token.value) {
+                TokenValue::String(name) result = Type::Unresolved(name);,
+                TokenValue::F64 matched = false;,
+                TokenValue::I64 matched = false;,
+                TokenValue::Char matched = false;,
+                TokenValue::Null matched = false;
+            }
+        },
+        rest {
+            matched = false;
+        }
+    }
+
+    if (!matched) return ResultOptionTypeNode::Ok(OptionTypeNode::None);
+
+    let start_position = token.span.start;
+    let end_position = token.span.end;
+
+    let advance = parser_next_token(&parser);
+    match (advance) {
+        ResultOptionToken::Err(err) return ResultOptionTypeNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok {}
+    }
+
+    while (parser_current_token(&parser).category matches TokenCategory::BracketOpen) {
+        let open_bracket = parser_consume_must_be(&parser, TokenCategory::BracketOpen);
+        match (open_bracket) {
+            ResultToken::Err(err) return ResultOptionTypeNode::Err(err);,
+            ResultToken::Ok {}
+        }
+
+        let close_bracket = parser_consume_must_be(&parser, TokenCategory::BracketClose);
+        match (close_bracket) {
+            ResultToken::Err(err) return ResultOptionTypeNode::Err(err);,
+            ResultToken::Ok(closing_token) end_position = closing_token.span.end;
+        }
+
+        result = Type::Vector(result);
+    }
+
+    return ResultOptionTypeNode::Ok(OptionTypeNode::Some(TypeNode {
+        value: result,
+        span: span_new(start_position, end_position)
+    }));
+}
+
+fn parser_void_type_or_error(&Parser parser): ResultTypeNode {
+    let consumed = parser_consume_if_matches(&parser, TokenCategory::Void);
+
+    let option_token = OptionToken::None;
+    match (consumed) {
+        ResultOptionToken::Err(err) return ResultTypeNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(t) option_token = t;
+    }
+
+    match (option_token) {
+        OptionToken::Some(token) return ResultTypeNode::Ok(TypeNode { value: Type::Void, span: token.span });,
+        OptionToken::None {
+            let current = parser_current_token(&parser);
+            return ResultTypeNode::Err(parser_error_expected_found(
+                ErrorSeverity::HIGH,
+                "Bad return type",
+                "'i64', 'f64', 'bool', 'str', or 'void'",
+                token_category_to_string(current.category),
+                current.span
+            ));
+        }
+    }
+}

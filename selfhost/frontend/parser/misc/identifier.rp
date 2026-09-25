@@ -1,0 +1,33 @@
+import "../../../common/errors.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_identifier(&Parser parser): ResultOptionIdentifierNode {
+    let consumed = parser_consume_must_be(&parser, TokenCategory::Identifier);
+
+    let token = Token { category: TokenCategory::Identifier, value: TokenValue::Null, span: parser_current_token(&parser).span };
+    match (consumed) {
+        ResultToken::Err return ResultOptionIdentifierNode::Ok(OptionIdentifierNode::None);,
+        ResultToken::Ok(t) token = t;
+    }
+
+    match (token.value) {
+        TokenValue::String(name) return ResultOptionIdentifierNode::Ok(OptionIdentifierNode::Some(
+            IdentifierNode { value: name, span: token.span }
+        ));,
+        TokenValue::F64 {},
+        TokenValue::I64 {},
+        TokenValue::Char {},
+        TokenValue::Null {}
+    }
+
+    return ResultOptionIdentifierNode::Err(parser_error_expected_found(
+        ErrorSeverity::HIGH,
+        "Wrong token value type",
+        "str",
+        token_category_to_string(token.category),
+        token.span
+    ));
+}

@@ -1,0 +1,262 @@
+import "../../common/errors.rp";
+import "./ast.rp";
+
+# ============================================================
+# In the Rust parser almost every `parse_*` function returns
+#   Result<Option<Node<X>>, Box<dyn IError>>
+# ("either a parser error, or: maybe an X was there").
+#
+# Raptor has neither `Result<T, E>` nor `Option<T>` as generics, and
+# `ast.rp` already recreated `OptionXNode` for every `X` that appears
+# as an *optional field inside the AST itself*. This file adds the
+# `ResultOptionXNode` pair on top of those (one per node type the
+# parser produces), plus the handful of `OptionXNode` that only ever
+# show up as a *parser return value*, never as an AST field, plus the
+# `Result<Vec<X>, Error>` / `Result<X, Error>` shapes used by the few
+# functions that don't return an Option layer at all (they always
+# succeed with a - possibly empty - list, or they have no valid "not
+# found" case).
+#
+# All errors are `ParserError`, exactly like `Box<dyn IError>` is
+# `ParserError` everywhere in the Rust parser (the `dyn` is only ever
+# instantiated with `ParserError` there).
+# ============================================================
+
+
+# ---------- Option<Node<X>> that are parser-only (no AST field uses them) ----------
+
+enum OptionArgumentNode derives Debug {
+    Some(ArgumentNode),
+    None
+};
+
+enum OptionParameterNode derives Debug {
+    Some(ParameterNode),
+    None
+};
+
+enum OptionStructMemberNode derives Debug {
+    Some(StructMemberNode),
+    None
+};
+
+enum OptionStructDeclarationNode derives Debug {
+    Some(StructDeclarationNode),
+    None
+};
+
+enum OptionEnumMemberNode derives Debug {
+    Some(EnumMemberNode),
+    None
+};
+
+enum OptionEnumDeclarationNode derives Debug {
+    Some(EnumDeclarationNode),
+    None
+};
+
+enum OptionFunctionDeclarationNode derives Debug {
+    Some(FunctionDeclarationNode),
+    None
+};
+
+enum OptionExternFunctionDeclarationNode derives Debug {
+    Some(ExternFunctionDeclarationNode),
+    None
+};
+
+enum OptionSwitchExpressionNode derives Debug {
+    Some(SwitchExpressionNode),
+    None
+};
+
+enum OptionSwitchCaseNode derives Debug {
+    Some(SwitchCaseNode),
+    None
+};
+
+enum OptionMatchArmNode derives Debug {
+    Some(MatchArmNode),
+    None
+};
+
+enum OptionStructLiteralFieldNode derives Debug {
+    Some(StructLiteralFieldNode),
+    None
+};
+
+
+# ---------- Result<Option<Node<X>>, ParserError> ----------
+
+enum ResultOptionLiteralNode derives Debug {
+    Ok(OptionLiteralNode),
+    Err(ParserError)
+};
+
+enum ResultOptionExpressionNode derives Debug {
+    Ok(OptionExpressionNode),
+    Err(ParserError)
+};
+
+enum ResultOptionIdentifierNode derives Debug {
+    Ok(OptionIdentifierNode),
+    Err(ParserError)
+};
+
+enum ResultOptionTypeNode derives Debug {
+    Ok(OptionTypeNode),
+    Err(ParserError)
+};
+
+enum ResultOptionBlockNode derives Debug {
+    Ok(OptionBlockNode),
+    Err(ParserError)
+};
+
+enum ResultOptionStatementNode derives Debug {
+    Ok(OptionStatementNode),
+    Err(ParserError)
+};
+
+enum ResultOptionArgumentNode derives Debug {
+    Ok(OptionArgumentNode),
+    Err(ParserError)
+};
+
+enum ResultOptionParameterNode derives Debug {
+    Ok(OptionParameterNode),
+    Err(ParserError)
+};
+
+enum ResultOptionStructMemberNode derives Debug {
+    Ok(OptionStructMemberNode),
+    Err(ParserError)
+};
+
+enum ResultOptionStructDeclarationNode derives Debug {
+    Ok(OptionStructDeclarationNode),
+    Err(ParserError)
+};
+
+enum ResultOptionEnumMemberNode derives Debug {
+    Ok(OptionEnumMemberNode),
+    Err(ParserError)
+};
+
+enum ResultOptionEnumDeclarationNode derives Debug {
+    Ok(OptionEnumDeclarationNode),
+    Err(ParserError)
+};
+
+enum ResultOptionFunctionDeclarationNode derives Debug {
+    Ok(OptionFunctionDeclarationNode),
+    Err(ParserError)
+};
+
+enum ResultOptionExternFunctionDeclarationNode derives Debug {
+    Ok(OptionExternFunctionDeclarationNode),
+    Err(ParserError)
+};
+
+enum ResultOptionSwitchExpressionNode derives Debug {
+    Ok(OptionSwitchExpressionNode),
+    Err(ParserError)
+};
+
+enum ResultOptionSwitchCaseNode derives Debug {
+    Ok(OptionSwitchCaseNode),
+    Err(ParserError)
+};
+
+enum ResultOptionMatchArmNode derives Debug {
+    Ok(OptionMatchArmNode),
+    Err(ParserError)
+};
+
+enum ResultOptionStructLiteralFieldNode derives Debug {
+    Ok(OptionStructLiteralFieldNode),
+    Err(ParserError)
+};
+
+
+# ---------- Result<Node<X>, ParserError> (no Option layer: either it parses, or it's a hard error) ----------
+
+enum ResultTypeNode derives Debug {
+    Ok(TypeNode),
+    Err(ParserError)
+};
+
+# Result<Node<Expression>, ParserError> - used by the two "tail" productions
+# that, once they've committed to a shape (enum literal / struct literal),
+# can no longer reasonably answer "not this production" with `None`: from
+# that point on it's either a fully parsed node or a hard error.
+enum ResultExpressionNode derives Debug {
+    Ok(ExpressionNode),
+    Err(ParserError)
+};
+
+
+# ---------- Result<Vec<Node<X>>, ParserError> (always succeeds with a - possibly empty - list, or hard errors) ----------
+
+enum ResultIdentifierNodeVec derives Debug {
+    Ok(IdentifierNode[]),
+    Err(ParserError)
+};
+
+enum ResultArgumentNodeVec derives Debug {
+    Ok(ArgumentNode[]),
+    Err(ParserError)
+};
+
+enum ResultParameterNodeVec derives Debug {
+    Ok(ParameterNode[]),
+    Err(ParserError)
+};
+
+enum ResultStructMemberNodeVec derives Debug {
+    Ok(StructMemberNode[]),
+    Err(ParserError)
+};
+
+enum ResultEnumMemberNodeVec derives Debug {
+    Ok(EnumMemberNode[]),
+    Err(ParserError)
+};
+
+enum ResultSwitchExpressionNodeVec derives Debug {
+    Ok(SwitchExpressionNode[]),
+    Err(ParserError)
+};
+
+enum ResultMatchArmNodeVec derives Debug {
+    Ok(MatchArmNode[]),
+    Err(ParserError)
+};
+
+enum ResultStructLiteralFieldNodeVec derives Debug {
+    Ok(StructLiteralFieldNode[]),
+    Err(ParserError)
+};
+
+
+# ---------- Result<Token, ParserError> (`consume_must_be`: a required, specific token) ----------
+
+enum ResultToken derives Debug {
+    Ok(Token),
+    Err(ParserError)
+};
+
+
+# ---------- Misc ----------
+
+# Result<(), ParserError>, for fallible functions that don't produce a value.
+enum ResultUnit derives Debug {
+    Ok,
+    Err(ParserError)
+};
+
+# Result<Program, ParserError> - what `parser_parse` returns.
+enum ResultProgram derives Debug {
+    Ok(Program),
+    Err(ParserError)
+};

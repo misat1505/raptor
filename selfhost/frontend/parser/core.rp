@@ -1,0 +1,156 @@
+import "../../common/errors.rp";
+import "../../common/span.rp";
+import "../../common/position.rp";
+import "../../../stdlib/string.rp";
+import "../lexer/lexer.rp";
+import "../tokens.rp";
+import "./ast.rp";
+import "./parser_results.rp";
+
+# ============================================================
+# Mirrors `src/frontend/parser/mod.rs` (the `Parser<L: ILexer>` struct)
+# and `src/frontend/parser/core.rs` (`next_token`, `current_token`,
+# `consume_must_be`, `consume_if_matches`, `create_parser_error`,
+# `token_text`, and the `try_consume!`/`try_consume_token!` macros).
+#
+# Rust's `Parser<L: ILexer>` is generic over the lexer implementation so
+# tests can swap in a mock lexer. Raptor has no generics/interfaces, so
+# this parser is hard-wired to the concrete selfhost `Lexer`.
+#
+# `try_consume!`/`try_consume_token!` are Rust *macros*: they are
+# textually inlined at every call site, they don't exist as callable
+# functions at runtime. Raptor's macro system (`define_macro`) isn't
+# implemented yet (see examples/macro.rp), so every call site below
+# spells the same two patterns out by hand instead:
+#
+#   try_consume_token!(self, Category)
+#     -> consume the current token if it has this exact category, or
+#        bail out of the current production with `Ok(None)`.
+#
+#   try_consume!(self, parse_thing)
+#     -> call another `parse_*` function; propagate its error, bail out
+#        of the current production with `Ok(None)` if it returned
+#        `None`, or unwrap the value if it returned `Some`.
+# ============================================================
+
+
+struct Parser derives Debug {
+    Lexer lexer
+};
+
+enum ResultParser derives Debug {
+    Ok(Parser),
+    Err(ParserError)
+};
+
+# The lexer only ever produces `LexerError`, while every parser
+# production below produces `ParserError`. Rust papers over this with
+# `Box<dyn IError>`; Raptor has no trait objects, so any `LexerError`
+# that bubbles up out of the lexer while the parser is driving it is
+# converted into an equivalent `ParserError` by hand instead.
+fn lexer_error_to_parser_error(&LexerError error): ParserError {
+    return ParserError {
+        message: error.message,
+        level: error.level,
+        span: error.span
+    };
+}
+
+fn parser_new(Lexer lexer): ResultParser {
+    let primed = lexer;
+
+    # The token stream always begins with a synthetic STX token. Just
+    # like `Lexer::new` in the Rust bootstrap compiler calls
+    # `generate_token()` twice before returning, we advance twice here:
+    # once to consume the leading STX, once more to land on the first
+    # real token, so that `parser_current_token` already has something
+    # meaningful to return as soon as the parser exists.
+    let first_result = lexer_next(&primed);
+    if (first_result matches ResultOptionToken::Err(err)) return ResultParser::Err(lexer_error_to_parser_error(&err));
+
+    let second_result = lexer_next(&primed);
+    if (second_result matches ResultOptionToken::Err(err)) return ResultParser::Err(lexer_error_to_parser_error(&err));
+
+    return ResultParser::Ok(Parser { lexer: primed });
+}
+
+# Advance to the next token. The selfhost lexer already skips comment
+# tokens internally (`lexer_generate_token` recurses past
+# `TokenCategory::Comment`), unlike the Rust `next_token`, which has to
+# skip them itself - so this is a thin wrapper.
+fn parser_next_token(&Parser parser): ResultOptionToken {
+    let result = lexer_next(&parser.lexer);
+
+    match (result) {
+        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Ok(option_token) return ResultOptionToken::Ok(option_token);
+    }
+}
+
+fn parser_current_token(&Parser parser): Token {
+    let current = lexer_current(&parser.lexer);
+
+    match (current) {
+        OptionToken::Some(token) return token;,
+        OptionToken::None {
+            # Unreachable in practice: `parser_new` always primes the
+            # lexer before a `Parser` is handed out.
+            return Token {
+                category: TokenCategory::ETX,
+                value: TokenValue::Null,
+                span: span_new(
+                    position_new(0, 0, 0, OptionStr::None),
+                    position_new(0, 0, 0, OptionStr::None)
+                )
+            };
+        }
+    }
+}
+
+fn parser_consume_must_be(&Parser parser, TokenCategory category): ResultToken {
+    let current_token = parser_current_token(&parser);
+
+    # TODO: temporary workaround with debug
+    if (token_category_debug(&current_token.category) == token_category_debug(&category)) {
+        let advance = parser_next_token(&parser);
+        if (advance matches ResultOptionToken::Err(err)) return ResultToken::Err(lexer_error_to_parser_error(&err));
+
+        return ResultToken::Ok(current_token);
+    }
+
+    return ResultToken::Err(parser_error_expected_found(
+        ErrorSeverity::HIGH,
+        "Unexpected token",
+        token_category_to_string(category),
+        parser_token_text(&current_token),
+        current_token.span
+    ));
+}
+
+fn parser_consume_if_matches(&Parser parser, TokenCategory category): ResultOptionToken {
+    let current_token = parser_current_token(&parser);
+
+    # TODO: temporary workaround with debug
+    if (token_category_debug(&current_token.category) == token_category_debug(&category)) {
+        let advance = parser_next_token(&parser);
+        if (advance matches ResultOptionToken::Err(err)) return ResultOptionToken::Err(err);
+
+        return ResultOptionToken::Ok(OptionToken::Some(current_token));
+    }
+
+    return ResultOptionToken::Ok(OptionToken::None);
+}
+
+fn parser_create_parser_error(&Parser parser, str text): ParserError {
+    return parser_error_at(ErrorSeverity::HIGH, text, parser_current_token(&parser).span);
+}
+
+fn parser_token_text(&Token token): str {
+    match (token.value) {
+        TokenValue::F64(value) return value as str;,
+        TokenValue::I64(value) return value as str;,
+        TokenValue::String(value) return value;,
+        TokenValue::Char(value) return value as str;,
+        TokenValue::Null return token_category_to_string(token.category);
+    }
+}

@@ -1,0 +1,79 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "./expression.rp";
+
+fn parser_parse_arguments(&Parser parser): ResultArgumentNodeVec {
+    # arguments = [ argument, {",", argument} ];
+    let first_call = parser_parse_argument(&parser);
+
+    let arguments: ArgumentNode[] = [];
+
+    match (first_call) {
+        ResultOptionArgumentNode::Err(err) return ResultArgumentNodeVec::Err(err);,
+        ResultOptionArgumentNode::Ok(option_first) {
+            match (option_first) {
+                OptionArgumentNode::None return ResultArgumentNodeVec::Ok(arguments);,
+                OptionArgumentNode::Some(first_argument) vector_push(&arguments, first_argument);
+            }
+        }
+    }
+
+    while (true) {
+        let comma_consumed = parser_consume_if_matches(&parser, TokenCategory::Comma);
+        let has_comma = false;
+        match (comma_consumed) {
+            ResultOptionToken::Err(err) return ResultArgumentNodeVec::Err(parser_error_from_lexer_error(&err));,
+            ResultOptionToken::Ok(option_comma) {
+                if (option_comma matches OptionToken::Some) has_comma = true;
+            }
+        }
+
+        if (!has_comma) break;
+
+        let next_call = parser_parse_argument(&parser);
+        match (next_call) {
+            ResultOptionArgumentNode::Err(err) return ResultArgumentNodeVec::Err(err);,
+            ResultOptionArgumentNode::Ok(option_next) {
+                match (option_next) {
+                    OptionArgumentNode::None return ResultArgumentNodeVec::Err(
+                        parser_create_parser_error(&parser, "Couldn't create argument while parsing arguments.")
+                    );,
+                    OptionArgumentNode::Some(next_argument) vector_push(&arguments, next_argument);
+                }
+            }
+        }
+    }
+
+    return ResultArgumentNodeVec::Ok(arguments);
+}
+
+fn parser_parse_argument(&Parser parser): ResultOptionArgumentNode {
+    # argument = ["&"], expression;
+    let start_position = parser_current_token(&parser).span.start;
+
+    let reference_consumed = parser_consume_if_matches(&parser, TokenCategory::Reference);
+    let passed_by = PassedBy::Value;
+    match (reference_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionArgumentNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_reference) {
+            if (option_reference matches OptionToken::Some) passed_by = PassedBy::Reference;
+        }
+    }
+
+    let expression_call = parser_parse_expression(&parser);
+    match (expression_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionArgumentNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_expression) {
+            match (option_expression) {
+                OptionExpressionNode::None return ResultOptionArgumentNode::Ok(OptionArgumentNode::None);,
+                OptionExpressionNode::Some(expression) return ResultOptionArgumentNode::Ok(OptionArgumentNode::Some(ArgumentNode {
+                    value: Argument { value: expression, passed_by: passed_by },
+                    span: span_new(start_position, expression.span.end)
+                }));
+            }
+        }
+    }
+}

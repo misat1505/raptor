@@ -204,6 +204,48 @@ fn parser_error_at(ErrorSeverity level, str summary, Span span): ParserError {
 }
 
 
+fn parser_error_from_lexer_error(&LexerError lexer_error): ParserError {
+    return ParserError {
+        level: lexer_error.level,
+        span: lexer_error.span,
+        message: lexer_error.message
+    };
+}
+
+
+fn parser_error_get_stderr_message(&ParserError error): str {
+    let text = error_severity_to_string(error.level) + ": " + error.message;
+
+    let filename = "";
+    match (error.span.start.filename) {
+        OptionStr::None return text;,
+        OptionStr::Some(t) filename = t;
+    }
+
+    if (!exists_file(filename)) return text;
+
+    let file_content = read_file(filename);
+    let lines = str_split(file_content, "\n");
+
+    let normalized_line = error.span.start.line - 1;
+    if (normalized_line >= vector_size(&lines)) return text;
+
+    let line = lines[normalized_line];
+    let underline_length = error.span.end.column - error.span.start.column;
+
+    let underline_offset = "";
+    for (let i = 0; i < error.span.start.column - 1; i += 1) underline_offset += ' ';
+
+    let underline = error_severity_color(error.level);
+    for (let i = 0; i < underline_length; i += 1) underline += '^';
+    underline += console_standard();
+
+    text += "\n  --> " + filename + ":" + error.span.start.line as str + ":" + error.span.start.column as str + "\n\n     | " + line + "\n     | " + underline_offset + underline;
+
+    return text;
+}
+
+
 fn parser_error_expected_found(
     ErrorSeverity level,
     str summary,

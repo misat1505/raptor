@@ -1,0 +1,74 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_import_declaration(&Parser parser): ResultOptionStatementNode {
+    # import_declaration = "import", literal, ";";
+    let import_consumed = parser_consume_if_matches(&parser, TokenCategory::Import);
+
+    let import_token = parser_current_token(&parser);
+    let has_import = false;
+    match (import_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_import) {
+            match (option_import) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    import_token = token;
+                    has_import = true;
+                }
+            }
+        }
+    }
+
+    if (!has_import) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
+
+    let literal_call = parser_parse_literal(&parser);
+    let import_literal = LiteralNode { value: Literal::True, span: parser_current_token(&parser).span };
+    let found_literal = false;
+    match (literal_call) {
+        ResultOptionLiteralNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionLiteralNode::Ok(option_literal) {
+            match (option_literal) {
+                OptionLiteralNode::None {},
+                OptionLiteralNode::Some(literal) {
+                    import_literal = literal;
+                    found_literal = true;
+                }
+            }
+        }
+    }
+
+    if (!found_literal) return ResultOptionStatementNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create literal while parsing import declaration.")
+    );
+
+    let import_path = "";
+    let is_string_literal = false;
+    match (import_literal.value) {
+        Literal::String(path) {
+            import_path = path;
+            is_string_literal = true;
+        },
+        Literal::True {},
+        Literal::False {},
+        Literal::Char {},
+        Literal::I64 {},
+        Literal::F64 {}
+    }
+
+    if (!is_string_literal) return ResultOptionStatementNode::Err(
+        parser_create_parser_error(&parser, "Import path must be a string literal.")
+    );
+
+    let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    match (semicolon_consumed) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok(semicolon_token) return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+            value: Statement::Import(IdentifierNode { value: import_path, span: import_literal.span }),
+            span: span_new(import_token.span.start, semicolon_token.span.end)
+        }));
+    }
+}

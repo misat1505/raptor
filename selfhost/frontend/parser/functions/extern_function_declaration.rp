@@ -1,0 +1,116 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_extern_function_declaration(&Parser parser): ResultOptionExternFunctionDeclarationNode {
+    # extern_function_declaration = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
+    let extern_consumed = parser_consume_if_matches(&parser, TokenCategory::Extern);
+
+    let extern_token = parser_current_token(&parser);
+    let has_extern = false;
+    match (extern_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_extern) {
+            match (option_extern) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    extern_token = token;
+                    has_extern = true;
+                }
+            }
+        }
+    }
+
+    if (!has_extern) return ResultOptionExternFunctionDeclarationNode::Ok(OptionExternFunctionDeclarationNode::None);
+
+    let fn_consumed = parser_consume_must_be(&parser, TokenCategory::Fn);
+    match (fn_consumed) {
+        ResultToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let identifier_call = parser_parse_identifier(&parser);
+    let identifier = IdentifierNode { value: "", span: parser_current_token(&parser).span };
+    let found_identifier = false;
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::None {},
+                OptionIdentifierNode::Some(i) {
+                    identifier = i;
+                    found_identifier = true;
+                }
+            }
+        }
+    }
+
+    if (!found_identifier) return ResultOptionExternFunctionDeclarationNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create identifier while parsing extern function declaration.")
+    );
+
+    let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
+    match (paren_open) {
+        ResultToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let parameters_call = parser_parse_parameters(&parser);
+    let parameters: ParameterNode[] = [];
+    match (parameters_call) {
+        ResultParameterNodeVec::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
+        ResultParameterNodeVec::Ok(parsed) parameters = parsed;
+    }
+
+    let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+    match (paren_close) {
+        ResultToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let colon_consumed = parser_consume_must_be(&parser, TokenCategory::Colon);
+    match (colon_consumed) {
+        ResultToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let return_type_call = parser_parse_return_type(&parser);
+    let return_type = TypeNode { value: Type::Void, span: parser_current_token(&parser).span };
+    match (return_type_call) {
+        ResultTypeNode::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
+        ResultTypeNode::Ok(t) return_type = t;
+    }
+
+    let alias = OptionIdentifierNode::None;
+    let as_consumed = parser_consume_if_matches(&parser, TokenCategory::As);
+    match (as_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_as) {
+            if (option_as matches OptionToken::Some) {
+                let alias_call = parser_parse_identifier(&parser);
+                match (alias_call) {
+                    ResultOptionIdentifierNode::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
+                    ResultOptionIdentifierNode::Ok(option_alias) {
+                        match (option_alias) {
+                            OptionIdentifierNode::None return ResultOptionExternFunctionDeclarationNode::Err(
+                                parser_create_parser_error(&parser, "Expected identifier after 'as' in extern function declaration.")
+                            );,
+                            OptionIdentifierNode::Some(alias_identifier) alias = OptionIdentifierNode::Some(alias_identifier);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    match (semicolon_consumed) {
+        ResultToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
+        ResultToken::Ok(semicolon_token) return ResultOptionExternFunctionDeclarationNode::Ok(OptionExternFunctionDeclarationNode::Some(ExternFunctionDeclarationNode {
+            value: ExternFunctionDeclaration { identifier: identifier, alias: alias, parameters: parameters, return_type: return_type },
+            span: span_new(extern_token.span.start, semicolon_token.span.end)
+        }));
+    }
+}

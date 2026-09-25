@@ -1,0 +1,61 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "./factor.rp";
+
+fn parser_parse_unary_term(&Parser parser): ResultOptionExpressionNode {
+    # unary_term = [ ("-", "!") ], factor;
+    let start_position = parser_current_token(&parser).span.start;
+
+    let negate_consumed = parser_consume_if_matches(&parser, TokenCategory::Negate);
+    match (negate_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(has_negate) {
+            if (has_negate matches OptionToken::Some) {
+                let factor_result = parser_parse_factor(&parser);
+                match (factor_result) {
+                    ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+                    ResultOptionExpressionNode::Ok(option_factor) {
+                        match (option_factor) {
+                            OptionExpressionNode::None return ResultOptionExpressionNode::Err(
+                                parser_create_parser_error(&parser, "Couldn't create factor while parsing unary term.")
+                            );,
+                            OptionExpressionNode::Some(factor_node) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(ExpressionNode {
+                                value: Expression::BooleanNegation(factor_node),
+                                span: span_new(start_position, factor_node.span.end)
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let minus_consumed = parser_consume_if_matches(&parser, TokenCategory::Minus);
+    match (minus_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(has_minus) {
+            if (has_minus matches OptionToken::Some) {
+                let factor_result = parser_parse_factor(&parser);
+                match (factor_result) {
+                    ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+                    ResultOptionExpressionNode::Ok(option_factor) {
+                        match (option_factor) {
+                            OptionExpressionNode::None return ResultOptionExpressionNode::Err(
+                                parser_create_parser_error(&parser, "Couldn't create factor while parsing unary term.")
+                            );,
+                            OptionExpressionNode::Some(factor_node) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(ExpressionNode {
+                                value: Expression::ArithmeticNegation(factor_node),
+                                span: span_new(start_position, factor_node.span.end)
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return parser_parse_factor(&parser);
+}

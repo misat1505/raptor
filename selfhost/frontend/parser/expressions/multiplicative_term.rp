@@ -1,0 +1,76 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "./casted_term.rp";
+
+fn parser_parse_multiplicative_term(&Parser parser): ResultOptionExpressionNode {
+    # multiplicative_term = casted_term, { ("*" | "/" | "%"), casted_term };
+    let left_call = parser_parse_casted_term(&parser);
+
+    let left_side = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_left = false;
+
+    match (left_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_left) {
+            match (option_left) {
+                OptionExpressionNode::None {},
+                OptionExpressionNode::Some(value) {
+                    left_side = value;
+                    found_left = true;
+                }
+            }
+        }
+    }
+
+    if (!found_left) return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+
+    while (true) {
+        let current_token = parser_current_token(&parser);
+        if (current_token.category not matches TokenCategory::Multiply) {
+            if (current_token.category not matches TokenCategory::Divide) {
+                if (current_token.category not matches TokenCategory::Modulo) {
+                    break;
+                }
+            }
+        }
+        let operator_category = parser_current_token(&parser).category;
+
+        let advance = parser_next_token(&parser);
+        if (advance matches ResultOptionToken::Err(err)) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+
+        let right_call = parser_parse_casted_term(&parser);
+        let found_right = false;
+
+        match (right_call) {
+            ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+            ResultOptionExpressionNode::Ok(option_right) {
+                if (option_right matches OptionExpressionNode::Some(right_side)) {
+                    let operands = BinaryExpression { left: left_side, right: right_side };
+
+                    let expression_value = Expression::Multiplication(operands);
+                    match (operator_category) {
+                        TokenCategory::Multiply expression_value = Expression::Multiplication(operands);,
+                        TokenCategory::Divide expression_value = Expression::Division(operands);,
+                        TokenCategory::Modulo expression_value = Expression::Modulo(operands);,
+                        rest {}
+                    }
+
+                    left_side = ExpressionNode {
+                        value: expression_value,
+                        span: span_new(left_side.span.start, right_side.span.end)
+                    };
+                    found_right = true;
+                }
+            }
+        }
+
+        if (!found_right) return ResultOptionExpressionNode::Err(
+            parser_create_parser_error(&parser, "Couldn't create casted term while parsing multiplicative term.")
+        );
+    }
+
+    return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(left_side));
+}

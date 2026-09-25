@@ -1,0 +1,92 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "./additive_term.rp";
+
+fn parser_parse_relation_term(&Parser parser): ResultOptionExpressionNode {
+    # relation_term = additive_term, [ relation_operands, additive_term ];
+    let left_call = parser_parse_additive_term(&parser);
+
+    let left_side = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_left = false;
+
+    match (left_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_left) {
+            match (option_left) {
+                OptionExpressionNode::None {},
+                OptionExpressionNode::Some(value) {
+                    left_side = value;
+                    found_left = true;
+                }
+            }
+        }
+    }
+
+    if (!found_left) return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+
+    let operator_token = parser_current_token(&parser);
+
+    let is_relation_operand = false;
+    match (operator_token.category) {
+        TokenCategory::Equal is_relation_operand = true;,
+        TokenCategory::NotEqual is_relation_operand = true;,
+        TokenCategory::Greater is_relation_operand = true;,
+        TokenCategory::GreaterOrEqual is_relation_operand = true;,
+        TokenCategory::Less is_relation_operand = true;,
+        TokenCategory::LessOrEqual is_relation_operand = true;,
+        rest {}
+    }
+
+    if (!is_relation_operand) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(left_side));
+
+    let advance = parser_next_token(&parser);
+    if (advance matches ResultOptionToken::Err(err)) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+
+    let right_call = parser_parse_additive_term(&parser);
+    let right_side = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_right = false;
+
+    match (right_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_right) {
+            match (option_right) {
+                OptionExpressionNode::None {},
+                OptionExpressionNode::Some(value) {
+                    right_side = value;
+                    found_right = true;
+                }
+            }
+        }
+    }
+
+    if (!found_right) return ResultOptionExpressionNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create additive term while parsing relation term.")
+    );
+
+    let operands = BinaryExpression { left: left_side, right: right_side };
+    let result_span = span_new(left_side.span.start, right_side.span.end);
+
+    let matched_operator = true;
+    let expression_value = Expression::Equal(operands);
+    match (operator_token.category) {
+        TokenCategory::Equal expression_value = Expression::Equal(operands);,
+        TokenCategory::NotEqual expression_value = Expression::NotEqual(operands);,
+        TokenCategory::Greater expression_value = Expression::Greater(operands);,
+        TokenCategory::GreaterOrEqual expression_value = Expression::GreaterEqual(operands);,
+        TokenCategory::Less expression_value = Expression::Less(operands);,
+        TokenCategory::LessOrEqual expression_value = Expression::LessEqual(operands);,
+        rest matched_operator = false;
+    }
+
+    if (!matched_operator) return ResultOptionExpressionNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create additive term while parsing relation term.")
+    );
+
+    return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(ExpressionNode {
+        value: expression_value,
+        span: result_span
+    }));
+}

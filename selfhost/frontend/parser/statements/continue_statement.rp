@@ -1,0 +1,36 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_continue_statement(&Parser parser): ResultOptionStatementNode {
+    # continue_statement = "continue", ";";
+    let continue_consumed = parser_consume_if_matches(&parser, TokenCategory::Continue);
+
+    let continue_token = parser_current_token(&parser);
+    let has_continue = false;
+    match (continue_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_continue) {
+            match (option_continue) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    continue_token = token;
+                    has_continue = true;
+                }
+            }
+        }
+    }
+
+    if (!has_continue) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
+
+    let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    match (semicolon_consumed) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok(semicolon_token) return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+            value: Statement::Continue,
+            span: span_new(continue_token.span.start, semicolon_token.span.end)
+        }));
+    }
+}

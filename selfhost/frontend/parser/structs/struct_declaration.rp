@@ -1,0 +1,158 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclarationNode {
+    # struct_declaration = "struct", identifier, [ derives_declaration ], "{", [ struct_members ], "}", ";";
+    let struct_consumed = parser_consume_if_matches(&parser, TokenCategory::Struct);
+
+    let struct_token = parser_current_token(&parser);
+    let has_struct = false;
+    match (struct_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStructDeclarationNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_struct) {
+            match (option_struct) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    struct_token = token;
+                    has_struct = true;
+                }
+            }
+        }
+    }
+
+    if (!has_struct) return ResultOptionStructDeclarationNode::Ok(OptionStructDeclarationNode::None);
+
+    let identifier_call = parser_parse_identifier(&parser);
+    let identifier = IdentifierNode { value: "", span: parser_current_token(&parser).span };
+    let found_identifier = false;
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionStructDeclarationNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::None {},
+                OptionIdentifierNode::Some(i) {
+                    identifier = i;
+                    found_identifier = true;
+                }
+            }
+        }
+    }
+
+    if (!found_identifier) return ResultOptionStructDeclarationNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create identifier while parsing struct declaration.")
+    );
+
+    let derives_call = parser_parse_derive_declaration(&parser);
+    let struct_derives: IdentifierNode[] = [];
+    match (derives_call) {
+        ResultIdentifierNodeVec::Err(err) return ResultOptionStructDeclarationNode::Err(err);,
+        ResultIdentifierNodeVec::Ok(parsed) struct_derives = parsed;
+    }
+
+    let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
+    match (brace_open) {
+        ResultToken::Err(err) return ResultOptionStructDeclarationNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let members_call = parser_parse_struct_members(&parser);
+    let members: StructMemberNode[] = [];
+    match (members_call) {
+        ResultStructMemberNodeVec::Err(err) return ResultOptionStructDeclarationNode::Err(err);,
+        ResultStructMemberNodeVec::Ok(parsed) members = parsed;
+    }
+
+    let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
+    match (brace_close) {
+        ResultToken::Err(err) return ResultOptionStructDeclarationNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    match (semicolon_consumed) {
+        ResultToken::Err(err) return ResultOptionStructDeclarationNode::Err(err);,
+        ResultToken::Ok(semicolon_token) return ResultOptionStructDeclarationNode::Ok(OptionStructDeclarationNode::Some(StructDeclarationNode {
+            value: StructDeclaration { identifier: identifier, members: members, struct_derives },
+            span: span_new(struct_token.span.start, semicolon_token.span.end)
+        }));
+    }
+}
+
+fn parser_parse_struct_members(&Parser parser): ResultStructMemberNodeVec {
+    # struct_members = struct_member, { ",", struct_member };
+    let first_call = parser_parse_struct_member(&parser);
+    let members: StructMemberNode[] = [];
+
+    match (first_call) {
+        ResultOptionStructMemberNode::Err(err) return ResultStructMemberNodeVec::Err(err);,
+        ResultOptionStructMemberNode::Ok(option_first) {
+            match (option_first) {
+                OptionStructMemberNode::None return ResultStructMemberNodeVec::Ok(members);,
+                OptionStructMemberNode::Some(first) vector_push(&members, first);
+            }
+        }
+    }
+
+    while (parser_current_token(&parser).category matches TokenCategory::Comma) {
+        let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
+        match (comma_consumed) {
+            ResultToken::Err(err) return ResultStructMemberNodeVec::Err(err);,
+            ResultToken::Ok {}
+        }
+
+        let next_call = parser_parse_struct_member(&parser);
+        match (next_call) {
+            ResultOptionStructMemberNode::Err(err) return ResultStructMemberNodeVec::Err(err);,
+            ResultOptionStructMemberNode::Ok(option_next) {
+                match (option_next) {
+                    OptionStructMemberNode::None return ResultStructMemberNodeVec::Err(
+                        parser_create_parser_error(&parser, "Expected struct member after comma.")
+                    );,
+                    OptionStructMemberNode::Some(next) vector_push(&members, next);
+                }
+            }
+        }
+    }
+
+    return ResultStructMemberNodeVec::Ok(members);
+}
+
+fn parser_parse_struct_member(&Parser parser): ResultOptionStructMemberNode {
+    # struct_member = type, identifier;
+    let type_call = parser_parse_type(&parser);
+    let member_type = TypeNode { value: Type::Void, span: parser_current_token(&parser).span };
+    let found_type = false;
+    match (type_call) {
+        ResultOptionTypeNode::Err(err) return ResultOptionStructMemberNode::Err(err);,
+        ResultOptionTypeNode::Ok(option_type) {
+            match (option_type) {
+                OptionTypeNode::None {},
+                OptionTypeNode::Some(t) {
+                    member_type = t;
+                    found_type = true;
+                }
+            }
+        }
+    }
+
+    if (!found_type) return ResultOptionStructMemberNode::Ok(OptionStructMemberNode::None);
+
+    let identifier_call = parser_parse_identifier(&parser);
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionStructMemberNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::None return ResultOptionStructMemberNode::Err(
+                    parser_create_parser_error(&parser, "Couldn't create identifier while parsing struct member.")
+                );,
+                OptionIdentifierNode::Some(identifier) return ResultOptionStructMemberNode::Ok(OptionStructMemberNode::Some(StructMemberNode {
+                    value: StructMember { identifier: identifier, member_type: member_type },
+                    span: span_new(member_type.span.start, identifier.span.end)
+                }));
+            }
+        }
+    }
+}

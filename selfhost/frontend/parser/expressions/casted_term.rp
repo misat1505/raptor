@@ -1,0 +1,56 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "../misc/types.rp";
+import "./unary_term.rp";
+
+fn parser_parse_casted_term(&Parser parser): ResultOptionExpressionNode {
+    # casted_term = unary_term, [ "as", type ];
+    let unary_call = parser_parse_unary_term(&parser);
+
+    let unary_term = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_unary = false;
+
+    match (unary_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_unary) {
+            match (option_unary) {
+                OptionExpressionNode::None {},
+                OptionExpressionNode::Some(value) {
+                    unary_term = value;
+                    found_unary = true;
+                }
+            }
+        }
+    }
+
+    if (!found_unary) return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+
+    let as_consumed = parser_consume_if_matches(&parser, TokenCategory::As);
+    match (as_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_as) {
+            if (option_as matches OptionToken::None) {
+                return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(unary_term));
+            }
+        }
+    }
+
+    let type_call = parser_parse_type(&parser);
+    match (type_call) {
+        ResultOptionTypeNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionTypeNode::Ok(option_type) {
+            match (option_type) {
+                OptionTypeNode::None return ResultOptionExpressionNode::Err(
+                    parser_create_parser_error(&parser, "Couldn't parse type.")
+                );,
+                OptionTypeNode::Some(to_type) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(ExpressionNode {
+                    value: Expression::Casting(CastingExpression { value: unary_term, to_type: to_type }),
+                    span: span_new(unary_term.span.start, to_type.span.end)
+                }));
+            }
+        }
+    }
+}

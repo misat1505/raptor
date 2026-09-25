@@ -1,0 +1,242 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+# Rebuilds `identifier` followed by all of its accessors (`x[0].y`) as a
+# plain expression - mirrors the `build_access_expression` closure the
+# Rust parser defines inline (Raptor has no closures/lambdas, so this is
+# a named helper called from the handful of compound-assignment cases
+# below instead).
+fn parser_build_access_expression(IdentifierNode identifier, AccessorNode[] accessors): ExpressionNode {
+    let result = ExpressionNode { value: Expression::Variable(identifier.value), span: identifier.span };
+
+    for (let i = 0; i < vector_size(&accessors); i += 1) {
+        let accessor = accessors[i];
+        let accessor_span = span_new(result.span.start, accessor.span.end);
+
+        match (accessor.value) {
+            Accessor::Index(index) result = ExpressionNode {
+                value: Expression::Index(IndexExpression { collection: result, index: index }),
+                span: accessor_span
+            };,
+            Accessor::Field(field) result = ExpressionNode {
+                value: Expression::FieldAccess(FieldAccessExpression { instance: result, field: field }),
+                span: accessor_span
+            };
+        }
+    }
+
+    return result;
+}
+
+fn parser_parse_assign_or_call(&Parser parser): ResultOptionStatementNode {
+    # assign_or_call = identifier, ( { access_tail }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")"), ";";
+    let node_call = parser_parse_assign_or_call_without_semicolon(&parser);
+
+    match (node_call) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_node) {
+            match (option_node) {
+                OptionStatementNode::None return ResultOptionStatementNode::Ok(OptionStatementNode::None);,
+                OptionStatementNode::Some(n) {
+                    let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+                    match (semicolon_consumed) {
+                        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+                        ResultToken::Ok(semicolon_token) return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+                            value: n.value,
+                            span: span_new(n.span.start, semicolon_token.span.end)
+                        }));
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn parser_parse_assign_or_call_without_semicolon(&Parser parser): ResultOptionStatementNode {
+    # assign_or_call = identifier, ( { access_tail }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
+    let identifier_call = parser_parse_identifier(&parser);
+
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::None return ResultOptionStatementNode::Ok(OptionStatementNode::None);,
+                OptionIdentifierNode::Some(identifier) {
+                    let identifier_start = identifier.span.start;
+                    let accessors: AccessorNode[] = [];
+
+                    while (true) {
+                        let current_category = parser_current_token(&parser).category;
+
+                        if (current_category matches TokenCategory::BracketOpen) {
+                            let bracket_open_consumed = parser_consume_must_be(&parser, TokenCategory::BracketOpen);
+                            let bracket_open_token = parser_current_token(&parser);
+                            match (bracket_open_consumed) {
+                                ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+                                ResultToken::Ok(token) bracket_open_token = token;
+                            }
+
+                            let index_call = parser_parse_expression(&parser);
+                            match (index_call) {
+                                ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
+                                ResultOptionExpressionNode::Ok(option_index) {
+                                    match (option_index) {
+                                        OptionExpressionNode::None return ResultOptionStatementNode::Err(
+                                            parser_create_parser_error(&parser, "Expected an expression inside '[]' index.")
+                                        );,
+                                        OptionExpressionNode::Some(index_expression) {
+                                            let bracket_close_consumed = parser_consume_must_be(&parser, TokenCategory::BracketClose);
+                                            match (bracket_close_consumed) {
+                                                ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+                                                ResultToken::Ok(bracket_close_token) vector_push(&accessors, AccessorNode {
+                                                    value: Accessor::Index(index_expression),
+                                                    span: span_new(bracket_open_token.span.start, bracket_close_token.span.end)
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (current_category matches TokenCategory::Dot) {
+                            let dot_consumed = parser_consume_must_be(&parser, TokenCategory::Dot);
+                            let dot_token = parser_current_token(&parser);
+                            match (dot_consumed) {
+                                ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+                                ResultToken::Ok(token) dot_token = token;
+                            }
+
+                            let field_call = parser_parse_identifier(&parser);
+                            match (field_call) {
+                                ResultOptionIdentifierNode::Err(err) return ResultOptionStatementNode::Err(err);,
+                                ResultOptionIdentifierNode::Ok(option_field) {
+                                    match (option_field) {
+                                        OptionIdentifierNode::None return ResultOptionStatementNode::Err(
+                                            parser_create_parser_error(&parser, "Expected an identifier after '.'.")
+                                        );,
+                                        OptionIdentifierNode::Some(field) vector_push(&accessors, AccessorNode {
+                                            value: Accessor::Field(field),
+                                            span: span_new(dot_token.span.start, field.span.end)
+                                        });
+                                    }
+                                }
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+
+                    # "=" - plain assignment.
+                    let assign_consumed = parser_consume_if_matches(&parser, TokenCategory::Assign);
+                    match (assign_consumed) {
+                        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+                        ResultOptionToken::Ok(option_assign) {
+                            if (option_assign matches OptionToken::Some) {
+                                let expr_call = parser_parse_expression(&parser);
+                                match (expr_call) {
+                                    ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
+                                    ResultOptionExpressionNode::Ok(option_expr) {
+                                        match (option_expr) {
+                                            OptionExpressionNode::None return ResultOptionStatementNode::Err(
+                                                parser_create_parser_error(&parser, "Couldn't create expression while parsing assignment.")
+                                            );,
+                                            OptionExpressionNode::Some(expr) return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+                                                value: Statement::Assignment(AssignmentStatement { identifier: identifier, accessors: accessors, value: expr }),
+                                                span: span_new(identifier_start, expr.span.end)
+                                            }));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    # "+=" | "-=" | "*=" | "/=" | "%=" - compound assignment.
+                    let compound_category = TokenCategory::Assign;
+                    let has_compound = false;
+
+                    if (parser_current_token(&parser).category matches TokenCategory::PlusEquals) { compound_category = TokenCategory::PlusEquals; has_compound = true; }
+                    else if (parser_current_token(&parser).category matches TokenCategory::MinusEquals) { compound_category = TokenCategory::MinusEquals; has_compound = true; }
+                    else if (parser_current_token(&parser).category matches TokenCategory::TimesEquals) { compound_category = TokenCategory::TimesEquals; has_compound = true; }
+                    else if (parser_current_token(&parser).category matches TokenCategory::DivideEquals) { compound_category = TokenCategory::DivideEquals; has_compound = true; }
+                    else if (parser_current_token(&parser).category matches TokenCategory::ModuloEquals) { compound_category = TokenCategory::ModuloEquals; has_compound = true; }
+
+                    if (has_compound) {
+                        let operator_consumed = parser_consume_must_be(&parser, compound_category);
+                        match (operator_consumed) {
+                            ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+                            ResultToken::Ok {}
+                        }
+
+                        let rhs_call = parser_parse_expression(&parser);
+                        match (rhs_call) {
+                            ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
+                            ResultOptionExpressionNode::Ok(option_rhs) {
+                                match (option_rhs) {
+                                    OptionExpressionNode::None return ResultOptionStatementNode::Err(
+                                        parser_create_parser_error(&parser, "Couldn't create expression while parsing assignment.")
+                                    );,
+                                    OptionExpressionNode::Some(rhs) {
+                                        let left = parser_build_access_expression(identifier, accessors);
+                                        let operands = BinaryExpression { left: left, right: rhs };
+
+                                        let combined_value = Expression::Addition(operands);
+                                        match (compound_category) {
+                                            TokenCategory::PlusEquals combined_value = Expression::Addition(operands);,
+                                            TokenCategory::MinusEquals combined_value = Expression::Subtraction(operands);,
+                                            TokenCategory::TimesEquals combined_value = Expression::Multiplication(operands);,
+                                            TokenCategory::DivideEquals combined_value = Expression::Division(operands);,
+                                            TokenCategory::ModuloEquals combined_value = Expression::Modulo(operands);,
+                                            rest {}
+                                        }
+
+                                        let combined_node = ExpressionNode {
+                                            value: combined_value,
+                                            span: span_new(left.span.start, rhs.span.end)
+                                        };
+
+                                        return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+                                            value: Statement::Assignment(AssignmentStatement { identifier: identifier, accessors: accessors, value: combined_node }),
+                                            span: span_new(identifier_start, combined_node.span.end)
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    # "(" arguments ")" - function call.
+                    let paren_open_consumed = parser_consume_if_matches(&parser, TokenCategory::ParenOpen);
+                    match (paren_open_consumed) {
+                        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+                        ResultOptionToken::Ok(option_paren) {
+                            if (option_paren matches OptionToken::Some) {
+                                let arguments_call = parser_parse_arguments(&parser);
+                                let arguments: ArgumentNode[] = [];
+                                match (arguments_call) {
+                                    ResultArgumentNodeVec::Err(err) return ResultOptionStatementNode::Err(err);,
+                                    ResultArgumentNodeVec::Ok(parsed_arguments) arguments = parsed_arguments;
+                                }
+
+                                let close_paren_consumed = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+                                match (close_paren_consumed) {
+                                    ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+                                    ResultToken::Ok(close_token) return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+                                        value: Statement::FunctionCall(FunctionCallExpression { identifier: identifier, arguments: arguments }),
+                                        span: span_new(identifier_start, close_token.span.end)
+                                    }));
+                                }
+                            }
+                        }
+                    }
+
+                    return ResultOptionStatementNode::Err(
+                        parser_create_parser_error(&parser, "Couldn't create assignment or call.")
+                    );
+                }
+            }
+        }
+    }
+}

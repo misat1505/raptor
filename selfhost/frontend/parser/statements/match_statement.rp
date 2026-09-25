@@ -1,0 +1,343 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_match_statement(&Parser parser): ResultOptionStatementNode {
+    # match_statement = "match", "(", expression, ")", "{", match_arms, [ ",", rest_arm ], "}";
+    let match_consumed = parser_consume_if_matches(&parser, TokenCategory::Match);
+
+    let match_token = parser_current_token(&parser);
+    let has_match = false;
+    match (match_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_match) {
+            match (option_match) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    match_token = token;
+                    has_match = true;
+                }
+            }
+        }
+    }
+
+    if (!has_match) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
+
+    let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
+    match (paren_open) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let expression_call = parser_parse_expression(&parser);
+    let expression = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_expression = false;
+    match (expression_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_expression) {
+            match (option_expression) {
+                OptionExpressionNode::None {},
+                OptionExpressionNode::Some(expr) {
+                    expression = expr;
+                    found_expression = true;
+                }
+            }
+        }
+    }
+
+    if (!found_expression) return ResultOptionStatementNode::Err(
+        parser_create_parser_error(&parser, "Expected an expression after 'match ('.")
+    );
+
+    let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+    match (paren_close) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
+    match (brace_open) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let arms_call = parser_parse_match_arms(&parser);
+    let match_arms: MatchArmNode[] = [];
+    match (arms_call) {
+        ResultMatchArmNodeVec::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultMatchArmNodeVec::Ok(arms) match_arms = arms;
+    }
+
+    let rest_arm = OptionBlockNode::None;
+    if (parser_current_token(&parser).category matches TokenCategory::Rest) {
+        let rest_call = parser_parse_rest_arm_block(&parser);
+        match (rest_call) {
+            ResultOptionBlockNode::Err(err) return ResultOptionStatementNode::Err(err);,
+            ResultOptionBlockNode::Ok(option_rest) {
+                match (option_rest) {
+                    OptionBlockNode::None return ResultOptionStatementNode::Err(
+                        parser_create_parser_error(&parser, "Expected a block after 'rest'.")
+                    );,
+                    OptionBlockNode::Some(rest_block) rest_arm = OptionBlockNode::Some(rest_block);
+                }
+            }
+        }
+    }
+
+    let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
+    match (brace_close) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok(close_token) return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+            value: Statement::Match(MatchStatement { expression: expression, match_arms: match_arms, rest_arm: rest_arm }),
+            span: span_new(match_token.span.start, close_token.span.end)
+        }));
+    }
+}
+
+fn parser_parse_match_arms(&Parser parser): ResultMatchArmNodeVec {
+    # match_arms = [ match_arm, { ",", match_arm } ];
+    let match_arms: MatchArmNode[] = [];
+
+    if (parser_current_token(&parser).category matches TokenCategory::BraceClose) return ResultMatchArmNodeVec::Ok(match_arms);
+    if (parser_current_token(&parser).category matches TokenCategory::Rest) return ResultMatchArmNodeVec::Ok(match_arms);
+
+    let first_call = parser_parse_match_arm(&parser);
+    match (first_call) {
+        ResultOptionMatchArmNode::Err(err) return ResultMatchArmNodeVec::Err(err);,
+        ResultOptionMatchArmNode::Ok(option_first) {
+            match (option_first) {
+                OptionMatchArmNode::None return ResultMatchArmNodeVec::Err(
+                    parser_create_parser_error(&parser, "Expected a match arm.")
+                );,
+                OptionMatchArmNode::Some(first_arm) vector_push(&match_arms, first_arm);
+            }
+        }
+    }
+
+    while (true) {
+        if (parser_current_token(&parser).category matches TokenCategory::BraceClose) break;
+
+        let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
+        match (comma_consumed) {
+            ResultToken::Err(err) return ResultMatchArmNodeVec::Err(err);,
+            ResultToken::Ok {}
+        }
+
+        if (parser_current_token(&parser).category matches TokenCategory::Rest) break;
+
+        let next_call = parser_parse_match_arm(&parser);
+        match (next_call) {
+            ResultOptionMatchArmNode::Err(err) return ResultMatchArmNodeVec::Err(err);,
+            ResultOptionMatchArmNode::Ok(option_next) {
+                match (option_next) {
+                    OptionMatchArmNode::None return ResultMatchArmNodeVec::Err(
+                        parser_create_parser_error(&parser, "Expected a match arm after ','.")
+                    );,
+                    OptionMatchArmNode::Some(next_arm) vector_push(&match_arms, next_arm);
+                }
+            }
+        }
+    }
+
+    return ResultMatchArmNodeVec::Ok(match_arms);
+}
+
+fn parser_parse_match_arm(&Parser parser): ResultOptionMatchArmNode {
+    # match_arm = identifier, "::", identifier, [ "(", identifier, ")" ], statement_block;
+    let start_position = parser_current_token(&parser).span.start;
+
+    let enum_name_call = parser_parse_identifier(&parser);
+    let enum_name = IdentifierNode { value: "", span: parser_current_token(&parser).span };
+    let found_enum_name = false;
+    match (enum_name_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_name) {
+            match (option_name) {
+                OptionIdentifierNode::None {},
+                OptionIdentifierNode::Some(name) {
+                    enum_name = name;
+                    found_enum_name = true;
+                }
+            }
+        }
+    }
+
+    if (!found_enum_name) return ResultOptionMatchArmNode::Ok(OptionMatchArmNode::None);
+
+    let double_colon_consumed = parser_consume_must_be(&parser, TokenCategory::DoubleColon);
+    match (double_colon_consumed) {
+        ResultToken::Err(err) return ResultOptionMatchArmNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let variant_name_call = parser_parse_identifier(&parser);
+    let variant_name = IdentifierNode { value: "", span: parser_current_token(&parser).span };
+    let found_variant_name = false;
+    match (variant_name_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_name) {
+            match (option_name) {
+                OptionIdentifierNode::None {},
+                OptionIdentifierNode::Some(name) {
+                    variant_name = name;
+                    found_variant_name = true;
+                }
+            }
+        }
+    }
+
+    if (!found_variant_name) return ResultOptionMatchArmNode::Err(
+        parser_create_parser_error(&parser, "Expected an enum variant name in match arm.")
+    );
+
+    let variant_value = OptionIdentifierNode::None;
+
+    let paren_open_consumed = parser_consume_if_matches(&parser, TokenCategory::ParenOpen);
+    match (paren_open_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionMatchArmNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_paren) {
+            if (option_paren matches OptionToken::Some) {
+                let value_call = parser_parse_identifier(&parser);
+                match (value_call) {
+                    ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
+                    ResultOptionIdentifierNode::Ok(option_value) {
+                        match (option_value) {
+                            OptionIdentifierNode::None return ResultOptionMatchArmNode::Err(
+                                parser_create_parser_error(&parser, "Expected an identifier inside match arm.")
+                            );,
+                            OptionIdentifierNode::Some(value) variant_value = OptionIdentifierNode::Some(value);
+                        }
+                    }
+                }
+
+                let close_paren_consumed = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+                match (close_paren_consumed) {
+                    ResultToken::Err(err) return ResultOptionMatchArmNode::Err(err);,
+                    ResultToken::Ok {}
+                }
+            }
+        }
+    }
+
+    let block_call = parser_parse_statement_block(&parser);
+    match (block_call) {
+        ResultOptionBlockNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
+        ResultOptionBlockNode::Ok(option_block) {
+            match (option_block) {
+                OptionBlockNode::None return ResultOptionMatchArmNode::Err(
+                    parser_create_parser_error(&parser, "Expected a block after match arm.")
+                );,
+                OptionBlockNode::Some(block) return ResultOptionMatchArmNode::Ok(OptionMatchArmNode::Some(MatchArmNode {
+                    value: MatchArm { enum_name: enum_name, variant_name: variant_name, variant_value: variant_value, block: block },
+                    span: span_new(start_position, block.span.end)
+                }));
+            }
+        }
+    }
+}
+
+# Used by if/while "matches" sugar - a match arm whose block is still empty
+# (filled in by the caller afterwards).
+fn parser_parse_match_arm_without_block(&Parser parser): ResultOptionMatchArmNode {
+    # match_arm = identifier, "::", identifier, [ "(", identifier, ")" ];
+    let start_position = parser_current_token(&parser).span.start;
+
+    let enum_name_call = parser_parse_identifier(&parser);
+    let enum_name = IdentifierNode { value: "", span: parser_current_token(&parser).span };
+    let found_enum_name = false;
+    match (enum_name_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_name) {
+            match (option_name) {
+                OptionIdentifierNode::None {},
+                OptionIdentifierNode::Some(name) {
+                    enum_name = name;
+                    found_enum_name = true;
+                }
+            }
+        }
+    }
+
+    if (!found_enum_name) return ResultOptionMatchArmNode::Ok(OptionMatchArmNode::None);
+
+    let double_colon_consumed = parser_consume_must_be(&parser, TokenCategory::DoubleColon);
+    match (double_colon_consumed) {
+        ResultToken::Err(err) return ResultOptionMatchArmNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let variant_name_call = parser_parse_identifier(&parser);
+    let variant_name = IdentifierNode { value: "", span: parser_current_token(&parser).span };
+    let found_variant_name = false;
+    match (variant_name_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_name) {
+            match (option_name) {
+                OptionIdentifierNode::None {},
+                OptionIdentifierNode::Some(name) {
+                    variant_name = name;
+                    found_variant_name = true;
+                }
+            }
+        }
+    }
+
+    if (!found_variant_name) return ResultOptionMatchArmNode::Err(
+        parser_create_parser_error(&parser, "Expected an enum variant name in match arm.")
+    );
+
+    let variant_value = OptionIdentifierNode::None;
+    let end_position = variant_name.span.end;
+
+    let paren_open_consumed = parser_consume_if_matches(&parser, TokenCategory::ParenOpen);
+    match (paren_open_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionMatchArmNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_paren) {
+            if (option_paren matches OptionToken::Some) {
+                let value_call = parser_parse_identifier(&parser);
+                match (value_call) {
+                    ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
+                    ResultOptionIdentifierNode::Ok(option_value) {
+                        match (option_value) {
+                            OptionIdentifierNode::None return ResultOptionMatchArmNode::Err(
+                                parser_create_parser_error(&parser, "Expected an identifier inside match arm.")
+                            );,
+                            OptionIdentifierNode::Some(value) variant_value = OptionIdentifierNode::Some(value);
+                        }
+                    }
+                }
+
+                let close_paren_consumed = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+                match (close_paren_consumed) {
+                    ResultToken::Err(err) return ResultOptionMatchArmNode::Err(err);,
+                    ResultToken::Ok(close_token) end_position = close_token.span.end;
+                }
+            }
+        }
+    }
+
+    let whole_span = span_new(start_position, end_position);
+
+    return ResultOptionMatchArmNode::Ok(OptionMatchArmNode::Some(MatchArmNode {
+        value: MatchArm {
+            enum_name: enum_name,
+            variant_name: variant_name,
+            variant_value: variant_value,
+            block: BlockNode { value: Block { statements: [] }, span: whole_span }
+        },
+        span: whole_span
+    }));
+}
+
+fn parser_parse_rest_arm_block(&Parser parser): ResultOptionBlockNode {
+    # rest_arm = "rest", statement_block;
+    let rest_consumed = parser_consume_must_be(&parser, TokenCategory::Rest);
+    match (rest_consumed) {
+        ResultToken::Err(err) return ResultOptionBlockNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    return parser_parse_statement_block(&parser);
+}

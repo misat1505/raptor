@@ -1,0 +1,346 @@
+import "../../common/span.rp";
+import "../../common/errors.rp";
+import "../tokens.rp";
+import "./ast.rp";
+import "./parser_results.rp";
+import "./core.rp";
+
+# `parse_statement` tries each statement-starting production in turn and
+# returns the first one that matches. Rust expresses this as a loop over
+# an array of function pointers (`[Self::parse_assign_or_call, ...]`);
+# Raptor has no first-class functions, so it's spelled out as a sequence
+# of attempts instead - functionally identical, just not data-driven.
+fn parser_parse_statement(&Parser parser): ResultOptionStatementNode {
+    let attempt_1 = parser_parse_assign_or_call(&parser);
+    match (attempt_1) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_1) {
+            if (option_1 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_1);
+        }
+    }
+
+    let attempt_2 = parser_parse_if_statement(&parser);
+    match (attempt_2) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_2) {
+            if (option_2 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_2);
+        }
+    }
+
+    let attempt_3 = parser_parse_for_statement(&parser);
+    match (attempt_3) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_3) {
+            if (option_3 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_3);
+        }
+    }
+
+    let attempt_4 = parser_parse_while_statement(&parser);
+    match (attempt_4) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_4) {
+            if (option_4 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_4);
+        }
+    }
+
+    let attempt_5 = parser_parse_switch_statement(&parser);
+    match (attempt_5) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_5) {
+            if (option_5 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_5);
+        }
+    }
+
+    let attempt_6 = parser_parse_return_statement(&parser);
+    match (attempt_6) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_6) {
+            if (option_6 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_6);
+        }
+    }
+
+    let attempt_7 = parser_parse_break_statement(&parser);
+    match (attempt_7) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_7) {
+            if (option_7 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_7);
+        }
+    }
+
+    let attempt_8 = parser_parse_continue_statement(&parser);
+    match (attempt_8) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_8) {
+            if (option_8 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_8);
+        }
+    }
+
+    let attempt_9 = parser_parse_variable_declaration(&parser);
+    match (attempt_9) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_9) {
+            if (option_9 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_9);
+        }
+    }
+
+    let attempt_10 = parser_parse_let_variable_declaration(&parser);
+    match (attempt_10) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_10) {
+            if (option_10 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_10);
+        }
+    }
+
+    return parser_parse_match_statement(&parser);
+}
+
+fn parser_parse_program_statement(&Parser parser): ResultOptionStatementNode {
+    # program_statement = import_declaration | assign_or_call | if_statement | for_statement | while_statement
+    #                    | switch_statement | (declaration, ";") | let_declaration | match_statement;
+    let attempt_1 = parser_parse_assign_or_call(&parser);
+    match (attempt_1) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_1) {
+            if (option_1 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_1);
+        }
+    }
+
+    let attempt_2 = parser_parse_if_statement(&parser);
+    match (attempt_2) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_2) {
+            if (option_2 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_2);
+        }
+    }
+
+    let attempt_3 = parser_parse_for_statement(&parser);
+    match (attempt_3) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_3) {
+            if (option_3 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_3);
+        }
+    }
+
+    let attempt_4 = parser_parse_while_statement(&parser);
+    match (attempt_4) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_4) {
+            if (option_4 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_4);
+        }
+    }
+
+    let attempt_5 = parser_parse_switch_statement(&parser);
+    match (attempt_5) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_5) {
+            if (option_5 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_5);
+        }
+    }
+
+    let attempt_6 = parser_parse_variable_declaration(&parser);
+    match (attempt_6) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_6) {
+            if (option_6 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_6);
+        }
+    }
+
+    let attempt_7 = parser_parse_let_variable_declaration(&parser);
+    match (attempt_7) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_7) {
+            if (option_7 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_7);
+        }
+    }
+
+    let attempt_8 = parser_parse_import_declaration(&parser);
+    match (attempt_8) {
+        ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_8) {
+            if (option_8 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_8);
+        }
+    }
+
+    return parser_parse_match_statement(&parser);
+}
+
+# Rust's `check_name_collision` looks a name up across four `HashMap`s
+# (user functions, built-in std functions, extern functions, declared
+# types) in O(1). Raptor doesn't have a map type yet, so this walks the
+# (small, whole-program) vectors we do have instead - same behavior,
+# just O(n). The std-function registry itself is a backend/semantic
+# concept (`get_std_functions()`) that doesn't exist on the parsing side
+# of this project, so collisions against built-in names aren't checked
+# here; that stays a semantic-checker concern, consistently with the
+# rest of this parser stopping at AST creation.
+fn parser_check_name_collision(&Parser parser, str name, Span span, FunctionDeclarationNode[] functions, ExternFunctionDeclarationNode[] extern_functions, DeclaredTypeNode[] declared_types): ResultUnit {
+    for (let i = 0; i < vector_size(&functions); i += 1) {
+        if (functions[i].value.identifier.value == name) {
+            return ResultUnit::Err(parser_error_new(ErrorSeverity::HIGH, "Redeclaration of '" + name + "'.", span));
+        }
+    }
+
+    for (let i = 0; i < vector_size(&extern_functions); i += 1) {
+        let declaration = extern_functions[i];
+        let effective_name = declaration.value.identifier.value;
+        match (declaration.value.alias) {
+            OptionIdentifierNode::None {},
+            OptionIdentifierNode::Some(alias) effective_name = alias.value;
+        }
+
+        if (effective_name == name) {
+            return ResultUnit::Err(parser_error_new(ErrorSeverity::HIGH, "Redeclaration of '" + name + "'.", span));
+        }
+    }
+
+    for (let i = 0; i < vector_size(&declared_types); i += 1) {
+        let declared_name = "";
+        match (declared_types[i].value) {
+            DeclaredType::Struct(struct_declaration) declared_name = struct_declaration.identifier.value;,
+            DeclaredType::Enum(enum_declaration) declared_name = enum_declaration.identifier.value;
+        }
+
+        if (declared_name == name) {
+            return ResultUnit::Err(parser_error_new(ErrorSeverity::HIGH, "Redeclaration of '" + name + "'.", span));
+        }
+    }
+
+    return ResultUnit::Ok;
+}
+
+fn parser_parse_program(&Parser parser): ResultProgram {
+    # program = { import_declaration | struct_declaration | enum_declaration | function_declaration | extern_function_declaration
+    #           | assign_or_call | if_statement | for_statement | while_statement | switch_statement
+    #           | declaration, ";" };
+    let statements: StatementNode[] = [];
+    let functions: FunctionDeclarationNode[] = [];
+    let extern_functions: ExternFunctionDeclarationNode[] = [];
+    let declared_types: DeclaredTypeNode[] = [];
+
+    while (true) {
+        let struct_call = parser_parse_struct_declaration(&parser);
+        match (struct_call) {
+            ResultOptionStructDeclarationNode::Err(err) return ResultProgram::Err(err);,
+            ResultOptionStructDeclarationNode::Ok(option_struct) {
+                if (option_struct matches OptionStructDeclarationNode::Some(struct_declaration)) {
+                    let type_name = struct_declaration.value.identifier.value;
+
+                    let collision = parser_check_name_collision(&parser, type_name, struct_declaration.span, functions, extern_functions, declared_types);
+                    match (collision) {
+                        ResultUnit::Err(err) return ResultProgram::Err(err);,
+                        ResultUnit::Ok {}
+                    }
+
+                    vector_push(&declared_types, DeclaredTypeNode {
+                        value: DeclaredType::Struct(struct_declaration.value),
+                        span: struct_declaration.span
+                    });
+
+                    continue;
+                }
+            }
+        }
+
+        let enum_call = parser_parse_enum_declaration(&parser);
+        match (enum_call) {
+            ResultOptionEnumDeclarationNode::Err(err) return ResultProgram::Err(err);,
+            ResultOptionEnumDeclarationNode::Ok(option_enum) {
+                if (option_enum matches OptionEnumDeclarationNode::Some(enum_declaration)) {
+                    let type_name = enum_declaration.value.identifier.value;
+
+                    let collision = parser_check_name_collision(&parser, type_name, enum_declaration.span, functions, extern_functions, declared_types);
+                    match (collision) {
+                        ResultUnit::Err(err) return ResultProgram::Err(err);,
+                        ResultUnit::Ok {}
+                    }
+
+                    vector_push(&declared_types, DeclaredTypeNode {
+                        value: DeclaredType::Enum(enum_declaration.value),
+                        span: enum_declaration.span
+                    });
+
+                    continue;
+                }
+            }
+        }
+
+        let statement_call = parser_parse_program_statement(&parser);
+        match (statement_call) {
+            ResultOptionStatementNode::Err(err) return ResultProgram::Err(err);,
+            ResultOptionStatementNode::Ok(option_statement) {
+                if (option_statement matches OptionStatementNode::Some(statement)) {
+                    vector_push(&statements, statement);
+                    continue;
+                }
+            }
+        }
+
+        let function_call = parser_parse_function_declaration(&parser);
+        match (function_call) {
+            ResultOptionFunctionDeclarationNode::Err(err) return ResultProgram::Err(err);,
+            ResultOptionFunctionDeclarationNode::Ok(option_function) {
+                if (option_function matches OptionFunctionDeclarationNode::Some(function_declaration)) {
+                    let function_name = function_declaration.value.identifier.value;
+
+                    let collision = parser_check_name_collision(&parser, function_name, function_declaration.span, functions, extern_functions, declared_types);
+                    match (collision) {
+                        ResultUnit::Err(err) return ResultProgram::Err(err);,
+                        ResultUnit::Ok {}
+                    }
+
+                    vector_push(&functions, function_declaration);
+
+                    continue;
+                }
+            }
+        }
+
+        let extern_function_call = parser_parse_extern_function_declaration(&parser);
+        match (extern_function_call) {
+            ResultOptionExternFunctionDeclarationNode::Err(err) return ResultProgram::Err(err);,
+            ResultOptionExternFunctionDeclarationNode::Ok(option_extern_function) {
+                if (option_extern_function matches OptionExternFunctionDeclarationNode::Some(extern_function_declaration)) {
+                    let function_name = extern_function_declaration.value.identifier.value;
+                    match (extern_function_declaration.value.alias) {
+                        OptionIdentifierNode::None {},
+                        OptionIdentifierNode::Some(alias) function_name = alias.value;
+                    }
+
+                    let collision = parser_check_name_collision(&parser, function_name, extern_function_declaration.span, functions, extern_functions, declared_types);
+                    match (collision) {
+                        ResultUnit::Err(err) return ResultProgram::Err(err);,
+                        ResultUnit::Ok {}
+                    }
+
+                    vector_push(&extern_functions, extern_function_declaration);
+
+                    continue;
+                }
+            }
+        }
+
+        break;
+    }
+
+    let etx_consumed = parser_consume_must_be(&parser, TokenCategory::ETX);
+    match (etx_consumed) {
+        ResultToken::Err(err) return ResultProgram::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    # Resolving declared types (`resolve_declared_types` in Rust) is a
+    # semantic-checker step, not a parsing one - out of scope here, so
+    # `Program` simply doesn't carry a resolved `types` table (see the
+    # comment on `Program` in ast.rp).
+    return ResultProgram::Ok(Program {
+        statements: statements,
+        functions: functions,
+        extern_functions: extern_functions,
+        declared_types: declared_types
+    });
+}
+
+# Mirrors `IParser::parse`, the public entry point (`parser.parse()`).
+fn parser_parse(&Parser parser): ResultProgram {
+    return parser_parse_program(&parser);
+}

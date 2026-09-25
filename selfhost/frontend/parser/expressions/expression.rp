@@ -1,0 +1,56 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "./concatenation_term.rp";
+
+fn parser_parse_expression(&Parser parser): ResultOptionExpressionNode {
+    # expression = concatenation_term, { "||", concatenation_term };
+    let left_call = parser_parse_concatenation_term(&parser);
+
+    # Placeholder; overwritten by the `Some(...)` arm below before it is
+    # ever read (a `let` always needs an initializer in this language,
+    # there is no plain "declare, assign later" form).
+    let left_side = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_left = false;
+
+    match (left_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_left) {
+            if (option_left matches OptionExpressionNode::Some(value)) {
+                left_side = value;
+                found_left = true;
+            }
+        }
+    }
+
+    if (!found_left) return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+
+    while (parser_current_token(&parser).category matches TokenCategory::Or) {
+        let advance = parser_next_token(&parser);
+        if (advance matches ResultOptionToken::Err(err)) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+
+        let right_call = parser_parse_concatenation_term(&parser);
+        let found_right = false;
+
+        match (right_call) {
+            ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+            ResultOptionExpressionNode::Ok(option_right) {
+                if (option_right matches OptionExpressionNode::Some(right_side)) {
+                    left_side = ExpressionNode {
+                        value: Expression::Alternative(BinaryExpression { left: left_side, right: right_side }),
+                        span: span_new(left_side.span.start, right_side.span.end)
+                    };
+                    found_right = true;
+                }
+            }
+        }
+
+        if (!found_right) return ResultOptionExpressionNode::Err(
+            parser_create_parser_error(&parser, "Couldn't create concatenation term while parsing expression.")
+        );
+    }
+
+    return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(left_side));
+}

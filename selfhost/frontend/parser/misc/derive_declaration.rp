@@ -1,0 +1,76 @@
+import "../../../common/errors.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+# Note: this file deliberately does not `import` `./identifier.rp`.
+# Every leaf parser file only imports the shared foundation (ast,
+# parser_results, core, tokens, common/*); cross-references between
+# sibling productions (like this file's call to
+# `parser_parse_identifier`) are wired together once the whole tree is
+# merged, starting from `main.rp`/`parser_mod.rp` (see the comment
+# there for why: the import resolver flattens every reachable file
+# into one `Program` with a single, global function table - so as
+# long as both files are reachable from the entry point, which file
+# `import`s which doesn't matter for name resolution, and avoiding
+# sibling imports altogether sidesteps any risk of import cycles
+# between productions that call each other back and forth, such as
+# `parse_statement` <-> `parse_statement_block`).
+
+fn parser_parse_derive_declaration(&Parser parser): ResultIdentifierNodeVec {
+    # derives_declaration = derives, identifier, { ",", identifier };
+    let consumed_derives_keyword = parser_consume_if_matches(&parser, TokenCategory::Derives);
+
+    let has_derives_keyword = OptionToken::None;
+    match (consumed_derives_keyword) {
+        ResultOptionToken::Err(err) return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(t) has_derives_keyword = t;
+    }
+
+    if (has_derives_keyword matches OptionToken::None) {
+        let empty: IdentifierNode[] = [];
+        return ResultIdentifierNodeVec::Ok(empty);
+    }
+
+    let first = parser_parse_identifier(&parser);
+    let type_derives: IdentifierNode[] = [];
+
+    match (first) {
+        ResultOptionIdentifierNode::Err(err) return ResultIdentifierNodeVec::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::Some(identifier) vector_push(&type_derives, identifier);,
+                OptionIdentifierNode::None return ResultIdentifierNodeVec::Err(
+                    parser_create_parser_error(&parser, "Couldn't create identifier while parsing derive declaration.")
+                );
+            }
+        }
+    }
+
+    while (true) {
+        let comma = parser_consume_if_matches(&parser, TokenCategory::Comma);
+        let has_comma = OptionToken::None;
+        match (comma) {
+            ResultOptionToken::Err(err) return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));,
+            ResultOptionToken::Ok(t) has_comma = t;
+        }
+
+        if (has_comma matches OptionToken::None) break;
+
+        let next = parser_parse_identifier(&parser);
+        match (next) {
+            ResultOptionIdentifierNode::Err(err) return ResultIdentifierNodeVec::Err(err);,
+            ResultOptionIdentifierNode::Ok(option_identifier) {
+                match (option_identifier) {
+                    OptionIdentifierNode::Some(identifier) vector_push(&type_derives, identifier);,
+                    OptionIdentifierNode::None return ResultIdentifierNodeVec::Err(
+                        parser_create_parser_error(&parser, "Couldn't create identifier while parsing derive declaration.")
+                    );
+                }
+            }
+        }
+    }
+
+    return ResultIdentifierNodeVec::Ok(type_derives);
+}

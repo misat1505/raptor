@@ -1,0 +1,168 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "../misc/identifier.rp";
+import "../misc/derive_declaration.rp";
+import "../misc/types.rp";
+
+fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNode {
+    # enum_declaration = "enum", identifier, [ derives_declaration ], "{", [ enum_members ], "}", ";";
+    let enum_consumed = parser_consume_if_matches(&parser, TokenCategory::Enum);
+
+    let enum_token = parser_current_token(&parser);
+    let has_enum = false;
+    match (enum_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionEnumDeclarationNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_enum) {
+            match (option_enum) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    enum_token = token;
+                    has_enum = true;
+                }
+            }
+        }
+    }
+
+    if (!has_enum) return ResultOptionEnumDeclarationNode::Ok(OptionEnumDeclarationNode::None);
+
+    let identifier_call = parser_parse_identifier(&parser);
+    let identifier = IdentifierNode { value: "", span: parser_current_token(&parser).span };
+    let found_identifier = false;
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionEnumDeclarationNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::None {},
+                OptionIdentifierNode::Some(i) {
+                    identifier = i;
+                    found_identifier = true;
+                }
+            }
+        }
+    }
+
+    # Mirrors the Rust source exactly - this uses the same "couldn't
+    # create identifier while parsing struct declaration" message as
+    # struct_declaration.rs (looks like a copy/paste artifact upstream).
+    if (!found_identifier) return ResultOptionEnumDeclarationNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create identifier while parsing struct declaration.")
+    );
+
+    let derives_call = parser_parse_derive_declaration(&parser);
+    let enum_derives: IdentifierNode[] = [];
+    match (derives_call) {
+        ResultIdentifierNodeVec::Err(err) return ResultOptionEnumDeclarationNode::Err(err);,
+        ResultIdentifierNodeVec::Ok(parsed) enum_derives = parsed;
+    }
+
+    let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
+    if (brace_open matches ResultToken::Err(err)) return ResultOptionEnumDeclarationNode::Err(err);
+
+    let members_call = parser_parse_enum_members(&parser);
+    let members: EnumMemberNode[] = [];
+    match (members_call) {
+        ResultEnumMemberNodeVec::Err(err) return ResultOptionEnumDeclarationNode::Err(err);,
+        ResultEnumMemberNodeVec::Ok(parsed) members = parsed;
+    }
+
+    let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
+    if (brace_close matches ResultToken::Err(err)) return ResultOptionEnumDeclarationNode::Err(err);
+
+    let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    match (semicolon_consumed) {
+        ResultToken::Err(err) return ResultOptionEnumDeclarationNode::Err(err);,
+        ResultToken::Ok(semicolon_token) return ResultOptionEnumDeclarationNode::Ok(OptionEnumDeclarationNode::Some(EnumDeclarationNode {
+            value: EnumDeclaration { identifier: identifier, members: members, enum_derives },
+            span: span_new(enum_token.span.start, semicolon_token.span.end)
+        }));
+    }
+}
+
+fn parser_parse_enum_members(&Parser parser): ResultEnumMemberNodeVec {
+    # enum_members = enum_member, { ",", enum_member };
+    let first_call = parser_parse_enum_member(&parser);
+    let members: EnumMemberNode[] = [];
+
+    match (first_call) {
+        ResultOptionEnumMemberNode::Err(err) return ResultEnumMemberNodeVec::Err(err);,
+        ResultOptionEnumMemberNode::Ok(option_first) {
+            match (option_first) {
+                OptionEnumMemberNode::None return ResultEnumMemberNodeVec::Ok(members);,
+                OptionEnumMemberNode::Some(first) vector_push(&members, first);
+            }
+        }
+    }
+
+    while (parser_current_token(&parser).category matches TokenCategory::Comma) {
+        let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
+        if (comma_consumed matches ResultToken::Err(err)) return ResultEnumMemberNodeVec::Err(err);
+
+        let next_call = parser_parse_enum_member(&parser);
+        match (next_call) {
+            ResultOptionEnumMemberNode::Err(err) return ResultEnumMemberNodeVec::Err(err);,
+            ResultOptionEnumMemberNode::Ok(option_next) {
+                match (option_next) {
+                    OptionEnumMemberNode::None return ResultEnumMemberNodeVec::Err(
+                        parser_create_parser_error(&parser, "Expected enum member after comma.")
+                    );,
+                    OptionEnumMemberNode::Some(next) vector_push(&members, next);
+                }
+            }
+        }
+    }
+
+    return ResultEnumMemberNodeVec::Ok(members);
+}
+
+fn parser_parse_enum_member(&Parser parser): ResultOptionEnumMemberNode {
+    # enum_member = identifier, [ "(", type, ")" ];
+    let identifier_call = parser_parse_identifier(&parser);
+
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionEnumMemberNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::None return ResultOptionEnumMemberNode::Ok(OptionEnumMemberNode::None);,
+                OptionIdentifierNode::Some(identifier) {
+                    let member_type = OptionTypeNode::None;
+                    let end_position = identifier.span.end;
+
+                    let paren_open_consumed = parser_consume_if_matches(&parser, TokenCategory::ParenOpen);
+                    match (paren_open_consumed) {
+                        ResultOptionToken::Err(err) return ResultOptionEnumMemberNode::Err(parser_error_from_lexer_error(&err));,
+                        ResultOptionToken::Ok(option_paren) {
+                            if (option_paren matches OptionToken::Some) {
+                                let type_call = parser_parse_type(&parser);
+                                match (type_call) {
+                                    ResultOptionTypeNode::Err(err) return ResultOptionEnumMemberNode::Err(err);,
+                                    ResultOptionTypeNode::Ok(option_type) {
+                                        match (option_type) {
+                                            OptionTypeNode::None return ResultOptionEnumMemberNode::Err(
+                                                parser_create_parser_error(&parser, "Couldn't create type while parsing enum member declaration.")
+                                            );,
+                                            OptionTypeNode::Some(t) member_type = OptionTypeNode::Some(t);
+                                        }
+                                    }
+                                }
+
+                                let close_paren_consumed = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+                                match (close_paren_consumed) {
+                                    ResultToken::Err(err) return ResultOptionEnumMemberNode::Err(err);,
+                                    ResultToken::Ok(close_token) end_position = close_token.span.end;
+                                }
+                            }
+                        }
+                    }
+
+                    return ResultOptionEnumMemberNode::Ok(OptionEnumMemberNode::Some(EnumMemberNode {
+                        value: EnumMember { identifier: identifier, member_type: member_type },
+                        span: span_new(identifier.span.start, end_position)
+                    }));
+                }
+            }
+        }
+    }
+}

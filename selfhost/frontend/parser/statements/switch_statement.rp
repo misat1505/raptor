@@ -1,0 +1,224 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "../expressions/expression.rp";
+import "../misc/identifier.rp";
+import "./block.rp";
+
+fn parser_parse_switch_statement(&Parser parser): ResultOptionStatementNode {
+    # switch_statement = "switch", "(", switch_expressions, ")", "{", {switch_case}, "}";
+    let switch_consumed = parser_consume_if_matches(&parser, TokenCategory::Switch);
+
+    let switch_token = parser_current_token(&parser);
+    let has_switch = false;
+    match (switch_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_switch) {
+            match (option_switch) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    switch_token = token;
+                    has_switch = true;
+                }
+            }
+        }
+    }
+
+    if (!has_switch) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
+
+    let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
+    if (paren_open matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
+
+    let expressions_call = parser_parse_switch_expressions(&parser);
+    let switch_expressions: SwitchExpressionNode[] = [];
+    match (expressions_call) {
+        ResultSwitchExpressionNodeVec::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultSwitchExpressionNodeVec::Ok(parsed) switch_expressions = parsed;
+    }
+
+    let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+    if (paren_close matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
+
+    let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
+    if (brace_open matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
+
+    let switch_cases: SwitchCaseNode[] = [];
+
+    while (parser_current_token(&parser).category not matches TokenCategory::BraceClose) {
+        let case_call = parser_parse_switch_case(&parser);
+        match (case_call) {
+            ResultOptionSwitchCaseNode::Err(err) return ResultOptionStatementNode::Err(err);,
+            ResultOptionSwitchCaseNode::Ok(option_case) {
+                match (option_case) {
+                    OptionSwitchCaseNode::None return ResultOptionStatementNode::Err(
+                        parser_create_parser_error(&parser, "Couldn't create switch case while parsing switch statement.")
+                    );,
+                    OptionSwitchCaseNode::Some(switch_case) vector_push(&switch_cases, switch_case);
+                }
+            }
+        }
+    }
+
+    let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
+    match (brace_close) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok(close_token) return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+            value: Statement::Switch(SwitchStatement { expressions: switch_expressions, cases: switch_cases }),
+            span: span_new(switch_token.span.start, close_token.span.end)
+        }));
+    }
+}
+
+fn parser_parse_switch_expressions(&Parser parser): ResultSwitchExpressionNodeVec {
+    # switch_expressions = switch_expression, { ",", switch_expression };
+    let first_call = parser_parse_switch_expression(&parser);
+    let switch_expressions: SwitchExpressionNode[] = [];
+
+    match (first_call) {
+        ResultOptionSwitchExpressionNode::Err(err) return ResultSwitchExpressionNodeVec::Err(err);,
+        ResultOptionSwitchExpressionNode::Ok(option_first) {
+            match (option_first) {
+                OptionSwitchExpressionNode::None return ResultSwitchExpressionNodeVec::Ok(switch_expressions);,
+                OptionSwitchExpressionNode::Some(first) vector_push(&switch_expressions, first);
+            }
+        }
+    }
+
+    while (true) {
+        let comma_consumed = parser_consume_if_matches(&parser, TokenCategory::Comma);
+        let has_comma = false;
+        match (comma_consumed) {
+            ResultOptionToken::Err(err) return ResultSwitchExpressionNodeVec::Err(parser_error_from_lexer_error(&err));,
+            ResultOptionToken::Ok(option_comma) {
+                if (option_comma matches OptionToken::Some) has_comma = true;
+            }
+        }
+
+        if (!has_comma) break;
+
+        let next_call = parser_parse_switch_expression(&parser);
+        match (next_call) {
+            ResultOptionSwitchExpressionNode::Err(err) return ResultSwitchExpressionNodeVec::Err(err);,
+            ResultOptionSwitchExpressionNode::Ok(option_next) {
+                match (option_next) {
+                    OptionSwitchExpressionNode::None return ResultSwitchExpressionNodeVec::Err(
+                        parser_create_parser_error(&parser, "Couldn't create switch expression while parsing switch expressions.")
+                    );,
+                    OptionSwitchExpressionNode::Some(next) vector_push(&switch_expressions, next);
+                }
+            }
+        }
+    }
+
+    return ResultSwitchExpressionNodeVec::Ok(switch_expressions);
+}
+
+fn parser_parse_switch_expression(&Parser parser): ResultOptionSwitchExpressionNode {
+    # switch_expression = expression, [ ":", identifier ];
+    let expression_call = parser_parse_expression(&parser);
+
+    let expression = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_expression = false;
+    match (expression_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionSwitchExpressionNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_expression) {
+            if (option_expression matches OptionExpressionNode::Some(expr)) {
+                expression = expr;
+                found_expression = true;
+            }
+        }
+    }
+
+    if (!found_expression) return ResultOptionSwitchExpressionNode::Ok(OptionSwitchExpressionNode::None);
+
+    let start_position = expression.span.start;
+    let alias = OptionIdentifierNode::None;
+    let end_position = expression.span.end;
+
+    let colon_consumed = parser_consume_if_matches(&parser, TokenCategory::Colon);
+    match (colon_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionSwitchExpressionNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_colon) {
+            if (option_colon matches OptionToken::Some) {
+                let alias_call = parser_parse_identifier(&parser);
+                match (alias_call) {
+                    ResultOptionIdentifierNode::Err(err) return ResultOptionSwitchExpressionNode::Err(err);,
+                    ResultOptionIdentifierNode::Ok(option_alias) {
+                        match (option_alias) {
+                            OptionIdentifierNode::None {},
+                            OptionIdentifierNode::Some(alias_identifier) {
+                                alias = OptionIdentifierNode::Some(alias_identifier);
+                                end_position = alias_identifier.span.end;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return ResultOptionSwitchExpressionNode::Ok(OptionSwitchExpressionNode::Some(SwitchExpressionNode {
+        value: SwitchExpression { expression: expression, alias: alias },
+        span: span_new(start_position, end_position)
+    }));
+}
+
+fn parser_parse_switch_case(&Parser parser): ResultOptionSwitchCaseNode {
+    # switch_case = "(", expression, ")", "->", statement_block;
+    let paren_open_consumed = parser_consume_if_matches(&parser, TokenCategory::ParenOpen);
+
+    let paren_open_token = parser_current_token(&parser);
+    let has_paren_open = false;
+    match (paren_open_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionSwitchCaseNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_paren) {
+            if (option_paren matches OptionToken::Some(token)) {
+                paren_open_token = token;
+                has_paren_open = true;
+            }
+        }
+    }
+
+    if (!has_paren_open) return ResultOptionSwitchCaseNode::Ok(OptionSwitchCaseNode::None);
+
+    let condition_call = parser_parse_expression(&parser);
+    let condition = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_condition = false;
+    match (condition_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionSwitchCaseNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_condition) {
+            if (option_condition matches OptionExpressionNode::Some(expr)) {
+                condition = expr;
+                found_condition = true;
+            }
+        }
+    }
+
+    if (!found_condition) return ResultOptionSwitchCaseNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create expression while parsing switch case.")
+    );
+
+    let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+    if (paren_close matches ResultToken::Err(err)) return ResultOptionSwitchCaseNode::Err(err);
+
+    let arrow_consumed = parser_consume_must_be(&parser, TokenCategory::Arrow);
+    if (arrow_consumed matches ResultToken::Err(err)) return ResultOptionSwitchCaseNode::Err(err);
+
+    let block_call = parser_parse_statement_block(&parser);
+    match (block_call) {
+        ResultOptionBlockNode::Err(err) return ResultOptionSwitchCaseNode::Err(err);,
+        ResultOptionBlockNode::Ok(option_block) {
+            match (option_block) {
+                OptionBlockNode::None return ResultOptionSwitchCaseNode::Err(
+                    parser_create_parser_error(&parser, "Couldn't create statement block while parsing switch case.")
+                );,
+                OptionBlockNode::Some(block) return ResultOptionSwitchCaseNode::Ok(OptionSwitchCaseNode::Some(SwitchCaseNode {
+                    value: SwitchCase { condition: condition, block: block },
+                    span: span_new(paren_open_token.span.start, block.span.end)
+                }));
+            }
+        }
+    }
+}

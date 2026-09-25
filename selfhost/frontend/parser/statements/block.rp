@@ -1,0 +1,81 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_statement_block(&Parser parser): ResultOptionBlockNode {
+    # statement_block = ("{", {statement}, "}") | statement;
+
+    let single_statement_call = parser_parse_statement(&parser);
+    match (single_statement_call) {
+        ResultOptionStatementNode::Err(err) return ResultOptionBlockNode::Err(err);,
+        ResultOptionStatementNode::Ok(option_statement) {
+            match (option_statement) {
+                OptionStatementNode::None {},
+                OptionStatementNode::Some(single_statement) return ResultOptionBlockNode::Ok(OptionBlockNode::Some(BlockNode {
+                    value: Block { statements: [single_statement] },
+                    span: single_statement.span
+                }));
+            }
+        }
+    }
+
+    let open_brace_consumed = parser_consume_if_matches(&parser, TokenCategory::BraceOpen);
+    let open_brace_token = parser_current_token(&parser);
+    let has_open_brace = false;
+    match (open_brace_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionBlockNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_brace) {
+            match (option_brace) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    open_brace_token = token;
+                    has_open_brace = true;
+                }
+            }
+        }
+    }
+
+    if (!has_open_brace) return ResultOptionBlockNode::Ok(OptionBlockNode::None);
+
+    let statements: StatementNode[] = [];
+    let closing_brace_token = open_brace_token;
+
+    while (true) {
+        let close_brace_consumed = parser_consume_if_matches(&parser, TokenCategory::BraceClose);
+        let closed = false;
+        match (close_brace_consumed) {
+            ResultOptionToken::Err(err) return ResultOptionBlockNode::Err(parser_error_from_lexer_error(&err));,
+            ResultOptionToken::Ok(option_close) {
+                match (option_close) {
+                    OptionToken::None {},
+                    OptionToken::Some(close_token) {
+                        closing_brace_token = close_token;
+                        closed = true;
+                    }
+                }
+            }
+        }
+
+        if (closed) break;
+
+        let statement_call = parser_parse_statement(&parser);
+        match (statement_call) {
+            ResultOptionStatementNode::Err(err) return ResultOptionBlockNode::Err(err);,
+            ResultOptionStatementNode::Ok(option_statement) {
+                match (option_statement) {
+                    OptionStatementNode::None return ResultOptionBlockNode::Err(
+                        parser_create_parser_error(&parser, "Couldn't create statement while parsing statement block.")
+                    );,
+                    OptionStatementNode::Some(statement) vector_push(&statements, statement);
+                }
+            }
+        }
+    }
+
+    return ResultOptionBlockNode::Ok(OptionBlockNode::Some(BlockNode {
+        value: Block { statements: statements },
+        span: span_new(open_brace_token.span.start, closing_brace_token.span.end)
+    }));
+}

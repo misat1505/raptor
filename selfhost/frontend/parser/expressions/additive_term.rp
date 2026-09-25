@@ -1,0 +1,75 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "./multiplicative_term.rp";
+
+fn parser_parse_additive_term(&Parser parser): ResultOptionExpressionNode {
+    # additive_term = multiplicative_term, { ("+" | "-"), multiplicative_term };
+    let left_call = parser_parse_multiplicative_term(&parser);
+
+    let left_side = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_left = false;
+
+    match (left_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_left) {
+            match (option_left) {
+                OptionExpressionNode::None {},
+                OptionExpressionNode::Some(value) {
+                    left_side = value;
+                    found_left = true;
+                }
+            }
+        }
+    }
+
+    if (!found_left) return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+
+    while (true) {
+        let current_token = parser_current_token(&parser);
+        if (current_token.category not matches TokenCategory::Plus) {
+            if (current_token.category not matches TokenCategory::Minus) {
+                break;
+            }
+        }
+
+        let is_minus = false;
+        if (current_token.category not matches TokenCategory::Minus) {
+            is_minus = true;
+        }
+
+        let advance = parser_next_token(&parser);
+        if (advance matches ResultOptionToken::Err(err)) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+
+        let right_call = parser_parse_multiplicative_term(&parser);
+        let found_right = false;
+
+        match (right_call) {
+            ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+            ResultOptionExpressionNode::Ok(option_right) {
+                match (option_right) {
+                    OptionExpressionNode::None {},
+                    OptionExpressionNode::Some(right_side) {
+                        let operands = BinaryExpression { left: left_side, right: right_side };
+                        let expression_value = Expression::Addition(operands);
+                        if (is_minus) expression_value = Expression::Subtraction(operands);
+
+                        left_side = ExpressionNode {
+                            value: expression_value,
+                            span: span_new(left_side.span.start, right_side.span.end)
+                        };
+                        found_right = true;
+                    }
+                }
+            }
+        }
+
+        if (!found_right) return ResultOptionExpressionNode::Err(
+            parser_create_parser_error(&parser, "Couldn't create multiplicative term while parsing additive term.")
+        );
+    }
+
+    return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(left_side));
+}

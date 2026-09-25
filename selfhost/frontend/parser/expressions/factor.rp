@@ -1,0 +1,60 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+import "./literal.rp";
+
+fn parser_parse_factor(&Parser parser): ResultOptionExpressionNode {
+    # factor = literal | ("(", expression, ")") | vector_literal | identifier_or_call_or_struct_literal_or_enum_literal;
+
+    # Mirrors `if let Ok(Some(literal)) = self.parse_literal()` in Rust: an
+    # `Err` from this attempt is deliberately swallowed, exactly like the
+    # bootstrap compiler does, and parsing falls through to the next
+    # alternative instead of propagating it.
+    let literal_call = parser_parse_literal(&parser);
+    if (literal_call matches ResultOptionLiteralNode::Ok(option_literal)) {
+        if (option_literal matches OptionLiteralNode::Some(literal)) {
+            return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(ExpressionNode {
+                value: Expression::Literal(literal.value),
+                span: literal.span
+            }));
+        }
+    }
+
+    let paren_open_consumed = parser_consume_if_matches(&parser, TokenCategory::ParenOpen);
+    match (paren_open_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_paren_open) {
+            if (option_paren_open matches OptionToken::Some) {
+                let expression_call = parser_parse_expression(&parser);
+                match (expression_call) {
+                    ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+                    ResultOptionExpressionNode::Ok(option_expression) {
+                        match (option_expression) {
+                            OptionExpressionNode::None return ResultOptionExpressionNode::Err(
+                                parser_create_parser_error(&parser, "Couldn't create expression while parsing nested expression.")
+                            );,
+                            OptionExpressionNode::Some(nested_expression) {
+                                let closing_paren = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+                                match (closing_paren) {
+                                    ResultToken::Err(err) return ResultOptionExpressionNode::Err(err);,
+                                    ResultToken::Ok return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(nested_expression));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    # Same "swallow the error" quirk as with `parse_literal` above, mirroring
+    # `if let Ok(Some(vector)) = self.parse_vector_literal()`.
+    let vector_call = parser_parse_vector_literal(&parser);
+    if (vector_call matches ResultOptionExpressionNode::Ok(option_vector)) {
+        if (option_vector matches OptionExpressionNode::Some(vector)) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(vector));
+    }
+
+    return parser_identifier_or_call_or_struct_literal_or_enum_literal(&parser);
+}

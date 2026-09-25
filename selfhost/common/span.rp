@@ -1,6 +1,6 @@
 import "./position.rp";
 
-struct Span derives Debug {
+struct Span derives Debug, Clone {
     Position start,
     Position end
 };

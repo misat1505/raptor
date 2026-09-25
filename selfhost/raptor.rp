@@ -1,0 +1,62 @@
+import "./frontend/lexer/lazy-stream-reader.rp";
+import "./frontend/lexer/lexer.rp";
+import "./frontend/parser/parser_mod.rp";
+
+fn main(): void {
+    let myself = "./selfhost/raptor.rp";
+    let source = read_file(myself);
+
+    let src = lazy_stream_reader_new(source, OptionStr::Some(myself));
+
+    let options = LexerOptions {
+        max_comment_length: 1024,
+        max_identifier_length: 256
+    };
+
+    let lexer = lexer_new(src, options);
+
+    let parser_result = parser_new(lexer);
+
+    let parser = Parser { lexer: lexer };
+    let have_parser = false;
+    match (parser_result) {
+        ResultParser::Err(err) {
+            println(parser_error_get_stderr_message(&err));
+            return;
+        },
+        ResultParser::Ok(created_parser) {
+            parser = created_parser;
+            have_parser = true;
+        }
+    }
+
+    if (!have_parser) return;
+
+    # Run the pipeline all the way through AST creation: lexing (inside
+    # the parser, token by token, as it goes) followed by parsing.
+    let program_result = parser_parse(&parser);
+
+    match (program_result) {
+        ResultProgram::Err(err) {
+            println(parser_error_get_stderr_message(&err));
+            return;
+        },
+        ResultProgram::Ok(program) {
+            println("Parsed " + vector_size(&program.statements) as str + " top-level statement(s), "
+                + vector_size(&program.functions) as str + " function(s), "
+                + vector_size(&program.extern_functions) as str + " extern function(s), and "
+                + vector_size(&program.declared_types) as str + " declared type(s).");
+
+            # Dump into a rust file only to use its formatter, since Raptor
+            # code and Rust code are similar (same trick as the lexer's
+            # earlier token dump).
+            let output_path = "./selfhost/ast.rs";
+            let rust_code = "fn main() {let ast = " + program_debug(&program) + ";}";
+            write_file(output_path, rust_code);
+
+            println("Wrote AST dump to " + output_path);
+        }
+    }
+}
+
+main();

@@ -1,0 +1,43 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_return_statement(&Parser parser): ResultOptionStatementNode {
+    # return_statement = "return", [ expression ], ";";
+    let return_consumed = parser_consume_if_matches(&parser, TokenCategory::Return);
+
+    let return_token = parser_current_token(&parser);
+    let has_return = false;
+    match (return_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_return) {
+            match (option_return) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    return_token = token;
+                    has_return = true;
+                }
+            }
+        }
+    }
+
+    if (!has_return) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
+
+    let returned_value = OptionExpressionNode::None;
+    let expr_call = parser_parse_expression(&parser);
+    match (expr_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_expr) returned_value = option_expr;
+    }
+
+    let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    match (semicolon_consumed) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok(semicolon_token) return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+            value: Statement::Return(returned_value),
+            span: span_new(return_token.span.start, semicolon_token.span.end)
+        }));
+    }
+}

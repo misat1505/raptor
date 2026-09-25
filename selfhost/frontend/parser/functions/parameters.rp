@@ -1,0 +1,97 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_parameters(&Parser parser): ResultParameterNodeVec {
+    # parameters = [ parameter, { ",", parameter } ];
+    let first_call = parser_parse_parameter(&parser);
+    let parameters: ParameterNode[] = [];
+
+    match (first_call) {
+        ResultOptionParameterNode::Err(err) return ResultParameterNodeVec::Err(err);,
+        ResultOptionParameterNode::Ok(option_first) {
+            match (option_first) {
+                OptionParameterNode::None return ResultParameterNodeVec::Ok(parameters);,
+                OptionParameterNode::Some(first) vector_push(&parameters, first);
+            }
+        }
+    }
+
+    while (true) {
+        let comma_consumed = parser_consume_if_matches(&parser, TokenCategory::Comma);
+        let has_comma = false;
+        match (comma_consumed) {
+            ResultOptionToken::Err(err) return ResultParameterNodeVec::Err(parser_error_from_lexer_error(&err));,
+            ResultOptionToken::Ok(option_comma) {
+                if (option_comma matches OptionToken::Some) has_comma = true;
+            }
+        }
+
+        if (!has_comma) break;
+
+        let next_call = parser_parse_parameter(&parser);
+        match (next_call) {
+            ResultOptionParameterNode::Err(err) return ResultParameterNodeVec::Err(err);,
+            ResultOptionParameterNode::Ok(option_next) {
+                match (option_next) {
+                    OptionParameterNode::None return ResultParameterNodeVec::Err(
+                        parser_create_parser_error(&parser, "Couldn't create parameter while parsing parameters.")
+                    );,
+                    OptionParameterNode::Some(next) vector_push(&parameters, next);
+                }
+            }
+        }
+    }
+
+    return ResultParameterNodeVec::Ok(parameters);
+}
+
+fn parser_parse_parameter(&Parser parser): ResultOptionParameterNode {
+    # parameter = ["&"], type, identifier;
+    let start_position = parser_current_token(&parser).span.start;
+
+    let reference_consumed = parser_consume_if_matches(&parser, TokenCategory::Reference);
+    let passed_by = PassedBy::Value;
+    match (reference_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionParameterNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_reference) {
+            if (option_reference matches OptionToken::Some) passed_by = PassedBy::Reference;
+        }
+    }
+
+    let type_call = parser_parse_type(&parser);
+    let parameter_type = TypeNode { value: Type::Void, span: parser_current_token(&parser).span };
+    let found_type = false;
+    match (type_call) {
+        ResultOptionTypeNode::Err(err) return ResultOptionParameterNode::Err(err);,
+        ResultOptionTypeNode::Ok(option_type) {
+            match (option_type) {
+                OptionTypeNode::None {},
+                OptionTypeNode::Some(t) {
+                    parameter_type = t;
+                    found_type = true;
+                }
+            }
+        }
+    }
+
+    if (!found_type) return ResultOptionParameterNode::Ok(OptionParameterNode::None);
+
+    let identifier_call = parser_parse_identifier(&parser);
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) return ResultOptionParameterNode::Err(err);,
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::None return ResultOptionParameterNode::Err(
+                    parser_create_parser_error(&parser, "Couldn't create identifier while parsing parameter.")
+                );,
+                OptionIdentifierNode::Some(identifier) return ResultOptionParameterNode::Ok(OptionParameterNode::Some(ParameterNode {
+                    value: Parameter { passed_by: passed_by, parameter_type: parameter_type, identifier: identifier },
+                    span: span_new(start_position, identifier.span.end)
+                }));
+            }
+        }
+    }
+}

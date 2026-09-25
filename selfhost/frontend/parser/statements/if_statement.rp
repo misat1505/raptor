@@ -1,0 +1,241 @@
+import "../../../common/span.rp";
+import "../../../common/position.rp";
+import "../../../common/errors.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser_results.rp";
+import "../core.rp";
+
+fn parser_parse_if_statement(&Parser parser): ResultOptionStatementNode {
+    # if_statement = "if", "(", expression,
+    #      ( ( ")", statement_block ) |
+    #      ( [ "not" ], "matches", match_arm_without_block, ")", statement_block ) ),
+    # [ "else", statement_block ];
+    let if_consumed = parser_consume_if_matches(&parser, TokenCategory::If);
+
+    let if_token = parser_current_token(&parser);
+    let has_if = false;
+    match (if_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_if) {
+            match (option_if) {
+                OptionToken::None {},
+                OptionToken::Some(token) {
+                    if_token = token;
+                    has_if = true;
+                }
+            }
+        }
+    }
+
+    if (!has_if) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
+
+    let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
+    match (paren_open) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let condition_call = parser_parse_expression(&parser);
+    let condition = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let found_condition = false;
+    match (condition_call) {
+        ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionExpressionNode::Ok(option_condition) {
+            match (option_condition) {
+                OptionExpressionNode::None {},
+                OptionExpressionNode::Some(expr) {
+                    condition = expr;
+                    found_condition = true;
+                }
+            }
+        }
+    }
+
+    if (!found_condition) return ResultOptionStatementNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create expression while parsing if statement.")
+    );
+
+    let paren_close_consumed = parser_consume_if_matches(&parser, TokenCategory::ParenClose);
+    match (paren_close_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_close) {
+            if (option_close matches OptionToken::None) {
+                return parser_finish_if_matches_statement(&parser, condition, if_token.span.start);
+            }
+        }
+    }
+
+    let true_block_call = parser_parse_statement_block(&parser);
+    let true_block = while_synthetic_break_block(condition.span);
+    let found_true_block = false;
+    match (true_block_call) {
+        ResultOptionBlockNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionBlockNode::Ok(option_true_block) {
+            match (option_true_block) {
+                OptionBlockNode::None {},
+                OptionBlockNode::Some(block) {
+                    true_block = block;
+                    found_true_block = true;
+                }
+            }
+        }
+    }
+
+    if (!found_true_block) return ResultOptionStatementNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create statement block while parsing if statement.")
+    );
+
+    let else_consumed = parser_consume_if_matches(&parser, TokenCategory::Else);
+    let false_block = OptionBlockNode::None;
+    match (else_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_else) {
+            if (option_else matches OptionToken::Some) {
+                let false_block_call = parser_parse_statement_block(&parser);
+                match (false_block_call) {
+                    ResultOptionBlockNode::Err(err) return ResultOptionStatementNode::Err(err);,
+                    # Mirrors the Rust code exactly: if there's an `else` but the block
+                    # after it fails to parse as a block, this is silently treated the
+                    # same as "no else" rather than raised as an error.
+                    ResultOptionBlockNode::Ok(option_false_block) false_block = option_false_block;
+                }
+            }
+        }
+    }
+
+    let end_position = true_block.span.end;
+    match (false_block) {
+        OptionBlockNode::None {},
+        OptionBlockNode::Some(block) end_position = block.span.end;
+    }
+
+    return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+        value: Statement::Conditional(ConditionalStatement { condition: condition, if_block: true_block, else_block: false_block }),
+        span: span_new(if_token.span.start, end_position)
+    }));
+}
+
+fn parser_finish_if_matches_statement(&Parser parser, ExpressionNode condition, Position start_position): ResultOptionStatementNode {
+    let not_consumed = parser_consume_if_matches(&parser, TokenCategory::Not);
+    let is_negating = false;
+    match (not_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_not) {
+            if (option_not matches OptionToken::Some) is_negating = true;
+        }
+    }
+
+    let matches_consumed = parser_consume_must_be(&parser, TokenCategory::Matches);
+    match (matches_consumed) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let arm_call = parser_parse_match_arm_without_block(&parser);
+    let arm = MatchArmNode {
+        value: MatchArm { enum_name: IdentifierNode { value: "", span: condition.span }, variant_name: IdentifierNode { value: "", span: condition.span }, variant_value: OptionIdentifierNode::None, block: while_synthetic_break_block(condition.span) },
+        span: condition.span
+    };
+    let found_arm = false;
+    match (arm_call) {
+        ResultOptionMatchArmNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionMatchArmNode::Ok(option_arm) {
+            match (option_arm) {
+                OptionMatchArmNode::None {},
+                OptionMatchArmNode::Some(parsed_arm) {
+                    arm = parsed_arm;
+                    found_arm = true;
+                }
+            }
+        }
+    }
+
+    if (!found_arm) return ResultOptionStatementNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create match arm while parsing if-matches statement.")
+    );
+
+    let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+    match (paren_close) {
+        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultToken::Ok {}
+    }
+
+    let match_block_call = parser_parse_statement_block(&parser);
+    let match_block = while_synthetic_break_block(condition.span);
+    let found_match_block = false;
+    match (match_block_call) {
+        ResultOptionBlockNode::Err(err) return ResultOptionStatementNode::Err(err);,
+        ResultOptionBlockNode::Ok(option_match_block) {
+            match (option_match_block) {
+                OptionBlockNode::None {},
+                OptionBlockNode::Some(block) {
+                    match_block = block;
+                    found_match_block = true;
+                }
+            }
+        }
+    }
+
+    if (!found_match_block) return ResultOptionStatementNode::Err(
+        parser_create_parser_error(&parser, "Couldn't create statement block while parsing if-matches statement.")
+    );
+
+    let else_consumed = parser_consume_if_matches(&parser, TokenCategory::Else);
+    let has_else = false;
+    match (else_consumed) {
+        ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Ok(option_else) {
+            if (option_else matches OptionToken::Some) has_else = true;
+        }
+    }
+
+    let rest_block = BlockNode {
+        value: Block { statements: [] },
+        span: span_new(match_block.span.end, match_block.span.end)
+    };
+
+    if (has_else) {
+        let rest_block_call = parser_parse_statement_block(&parser);
+        let found_rest_block = false;
+        match (rest_block_call) {
+            ResultOptionBlockNode::Err(err) return ResultOptionStatementNode::Err(err);,
+            ResultOptionBlockNode::Ok(option_rest_block) {
+                match (option_rest_block) {
+                    OptionBlockNode::None {},
+                    OptionBlockNode::Some(block) {
+                        rest_block = block;
+                        found_rest_block = true;
+                    }
+                }
+            }
+        }
+
+        if (!found_rest_block) return ResultOptionStatementNode::Err(
+            parser_create_parser_error(&parser, "Couldn't create statement block while parsing if-matches else statement.")
+        );
+    }
+
+    if (is_negating) {
+        arm.value.block = rest_block;
+
+        match (arm.value.variant_value) {
+            OptionIdentifierNode::Some(var_val) return ResultOptionStatementNode::Err(
+                parser_error_at(ErrorSeverity::HIGH, "Cannot take the inner value of enum variant in if-not-matches statement.", var_val.span)
+            );,
+            OptionIdentifierNode::None {}
+        }
+
+        return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+            value: Statement::Match(MatchStatement { expression: condition, match_arms: [arm], rest_arm: OptionBlockNode::Some(match_block) }),
+            span: span_new(start_position, rest_block.span.end)
+        }));
+    }
+
+    arm.value.block = match_block;
+
+    return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+        value: Statement::Match(MatchStatement { expression: condition, match_arms: [arm], rest_arm: OptionBlockNode::Some(rest_block) }),
+        span: span_new(start_position, rest_block.span.end)
+    }));
+}

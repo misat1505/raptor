@@ -1,9 +1,9 @@
 import "../../../common/span.rp";
 import "../../tokens.rp";
 import "../ast.rp";
-import "../parser_results.rp";
+import "../parser-results.rp";
 import "../core.rp";
-import "./casted_term.rp";
+import "./casted-term.rp";
 
 fn parser_parse_multiplicative_term(&Parser parser): ResultOptionExpressionNode {
     # multiplicative_term = casted_term, { ("*" | "/" | "%"), casted_term };

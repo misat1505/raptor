@@ -1,13 +1,13 @@
 import "../../../common/span.rp";
 import "../../tokens.rp";
 import "../ast.rp";
-import "../parser_results.rp";
+import "../parser-results.rp";
 import "../core.rp";
-import "./relation_term.rp";
+import "./multiplicative-term.rp";
 
-fn parser_parse_concatenation_term(&Parser parser): ResultOptionExpressionNode {
-    # concatenation_term = relation_term, { "&&", relation_term };
-    let left_call = parser_parse_relation_term(&parser);
+fn parser_parse_additive_term(&Parser parser): ResultOptionExpressionNode {
+    # additive_term = multiplicative_term, { ("+" | "-"), multiplicative_term };
+    let left_call = parser_parse_multiplicative_term(&parser);
 
     let left_side = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
     let found_left = false;
@@ -24,19 +24,35 @@ fn parser_parse_concatenation_term(&Parser parser): ResultOptionExpressionNode {
 
     if (!found_left) return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
 
-    while (parser_current_token(&parser).category matches TokenCategory::And) {
+    while (true) {
+        let current_token = parser_current_token(&parser);
+        if (current_token.category not matches TokenCategory::Plus) {
+            if (current_token.category not matches TokenCategory::Minus) {
+                break;
+            }
+        }
+
+        let is_minus = false;
+        if (current_token.category not matches TokenCategory::Minus) {
+            is_minus = true;
+        }
+
         let advance = parser_next_token(&parser);
         if (advance matches ResultOptionToken::Err(err)) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
 
-        let right_call = parser_parse_relation_term(&parser);
+        let right_call = parser_parse_multiplicative_term(&parser);
         let found_right = false;
 
         match (right_call) {
             ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
             ResultOptionExpressionNode::Ok(option_right) {
                 if (option_right matches OptionExpressionNode::Some(right_side)) {
+                    let operands = BinaryExpression { left: left_side, right: right_side };
+                    let expression_value = Expression::Addition(operands);
+                    if (is_minus) expression_value = Expression::Subtraction(operands);
+
                     left_side = ExpressionNode {
-                        value: Expression::Concatenation(BinaryExpression { left: left_side, right: right_side }),
+                        value: expression_value,
                         span: span_new(left_side.span.start, right_side.span.end)
                     };
                     found_right = true;
@@ -45,7 +61,7 @@ fn parser_parse_concatenation_term(&Parser parser): ResultOptionExpressionNode {
         }
 
         if (!found_right) return ResultOptionExpressionNode::Err(
-            parser_create_parser_error(&parser, "Couldn't create relation term while parsing concatenation term.")
+            parser_create_parser_error(&parser, "Couldn't create multiplicative term while parsing additive term.")
         );
     }
 

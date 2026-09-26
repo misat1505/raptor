@@ -1,10 +1,10 @@
 import "../../../common/span.rp";
 import "../../tokens.rp";
 import "../ast.rp";
-import "../parser_results.rp";
+import "../parser-results.rp";
 import "../core.rp";
 import "../misc/identifier.rp";
-import "../misc/derive_declaration.rp";
+import "../misc/derive-declaration.rp";
 import "../misc/types.rp";
 
 fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNode {

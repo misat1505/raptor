@@ -3,9 +3,9 @@ import "../../../common/position.rp";
 import "../../../common/errors.rp";
 import "../../tokens.rp";
 import "../ast.rp";
-import "../parser_results.rp";
+import "../parser-results.rp";
 import "../core.rp";
-import "./match_statement.rp";
+import "./match-statement.rp";
 import "./block.rp";
 import "../expressions/expression.rp";
 

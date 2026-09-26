@@ -2,7 +2,7 @@ import "../../common/span.rp";
 import "../../common/errors.rp";
 import "../tokens.rp";
 import "./ast.rp";
-import "./parser_results.rp";
+import "./parser-results.rp";
 import "./core.rp";
 
 # `parse_statement` tries each statement-starting production in turn and
@@ -155,7 +155,13 @@ fn parser_parse_program_statement(&Parser parser): ResultOptionStatementNode {
 # of this project, so collisions against built-in names aren't checked
 # here; that stays a semantic-checker concern, consistently with the
 # rest of this parser stopping at AST creation.
-fn parser_check_name_collision(&Parser parser, str name, Span span, FunctionDeclarationNode[] functions, ExternFunctionDeclarationNode[] extern_functions, DeclaredTypeNode[] declared_types): ResultUnit {
+fn parser_check_name_collision(
+    str name,
+    Span span,
+    FunctionDeclarationNode[] functions,
+    ExternFunctionDeclarationNode[] extern_functions,
+    DeclaredTypeNode[] declared_types
+): ResultUnit {
     for (let i = 0; i < vector_size(&functions); i += 1) {
         if (functions[i].value.identifier.value == name) {
             return ResultUnit::Err(parser_error_new(ErrorSeverity::HIGH, "Redeclaration of '" + name + "'.", span));
@@ -204,7 +210,7 @@ fn parser_parse_program(&Parser parser): ResultProgram {
                 if (option_struct matches OptionStructDeclarationNode::Some(struct_declaration)) {
                     let type_name = struct_declaration.value.identifier.value;
 
-                    let collision = parser_check_name_collision(&parser, type_name, struct_declaration.span, functions, extern_functions, declared_types);
+                    let collision = parser_check_name_collision(type_name, struct_declaration.span, functions, extern_functions, declared_types);
                     if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&declared_types, DeclaredTypeNode {
@@ -224,7 +230,7 @@ fn parser_parse_program(&Parser parser): ResultProgram {
                 if (option_enum matches OptionEnumDeclarationNode::Some(enum_declaration)) {
                     let type_name = enum_declaration.value.identifier.value;
 
-                    let collision = parser_check_name_collision(&parser, type_name, enum_declaration.span, functions, extern_functions, declared_types);
+                    let collision = parser_check_name_collision(type_name, enum_declaration.span, functions, extern_functions, declared_types);
                     if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&declared_types, DeclaredTypeNode {
@@ -255,7 +261,7 @@ fn parser_parse_program(&Parser parser): ResultProgram {
                 if (option_function matches OptionFunctionDeclarationNode::Some(function_declaration)) {
                     let function_name = function_declaration.value.identifier.value;
 
-                    let collision = parser_check_name_collision(&parser, function_name, function_declaration.span, functions, extern_functions, declared_types);
+                    let collision = parser_check_name_collision(function_name, function_declaration.span, functions, extern_functions, declared_types);
                     if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&functions, function_declaration);
@@ -273,7 +279,7 @@ fn parser_parse_program(&Parser parser): ResultProgram {
                     let function_name = extern_function_declaration.value.identifier.value;
                     if (extern_function_declaration.value.alias matches OptionIdentifierNode::Some(alias)) function_name = alias.value;
 
-                    let collision = parser_check_name_collision(&parser, function_name, extern_function_declaration.span, functions, extern_functions, declared_types);
+                    let collision = parser_check_name_collision(function_name, extern_function_declaration.span, functions, extern_functions, declared_types);
                     if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&extern_functions, extern_function_declaration);

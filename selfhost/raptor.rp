@@ -1,6 +1,6 @@
 import "./frontend/lexer/lazy-stream-reader.rp";
 import "./frontend/lexer/lexer.rp";
-import "./frontend/parser/parser_mod.rp";
+import "./frontend/parser/parser-mod.rp";
 
 fn main(): void {
     let myself = "./selfhost/raptor.rp";

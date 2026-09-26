@@ -5,7 +5,7 @@ import "../../../stdlib/string.rp";
 import "../lexer/lexer.rp";
 import "../tokens.rp";
 import "./ast.rp";
-import "./parser_results.rp";
+import "./parser-results.rp";
 
 # ============================================================
 # Mirrors `src/frontend/parser/mod.rs` (the `Parser<L: ILexer>` struct)

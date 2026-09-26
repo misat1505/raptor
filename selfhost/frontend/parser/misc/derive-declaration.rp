@@ -1,7 +1,7 @@
 import "../../../common/errors.rp";
 import "../../tokens.rp";
 import "../ast.rp";
-import "../parser_results.rp";
+import "../parser-results.rp";
 import "../core.rp";
 
 # Note: this file deliberately does not `import` `./identifier.rp`.

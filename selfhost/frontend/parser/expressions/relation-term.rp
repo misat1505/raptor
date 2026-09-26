@@ -1,9 +1,9 @@
 import "../../../common/span.rp";
 import "../../tokens.rp";
 import "../ast.rp";
-import "../parser_results.rp";
+import "../parser-results.rp";
 import "../core.rp";
-import "./additive_term.rp";
+import "./additive-term.rp";
 
 fn parser_parse_relation_term(&Parser parser): ResultOptionExpressionNode {
     # relation_term = additive_term, [ relation_operands, additive_term ];

@@ -14,45 +14,45 @@
 # ============================================================
 
 import "./ast.rp";
-import "./parser_results.rp";
+import "./parser-results.rp";
 import "./core.rp";
 
 import "./misc/identifier.rp";
 import "./misc/types.rp";
-import "./misc/derive_declaration.rp";
+import "./misc/derive-declaration.rp";
 
 import "./expressions/literal.rp";
-import "./expressions/vector_literal.rp";
+import "./expressions/vector-literal.rp";
 import "./expressions/arguments.rp";
-import "./expressions/identifier_or_call_or_struct_literal_or_enum_literal.rp";
+import "./expressions/identifier-or-call-or-struct-literal-or-enum-literal.rp";
 import "./expressions/factor.rp";
-import "./expressions/unary_term.rp";
-import "./expressions/casted_term.rp";
-import "./expressions/multiplicative_term.rp";
-import "./expressions/additive_term.rp";
-import "./expressions/relation_term.rp";
-import "./expressions/concatenation_term.rp";
+import "./expressions/unary-term.rp";
+import "./expressions/casted-term.rp";
+import "./expressions/multiplicative-term.rp";
+import "./expressions/additive-term.rp";
+import "./expressions/relation-term.rp";
+import "./expressions/concatenation-term.rp";
 import "./expressions/expression.rp";
 
 import "./statements/block.rp";
-import "./statements/assign_or_call.rp";
+import "./statements/assign-or-call.rp";
 import "./statements/declaration.rp";
-import "./statements/return_statement.rp";
-import "./statements/break_statement.rp";
-import "./statements/continue_statement.rp";
-import "./statements/import_declaration.rp";
-import "./statements/match_statement.rp";
-import "./statements/switch_statement.rp";
-import "./statements/for_statement.rp";
-import "./statements/while_statement.rp";
-import "./statements/if_statement.rp";
+import "./statements/return-statement.rp";
+import "./statements/break-statement.rp";
+import "./statements/continue-statement.rp";
+import "./statements/import-declaration.rp";
+import "./statements/match-statement.rp";
+import "./statements/switch-statement.rp";
+import "./statements/for-statement.rp";
+import "./statements/while-statement.rp";
+import "./statements/if-statement.rp";
 
 import "./functions/parameters.rp";
-import "./functions/function_declaration.rp";
-import "./functions/extern_function_declaration.rp";
+import "./functions/function-declaration.rp";
+import "./functions/extern-function-declaration.rp";
 
-import "./structs/struct_declaration.rp";
+import "./structs/struct-declaration.rp";
 
-import "./enums/enum_declaration.rp";
+import "./enums/enum-declaration.rp";
 
 import "./program.rp";

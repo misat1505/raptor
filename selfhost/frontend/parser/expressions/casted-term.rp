@@ -1,10 +1,10 @@
 import "../../../common/span.rp";
 import "../../tokens.rp";
 import "../ast.rp";
-import "../parser_results.rp";
+import "../parser-results.rp";
 import "../core.rp";
 import "../misc/types.rp";
-import "./unary_term.rp";
+import "./unary-term.rp";
 
 fn parser_parse_casted_term(&Parser parser): ResultOptionExpressionNode {
     # casted_term = unary_term, [ "as", type ];

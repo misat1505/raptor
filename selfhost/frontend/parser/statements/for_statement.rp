@@ -40,8 +40,9 @@ fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
         }
     }
 
-    let semicolon_1 = parser_consume_must_be(&parser, TokenCategory::Semicolon);
-    if (semicolon_1 matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
+    if (parser_consume_must_be(&parser, TokenCategory::Semicolon) matches ResultToken::Err(err)) {
+        return ResultOptionStatementNode::Err(err);
+    }
 
     let condition_call = parser_parse_expression(&parser);
     let condition = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
@@ -60,8 +61,9 @@ fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
         parser_create_parser_error(&parser, "Couldn't create expression while parsing for statement.")
     );
 
-    let semicolon_2 = parser_consume_must_be(&parser, TokenCategory::Semicolon);
-    if (semicolon_2 matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
+    if (parser_consume_must_be(&parser, TokenCategory::Semicolon) matches ResultToken::Err(err)) {
+        return ResultOptionStatementNode::Err(err);
+    }
 
     let assignment = OptionStatementNode::None;
     if (parser_current_token(&parser).category matches TokenCategory::Identifier) {

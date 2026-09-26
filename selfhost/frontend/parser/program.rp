@@ -11,83 +11,73 @@ import "./core.rp";
 # Raptor has no first-class functions, so it's spelled out as a sequence
 # of attempts instead - functionally identical, just not data-driven.
 fn parser_parse_statement(&Parser parser): ResultOptionStatementNode {
-    let attempt_1 = parser_parse_assign_or_call(&parser);
-    match (attempt_1) {
+    match (parser_parse_assign_or_call(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_1) {
-            if (option_1 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_1);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_2 = parser_parse_if_statement(&parser);
-    match (attempt_2) {
+    match (parser_parse_if_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_2) {
-            if (option_2 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_2);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_3 = parser_parse_for_statement(&parser);
-    match (attempt_3) {
+    match (parser_parse_for_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_3) {
-            if (option_3 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_3);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_4 = parser_parse_while_statement(&parser);
-    match (attempt_4) {
+    match (parser_parse_while_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_4) {
-            if (option_4 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_4);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_5 = parser_parse_switch_statement(&parser);
-    match (attempt_5) {
+    match (parser_parse_switch_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_5) {
-            if (option_5 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_5);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_6 = parser_parse_return_statement(&parser);
-    match (attempt_6) {
+    match (parser_parse_return_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_6) {
-            if (option_6 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_6);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_7 = parser_parse_break_statement(&parser);
-    match (attempt_7) {
+    match (parser_parse_break_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_7) {
-            if (option_7 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_7);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_8 = parser_parse_continue_statement(&parser);
-    match (attempt_8) {
+    match (parser_parse_continue_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_8) {
-            if (option_8 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_8);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_9 = parser_parse_variable_declaration(&parser);
-    match (attempt_9) {
+    match (parser_parse_variable_declaration(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_9) {
-            if (option_9 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_9);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_10 = parser_parse_let_variable_declaration(&parser);
-    match (attempt_10) {
+    match (parser_parse_let_variable_declaration(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_10) {
-            if (option_10 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_10);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
@@ -97,67 +87,59 @@ fn parser_parse_statement(&Parser parser): ResultOptionStatementNode {
 fn parser_parse_program_statement(&Parser parser): ResultOptionStatementNode {
     # program_statement = import_declaration | assign_or_call | if_statement | for_statement | while_statement
     #                    | switch_statement | (declaration, ";") | let_declaration | match_statement;
-    let attempt_1 = parser_parse_assign_or_call(&parser);
-    match (attempt_1) {
+    match (parser_parse_assign_or_call(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_1) {
-            if (option_1 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_1);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_2 = parser_parse_if_statement(&parser);
-    match (attempt_2) {
+    match (parser_parse_if_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_2) {
-            if (option_2 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_2);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_3 = parser_parse_for_statement(&parser);
-    match (attempt_3) {
+    match (parser_parse_for_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_3) {
-            if (option_3 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_3);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_4 = parser_parse_while_statement(&parser);
-    match (attempt_4) {
+    match (parser_parse_while_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_4) {
-            if (option_4 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_4);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_5 = parser_parse_switch_statement(&parser);
-    match (attempt_5) {
+    match (parser_parse_switch_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_5) {
-            if (option_5 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_5);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_6 = parser_parse_variable_declaration(&parser);
-    match (attempt_6) {
+    match (parser_parse_variable_declaration(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_6) {
-            if (option_6 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_6);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_7 = parser_parse_let_variable_declaration(&parser);
-    match (attempt_7) {
+    match (parser_parse_let_variable_declaration(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_7) {
-            if (option_7 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_7);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 
-    let attempt_8 = parser_parse_import_declaration(&parser);
-    match (attempt_8) {
+    match (parser_parse_import_declaration(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultOptionStatementNode::Ok(option_8) {
-            if (option_8 matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_8);
+        ResultOptionStatementNode::Ok(option_statement) {
+            if (option_statement matches OptionStatementNode::Some) return ResultOptionStatementNode::Ok(option_statement);
         }
     }
 

@@ -13,14 +13,8 @@ import "../core.rp";
 fn parser_parse_return_type(&Parser parser): ResultTypeNode {
     let type_call = parser_parse_type(&parser);
 
-    match (type_call) {
-        ResultOptionTypeNode::Err {},
-        ResultOptionTypeNode::Ok(option_type) {
-            match (option_type) {
-                OptionTypeNode::None {},
-                OptionTypeNode::Some(t) return ResultTypeNode::Ok(t);
-            }
-        }
+    if (type_call matches ResultOptionTypeNode::Ok(option_type)) {
+        if (option_type matches OptionTypeNode::Some(t)) return ResultTypeNode::Ok(t);
     }
 
     return parser_void_type_or_error(&parser);
@@ -35,12 +29,9 @@ fn parser_parse_function_declaration(&Parser parser): ResultOptionFunctionDeclar
     match (fn_consumed) {
         ResultOptionToken::Err(err) return ResultOptionFunctionDeclarationNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_fn) {
-            match (option_fn) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    fn_token = token;
-                    has_fn = true;
-                }
+            if (option_fn matches OptionToken::Some(token)) {
+                fn_token = token;
+                has_fn = true;
             }
         }
     }
@@ -53,12 +44,9 @@ fn parser_parse_function_declaration(&Parser parser): ResultOptionFunctionDeclar
     match (identifier_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionFunctionDeclarationNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(i) {
-                    identifier = i;
-                    found_identifier = true;
-                }
+            if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                identifier = i;
+                found_identifier = true;
             }
         }
     }
@@ -68,10 +56,7 @@ fn parser_parse_function_declaration(&Parser parser): ResultOptionFunctionDeclar
     );
 
     let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
-    match (paren_open) {
-        ResultToken::Err(err) return ResultOptionFunctionDeclarationNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_open matches ResultToken::Err(err)) return ResultOptionFunctionDeclarationNode::Err(err);
 
     let parameters_call = parser_parse_parameters(&parser);
     let parameters: ParameterNode[] = [];
@@ -81,16 +66,10 @@ fn parser_parse_function_declaration(&Parser parser): ResultOptionFunctionDeclar
     }
 
     let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
-    match (paren_close) {
-        ResultToken::Err(err) return ResultOptionFunctionDeclarationNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_close matches ResultToken::Err(err)) return ResultOptionFunctionDeclarationNode::Err(err);
 
     let colon_consumed = parser_consume_must_be(&parser, TokenCategory::Colon);
-    match (colon_consumed) {
-        ResultToken::Err(err) return ResultOptionFunctionDeclarationNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (colon_consumed matches ResultToken::Err(err)) return ResultOptionFunctionDeclarationNode::Err(err);
 
     let return_type_call = parser_parse_return_type(&parser);
     let return_type = TypeNode { value: Type::Void, span: parser_current_token(&parser).span };

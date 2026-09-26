@@ -67,12 +67,9 @@ fn parser_parse_parameter(&Parser parser): ResultOptionParameterNode {
     match (type_call) {
         ResultOptionTypeNode::Err(err) return ResultOptionParameterNode::Err(err);,
         ResultOptionTypeNode::Ok(option_type) {
-            match (option_type) {
-                OptionTypeNode::None {},
-                OptionTypeNode::Some(t) {
-                    parameter_type = t;
-                    found_type = true;
-                }
+            if (option_type matches OptionTypeNode::Some(t)) {
+                parameter_type = t;
+                found_type = true;
             }
         }
     }

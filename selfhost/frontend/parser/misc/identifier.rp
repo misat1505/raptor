@@ -13,14 +13,10 @@ fn parser_parse_identifier(&Parser parser): ResultOptionIdentifierNode {
         ResultToken::Ok(t) token = t;
     }
 
-    match (token.value) {
-        TokenValue::String(name) return ResultOptionIdentifierNode::Ok(OptionIdentifierNode::Some(
+    if (token.value matches TokenValue::String(name)) {
+        return ResultOptionIdentifierNode::Ok(OptionIdentifierNode::Some(
             IdentifierNode { value: name, span: token.span }
-        ));,
-        TokenValue::F64 {},
-        TokenValue::I64 {},
-        TokenValue::Char {},
-        TokenValue::Null {}
+        ));
     }
 
     return ResultOptionIdentifierNode::Err(parser_error_expected_found(

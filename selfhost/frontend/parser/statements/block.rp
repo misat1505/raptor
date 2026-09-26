@@ -11,9 +11,8 @@ fn parser_parse_statement_block(&Parser parser): ResultOptionBlockNode {
     match (single_statement_call) {
         ResultOptionStatementNode::Err(err) return ResultOptionBlockNode::Err(err);,
         ResultOptionStatementNode::Ok(option_statement) {
-            match (option_statement) {
-                OptionStatementNode::None {},
-                OptionStatementNode::Some(single_statement) return ResultOptionBlockNode::Ok(OptionBlockNode::Some(BlockNode {
+            if (option_statement matches OptionStatementNode::Some(single_statement)) {
+                return ResultOptionBlockNode::Ok(OptionBlockNode::Some(BlockNode {
                     value: Block { statements: [single_statement] },
                     span: single_statement.span
                 }));
@@ -27,12 +26,9 @@ fn parser_parse_statement_block(&Parser parser): ResultOptionBlockNode {
     match (open_brace_consumed) {
         ResultOptionToken::Err(err) return ResultOptionBlockNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_brace) {
-            match (option_brace) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    open_brace_token = token;
-                    has_open_brace = true;
-                }
+            if (option_brace matches OptionToken::Some(token)) {
+                open_brace_token = token;
+                has_open_brace = true;
             }
         }
     }
@@ -48,12 +44,9 @@ fn parser_parse_statement_block(&Parser parser): ResultOptionBlockNode {
         match (close_brace_consumed) {
             ResultOptionToken::Err(err) return ResultOptionBlockNode::Err(parser_error_from_lexer_error(&err));,
             ResultOptionToken::Ok(option_close) {
-                match (option_close) {
-                    OptionToken::None {},
-                    OptionToken::Some(close_token) {
-                        closing_brace_token = close_token;
-                        closed = true;
-                    }
+                if (option_close matches OptionToken::Some(close_token)) {
+                    closing_brace_token = close_token;
+                    closed = true;
                 }
             }
         }

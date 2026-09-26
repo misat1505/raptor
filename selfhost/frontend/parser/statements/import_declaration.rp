@@ -13,12 +13,9 @@ fn parser_parse_import_declaration(&Parser parser): ResultOptionStatementNode {
     match (import_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_import) {
-            match (option_import) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    import_token = token;
-                    has_import = true;
-                }
+            if (option_import matches OptionToken::Some(token)) {
+                import_token = token;
+                has_import = true;
             }
         }
     }
@@ -31,12 +28,9 @@ fn parser_parse_import_declaration(&Parser parser): ResultOptionStatementNode {
     match (literal_call) {
         ResultOptionLiteralNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionLiteralNode::Ok(option_literal) {
-            match (option_literal) {
-                OptionLiteralNode::None {},
-                OptionLiteralNode::Some(literal) {
-                    import_literal = literal;
-                    found_literal = true;
-                }
+            if (option_literal matches OptionLiteralNode::Some(literal)) {
+                import_literal = literal;
+                found_literal = true;
             }
         }
     }
@@ -46,22 +40,13 @@ fn parser_parse_import_declaration(&Parser parser): ResultOptionStatementNode {
     );
 
     let import_path = "";
-    let is_string_literal = false;
-    match (import_literal.value) {
-        Literal::String(path) {
-            import_path = path;
-            is_string_literal = true;
-        },
-        Literal::True {},
-        Literal::False {},
-        Literal::Char {},
-        Literal::I64 {},
-        Literal::F64 {}
+    if (import_literal.value matches Literal::String(path)) {
+        import_path = path;
+    } else {
+        return ResultOptionStatementNode::Err(
+            parser_create_parser_error(&parser, "Import path must be a string literal.")
+        );
     }
-
-    if (!is_string_literal) return ResultOptionStatementNode::Err(
-        parser_create_parser_error(&parser, "Import path must be a string literal.")
-    );
 
     let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
     match (semicolon_consumed) {

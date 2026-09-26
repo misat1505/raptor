@@ -18,12 +18,9 @@ fn parser_parse_if_statement(&Parser parser): ResultOptionStatementNode {
     match (if_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_if) {
-            match (option_if) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    if_token = token;
-                    has_if = true;
-                }
+            if (option_if matches OptionToken::Some(token)) {
+                if_token = token;
+                has_if = true;
             }
         }
     }
@@ -31,10 +28,7 @@ fn parser_parse_if_statement(&Parser parser): ResultOptionStatementNode {
     if (!has_if) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
 
     let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
-    match (paren_open) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_open matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let condition_call = parser_parse_expression(&parser);
     let condition = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
@@ -42,12 +36,9 @@ fn parser_parse_if_statement(&Parser parser): ResultOptionStatementNode {
     match (condition_call) {
         ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionExpressionNode::Ok(option_condition) {
-            match (option_condition) {
-                OptionExpressionNode::None {},
-                OptionExpressionNode::Some(expr) {
-                    condition = expr;
-                    found_condition = true;
-                }
+            if (option_condition matches OptionExpressionNode::Some(expr)) {
+                condition = expr;
+                found_condition = true;
             }
         }
     }
@@ -72,12 +63,9 @@ fn parser_parse_if_statement(&Parser parser): ResultOptionStatementNode {
     match (true_block_call) {
         ResultOptionBlockNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionBlockNode::Ok(option_true_block) {
-            match (option_true_block) {
-                OptionBlockNode::None {},
-                OptionBlockNode::Some(block) {
-                    true_block = block;
-                    found_true_block = true;
-                }
+            if (option_true_block matches OptionBlockNode::Some(block)) {
+                true_block = block;
+                found_true_block = true;
             }
         }
     }
@@ -105,10 +93,7 @@ fn parser_parse_if_statement(&Parser parser): ResultOptionStatementNode {
     }
 
     let end_position = true_block.span.end;
-    match (false_block) {
-        OptionBlockNode::None {},
-        OptionBlockNode::Some(block) end_position = block.span.end;
-    }
+    if (false_block matches OptionBlockNode::Some(block)) end_position = block.span.end;
 
     return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
         value: Statement::Conditional(ConditionalStatement { condition: condition, if_block: true_block, else_block: false_block }),
@@ -127,10 +112,7 @@ fn parser_finish_if_matches_statement(&Parser parser, ExpressionNode condition, 
     }
 
     let matches_consumed = parser_consume_must_be(&parser, TokenCategory::Matches);
-    match (matches_consumed) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (matches_consumed matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let arm_call = parser_parse_match_arm_without_block(&parser);
     let arm = MatchArmNode {
@@ -141,12 +123,9 @@ fn parser_finish_if_matches_statement(&Parser parser, ExpressionNode condition, 
     match (arm_call) {
         ResultOptionMatchArmNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionMatchArmNode::Ok(option_arm) {
-            match (option_arm) {
-                OptionMatchArmNode::None {},
-                OptionMatchArmNode::Some(parsed_arm) {
-                    arm = parsed_arm;
-                    found_arm = true;
-                }
+            if (option_arm matches OptionMatchArmNode::Some(parsed_arm)) {
+                arm = parsed_arm;
+                found_arm = true;
             }
         }
     }
@@ -156,10 +135,7 @@ fn parser_finish_if_matches_statement(&Parser parser, ExpressionNode condition, 
     );
 
     let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
-    match (paren_close) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_close matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let match_block_call = parser_parse_statement_block(&parser);
     let match_block = while_synthetic_break_block(condition.span);
@@ -167,12 +143,9 @@ fn parser_finish_if_matches_statement(&Parser parser, ExpressionNode condition, 
     match (match_block_call) {
         ResultOptionBlockNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionBlockNode::Ok(option_match_block) {
-            match (option_match_block) {
-                OptionBlockNode::None {},
-                OptionBlockNode::Some(block) {
-                    match_block = block;
-                    found_match_block = true;
-                }
+            if (option_match_block matches OptionBlockNode::Some(block)) {
+                match_block = block;
+                found_match_block = true;
             }
         }
     }
@@ -201,12 +174,9 @@ fn parser_finish_if_matches_statement(&Parser parser, ExpressionNode condition, 
         match (rest_block_call) {
             ResultOptionBlockNode::Err(err) return ResultOptionStatementNode::Err(err);,
             ResultOptionBlockNode::Ok(option_rest_block) {
-                match (option_rest_block) {
-                    OptionBlockNode::None {},
-                    OptionBlockNode::Some(block) {
-                        rest_block = block;
-                        found_rest_block = true;
-                    }
+                if (option_rest_block matches OptionBlockNode::Some(block)) {
+                    rest_block = block;
+                    found_rest_block = true;
                 }
             }
         }
@@ -219,11 +189,10 @@ fn parser_finish_if_matches_statement(&Parser parser, ExpressionNode condition, 
     if (is_negating) {
         arm.value.block = rest_block;
 
-        match (arm.value.variant_value) {
-            OptionIdentifierNode::Some(var_val) return ResultOptionStatementNode::Err(
+        if (arm.value.variant_value matches OptionIdentifierNode::Some(var_val)) {
+            return ResultOptionStatementNode::Err(
                 parser_error_at(ErrorSeverity::HIGH, "Cannot take the inner value of enum variant in if-not-matches statement.", var_val.span)
-            );,
-            OptionIdentifierNode::None {}
+            );
         }
 
         return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {

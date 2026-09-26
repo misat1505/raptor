@@ -165,10 +165,7 @@ fn parser_parse_assign_or_call_without_semicolon(&Parser parser): ResultOptionSt
 
                     if (has_compound) {
                         let operator_consumed = parser_consume_must_be(&parser, compound_category);
-                        match (operator_consumed) {
-                            ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-                            ResultToken::Ok {}
-                        }
+                        if (operator_consumed matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
                         let rhs_call = parser_parse_expression(&parser);
                         match (rhs_call) {

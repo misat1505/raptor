@@ -13,12 +13,9 @@ fn parser_parse_match_statement(&Parser parser): ResultOptionStatementNode {
     match (match_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_match) {
-            match (option_match) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    match_token = token;
-                    has_match = true;
-                }
+            if (option_match matches OptionToken::Some(token)) {
+                match_token = token;
+                has_match = true;
             }
         }
     }
@@ -26,10 +23,7 @@ fn parser_parse_match_statement(&Parser parser): ResultOptionStatementNode {
     if (!has_match) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
 
     let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
-    match (paren_open) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_open matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let expression_call = parser_parse_expression(&parser);
     let expression = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
@@ -37,12 +31,9 @@ fn parser_parse_match_statement(&Parser parser): ResultOptionStatementNode {
     match (expression_call) {
         ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionExpressionNode::Ok(option_expression) {
-            match (option_expression) {
-                OptionExpressionNode::None {},
-                OptionExpressionNode::Some(expr) {
-                    expression = expr;
-                    found_expression = true;
-                }
+            if (option_expression matches OptionExpressionNode::Some(expr)) {
+                expression = expr;
+                found_expression = true;
             }
         }
     }
@@ -52,16 +43,10 @@ fn parser_parse_match_statement(&Parser parser): ResultOptionStatementNode {
     );
 
     let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
-    match (paren_close) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_close matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
-    match (brace_open) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (brace_open matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let arms_call = parser_parse_match_arms(&parser);
     let match_arms: MatchArmNode[] = [];
@@ -120,10 +105,7 @@ fn parser_parse_match_arms(&Parser parser): ResultMatchArmNodeVec {
         if (parser_current_token(&parser).category matches TokenCategory::BraceClose) break;
 
         let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
-        match (comma_consumed) {
-            ResultToken::Err(err) return ResultMatchArmNodeVec::Err(err);,
-            ResultToken::Ok {}
-        }
+        if (comma_consumed matches ResultToken::Err(err)) return ResultMatchArmNodeVec::Err(err);
 
         if (parser_current_token(&parser).category matches TokenCategory::Rest) break;
 
@@ -154,12 +136,9 @@ fn parser_parse_match_arm(&Parser parser): ResultOptionMatchArmNode {
     match (enum_name_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_name) {
-            match (option_name) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(name) {
-                    enum_name = name;
-                    found_enum_name = true;
-                }
+            if (option_name matches OptionIdentifierNode::Some(name)) {
+                enum_name = name;
+                found_enum_name = true;
             }
         }
     }
@@ -167,10 +146,7 @@ fn parser_parse_match_arm(&Parser parser): ResultOptionMatchArmNode {
     if (!found_enum_name) return ResultOptionMatchArmNode::Ok(OptionMatchArmNode::None);
 
     let double_colon_consumed = parser_consume_must_be(&parser, TokenCategory::DoubleColon);
-    match (double_colon_consumed) {
-        ResultToken::Err(err) return ResultOptionMatchArmNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (double_colon_consumed matches ResultToken::Err(err)) return ResultOptionMatchArmNode::Err(err);
 
     let variant_name_call = parser_parse_identifier(&parser);
     let variant_name = IdentifierNode { value: "", span: parser_current_token(&parser).span };
@@ -178,12 +154,9 @@ fn parser_parse_match_arm(&Parser parser): ResultOptionMatchArmNode {
     match (variant_name_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_name) {
-            match (option_name) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(name) {
-                    variant_name = name;
-                    found_variant_name = true;
-                }
+            if (option_name matches OptionIdentifierNode::Some(name)) {
+                variant_name = name;
+                found_variant_name = true;
             }
         }
     }
@@ -213,10 +186,7 @@ fn parser_parse_match_arm(&Parser parser): ResultOptionMatchArmNode {
                 }
 
                 let close_paren_consumed = parser_consume_must_be(&parser, TokenCategory::ParenClose);
-                match (close_paren_consumed) {
-                    ResultToken::Err(err) return ResultOptionMatchArmNode::Err(err);,
-                    ResultToken::Ok {}
-                }
+                if (close_paren_consumed matches ResultToken::Err(err)) return ResultOptionMatchArmNode::Err(err);
             }
         }
     }
@@ -250,12 +220,9 @@ fn parser_parse_match_arm_without_block(&Parser parser): ResultOptionMatchArmNod
     match (enum_name_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_name) {
-            match (option_name) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(name) {
-                    enum_name = name;
-                    found_enum_name = true;
-                }
+            if (option_name matches OptionIdentifierNode::Some(name)) {
+                enum_name = name;
+                found_enum_name = true;
             }
         }
     }
@@ -263,10 +230,7 @@ fn parser_parse_match_arm_without_block(&Parser parser): ResultOptionMatchArmNod
     if (!found_enum_name) return ResultOptionMatchArmNode::Ok(OptionMatchArmNode::None);
 
     let double_colon_consumed = parser_consume_must_be(&parser, TokenCategory::DoubleColon);
-    match (double_colon_consumed) {
-        ResultToken::Err(err) return ResultOptionMatchArmNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (double_colon_consumed matches ResultToken::Err(err)) return ResultOptionMatchArmNode::Err(err);
 
     let variant_name_call = parser_parse_identifier(&parser);
     let variant_name = IdentifierNode { value: "", span: parser_current_token(&parser).span };
@@ -274,12 +238,9 @@ fn parser_parse_match_arm_without_block(&Parser parser): ResultOptionMatchArmNod
     match (variant_name_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionMatchArmNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_name) {
-            match (option_name) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(name) {
-                    variant_name = name;
-                    found_variant_name = true;
-                }
+            if (option_name matches OptionIdentifierNode::Some(name)) {
+                variant_name = name;
+                found_variant_name = true;
             }
         }
     }
@@ -334,10 +295,7 @@ fn parser_parse_match_arm_without_block(&Parser parser): ResultOptionMatchArmNod
 fn parser_parse_rest_arm_block(&Parser parser): ResultOptionBlockNode {
     # rest_arm = "rest", statement_block;
     let rest_consumed = parser_consume_must_be(&parser, TokenCategory::Rest);
-    match (rest_consumed) {
-        ResultToken::Err(err) return ResultOptionBlockNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (rest_consumed matches ResultToken::Err(err)) return ResultOptionBlockNode::Err(err);
 
     return parser_parse_statement_block(&parser);
 }

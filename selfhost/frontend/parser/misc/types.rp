@@ -45,23 +45,14 @@ fn parser_parse_type(&Parser parser): ResultOptionTypeNode {
     let end_position = token.span.end;
 
     let advance = parser_next_token(&parser);
-    match (advance) {
-        ResultOptionToken::Err(err) return ResultOptionTypeNode::Err(parser_error_from_lexer_error(&err));,
-        ResultOptionToken::Ok {}
-    }
+    if (advance matches ResultOptionToken::Err(err)) return ResultOptionTypeNode::Err(parser_error_from_lexer_error(&err));
 
     while (parser_current_token(&parser).category matches TokenCategory::BracketOpen) {
         let open_bracket = parser_consume_must_be(&parser, TokenCategory::BracketOpen);
-        match (open_bracket) {
-            ResultToken::Err(err) return ResultOptionTypeNode::Err(err);,
-            ResultToken::Ok {}
-        }
+        if (open_bracket matches ResultToken::Err(err)) return ResultOptionTypeNode::Err(err);
 
         let close_bracket = parser_consume_must_be(&parser, TokenCategory::BracketClose);
-        match (close_bracket) {
-            ResultToken::Err(err) return ResultOptionTypeNode::Err(err);,
-            ResultToken::Ok(closing_token) end_position = closing_token.span.end;
-        }
+        if (close_bracket matches ResultToken::Err(err)) return ResultOptionTypeNode::Err(err);
 
         result = Type::Vector(result);
     }

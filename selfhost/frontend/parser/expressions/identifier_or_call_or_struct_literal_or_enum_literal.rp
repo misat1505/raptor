@@ -53,12 +53,9 @@ fn parser_parse_enum_literal_tail(&Parser parser, IdentifierNode enum_name): Res
     match (variant_name_call) {
         ResultOptionIdentifierNode::Err(err) return ResultExpressionNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_variant_name) {
-            match (option_variant_name) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(name) {
-                    variant_name = name;
-                    found_variant_name = true;
-                }
+            if (option_variant_name matches OptionIdentifierNode::Some(name)) {
+                variant_name = name;
+                found_variant_name = true;
             }
         }
     }

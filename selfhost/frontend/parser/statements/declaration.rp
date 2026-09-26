@@ -13,12 +13,9 @@ fn parser_parse_declaration(&Parser parser): ResultOptionStatementNode {
     match (type_call) {
         ResultOptionTypeNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionTypeNode::Ok(option_type) {
-            match (option_type) {
-                OptionTypeNode::None {},
-                OptionTypeNode::Some(t) {
-                    declaration_type = t;
-                    found_type = true;
-                }
+            if (option_type matches OptionTypeNode::Some(t)) {
+                declaration_type = t;
+                found_type = true;
             }
         }
     }
@@ -31,12 +28,9 @@ fn parser_parse_declaration(&Parser parser): ResultOptionStatementNode {
     match (identifier_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(i) {
-                    identifier = i;
-                    found_identifier = true;
-                }
+            if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                identifier = i;
+                found_identifier = true;
             }
         }
     }
@@ -57,12 +51,9 @@ fn parser_parse_declaration(&Parser parser): ResultOptionStatementNode {
                 match (expr_call) {
                     ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
                     ResultOptionExpressionNode::Ok(option_expr) {
-                        match (option_expr) {
-                            OptionExpressionNode::None {},
-                            OptionExpressionNode::Some(expr) {
-                                value = OptionExpressionNode::Some(expr);
-                                end_position = expr.span.end;
-                            }
+                        if (option_expr matches OptionExpressionNode::Some(expr)) {
+                            value = OptionExpressionNode::Some(expr);
+                            end_position = expr.span.end;
                         }
                     }
                 }
@@ -111,12 +102,9 @@ fn parser_parse_let_declaration(&Parser parser): ResultOptionStatementNode {
     match (let_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_let) {
-            match (option_let) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    let_token = token;
-                    has_let = true;
-                }
+            if (option_let matches OptionToken::Some(token)) {
+                let_token = token;
+                has_let = true;
             }
         }
     }
@@ -129,12 +117,9 @@ fn parser_parse_let_declaration(&Parser parser): ResultOptionStatementNode {
     match (identifier_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(i) {
-                    identifier = i;
-                    found_identifier = true;
-                }
+            if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                identifier = i;
+                found_identifier = true;
             }
         }
     }
@@ -147,10 +132,7 @@ fn parser_parse_let_declaration(&Parser parser): ResultOptionStatementNode {
 
     if (parser_current_token(&parser).category matches TokenCategory::Colon) {
         let colon_consumed = parser_consume_must_be(&parser, TokenCategory::Colon);
-        match (colon_consumed) {
-            ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-            ResultToken::Ok {}
-        }
+        if (colon_consumed matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
         let type_call = parser_parse_type(&parser);
         match (type_call) {
@@ -167,10 +149,7 @@ fn parser_parse_let_declaration(&Parser parser): ResultOptionStatementNode {
     }
 
     let assign_consumed = parser_consume_must_be(&parser, TokenCategory::Assign);
-    match (assign_consumed) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (assign_consumed matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let expr_call = parser_parse_expression(&parser);
     match (expr_call) {

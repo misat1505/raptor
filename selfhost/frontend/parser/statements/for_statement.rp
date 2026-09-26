@@ -13,12 +13,9 @@ fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
     match (for_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_for) {
-            match (option_for) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    for_token = token;
-                    has_for = true;
-                }
+            if (option_for matches OptionToken::Some(token)) {
+                for_token = token;
+                has_for = true;
             }
         }
     }
@@ -26,10 +23,7 @@ fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
     if (!has_for) return ResultOptionStatementNode::Ok(OptionStatementNode::None);
 
     let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
-    match (paren_open) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_open matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let declaration = OptionStatementNode::None;
     if (parser_current_token(&parser).category matches TokenCategory::Let) {
@@ -47,10 +41,7 @@ fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
     }
 
     let semicolon_1 = parser_consume_must_be(&parser, TokenCategory::Semicolon);
-    match (semicolon_1) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (semicolon_1 matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let condition_call = parser_parse_expression(&parser);
     let condition = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
@@ -58,12 +49,9 @@ fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
     match (condition_call) {
         ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionExpressionNode::Ok(option_condition) {
-            match (option_condition) {
-                OptionExpressionNode::None {},
-                OptionExpressionNode::Some(expr) {
-                    condition = expr;
-                    found_condition = true;
-                }
+            if (option_condition matches OptionExpressionNode::Some(expr)) {
+                condition = expr;
+                found_condition = true;
             }
         }
     }
@@ -73,10 +61,7 @@ fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
     );
 
     let semicolon_2 = parser_consume_must_be(&parser, TokenCategory::Semicolon);
-    match (semicolon_2) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (semicolon_2 matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let assignment = OptionStatementNode::None;
     if (parser_current_token(&parser).category matches TokenCategory::Identifier) {
@@ -95,10 +80,7 @@ fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
     }
 
     let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
-    match (paren_close) {
-        ResultToken::Err(err) return ResultOptionStatementNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_close matches ResultToken::Err(err)) return ResultOptionStatementNode::Err(err);
 
     let block_call = parser_parse_statement_block(&parser);
     match (block_call) {

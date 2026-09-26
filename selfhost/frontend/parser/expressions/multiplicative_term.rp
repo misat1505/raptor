@@ -15,12 +15,9 @@ fn parser_parse_multiplicative_term(&Parser parser): ResultOptionExpressionNode 
     match (left_call) {
         ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
         ResultOptionExpressionNode::Ok(option_left) {
-            match (option_left) {
-                OptionExpressionNode::None {},
-                OptionExpressionNode::Some(value) {
-                    left_side = value;
-                    found_left = true;
-                }
+            if (option_left matches OptionExpressionNode::Some(value)) {
+                left_side = value;
+                found_left = true;
             }
         }
     }

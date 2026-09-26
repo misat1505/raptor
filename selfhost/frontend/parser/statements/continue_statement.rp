@@ -13,12 +13,9 @@ fn parser_parse_continue_statement(&Parser parser): ResultOptionStatementNode {
     match (continue_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_continue) {
-            match (option_continue) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    continue_token = token;
-                    has_continue = true;
-                }
+            if (option_continue matches OptionToken::Some(token)) {
+                continue_token = token;
+                has_continue = true;
             }
         }
     }

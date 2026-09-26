@@ -13,12 +13,9 @@ fn parser_parse_extern_function_declaration(&Parser parser): ResultOptionExternF
     match (extern_consumed) {
         ResultOptionToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_extern) {
-            match (option_extern) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    extern_token = token;
-                    has_extern = true;
-                }
+            if (option_extern matches OptionToken::Some(token)) {
+                extern_token = token;
+                has_extern = true;
             }
         }
     }
@@ -26,10 +23,7 @@ fn parser_parse_extern_function_declaration(&Parser parser): ResultOptionExternF
     if (!has_extern) return ResultOptionExternFunctionDeclarationNode::Ok(OptionExternFunctionDeclarationNode::None);
 
     let fn_consumed = parser_consume_must_be(&parser, TokenCategory::Fn);
-    match (fn_consumed) {
-        ResultToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (fn_consumed matches ResultToken::Err(err)) return ResultOptionExternFunctionDeclarationNode::Err(err);
 
     let identifier_call = parser_parse_identifier(&parser);
     let identifier = IdentifierNode { value: "", span: parser_current_token(&parser).span };
@@ -37,12 +31,9 @@ fn parser_parse_extern_function_declaration(&Parser parser): ResultOptionExternF
     match (identifier_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(i) {
-                    identifier = i;
-                    found_identifier = true;
-                }
+            if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                identifier = i;
+                found_identifier = true;
             }
         }
     }
@@ -52,10 +43,7 @@ fn parser_parse_extern_function_declaration(&Parser parser): ResultOptionExternF
     );
 
     let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
-    match (paren_open) {
-        ResultToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_open matches ResultToken::Err(err)) return ResultOptionExternFunctionDeclarationNode::Err(err);
 
     let parameters_call = parser_parse_parameters(&parser);
     let parameters: ParameterNode[] = [];
@@ -65,16 +53,10 @@ fn parser_parse_extern_function_declaration(&Parser parser): ResultOptionExternF
     }
 
     let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
-    match (paren_close) {
-        ResultToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (paren_close matches ResultToken::Err(err)) return ResultOptionExternFunctionDeclarationNode::Err(err);
 
     let colon_consumed = parser_consume_must_be(&parser, TokenCategory::Colon);
-    match (colon_consumed) {
-        ResultToken::Err(err) return ResultOptionExternFunctionDeclarationNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (colon_consumed matches ResultToken::Err(err)) return ResultOptionExternFunctionDeclarationNode::Err(err);
 
     let return_type_call = parser_parse_return_type(&parser);
     let return_type = TypeNode { value: Type::Void, span: parser_current_token(&parser).span };

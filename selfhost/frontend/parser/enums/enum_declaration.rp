@@ -16,12 +16,9 @@ fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNod
     match (enum_consumed) {
         ResultOptionToken::Err(err) return ResultOptionEnumDeclarationNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_enum) {
-            match (option_enum) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    enum_token = token;
-                    has_enum = true;
-                }
+            if (option_enum matches OptionToken::Some(token)) {
+                enum_token = token;
+                has_enum = true;
             }
         }
     }
@@ -34,12 +31,9 @@ fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNod
     match (identifier_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionEnumDeclarationNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(i) {
-                    identifier = i;
-                    found_identifier = true;
-                }
+            if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                identifier = i;
+                found_identifier = true;
             }
         }
     }

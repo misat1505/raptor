@@ -16,12 +16,9 @@ fn parser_parse_casted_term(&Parser parser): ResultOptionExpressionNode {
     match (unary_call) {
         ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
         ResultOptionExpressionNode::Ok(option_unary) {
-            match (option_unary) {
-                OptionExpressionNode::None {},
-                OptionExpressionNode::Some(value) {
-                    unary_term = value;
-                    found_unary = true;
-                }
+            if (option_unary matches OptionExpressionNode::Some(value)) {
+                unary_term = value;
+                found_unary = true;
             }
         }
     }

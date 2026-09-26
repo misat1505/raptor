@@ -13,12 +13,9 @@ fn parser_parse_break_statement(&Parser parser): ResultOptionStatementNode {
     match (break_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_break) {
-            match (option_break) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    break_token = token;
-                    has_break = true;
-                }
+            if (option_break matches OptionToken::Some(token)) {
+                break_token = token;
+                has_break = true;
             }
         }
     }

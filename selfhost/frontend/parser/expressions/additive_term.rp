@@ -15,12 +15,9 @@ fn parser_parse_additive_term(&Parser parser): ResultOptionExpressionNode {
     match (left_call) {
         ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
         ResultOptionExpressionNode::Ok(option_left) {
-            match (option_left) {
-                OptionExpressionNode::None {},
-                OptionExpressionNode::Some(value) {
-                    left_side = value;
-                    found_left = true;
-                }
+            if (option_left matches OptionExpressionNode::Some(value)) {
+                left_side = value;
+                found_left = true;
             }
         }
     }
@@ -49,19 +46,16 @@ fn parser_parse_additive_term(&Parser parser): ResultOptionExpressionNode {
         match (right_call) {
             ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
             ResultOptionExpressionNode::Ok(option_right) {
-                match (option_right) {
-                    OptionExpressionNode::None {},
-                    OptionExpressionNode::Some(right_side) {
-                        let operands = BinaryExpression { left: left_side, right: right_side };
-                        let expression_value = Expression::Addition(operands);
-                        if (is_minus) expression_value = Expression::Subtraction(operands);
+                if (option_right matches OptionExpressionNode::Some(right_side)) {
+                    let operands = BinaryExpression { left: left_side, right: right_side };
+                    let expression_value = Expression::Addition(operands);
+                    if (is_minus) expression_value = Expression::Subtraction(operands);
 
-                        left_side = ExpressionNode {
-                            value: expression_value,
-                            span: span_new(left_side.span.start, right_side.span.end)
-                        };
-                        found_right = true;
-                    }
+                    left_side = ExpressionNode {
+                        value: expression_value,
+                        span: span_new(left_side.span.start, right_side.span.end)
+                    };
+                    found_right = true;
                 }
             }
         }

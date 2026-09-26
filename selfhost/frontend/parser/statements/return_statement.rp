@@ -13,12 +13,9 @@ fn parser_parse_return_statement(&Parser parser): ResultOptionStatementNode {
     match (return_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_return) {
-            match (option_return) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    return_token = token;
-                    has_return = true;
-                }
+            if (option_return matches OptionToken::Some(token)) {
+                return_token = token;
+                has_return = true;
             }
         }
     }

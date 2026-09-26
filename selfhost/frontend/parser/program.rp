@@ -183,10 +183,7 @@ fn parser_check_name_collision(&Parser parser, str name, Span span, FunctionDecl
     for (let i = 0; i < vector_size(&extern_functions); i += 1) {
         let declaration = extern_functions[i];
         let effective_name = declaration.value.identifier.value;
-        match (declaration.value.alias) {
-            OptionIdentifierNode::None {},
-            OptionIdentifierNode::Some(alias) effective_name = alias.value;
-        }
+        if (declaration.value.alias matches OptionIdentifierNode::Some(alias)) effective_name = alias.value;
 
         if (effective_name == name) {
             return ResultUnit::Err(parser_error_new(ErrorSeverity::HIGH, "Redeclaration of '" + name + "'.", span));
@@ -226,10 +223,7 @@ fn parser_parse_program(&Parser parser): ResultProgram {
                     let type_name = struct_declaration.value.identifier.value;
 
                     let collision = parser_check_name_collision(&parser, type_name, struct_declaration.span, functions, extern_functions, declared_types);
-                    match (collision) {
-                        ResultUnit::Err(err) return ResultProgram::Err(err);,
-                        ResultUnit::Ok {}
-                    }
+                    if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&declared_types, DeclaredTypeNode {
                         value: DeclaredType::Struct(struct_declaration.value),
@@ -249,10 +243,7 @@ fn parser_parse_program(&Parser parser): ResultProgram {
                     let type_name = enum_declaration.value.identifier.value;
 
                     let collision = parser_check_name_collision(&parser, type_name, enum_declaration.span, functions, extern_functions, declared_types);
-                    match (collision) {
-                        ResultUnit::Err(err) return ResultProgram::Err(err);,
-                        ResultUnit::Ok {}
-                    }
+                    if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&declared_types, DeclaredTypeNode {
                         value: DeclaredType::Enum(enum_declaration.value),
@@ -283,10 +274,7 @@ fn parser_parse_program(&Parser parser): ResultProgram {
                     let function_name = function_declaration.value.identifier.value;
 
                     let collision = parser_check_name_collision(&parser, function_name, function_declaration.span, functions, extern_functions, declared_types);
-                    match (collision) {
-                        ResultUnit::Err(err) return ResultProgram::Err(err);,
-                        ResultUnit::Ok {}
-                    }
+                    if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&functions, function_declaration);
 
@@ -301,16 +289,10 @@ fn parser_parse_program(&Parser parser): ResultProgram {
             ResultOptionExternFunctionDeclarationNode::Ok(option_extern_function) {
                 if (option_extern_function matches OptionExternFunctionDeclarationNode::Some(extern_function_declaration)) {
                     let function_name = extern_function_declaration.value.identifier.value;
-                    match (extern_function_declaration.value.alias) {
-                        OptionIdentifierNode::None {},
-                        OptionIdentifierNode::Some(alias) function_name = alias.value;
-                    }
+                    if (extern_function_declaration.value.alias matches OptionIdentifierNode::Some(alias)) function_name = alias.value;
 
                     let collision = parser_check_name_collision(&parser, function_name, extern_function_declaration.span, functions, extern_functions, declared_types);
-                    match (collision) {
-                        ResultUnit::Err(err) return ResultProgram::Err(err);,
-                        ResultUnit::Ok {}
-                    }
+                    if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&extern_functions, extern_function_declaration);
 
@@ -323,10 +305,7 @@ fn parser_parse_program(&Parser parser): ResultProgram {
     }
 
     let etx_consumed = parser_consume_must_be(&parser, TokenCategory::ETX);
-    match (etx_consumed) {
-        ResultToken::Err(err) return ResultProgram::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (etx_consumed matches ResultToken::Err(err)) return ResultProgram::Err(err);
 
     # Resolving declared types (`resolve_declared_types` in Rust) is a
     # semantic-checker step, not a parsing one - out of scope here, so

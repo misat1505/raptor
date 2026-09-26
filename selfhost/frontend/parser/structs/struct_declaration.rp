@@ -13,12 +13,9 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
     match (struct_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStructDeclarationNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_struct) {
-            match (option_struct) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    struct_token = token;
-                    has_struct = true;
-                }
+            if (option_struct matches OptionToken::Some(token)) {
+                struct_token = token;
+                has_struct = true;
             }
         }
     }
@@ -31,12 +28,9 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
     match (identifier_call) {
         ResultOptionIdentifierNode::Err(err) return ResultOptionStructDeclarationNode::Err(err);,
         ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::None {},
-                OptionIdentifierNode::Some(i) {
-                    identifier = i;
-                    found_identifier = true;
-                }
+            if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                identifier = i;
+                found_identifier = true;
             }
         }
     }
@@ -53,10 +47,7 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
     }
 
     let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
-    match (brace_open) {
-        ResultToken::Err(err) return ResultOptionStructDeclarationNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (brace_open matches ResultToken::Err(err)) return ResultOptionStructDeclarationNode::Err(err);
 
     let members_call = parser_parse_struct_members(&parser);
     let members: StructMemberNode[] = [];
@@ -66,10 +57,7 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
     }
 
     let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
-    match (brace_close) {
-        ResultToken::Err(err) return ResultOptionStructDeclarationNode::Err(err);,
-        ResultToken::Ok {}
-    }
+    if (brace_close matches ResultToken::Err(err)) return ResultOptionStructDeclarationNode::Err(err);
 
     let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
     match (semicolon_consumed) {
@@ -98,10 +86,7 @@ fn parser_parse_struct_members(&Parser parser): ResultStructMemberNodeVec {
 
     while (parser_current_token(&parser).category matches TokenCategory::Comma) {
         let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
-        match (comma_consumed) {
-            ResultToken::Err(err) return ResultStructMemberNodeVec::Err(err);,
-            ResultToken::Ok {}
-        }
+        if (comma_consumed matches ResultToken::Err(err)) return ResultStructMemberNodeVec::Err(err);
 
         let next_call = parser_parse_struct_member(&parser);
         match (next_call) {
@@ -128,12 +113,9 @@ fn parser_parse_struct_member(&Parser parser): ResultOptionStructMemberNode {
     match (type_call) {
         ResultOptionTypeNode::Err(err) return ResultOptionStructMemberNode::Err(err);,
         ResultOptionTypeNode::Ok(option_type) {
-            match (option_type) {
-                OptionTypeNode::None {},
-                OptionTypeNode::Some(t) {
-                    member_type = t;
-                    found_type = true;
-                }
+            if (option_type matches OptionTypeNode::Some(t)) {
+                member_type = t;
+                found_type = true;
             }
         }
     }

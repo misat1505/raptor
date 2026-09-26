@@ -57,10 +57,7 @@ fn parser_parse_literal(&Parser parser): ResultOptionLiteralNode {
     if (!matched) return ResultOptionLiteralNode::Ok(OptionLiteralNode::None);
 
     let advance = parser_next_token(&parser);
-    match (advance) {
-        ResultOptionToken::Err(err) return ResultOptionLiteralNode::Err(parser_error_from_lexer_error(&err));,
-        ResultOptionToken::Ok {}
-    }
+    if (advance matches ResultOptionToken::Err(err)) return ResultOptionLiteralNode::Err(parser_error_from_lexer_error(&err));
 
     return ResultOptionLiteralNode::Ok(OptionLiteralNode::Some(LiteralNode {
         value: literal,

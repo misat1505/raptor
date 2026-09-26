@@ -27,12 +27,9 @@ fn parser_parse_while_statement(&Parser parser): ResultOptionStatementNode {
     match (while_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_while) {
-            match (option_while) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    while_token = token;
-                    has_while = true;
-                }
+            if (option_while matches OptionToken::Some(token)) {
+                while_token = token;
+                has_while = true;
             }
         }
     }
@@ -48,12 +45,9 @@ fn parser_parse_while_statement(&Parser parser): ResultOptionStatementNode {
     match (condition_call) {
         ResultOptionExpressionNode::Err(err) return ResultOptionStatementNode::Err(err);,
         ResultOptionExpressionNode::Ok(option_condition) {
-            match (option_condition) {
-                OptionExpressionNode::None {},
-                OptionExpressionNode::Some(expr) {
-                    condition = expr;
-                    found_condition = true;
-                }
+            if (option_condition matches OptionExpressionNode::Some(expr)) {
+                condition = expr;
+                found_condition = true;
             }
         }
     }

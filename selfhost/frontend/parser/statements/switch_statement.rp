@@ -16,12 +16,9 @@ fn parser_parse_switch_statement(&Parser parser): ResultOptionStatementNode {
     match (switch_consumed) {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_switch) {
-            match (option_switch) {
-                OptionToken::None {},
-                OptionToken::Some(token) {
-                    switch_token = token;
-                    has_switch = true;
-                }
+            if (option_switch matches OptionToken::Some(token)) {
+                switch_token = token;
+                has_switch = true;
             }
         }
     }
@@ -146,12 +143,9 @@ fn parser_parse_switch_expression(&Parser parser): ResultOptionSwitchExpressionN
                 match (alias_call) {
                     ResultOptionIdentifierNode::Err(err) return ResultOptionSwitchExpressionNode::Err(err);,
                     ResultOptionIdentifierNode::Ok(option_alias) {
-                        match (option_alias) {
-                            OptionIdentifierNode::None {},
-                            OptionIdentifierNode::Some(alias_identifier) {
-                                alias = OptionIdentifierNode::Some(alias_identifier);
-                                end_position = alias_identifier.span.end;
-                            }
+                        if (option_alias matches OptionIdentifierNode::Some(alias_identifier)) {
+                            alias = OptionIdentifierNode::Some(alias_identifier);
+                            end_position = alias_identifier.span.end;
                         }
                     }
                 }

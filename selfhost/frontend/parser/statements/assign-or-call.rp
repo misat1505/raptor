@@ -9,7 +9,7 @@ import "../core.rp";
 # Rust parser defines inline (Raptor has no closures/lambdas, so this is
 # a named helper called from the handful of compound-assignment cases
 # below instead).
-fn parser_build_access_expression(IdentifierNode identifier, AccessorNode[] accessors): ExpressionNode {
+fn parser_build_access_expression(&IdentifierNode identifier, &AccessorNode[] accessors): ExpressionNode {
     let result = ExpressionNode { value: Expression::Variable(identifier.value), span: identifier.span };
 
     for (let i = 0; i < vector_size(&accessors); i += 1) {
@@ -176,7 +176,7 @@ fn parser_parse_assign_or_call_without_semicolon(&Parser parser): ResultOptionSt
                                         parser_create_parser_error(&parser, "Couldn't create expression while parsing assignment.")
                                     );,
                                     OptionExpressionNode::Some(rhs) {
-                                        let left = parser_build_access_expression(identifier, accessors);
+                                        let left = parser_build_access_expression(&identifier, &accessors);
                                         let operands = BinaryExpression { left: left, right: rhs };
 
                                         let combined_value = Expression::Addition(operands);

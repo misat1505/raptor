@@ -39,7 +39,7 @@ fn main(): void {
                     let resolved_result = import_resolver_resolve(
                         &resolver,
                         myself,
-                        program
+                        &program
                     );
 
                     match (resolved_result) {
@@ -54,11 +54,11 @@ fn main(): void {
                                 + vector_size(&merged.extern_functions) as str + " extern function(s), and "
                                 + vector_size(&merged.declared_types) as str + " declared type(s).");
 
-                            let output_path = "./selfhost/ast.rs";
-                            let rust_code = "fn main() {let ast = " + program_debug(&merged) + ";}";
-                            write_file(output_path, rust_code);
+                            # let output_path = "./selfhost/ast.rs";
+                            # let rust_code = "fn main() {let ast = " + program_debug(&merged) + ";}";
+                            # write_file(output_path, rust_code);
 
-                            println("Wrote merged AST dump to " + output_path);
+                            # println("Wrote merged AST dump to " + output_path);
                         }
                     }
                 }

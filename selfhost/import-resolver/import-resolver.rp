@@ -41,7 +41,7 @@ fn import_resolver_new(LexerOptions lexer_options): ImportResolver {
 fn import_resolver_resolve(
     &ImportResolver resolver,
     str entry_path,
-    Program entry_program
+    &Program entry_program
 ): ResultProgram {
     let normalized_entry = import_resolver_normalize_path(entry_path);
 
@@ -58,7 +58,7 @@ fn import_resolver_resolve(
     let merge_result = import_resolver_merge_program(
         &resolver,
         normalized_entry,
-        entry_program,
+        &entry_program,
         &merged
     );
     if (merge_result matches ResultUnit::Err(err)) {
@@ -81,7 +81,7 @@ fn import_resolver_resolve(
 fn import_resolver_merge_program(
     &ImportResolver resolver,
     str current_path,
-    Program program,
+    &Program program,
     &Program merged
 ): ResultUnit {
     for (let i = 0; i < vector_size(&program.functions); i += 1) {
@@ -180,7 +180,7 @@ fn import_resolver_handle_import(
             let merge_result = import_resolver_merge_program(
                 &resolver,
                 resolved,
-                sub_program,
+                &sub_program,
                 &merged
             );
             if (merge_result matches ResultUnit::Err(err)) return ResultUnit::Err(err);

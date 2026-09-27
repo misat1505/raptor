@@ -18,7 +18,7 @@ fn parser_identifier_or_call_or_struct_literal_or_enum_literal(&Parser parser): 
                 OptionIdentifierNode::None return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);,
                 OptionIdentifierNode::Some(identifier) {
                     if (parser_current_token(&parser).category matches TokenCategory::BraceOpen) {
-                        let struct_result = parser_parse_struct_literal_tail(&parser, identifier);
+                        let struct_result = parser_parse_struct_literal_tail(&parser, &identifier);
                         match (struct_result) {
                             ResultExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
                             ResultExpressionNode::Ok(node) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(node));
@@ -26,21 +26,21 @@ fn parser_identifier_or_call_or_struct_literal_or_enum_literal(&Parser parser): 
                     }
 
                     if (parser_current_token(&parser).category matches TokenCategory::DoubleColon) {
-                        let enum_result = parser_parse_enum_literal_tail(&parser, identifier);
+                        let enum_result = parser_parse_enum_literal_tail(&parser, &identifier);
                         match (enum_result) {
                             ResultExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
                             ResultExpressionNode::Ok(node) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(node));
                         }
                     }
 
-                    return parser_parse_call_or_index_tail(&parser, identifier);
+                    return parser_parse_call_or_index_tail(&parser, &identifier);
                 }
             }
         }
     }
 }
 
-fn parser_parse_enum_literal_tail(&Parser parser, IdentifierNode enum_name): ResultExpressionNode {
+fn parser_parse_enum_literal_tail(&Parser parser, &IdentifierNode enum_name): ResultExpressionNode {
     # enum_literal_tail = "::", identifier, [ "(", expression, ")" ];
     let start_position = enum_name.span.start;
 
@@ -106,7 +106,7 @@ fn parser_parse_enum_literal_tail(&Parser parser, IdentifierNode enum_name): Res
     });
 }
 
-fn parser_parse_call_or_index_tail(&Parser parser, IdentifierNode identifier): ResultOptionExpressionNode {
+fn parser_parse_call_or_index_tail(&Parser parser, &IdentifierNode identifier): ResultOptionExpressionNode {
     # call_or_index_tail = [ "(", arguments, ")" ], { access_tail };
     let start_position = identifier.span.start;
 
@@ -203,7 +203,7 @@ fn parser_parse_call_or_index_tail(&Parser parser, IdentifierNode identifier): R
     }));
 }
 
-fn parser_parse_struct_literal_tail(&Parser parser, IdentifierNode identifier): ResultExpressionNode {
+fn parser_parse_struct_literal_tail(&Parser parser, &IdentifierNode identifier): ResultExpressionNode {
     # struct_literal_tail = "{", [ struct_literal_fields ], "}";
     let start_position = identifier.span.start;
 

@@ -7,8 +7,7 @@ import "../core.rp";
 fn parser_parse_statement_block(&Parser parser): ResultOptionBlockNode {
     # statement_block = ("{", {statement}, "}") | statement;
 
-    let single_statement_call = parser_parse_statement(&parser);
-    match (single_statement_call) {
+    match (parser_parse_statement(&parser)) {
         ResultOptionStatementNode::Err(err) return ResultOptionBlockNode::Err(err);,
         ResultOptionStatementNode::Ok(option_statement) {
             if (option_statement matches OptionStatementNode::Some(single_statement)) {
@@ -53,8 +52,7 @@ fn parser_parse_statement_block(&Parser parser): ResultOptionBlockNode {
 
         if (closed) break;
 
-        let statement_call = parser_parse_statement(&parser);
-        match (statement_call) {
+        match (parser_parse_statement(&parser)) {
             ResultOptionStatementNode::Err(err) return ResultOptionBlockNode::Err(err);,
             ResultOptionStatementNode::Ok(option_statement) {
                 match (option_statement) {

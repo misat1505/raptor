@@ -52,7 +52,7 @@ fn parser_parse_if_statement(&Parser parser): ResultOptionStatementNode {
         ResultOptionToken::Err(err) return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));,
         ResultOptionToken::Ok(option_close) {
             if (option_close matches OptionToken::None) {
-                return parser_finish_if_matches_statement(&parser, condition, if_token.span.start);
+                return parser_finish_if_matches_statement(&parser, &condition, if_token.span.start);
             }
         }
     }
@@ -101,7 +101,7 @@ fn parser_parse_if_statement(&Parser parser): ResultOptionStatementNode {
     }));
 }
 
-fn parser_finish_if_matches_statement(&Parser parser, ExpressionNode condition, Position start_position): ResultOptionStatementNode {
+fn parser_finish_if_matches_statement(&Parser parser, &ExpressionNode condition, Position start_position): ResultOptionStatementNode {
     let not_consumed = parser_consume_if_matches(&parser, TokenCategory::Not);
     let is_negating = false;
     match (not_consumed) {

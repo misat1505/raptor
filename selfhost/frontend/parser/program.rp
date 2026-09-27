@@ -158,9 +158,9 @@ fn parser_parse_program_statement(&Parser parser): ResultOptionStatementNode {
 fn parser_check_name_collision(
     str name,
     Span span,
-    FunctionDeclarationNode[] functions,
-    ExternFunctionDeclarationNode[] extern_functions,
-    DeclaredTypeNode[] declared_types
+    &FunctionDeclarationNode[] functions,
+    &ExternFunctionDeclarationNode[] extern_functions,
+    &DeclaredTypeNode[] declared_types
 ): ResultUnit {
     for (let i = 0; i < vector_size(&functions); i += 1) {
         if (functions[i].value.identifier.value == name) {
@@ -203,14 +203,13 @@ fn parser_parse_program(&Parser parser): ResultProgram {
     let declared_types: DeclaredTypeNode[] = [];
 
     while (true) {
-        let struct_call = parser_parse_struct_declaration(&parser);
-        match (struct_call) {
+        match (parser_parse_struct_declaration(&parser)) {
             ResultOptionStructDeclarationNode::Err(err) return ResultProgram::Err(err);,
             ResultOptionStructDeclarationNode::Ok(option_struct) {
                 if (option_struct matches OptionStructDeclarationNode::Some(struct_declaration)) {
                     let type_name = struct_declaration.value.identifier.value;
 
-                    let collision = parser_check_name_collision(type_name, struct_declaration.span, functions, extern_functions, declared_types);
+                    let collision = parser_check_name_collision(type_name, struct_declaration.span, &functions, &extern_functions, &declared_types);
                     if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&declared_types, DeclaredTypeNode {
@@ -223,14 +222,13 @@ fn parser_parse_program(&Parser parser): ResultProgram {
             }
         }
 
-        let enum_call = parser_parse_enum_declaration(&parser);
-        match (enum_call) {
+        match (parser_parse_enum_declaration(&parser)) {
             ResultOptionEnumDeclarationNode::Err(err) return ResultProgram::Err(err);,
             ResultOptionEnumDeclarationNode::Ok(option_enum) {
                 if (option_enum matches OptionEnumDeclarationNode::Some(enum_declaration)) {
                     let type_name = enum_declaration.value.identifier.value;
 
-                    let collision = parser_check_name_collision(type_name, enum_declaration.span, functions, extern_functions, declared_types);
+                    let collision = parser_check_name_collision(type_name, enum_declaration.span, &functions, &extern_functions, &declared_types);
                     if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&declared_types, DeclaredTypeNode {
@@ -243,8 +241,7 @@ fn parser_parse_program(&Parser parser): ResultProgram {
             }
         }
 
-        let statement_call = parser_parse_program_statement(&parser);
-        match (statement_call) {
+        match (parser_parse_program_statement(&parser)) {
             ResultOptionStatementNode::Err(err) return ResultProgram::Err(err);,
             ResultOptionStatementNode::Ok(option_statement) {
                 if (option_statement matches OptionStatementNode::Some(statement)) {
@@ -254,14 +251,13 @@ fn parser_parse_program(&Parser parser): ResultProgram {
             }
         }
 
-        let function_call = parser_parse_function_declaration(&parser);
-        match (function_call) {
+        match (parser_parse_function_declaration(&parser)) {
             ResultOptionFunctionDeclarationNode::Err(err) return ResultProgram::Err(err);,
             ResultOptionFunctionDeclarationNode::Ok(option_function) {
                 if (option_function matches OptionFunctionDeclarationNode::Some(function_declaration)) {
                     let function_name = function_declaration.value.identifier.value;
 
-                    let collision = parser_check_name_collision(function_name, function_declaration.span, functions, extern_functions, declared_types);
+                    let collision = parser_check_name_collision(function_name, function_declaration.span, &functions, &extern_functions, &declared_types);
                     if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&functions, function_declaration);
@@ -271,15 +267,14 @@ fn parser_parse_program(&Parser parser): ResultProgram {
             }
         }
 
-        let extern_function_call = parser_parse_extern_function_declaration(&parser);
-        match (extern_function_call) {
+        match (parser_parse_extern_function_declaration(&parser)) {
             ResultOptionExternFunctionDeclarationNode::Err(err) return ResultProgram::Err(err);,
             ResultOptionExternFunctionDeclarationNode::Ok(option_extern_function) {
                 if (option_extern_function matches OptionExternFunctionDeclarationNode::Some(extern_function_declaration)) {
                     let function_name = extern_function_declaration.value.identifier.value;
                     if (extern_function_declaration.value.alias matches OptionIdentifierNode::Some(alias)) function_name = alias.value;
 
-                    let collision = parser_check_name_collision(function_name, extern_function_declaration.span, functions, extern_functions, declared_types);
+                    let collision = parser_check_name_collision(function_name, extern_function_declaration.span, &functions, &extern_functions, &declared_types);
                     if (collision matches ResultUnit::Err(err)) return ResultProgram::Err(err);
 
                     vector_push(&extern_functions, extern_function_declaration);

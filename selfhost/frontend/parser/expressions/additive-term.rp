@@ -33,7 +33,7 @@ fn parser_parse_additive_term(&Parser parser): ResultOptionExpressionNode {
         }
 
         let is_minus = false;
-        if (current_token.category not matches TokenCategory::Minus) {
+        if (current_token.category matches TokenCategory::Minus) {
             is_minus = true;
         }
 

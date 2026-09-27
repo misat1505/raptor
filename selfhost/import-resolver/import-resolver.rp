@@ -1,0 +1,361 @@
+# ============================================================
+# Mirrors `src/import_resolver/mod.rs`.
+#
+# Resolves `import "..."` statements relative to the importing file,
+# detects cyclic imports, caches already-merged modules (`visited`),
+# and merges every reachable module into a single `Program` AST.
+#
+# Differences forced by the selfhost language surface (see parser):
+#   - no HashMap / no std_functions registry / no resolve_declared_types
+#     (those are semantic-checker concerns; Program keeps flat vectors)
+#   - struct methods are free functions with an `import_resolver_` prefix
+#   - path normalization is pure string work (no OS path API)
+# ============================================================
+
+import "../common/errors.rp";
+import "../common/span.rp";
+import "../../stdlib/string.rp";
+import "../frontend/lexer/lazy-stream-reader.rp";
+import "../frontend/lexer/lexer.rp";
+import "../frontend/parser/ast.rp";
+import "../frontend/parser/parser-results.rp";
+import "../frontend/parser/core.rp";
+import "../frontend/parser/program.rp";
+
+struct ImportResolver {
+    str[] stack,
+    str[] visited,
+    LexerOptions lexer_options
+};
+
+fn import_resolver_new(LexerOptions lexer_options): ImportResolver {
+    return ImportResolver {
+        stack: [],
+        visited: [],
+        lexer_options: lexer_options
+    };
+}
+
+# Public entry: merge `entry_program` (already parsed from `entry_path`)
+# with every file reachable through its import graph.
+fn import_resolver_resolve(
+    &ImportResolver resolver,
+    str entry_path,
+    Program entry_program
+): ResultProgram {
+    let normalized_entry = import_resolver_normalize_path(entry_path);
+
+    let merged = Program {
+        statements: [],
+        functions: [],
+        extern_functions: [],
+        declared_types: []
+    };
+
+    vector_push(&resolver.stack, normalized_entry);
+    vector_push(&resolver.visited, normalized_entry);
+
+    let merge_result = import_resolver_merge_program(
+        &resolver,
+        normalized_entry,
+        entry_program,
+        &merged
+    );
+    if (merge_result matches ResultUnit::Err(err)) {
+        return ResultProgram::Err(err);
+    }
+
+    # pop entry from the cycle stack (mirrors Rust `self.stack.pop()`)
+    if (vector_size(&resolver.stack) > 0) {
+        # rebuild stack without last element (no vector_pop in language)
+        let new_stack: str[] = [];
+        for (let i = 0; i < vector_size(&resolver.stack) - 1; i += 1) {
+            vector_push(&new_stack, resolver.stack[i]);
+        }
+        resolver.stack = new_stack;
+    }
+
+    return ResultProgram::Ok(merged);
+}
+
+fn import_resolver_merge_program(
+    &ImportResolver resolver,
+    str current_path,
+    Program program,
+    &Program merged
+): ResultUnit {
+    for (let i = 0; i < vector_size(&program.functions); i += 1) {
+        let function = program.functions[i];
+        let name = function.value.identifier.value;
+        let collision = import_resolver_check_collision(name, function.span, &merged);
+        if (collision matches ResultUnit::Err(err)) return ResultUnit::Err(err);
+        vector_push(&merged.functions, function);
+    }
+
+    for (let i = 0; i < vector_size(&program.extern_functions); i += 1) {
+        let extern_function = program.extern_functions[i];
+        let name = extern_function.value.identifier.value;
+        if (extern_function.value.alias matches OptionIdentifierNode::Some(alias)) {
+            name = alias.value;
+        }
+        let collision = import_resolver_check_collision(name, extern_function.span, &merged);
+        if (collision matches ResultUnit::Err(err)) return ResultUnit::Err(err);
+        vector_push(&merged.extern_functions, extern_function);
+    }
+
+    for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+        let declared_type = program.declared_types[i];
+        let name = "";
+        match (declared_type.value) {
+            DeclaredType::Struct(struct_declaration) name = struct_declaration.identifier.value;,
+            DeclaredType::Enum(enum_declaration) name = enum_declaration.identifier.value;
+        }
+        let collision = import_resolver_check_collision(name, declared_type.span, &merged);
+        if (collision matches ResultUnit::Err(err)) return ResultUnit::Err(err);
+        vector_push(&merged.declared_types, declared_type);
+    }
+
+    for (let i = 0; i < vector_size(&program.statements); i += 1) {
+        let statement = program.statements[i];
+        match (statement.value) {
+            Statement::Import(path_node) {
+                let import_result = import_resolver_handle_import(
+                    &resolver,
+                    current_path,
+                    path_node.value,
+                    statement.span,
+                    &merged
+                );
+                if (import_result matches ResultUnit::Err(err)) return ResultUnit::Err(err);
+            },
+            rest {
+                vector_push(&merged.statements, statement);
+            }
+        }
+    }
+
+    return ResultUnit::Ok;
+}
+
+fn import_resolver_handle_import(
+    &ImportResolver resolver,
+    str current_path,
+    str import_path,
+    Span span,
+    &Program merged
+): ResultUnit {
+    let base_dir = import_resolver_path_parent(current_path);
+    let joined = import_resolver_path_join(base_dir, import_path);
+    let resolved = import_resolver_normalize_path(joined);
+
+    # Cycle detection: path already on the resolution stack.
+    let cycle_pos = import_resolver_stack_index(&resolver, resolved);
+    if (cycle_pos >= 0) {
+        let cycle_chain = "";
+        for (let i = cycle_pos; i < vector_size(&resolver.stack); i += 1) {
+            if (i != cycle_pos) {
+                cycle_chain += "\n    ↓\n    ";
+            }
+            cycle_chain += resolver.stack[i];
+        }
+        return ResultUnit::Err(parser_error_new(
+            ErrorSeverity::HIGH,
+            "Cyclic import detected:\n    " + cycle_chain + "\n    ↓\n    " + resolved + "\n\n",
+            span
+        ));
+    }
+
+    # Cache: already fully merged — skip (diamond imports).
+    if (import_resolver_visited_contains(&resolver, resolved)) {
+        return ResultUnit::Ok;
+    }
+
+    let sub_result = import_resolver_parse_file(&resolver, resolved, span);
+    match (sub_result) {
+        ResultProgram::Err(err) return ResultUnit::Err(err);,
+        ResultProgram::Ok(sub_program) {
+            vector_push(&resolver.stack, resolved);
+            vector_push(&resolver.visited, resolved);
+
+            let merge_result = import_resolver_merge_program(
+                &resolver,
+                resolved,
+                sub_program,
+                &merged
+            );
+            if (merge_result matches ResultUnit::Err(err)) return ResultUnit::Err(err);
+
+            if (vector_size(&resolver.stack) > 0) {
+                let new_stack: str[] = [];
+                for (let i = 0; i < vector_size(&resolver.stack) - 1; i += 1) {
+                    vector_push(&new_stack, resolver.stack[i]);
+                }
+                resolver.stack = new_stack;
+            }
+        }
+    }
+
+    return ResultUnit::Ok;
+}
+
+fn import_resolver_parse_file(
+    &ImportResolver resolver,
+    str path,
+    Span import_span
+): ResultProgram {
+    if (!exists_file(path)) {
+        return ResultProgram::Err(parser_error_new(
+            ErrorSeverity::HIGH,
+            "File '" + path + "' not found.",
+            import_span
+        ));
+    }
+
+    let source = read_file(path);
+    let src = lazy_stream_reader_new(source, OptionStr::Some(path));
+
+    let options = LexerOptions {
+        max_comment_length: resolver.lexer_options.max_comment_length,
+        max_identifier_length: resolver.lexer_options.max_identifier_length
+    };
+
+    let lexer = lexer_new(src, options);
+    let parser_result = parser_new(lexer);
+
+    match (parser_result) {
+        ResultParser::Err(err) return ResultProgram::Err(err);,
+        ResultParser::Ok(parser) {
+            return parser_parse(&parser);
+        }
+    }
+}
+
+fn import_resolver_check_collision(
+    str name,
+    Span span,
+    &Program merged
+): ResultUnit {
+    for (let i = 0; i < vector_size(&merged.functions); i += 1) {
+        if (merged.functions[i].value.identifier.value == name) {
+            return ResultUnit::Err(parser_error_new(
+                ErrorSeverity::HIGH,
+                "Redeclaration of '" + name + "' across imported modules.",
+                span
+            ));
+        }
+    }
+
+    for (let i = 0; i < vector_size(&merged.extern_functions); i += 1) {
+        let declaration = merged.extern_functions[i];
+        let effective_name = declaration.value.identifier.value;
+        if (declaration.value.alias matches OptionIdentifierNode::Some(alias)) {
+            effective_name = alias.value;
+        }
+        if (effective_name == name) {
+            return ResultUnit::Err(parser_error_new(
+                ErrorSeverity::HIGH,
+                "Redeclaration of '" + name + "' across imported modules.",
+                span
+            ));
+        }
+    }
+
+    for (let i = 0; i < vector_size(&merged.declared_types); i += 1) {
+        let declared_name = "";
+        match (merged.declared_types[i].value) {
+            DeclaredType::Struct(struct_declaration) declared_name = struct_declaration.identifier.value;,
+            DeclaredType::Enum(enum_declaration) declared_name = enum_declaration.identifier.value;
+        }
+        if (declared_name == name) {
+            return ResultUnit::Err(parser_error_new(
+                ErrorSeverity::HIGH,
+                "Redeclaration of '" + name + "' across imported modules.",
+                span
+            ));
+        }
+    }
+
+    return ResultUnit::Ok;
+}
+
+# ---------- path helpers (string-only mirror of Rust normalize_path) ----------
+
+fn import_resolver_normalize_path(str path): str {
+    if (str_len(path) == 0) return path;
+
+    let is_absolute = str_starts_with(path, "/");
+    let parts = str_split(path, "/");
+    let stack: str[] = [];
+
+    for (let i = 0; i < vector_size(&parts); i += 1) {
+        let part = parts[i];
+        if (str_len(part) == 0) {
+            # empty segment from leading / trailing / double slash
+        } else if (part == ".") {
+            # CurDir — skip
+        } else if (part == "..") {
+            if (vector_size(&stack) > 0) {
+                let new_stack: str[] = [];
+                for (let j = 0; j < vector_size(&stack) - 1; j += 1) {
+                    vector_push(&new_stack, stack[j]);
+                }
+                stack = new_stack;
+            }
+        } else {
+            vector_push(&stack, part);
+        }
+    }
+
+    if (vector_size(&stack) == 0) {
+        if (is_absolute) return "/";
+        return ".";
+    }
+
+    let result = "";
+    for (let i = 0; i < vector_size(&stack); i += 1) {
+        if (i == 0) {
+            if (is_absolute) {
+                result = "/" + stack[i];
+            } else {
+                result = stack[i];
+            }
+        } else {
+            result += "/" + stack[i];
+        }
+    }
+    return result;
+}
+
+fn import_resolver_path_parent(str path): str {
+    let normalized = import_resolver_normalize_path(path);
+    let idx = str_last_index_of_char(normalized, '/');
+    if (idx < 0) {
+        return ".";
+    }
+    if (idx == 0) {
+        return "/";
+    }
+    return str_substring(normalized, 0, idx);
+}
+
+fn import_resolver_path_join(str base_dir, str relative): str {
+    if (str_len(relative) == 0) return base_dir;
+    if (str_starts_with(relative, "/")) return relative;
+    if (str_len(base_dir) == 0 || base_dir == ".") return relative;
+    if (str_ends_with(base_dir, "/")) return base_dir + relative;
+    return base_dir + "/" + relative;
+}
+
+fn import_resolver_visited_contains(&ImportResolver resolver, str path): bool {
+    for (let i = 0; i < vector_size(&resolver.visited); i += 1) {
+        if (resolver.visited[i] == path) return true;
+    }
+    return false;
+}
+
+fn import_resolver_stack_index(&ImportResolver resolver, str path): i64 {
+    for (let i = 0; i < vector_size(&resolver.stack); i += 1) {
+        if (resolver.stack[i] == path) return i;
+    }
+    return -1;
+}

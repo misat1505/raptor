@@ -1,0 +1,10 @@
+match (parser_result) {
+        ResultParser::Err(err) {
+            println(parser_error_get_stderr_message(&err));
+            return;
+        },
+        ResultParser::Ok(created_parser) {
+            parser = created_parser;
+            have_parser = true;
+        }
+    }

@@ -1,0 +1,306 @@
+# ============================================================
+# Mirrors `src/macro_expander/derives/json.rs`
+# ============================================================
+
+import "../../common/errors.rp";
+import "../../common/span.rp";
+import "../../../stdlib/string.rp";
+import "../../frontend/parser/ast.rp";
+import "../macro-expander.rp";
+
+fn macro_expander_derive_json(
+    &MacroExpander me,
+    &Program program,
+    DeclaredType declared_type,
+    Span derive_span
+): void {
+    if (!macro_expander_check_json_dependencies(&me, &program, declared_type, derive_span)) {
+        return;
+    }
+
+    let type_name = "";
+    let stmts: StatementNode[] = [];
+    let block = me_block(stmts);
+
+    match (declared_type) {
+        DeclaredType::Enum(enum_declaration) {
+            type_name = enum_declaration.identifier.value;
+            block = macro_expander_enum_json_block(enum_declaration);
+        },
+        DeclaredType::Struct(struct_declaration) {
+            type_name = struct_declaration.identifier.value;
+            block = macro_expander_struct_json_block(struct_declaration);
+        }
+    }
+
+    let json_fn_name = to_snake_case(type_name) + "_json_encode";
+    let param_name = to_snake_case(type_name);
+    let params: ParameterNode[] = [];
+    vector_push(&params, me_param_ref(type_name, param_name));
+
+    macro_expander_insert_function(&me, &program, FunctionDeclaration {
+        identifier: me_ident(json_fn_name),
+        parameters: params,
+        return_type: me_type(Type::Str),
+        block: block
+    }, derive_span);
+}
+
+fn macro_expander_check_json_dependencies(
+    &MacroExpander me,
+    &Program program,
+    DeclaredType declared_type,
+    Span derive_span
+): bool {
+    let parent_type = "";
+    let member_types: Type[] = [];
+
+    match (declared_type) {
+        DeclaredType::Struct(s) {
+            parent_type = s.identifier.value;
+            for (let i = 0; i < vector_size(&s.members); i += 1) {
+                vector_push(&member_types, s.members[i].value.member_type.value);
+            }
+        },
+        DeclaredType::Enum(e) {
+            parent_type = e.identifier.value;
+            for (let i = 0; i < vector_size(&e.members); i += 1) {
+                match (e.members[i].value.member_type) {
+                    OptionTypeNode::Some(t) vector_push(&member_types, t.value);,
+                    OptionTypeNode::None {}
+                }
+            }
+        }
+    }
+
+    let ok = true;
+    for (let i = 0; i < vector_size(&member_types); i += 1) {
+        if (!macro_expander_check_json_type(&me, &program, member_types[i], parent_type, derive_span)) {
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+fn macro_expander_check_json_type(
+    &MacroExpander me,
+    &Program program,
+    Type ty,
+    str parent_type,
+    Span derive_span
+): bool {
+    match (ty) {
+        Type::Vector(inner) return macro_expander_check_json_type(&me, &program, inner, parent_type, derive_span);,
+        Type::Unresolved(dependency_type) {
+            if (dependency_type == parent_type) return true;
+            let fn_name = to_snake_case(dependency_type) + "_json_encode";
+            if (me_function_exists(&program, fn_name)) return true;
+            if (me_type_has_derive(&program, dependency_type, "Json")) return true;
+            vector_push(&me.errors, macro_expander_error_at(
+                ErrorSeverity::HIGH,
+                "Type '" + dependency_type + "' used by '" + parent_type + "' cannot be encoded to Json. Hint: add 'Json' to the derives of '" + dependency_type + "', or implement 'fn " + fn_name + "(&" + dependency_type + " value): str'.",
+                derive_span
+            ));
+            return false;
+        },
+        Type::Void {
+            vector_push(&me.errors, macro_expander_error_at(
+                ErrorSeverity::HIGH,
+                "Void type cannot be encoded to Json (used by '" + parent_type + "').",
+                derive_span
+            ));
+            return false;
+        },
+        rest return true;
+    }
+}
+
+fn macro_expander_struct_json_block(
+    StructDeclaration struct_declaration
+): BlockNode {
+    let struct_name = struct_declaration.identifier.value;
+    let variable_name = to_snake_case(struct_name);
+    let result_variable = "json_str";
+    let stmts: StatementNode[] = [];
+
+    vector_push(&stmts, me_stmt(me_let(result_variable, me_str_lit("{"))));
+
+    for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
+        let member = struct_declaration.members[i];
+        let field_name = member.value.identifier.value;
+        let field_type = member.value.member_type.value;
+
+        if (i > 0) {
+            vector_push(&stmts, me_stmt(me_append_str(result_variable, me_str_lit(","))));
+        }
+        vector_push(&stmts, me_stmt(me_append_str(result_variable, me_str_lit("\"" + field_name + "\":"))));
+
+        let field_expr = me_field_access(variable_name, field_name);
+
+        match (field_type) {
+            Type::Vector(inner_type) {
+                let vec_stmts = macro_expander_vector_json_statements(result_variable, field_expr, inner_type);
+                for (let j = 0; j < vector_size(&vec_stmts); j += 1) {
+                    vector_push(&stmts, vec_stmts[j]);
+                }
+            },
+            rest {
+                vector_push(&stmts, me_stmt(me_append_str(
+                    result_variable,
+                    macro_expander_json_expression_for_expression(field_type, field_expr)
+                )));
+            }
+        }
+    }
+
+    vector_push(&stmts, me_stmt(me_append_str(result_variable, me_str_lit("}"))));
+    vector_push(&stmts, me_stmt(me_return_expr(me_var(result_variable))));
+    return me_block(stmts);
+}
+
+fn macro_expander_enum_json_block(
+    EnumDeclaration enum_declaration
+): BlockNode {
+    let enum_name = enum_declaration.identifier.value;
+    let param_name = to_snake_case(enum_name);
+    let match_arms: MatchArmNode[] = [];
+
+    for (let i = 0; i < vector_size(&enum_declaration.members); i += 1) {
+        let member = enum_declaration.members[i];
+        let variant_name = member.value.identifier.value;
+
+        match (member.value.member_type) {
+            OptionTypeNode::None {
+                let arm_stmts: StatementNode[] = [];
+                vector_push(&arm_stmts, me_stmt(me_return_expr(me_str_lit(
+                    "{\"variant\":\"" + variant_name + "\"}"
+                ))));
+                vector_push(&match_arms, MatchArmNode {
+                    value: MatchArm {
+                        enum_name: me_ident(enum_name),
+                        variant_name: me_ident(variant_name),
+                        variant_value: OptionIdentifierNode::None,
+                        block: me_block(arm_stmts)
+                    },
+                    span: me_span()
+                });
+            },
+            OptionTypeNode::Some(type_node) {
+                let member_type = type_node.value;
+                let payload_var = macro_expander_debug_variable_name(member_type);
+                let arm_stmts: StatementNode[] = [];
+                let result_variable = "json_str";
+
+                vector_push(&arm_stmts, me_stmt(me_let(
+                    result_variable,
+                    me_str_lit("{\"variant\":\"" + variant_name + "\",\"value\":")
+                )));
+
+                match (member_type) {
+                    Type::Vector(inner_type) {
+                        let vec_stmts = macro_expander_vector_json_statements(
+                            result_variable, me_var(payload_var), inner_type
+                        );
+                        for (let j = 0; j < vector_size(&vec_stmts); j += 1) {
+                            vector_push(&arm_stmts, vec_stmts[j]);
+                        }
+                    },
+                    rest {
+                        vector_push(&arm_stmts, me_stmt(me_append_str(
+                            result_variable,
+                            macro_expander_json_expression_for_expression(member_type, me_var(payload_var))
+                        )));
+                    }
+                }
+
+                vector_push(&arm_stmts, me_stmt(me_append_str(result_variable, me_str_lit("}"))));
+                vector_push(&arm_stmts, me_stmt(me_return_expr(me_var(result_variable))));
+
+                vector_push(&match_arms, MatchArmNode {
+                    value: MatchArm {
+                        enum_name: me_ident(enum_name),
+                        variant_name: me_ident(variant_name),
+                        variant_value: OptionIdentifierNode::Some(me_ident(payload_var)),
+                        block: me_block(arm_stmts)
+                    },
+                    span: me_span()
+                });
+            }
+        }
+    }
+
+    let stmts: StatementNode[] = [];
+    vector_push(&stmts, me_stmt(Statement::Match(MatchStatement {
+        expression: me_expr(me_var(param_name)),
+        match_arms: match_arms,
+        rest_arm: OptionBlockNode::None
+    })));
+    return me_block(stmts);
+}
+
+fn macro_expander_vector_json_statements(
+    str result_variable,
+    Expression vector_expression,
+    Type inner_type
+): StatementNode[] {
+    let index_variable = "json_i";
+    let temp_vec = result_variable + "_vec";
+    let stmts: StatementNode[] = [];
+
+    vector_push(&stmts, me_stmt(me_let(temp_vec, vector_expression)));
+    vector_push(&stmts, me_stmt(me_append_str(result_variable, me_str_lit("["))));
+    vector_push(&stmts, me_stmt(me_let(index_variable, me_i64_lit(0))));
+
+    let loop_body: StatementNode[] = [];
+    vector_push(&loop_body, me_stmt(Statement::Conditional(ConditionalStatement {
+        condition: me_expr(me_less(me_i64_lit(0), me_var(index_variable))),
+        if_block: me_block([me_stmt(me_append_str(result_variable, me_str_lit(",")))]),
+        else_block: OptionBlockNode::None
+    })));
+
+    let indexed = me_index(temp_vec, index_variable);
+    vector_push(&loop_body, me_stmt(me_append_str(
+        result_variable,
+        macro_expander_json_expression_for_expression(inner_type, indexed)
+    )));
+    vector_push(&loop_body, me_stmt(me_assign(index_variable, me_addition(me_var(index_variable), me_i64_lit(1)))));
+
+    vector_push(&stmts, me_stmt(Statement::WhileLoop(WhileLoopStatement {
+        condition: me_expr(me_less(me_var(index_variable), me_call_ref("vector_size", me_var(temp_vec)))),
+        block: me_block(loop_body)
+    })));
+
+    vector_push(&stmts, me_stmt(me_append_str(result_variable, me_str_lit("]"))));
+    return stmts;
+}
+
+fn macro_expander_json_expression_for_expression(
+    Type member_type,
+    Expression expression
+): Expression {
+    match (member_type) {
+        Type::Str {
+            return me_addition(me_str_lit("\""), me_addition(expression, me_str_lit("\"")));
+        },
+        Type::Char {
+            return me_addition(me_str_lit("\""), me_addition(me_cast_to_str(expression), me_str_lit("\"")));
+        },
+        Type::Bool return me_cast_to_str(expression);,
+        Type::F64 return me_cast_to_str(expression);,
+        Type::I8 return me_cast_to_str(expression);,
+        Type::I16 return me_cast_to_str(expression);,
+        Type::I32 return me_cast_to_str(expression);,
+        Type::I64 return me_cast_to_str(expression);,
+        Type::U8 return me_cast_to_str(expression);,
+        Type::U16 return me_cast_to_str(expression);,
+        Type::U32 return me_cast_to_str(expression);,
+        Type::U64 return me_cast_to_str(expression);,
+        Type::Unresolved(identifier) {
+            return me_call_ref(to_snake_case(identifier) + "_json_encode", expression);
+        },
+        Type::Vector {
+            return me_str_lit("[]");
+        },
+        rest return me_str_lit("null");
+    }
+}

@@ -2,6 +2,7 @@ import "./frontend/lexer/lazy-stream-reader.rp";
 import "./frontend/lexer/lexer.rp";
 import "./frontend/parser/parser-mod.rp";
 import "./import-resolver/import-resolver.rp";
+import "./macro-expander/macro-expander-mod.rp";
 
 fn main(): void {
     let myself = "./selfhost/raptor.rp";
@@ -32,9 +33,7 @@ fn main(): void {
                     return;
                 },
                 ResultProgram::Ok(program) {
-                    # Entry file is already parsed; resolve imports relative
-                    # to `myself`, merge into one AST, detect cycles, cache
-                    # visited modules (mirrors main.rs resolve_imports).
+                    # 1) Import resolution (merge modules, cycle detection, cache)
                     let resolver = import_resolver_new(options);
                     let resolved_result = import_resolver_resolve(
                         &resolver,
@@ -48,17 +47,32 @@ fn main(): void {
                             return;
                         },
                         ResultProgram::Ok(merged) {
-                            println("Resolved imports: "
-                                + vector_size(&merged.statements) as str + " top-level statement(s), "
-                                + vector_size(&merged.functions) as str + " function(s), "
-                                + vector_size(&merged.extern_functions) as str + " extern function(s), and "
-                                + vector_size(&merged.declared_types) as str + " declared type(s).");
+                            # 2) Macro expansion (derive Debug / Json / Clone)
+                            let expander = macro_expander_new();
+                            macro_expander_run(&expander, &merged);
+
+                            if (vector_size(&expander.errors) > 0) {
+                                for (let i = 0; i < vector_size(&expander.errors); i += 1) {
+                                    let err = expander.errors[i];
+                                    println(error_severity_to_string(err.level) + ": " + err.message);
+                                }
+                                println("Macro expander finished with "
+                                    + vector_size(&expander.errors) as str
+                                    + " error(s).");
+                                return;
+                            }
+
+                            println("Pipeline OK: "
+                                + vector_size(&merged.statements) as str + " statement(s), "
+                                + vector_size(&merged.functions) as str + " function(s) (incl. derived), "
+                                + vector_size(&merged.extern_functions) as str + " extern(s), "
+                                + vector_size(&merged.declared_types) as str + " type(s).");
 
                             let output_path = "./selfhost/ast.rp";
-                            let rust_code = "let ast = " + program_debug(&merged) + ";";
-                            write_file(output_path, rust_code);
+                            let dump = "let ast = " + program_debug(&merged) + ";";
+                            write_file(output_path, dump);
 
-                            println("Wrote merged AST dump to " + output_path);
+                            println("Wrote expanded AST dump to " + output_path);
                         }
                     }
                 }

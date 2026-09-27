@@ -1,0 +1,5 @@
+# Aggregator for the selfhost macro expander (mirrors src/macro_expander/mod.rs).
+import "./macro-expander.rp";
+import "./derives/debug.rp";
+import "./derives/clone.rp";
+import "./derives/json.rp";

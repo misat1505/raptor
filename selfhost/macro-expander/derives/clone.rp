@@ -1,0 +1,319 @@
+# ============================================================
+# Mirrors `src/macro_expander/derives/clone.rs`
+# ============================================================
+
+import "../../common/errors.rp";
+import "../../common/span.rp";
+import "../../../stdlib/string.rp";
+import "../../frontend/parser/ast.rp";
+import "../macro-expander.rp";
+
+fn macro_expander_derive_clone(
+    &MacroExpander me,
+    &Program program,
+    DeclaredType declared_type,
+    Span derive_span
+): void {
+    match (declared_type) {
+        DeclaredType::Struct(struct_declaration) {
+            let opt = macro_expander_generate_struct_clone(&me, &program, struct_declaration, derive_span);
+            match (opt) {
+                OptionFunctionDeclaration::Some(function) {
+                    macro_expander_insert_function(&me, &program, function, derive_span);
+                },
+                OptionFunctionDeclaration::None {}
+            }
+        },
+        DeclaredType::Enum(enum_declaration) {
+            let opt = macro_expander_generate_enum_clone(&me, &program, enum_declaration, derive_span);
+            match (opt) {
+                OptionFunctionDeclaration::Some(function) {
+                    macro_expander_insert_function(&me, &program, function, derive_span);
+                },
+                OptionFunctionDeclaration::None {}
+            }
+        }
+    }
+}
+
+enum OptionFunctionDeclaration {
+    Some(FunctionDeclaration),
+    None
+};
+
+fn macro_expander_can_clone_type(
+    &MacroExpander me,
+    &Program program,
+    Type ty,
+    str parent_type,
+    Span derive_span
+): bool {
+    match (ty) {
+        Type::Vector(inner) return macro_expander_can_clone_type(&me, &program, inner, parent_type, derive_span);,
+        Type::Unresolved(dependency_type) {
+            if (dependency_type == parent_type) return true;
+            let clone_fn = to_snake_case(dependency_type) + "_clone";
+            if (me_function_exists(&program, clone_fn)) return true;
+            if (me_type_has_derive(&program, dependency_type, "Clone")) return true;
+            vector_push(&me.errors, macro_expander_error_at(
+                ErrorSeverity::HIGH,
+                "Type '" + dependency_type + "' used by '" + parent_type + "' cannot be cloned. Hint: add 'Clone' to the derives of '" + dependency_type + "', or implement 'fn " + clone_fn + "(&" + dependency_type + " value): " + dependency_type + "'.",
+                derive_span
+            ));
+            return false;
+        },
+        Type::Void {
+            vector_push(&me.errors, macro_expander_error_at(
+                ErrorSeverity::HIGH,
+                "Void type cannot be cloned (used by '" + parent_type + "').",
+                derive_span
+            ));
+            return false;
+        },
+        rest return true;
+    }
+}
+
+fn macro_expander_generate_struct_clone(
+    &MacroExpander me,
+    &Program program,
+    StructDeclaration declaration,
+    Span derive_span
+): OptionFunctionDeclaration {
+    let type_name = declaration.identifier.value;
+    let variable_name = to_snake_case(type_name);
+
+    for (let i = 0; i < vector_size(&declaration.members); i += 1) {
+        if (!macro_expander_can_clone_type(&me, &program, declaration.members[i].value.member_type.value, type_name, derive_span)) {
+            return OptionFunctionDeclaration::None;
+        }
+    }
+
+    let stmts: StatementNode[] = [];
+    let fields: StructLiteralFieldNode[] = [];
+    let counter = 0;
+
+    for (let i = 0; i < vector_size(&declaration.members); i += 1) {
+        let member = declaration.members[i];
+        let field_name = member.value.identifier.value;
+        let field_expression = me_field_access(variable_name, field_name);
+
+        let clone_result = macro_expander_clone_expression(
+            &me, field_expression, member.value.member_type.value, type_name, derive_span, &counter
+        );
+
+        for (let j = 0; j < vector_size(&clone_result.statements); j += 1) {
+            vector_push(&stmts, clone_result.statements[j]);
+        }
+
+        vector_push(&fields, StructLiteralFieldNode {
+            value: StructLiteralField {
+                identifier: me_ident(field_name),
+                value: me_expr(clone_result.expression)
+            },
+            span: me_span()
+        });
+    }
+
+    let struct_literal = Expression::StructLiteral(StructLiteralNode {
+        value: StructLiteral {
+            identifier: me_ident(type_name),
+            fields: fields
+        },
+        span: me_span()
+    });
+    vector_push(&stmts, me_stmt(me_return_expr(struct_literal)));
+
+    let params: ParameterNode[] = [];
+    vector_push(&params, me_param_ref(type_name, variable_name));
+
+    return OptionFunctionDeclaration::Some(FunctionDeclaration {
+        identifier: me_ident(to_snake_case(type_name) + "_clone"),
+        parameters: params,
+        return_type: me_type(Type::Unresolved(type_name)),
+        block: me_block(stmts)
+    });
+}
+
+fn macro_expander_generate_enum_clone(
+    &MacroExpander me,
+    &Program program,
+    EnumDeclaration declaration,
+    Span derive_span
+): OptionFunctionDeclaration {
+    let enum_name = declaration.identifier.value;
+    let variable_name = to_snake_case(enum_name);
+
+    for (let i = 0; i < vector_size(&declaration.members); i += 1) {
+        match (declaration.members[i].value.member_type) {
+            OptionTypeNode::Some(t) {
+                if (!macro_expander_can_clone_type(&me, &program, t.value, enum_name, derive_span)) {
+                    return OptionFunctionDeclaration::None;
+                }
+            },
+            OptionTypeNode::None {}
+        }
+    }
+
+    let match_arms: MatchArmNode[] = [];
+    let counter = 0;
+
+    for (let i = 0; i < vector_size(&declaration.members); i += 1) {
+        let member = declaration.members[i];
+        let variant_name = member.value.identifier.value;
+
+        match (member.value.member_type) {
+            OptionTypeNode::None {
+                let arm_stmts: StatementNode[] = [];
+                vector_push(&arm_stmts, me_stmt(me_return_expr(Expression::EnumLiteral(EnumLiteralExpression {
+                    enum_name: me_ident(enum_name),
+                    variant_name: me_ident(variant_name),
+                    variant_value: OptionExpressionNode::None
+                }))));
+                vector_push(&match_arms, MatchArmNode {
+                    value: MatchArm {
+                        enum_name: me_ident(enum_name),
+                        variant_name: me_ident(variant_name),
+                        variant_value: OptionIdentifierNode::None,
+                        block: me_block(arm_stmts)
+                    },
+                    span: me_span()
+                });
+            },
+            OptionTypeNode::Some(type_node) {
+                let payload_var = macro_expander_debug_variable_name(type_node.value);
+                let clone_result = macro_expander_clone_expression(
+                    &me, me_var(payload_var), type_node.value, enum_name, derive_span, &counter
+                );
+                let arm_stmts: StatementNode[] = [];
+                for (let j = 0; j < vector_size(&clone_result.statements); j += 1) {
+                    vector_push(&arm_stmts, clone_result.statements[j]);
+                }
+                vector_push(&arm_stmts, me_stmt(me_return_expr(Expression::EnumLiteral(EnumLiteralExpression {
+                    enum_name: me_ident(enum_name),
+                    variant_name: me_ident(variant_name),
+                    variant_value: OptionExpressionNode::Some(me_expr(clone_result.expression))
+                }))));
+                vector_push(&match_arms, MatchArmNode {
+                    value: MatchArm {
+                        enum_name: me_ident(enum_name),
+                        variant_name: me_ident(variant_name),
+                        variant_value: OptionIdentifierNode::Some(me_ident(payload_var)),
+                        block: me_block(arm_stmts)
+                    },
+                    span: me_span()
+                });
+            }
+        }
+    }
+
+    let stmts: StatementNode[] = [];
+    vector_push(&stmts, me_stmt(Statement::Match(MatchStatement {
+        expression: me_expr(me_var(variable_name)),
+        match_arms: match_arms,
+        rest_arm: OptionBlockNode::None
+    })));
+
+    let params: ParameterNode[] = [];
+    vector_push(&params, me_param_ref(enum_name, variable_name));
+
+    return OptionFunctionDeclaration::Some(FunctionDeclaration {
+        identifier: me_ident(to_snake_case(enum_name) + "_clone"),
+        parameters: params,
+        return_type: me_type(Type::Unresolved(enum_name)),
+        block: me_block(stmts)
+    });
+}
+
+struct CloneExpressionResult {
+    StatementNode[] statements,
+    Expression expression
+};
+
+fn macro_expander_clone_expression(
+    &MacroExpander me,
+    Expression expression,
+    Type ty,
+    str parent_type,
+    Span derive_span,
+    &i64 counter
+): CloneExpressionResult {
+    match (ty) {
+        Type::Vector(inner) {
+            return macro_expander_clone_vector(&me, expression, inner, parent_type, derive_span, &counter);
+        },
+        Type::Unresolved(identifier) {
+            let empty: StatementNode[] = [];
+            return CloneExpressionResult {
+                statements: empty,
+                expression: me_call_ref(to_snake_case(identifier) + "_clone", expression)
+            };
+        },
+        Type::Str {
+            # By-value string is deep-copied by language semantics when assigned;
+            # explicit identity is fine for generated clones of owned fields.
+            let empty: StatementNode[] = [];
+            return CloneExpressionResult { statements: empty, expression: expression };
+        },
+        rest {
+            let empty: StatementNode[] = [];
+            return CloneExpressionResult { statements: empty, expression: expression };
+        }
+    }
+}
+
+fn macro_expander_clone_vector(
+    &MacroExpander me,
+    Expression expression,
+    Type inner,
+    str parent_type,
+    Span derive_span,
+    &i64 counter
+): CloneExpressionResult {
+    let n = counter;
+    counter = n + 1;
+    let suffix = n as str;
+
+    let src = "src_vec_" + suffix;
+    let dst = "dst_vec_" + suffix;
+    let index = "i_" + suffix;
+    let stmts: StatementNode[] = [];
+
+    vector_push(&stmts, me_stmt(me_let(src, expression)));
+    vector_push(&stmts, me_stmt(me_let(dst, Expression::Vector([]))));
+    vector_push(&stmts, me_stmt(me_let(index, me_i64_lit(0))));
+
+    let loop_body: StatementNode[] = [];
+    let elem = me_index(src, index);
+    let cloned = macro_expander_clone_expression(&me, elem, inner, parent_type, derive_span, &counter);
+
+    for (let j = 0; j < vector_size(&cloned.statements); j += 1) {
+        vector_push(&loop_body, cloned.statements[j]);
+    }
+
+    # vector_push(&dst, cloned_elem)
+    let push_args: ArgumentNode[] = [];
+    vector_push(&push_args, ArgumentNode {
+        value: Argument { value: me_expr(me_var(dst)), passed_by: PassedBy::Reference },
+        span: me_span()
+    });
+    vector_push(&push_args, ArgumentNode {
+        value: Argument { value: me_expr(cloned.expression), passed_by: PassedBy::Value },
+        span: me_span()
+    });
+    vector_push(&loop_body, me_stmt(Statement::FunctionCall(FunctionCallExpression {
+        identifier: me_ident("vector_push"),
+        arguments: push_args
+    })));
+    vector_push(&loop_body, me_stmt(me_assign(index, me_addition(me_var(index), me_i64_lit(1)))));
+
+    vector_push(&stmts, me_stmt(Statement::WhileLoop(WhileLoopStatement {
+        condition: me_expr(me_less(me_var(index), me_call_ref("vector_size", me_var(src)))),
+        block: me_block(loop_body)
+    })));
+
+    return CloneExpressionResult {
+        statements: stmts,
+        expression: me_var(dst)
+    };
+}

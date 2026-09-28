@@ -334,7 +334,7 @@ fn macro_expander_vector_debug_statements(
     Expression field_expression,
     Type inner_type
 ): StatementNode[] {
-    let index = "i";
+    let index = vector_str + "_i";
     let stmts: StatementNode[] = [];
 
     # Bind vector field to a temp so we can index it in the loop.

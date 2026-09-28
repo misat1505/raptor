@@ -1,0 +1,82 @@
+# ============================================================
+# Semantic-checker helpers for built-in calls.
+# Import from semantic-checker and use in check_function_call
+# *before* the "unknown function" fallback.
+# ============================================================
+
+import "../frontend/parser/ast.rp";
+import "../common/errors.rp";
+import "../common/span.rp";
+import "../semantic-checker/semantic-helpers.rp";
+import "./std-functions-mod.rp";
+
+# Mirrors SemanticChecker::is_valid_reference_expression
+fn is_valid_reference_expression(Expression expression): bool {
+    match (expression) {
+        Expression::Variable return true;,
+        Expression::Index(idx) return is_valid_reference_expression(idx.collection.value);,
+        Expression::FieldAccess(fa) return is_valid_reference_expression(fa.instance.value);,
+        rest return false;
+    }
+}
+
+# Returns true if `name` was a known std function (caller should return).
+# On success sets last_result via the ResultType in out-parameter style:
+# we return ResultType for the call's result type; Err means type error
+# already described in the ResultType::Err payload (caller pushes it).
+#
+# Flow for the semantic checker:
+#   match (std_function_lookup(name)) {
+#       OptionStdFunction::None { /* not std */ },
+#       OptionStdFunction::Some(std_fn) {
+#           match (semantic_checker_check_std_call(&sc, &program, std_fn, call, span)) {
+#               ResultType::Ok(rt) semantic_checker_set_last(&sc, rt);,
+#               ResultType::Err(e) semantic_checker_push_error(&sc, e);
+#           }
+#           return;
+#       }
+#   }
+fn semantic_checker_check_std_call(
+    Type[] collected_arg_types,
+    Expression[] arg_expressions,
+    Span[] arg_spans,
+    StdFunction std_fn,
+    Span span
+): ResultType {
+    # Arity for fixed signatures (custom checkers re-check arity themselves).
+    match (std_fn.type_check_kind) {
+        StdTypeCheckKind::None {
+            if (vector_size(&collected_arg_types) != vector_size(&std_fn.params)) {
+                return ResultType::Err(semantic_checker_error_new(
+                    ErrorSeverity::HIGH,
+                    "Invalid usage of built-in function '" + std_fn.name + "'. Expected "
+                        + vector_size(&std_fn.params) as str + " argument(s), got "
+                        + vector_size(&collected_arg_types) as str + ".",
+                    span
+                ));
+            }
+        },
+        rest {}
+    }
+
+    # Passed-by reference constraints
+    let n = vector_size(&std_fn.passed_by);
+    if (vector_size(&arg_expressions) < n) n = vector_size(&arg_expressions);
+    for (let i = 0; i < n; i += 1) {
+        match (std_fn.passed_by[i]) {
+            PassedBy::Reference {
+                if (!is_valid_reference_expression(arg_expressions[i])) {
+                    return ResultType::Err(semantic_checker_error_new(
+                        ErrorSeverity::HIGH,
+                        "Parameter " + i as str + " of function `" + std_fn.name
+                            + "` must be a variable, index, or field access when passed by reference.",
+                        arg_spans[i]
+                    ));
+                }
+            },
+            PassedBy::Value {}
+        }
+    }
+
+    return std_run_type_check(std_fn, collected_arg_types, span);
+}

@@ -10,6 +10,8 @@ import "../../stdlib/string.rp";
 import "../frontend/parser/ast.rp";
 import "../frontend/parser/parser-results.rp";
 import "./semantic-helpers.rp";
+import "../std-functions/std-function.rp";
+import "../std-functions/check-std-call.rp";
 import "./stack/stack.rp";
 import "./type-alu/type-alu.rp";
 
@@ -1149,7 +1151,7 @@ fn semantic_checker_check_function_call(
 ): void {
     let name = call.identifier.value;
 
-    # Builtin-ish: vector_size, vector_push, println, etc. — accept loosely if not found.
+    # User functions
     let found_fn = OptionFunctionDeclaration::None;
     for (let i = 0; i < vector_size(&program.functions); i += 1) {
         if (program.functions[i].value.identifier.value == name) {
@@ -1157,7 +1159,7 @@ fn semantic_checker_check_function_call(
         }
     }
 
-    # externs
+    # Externs
     let found_extern = false;
     let extern_params: ParameterNode[] = [];
     let extern_ret = Type::Void;
@@ -1177,7 +1179,8 @@ fn semantic_checker_check_function_call(
             if (vector_size(&call.arguments) != vector_size(&fd.parameters)) {
                 semantic_checker_push_error(&sc, semantic_checker_error_at(
                     ErrorSeverity::HIGH,
-                    "Function '" + name + "' expects " + vector_size(&fd.parameters) as str + " argument(s), got " + vector_size(&call.arguments) as str + ".",
+                    "Function '" + name + "' expects " + vector_size(&fd.parameters) as str
+                        + " argument(s), got " + vector_size(&call.arguments) as str + ".",
                     span
                 ));
             }
@@ -1188,7 +1191,11 @@ fn semantic_checker_check_function_call(
                 match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
                     ResultType::Err(e) semantic_checker_push_error(&sc, e);,
                     ResultType::Ok(actual) {
-                        match (semantic_checker_resolve_type(&sc, &program, fd.parameters[i].value.parameter_type.value, fd.parameters[i].span)) {
+                        match (semantic_checker_resolve_type(
+                            &sc, &program,
+                            fd.parameters[i].value.parameter_type.value,
+                            fd.parameters[i].span
+                        )) {
                             ResultType::Err(e) semantic_checker_push_error(&sc, e);,
                             ResultType::Ok(exp) {
                                 if (!type_compatible(exp, actual)) {
@@ -1215,8 +1222,6 @@ fn semantic_checker_check_function_call(
     }
 
     if (found_extern) {
-        let n = vector_size(&call.arguments);
-        if (vector_size(&extern_params) < n) n = vector_size(&extern_params);
         for (let i = 0; i < vector_size(&call.arguments); i += 1) {
             semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
             match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
@@ -1231,7 +1236,35 @@ fn semantic_checker_check_function_call(
         return;
     }
 
-    # Unknown function (stdlib / not yet resolved) — still type-check args, result void.
+    # Built-in std functions
+    match (std_function_lookup(name)) {
+        OptionStdFunction::Some(std_fn) {
+            let collected: Type[] = [];
+            let arg_exprs: Expression[] = [];
+            let arg_spans: Span[] = [];
+
+            for (let i = 0; i < vector_size(&call.arguments); i += 1) {
+                semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
+                match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
+                    ResultType::Err(e) semantic_checker_push_error(&sc, e);,
+                    ResultType::Ok(t) vector_push(&collected, t);
+                }
+                vector_push(&arg_exprs, call.arguments[i].value.value.value);
+                vector_push(&arg_spans, call.arguments[i].span);
+            }
+
+            if (vector_size(&collected) == vector_size(&call.arguments)) {
+                match (semantic_checker_check_std_call(collected, arg_exprs, arg_spans, std_fn, span)) {
+                    ResultType::Ok(rt) semantic_checker_set_last(&sc, rt);,
+                    ResultType::Err(e) semantic_checker_push_error(&sc, e);
+                }
+            }
+            return;
+        },
+        OptionStdFunction::None {}
+    }
+
+    # Truly unknown
     for (let i = 0; i < vector_size(&call.arguments); i += 1) {
         semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
         match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
@@ -1239,14 +1272,9 @@ fn semantic_checker_check_function_call(
             ResultType::Ok {}
         }
     }
-    # Known std helpers
-    if (name == "vector_size") {
-        semantic_checker_set_last(&sc, Type::I64);
-    } else if (name == "str_len") {
-        semantic_checker_set_last(&sc, Type::I64);
-    } else if (name == "println" || name == "print") {
-        semantic_checker_set_last(&sc, Type::Void);
-    } else {
-        semantic_checker_set_last(&sc, Type::Void);
-    }
+    semantic_checker_push_error(&sc, semantic_checker_error_at(
+        ErrorSeverity::HIGH,
+        "Unknown function '" + name + "'.",
+        span
+    ));
 }

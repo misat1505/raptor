@@ -1,0 +1,159 @@
+# ============================================================
+# Mirrors `get_std_functions()` in std_functions.rs
+# Only name / params / passed_by / return_type / type_check_kind.
+# ============================================================
+
+import "../frontend/parser/ast.rp";
+import "./std-function.rp";
+
+fn get_std_functions(): StdFunction[] {
+    let out: StdFunction[] = [];
+
+    # --- io ---
+    vector_push(&out, std_function_new(
+        "print",
+        [Type::Str],
+        [PassedBy::Value],
+        Type::Void,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "println",
+        [Type::Str],
+        [PassedBy::Value],
+        Type::Void,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "input",
+        [Type::Str],
+        [PassedBy::Value],
+        Type::Str,
+        StdTypeCheckKind::None
+    ));
+
+    # --- files ---
+    vector_push(&out, std_function_new(
+        "read_file",
+        [Type::Str],
+        [PassedBy::Value],
+        Type::Str,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "write_file",
+        [Type::Str, Type::Str],
+        [PassedBy::Value, PassedBy::Value],
+        Type::Void,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "append_file",
+        [Type::Str, Type::Str],
+        [PassedBy::Value, PassedBy::Value],
+        Type::Void,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "delete_file",
+        [Type::Str],
+        [PassedBy::Value],
+        Type::Void,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "exists_file",
+        [Type::Str],
+        [PassedBy::Value],
+        Type::Bool,
+        StdTypeCheckKind::None
+    ));
+
+    # --- vectors (custom type_check) ---
+    # params placeholders: Vector(Void) / Void mean "checked by type_check_kind"
+    vector_push(&out, std_function_new(
+        "vector_push",
+        [Type::Vector(Type::Void), Type::Void],
+        [PassedBy::Reference, PassedBy::Value],
+        Type::Void,
+        StdTypeCheckKind::VectorPush
+    ));
+    vector_push(&out, std_function_new(
+        "vector_size",
+        [Type::Vector(Type::Void)],
+        [PassedBy::Reference],
+        Type::I64,
+        StdTypeCheckKind::VectorSize
+    ));
+    vector_push(&out, std_function_new(
+        "vector_stringify",
+        [Type::Vector(Type::Void)],
+        [PassedBy::Value],
+        Type::Str,
+        StdTypeCheckKind::VectorStringify
+    ));
+
+    # --- strings ---
+    vector_push(&out, std_function_new(
+        "str_len",
+        [Type::Str],
+        [PassedBy::Value],
+        Type::I64,
+        StdTypeCheckKind::None
+    ));
+
+    # --- time ---
+    vector_push(&out, std_function_new(
+        "sleep_ms",
+        [Type::I64],
+        [PassedBy::Value],
+        Type::Void,
+        StdTypeCheckKind::None
+    ));
+
+    # --- network ---
+    vector_push(&out, std_function_new(
+        "tcp_listen",
+        [Type::I64],
+        [PassedBy::Value],
+        Type::I64,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "tcp_accept",
+        [Type::I64],
+        [PassedBy::Value],
+        Type::I64,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "tcp_connect",
+        [Type::Str, Type::I64],
+        [PassedBy::Value, PassedBy::Value],
+        Type::I64,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "tcp_read",
+        [Type::I64],
+        [PassedBy::Value],
+        Type::Str,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "tcp_write",
+        [Type::I64, Type::Str],
+        [PassedBy::Value, PassedBy::Value],
+        Type::Void,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "tcp_close",
+        [Type::I64],
+        [PassedBy::Value],
+        Type::Void,
+        StdTypeCheckKind::None
+    ));
+
+    return out;
+}

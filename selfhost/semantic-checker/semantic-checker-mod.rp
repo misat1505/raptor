@@ -1,0 +1,5 @@
+# Aggregator for the selfhost semantic checker.
+import "./semantic-helpers.rp";
+import "./stack/stack.rp";
+import "./type-alu/type-alu.rp";
+import "./semantic-checker.rp";

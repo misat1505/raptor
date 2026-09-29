@@ -70,6 +70,53 @@ struct MacroExpanderError derives Debug {
 };
 
 
+fn generic_error_stderr_message(&str message, &ErrorSeverity level, &Span span): str {
+    let text = error_severity_to_string(level) + ": " + message;
+
+    let filename = "";
+    match (span.start.filename) {
+        OptionStr::None return text;,
+        OptionStr::Some(t) filename = t;
+    }
+
+    if (!exists_file(filename)) return text;
+
+    let file_content = read_file(filename);
+    let lines = str_split(file_content, "\n");
+
+    let normalized_line = span.start.line - 1;
+    if (normalized_line >= vector_size(&lines)) return text;
+
+    let line = lines[normalized_line];
+    let underline_length = span.end.column - span.start.column;
+
+    let underline_offset = "";
+    for (let i = 0; i < span.start.column - 1; i += 1) underline_offset += ' ';
+
+    let underline = error_severity_color(level);
+    for (let i = 0; i < underline_length; i += 1) underline += '^';
+    underline += console_standard();
+
+    let line_str = span.start.line as str;
+    let spaces_count = 4 - str_len(line_str);
+    if (spaces_count < 1) {
+        spaces_count = 1;
+    }
+    let line_number_prefix = "";
+    for (let i = 0; i < spaces_count; i += 1) {
+        line_number_prefix += ' ';
+    }
+    line_number_prefix += line_str + ' ';
+    let underline_bar_prefix = "";
+    for (let i = 0; i < str_len(line_number_prefix); i += 1) {
+        underline_bar_prefix += ' ';
+    }
+    text += "\n  --> " + filename + ":" + span.start.line as str + ":" + span.start.column as str + "\n\n" + line_number_prefix + "| " + line + "\n" + underline_bar_prefix + "| " + underline_offset + underline;
+
+    return text;
+}
+
+
 fn console_red(): str {
     let bytes = [27, 91, 49, 59, 51, 49, 109];
     let output = "";
@@ -135,35 +182,7 @@ fn lexer_error_at(ErrorSeverity level, str summary, Span span): LexerError {
 
 
 fn lexer_error_get_stderr_message(&LexerError error): str {
-    let text = error_severity_to_string(error.level) + ": " + error.message;
-
-    let filename = "";
-    match (error.span.start.filename) {
-        OptionStr::None return text;,
-        OptionStr::Some(t) filename = t;
-    }
-
-    if (!exists_file(filename)) return text;
-
-    let file_content = read_file(filename);
-    let lines = str_split(file_content, "\n");
-
-    let normalized_line = error.span.start.line - 1;
-    if (normalized_line >= vector_size(&lines)) return text;
-
-    let line = lines[normalized_line];
-    let underline_length = error.span.end.column - error.span.start.column;
-
-    let underline_offset = "";
-    for (let i = 0; i < error.span.start.column - 1; i += 1) underline_offset += ' ';
-
-    let underline = error_severity_color(error.level);
-    for (let i = 0; i < underline_length; i += 1) underline += '^';
-    underline += console_standard();
-
-    text += "\n  --> " + filename + ":" + error.span.start.line as str + ":" + error.span.start.column as str + "\n\n     | " + line + "\n     | " + underline_offset + underline;
-
-    return text;
+    return generic_error_stderr_message(&error.message, &error.level, &error.span);
 }   
 
 
@@ -214,35 +233,7 @@ fn parser_error_from_lexer_error(&LexerError lexer_error): ParserError {
 
 
 fn parser_error_get_stderr_message(&ParserError error): str {
-    let text = error_severity_to_string(error.level) + ": " + error.message;
-
-    let filename = "";
-    match (error.span.start.filename) {
-        OptionStr::None return text;,
-        OptionStr::Some(t) filename = t;
-    }
-
-    if (!exists_file(filename)) return text;
-
-    let file_content = read_file(filename);
-    let lines = str_split(file_content, "\n");
-
-    let normalized_line = error.span.start.line - 1;
-    if (normalized_line >= vector_size(&lines)) return text;
-
-    let line = lines[normalized_line];
-    let underline_length = error.span.end.column - error.span.start.column;
-
-    let underline_offset = "";
-    for (let i = 0; i < error.span.start.column - 1; i += 1) underline_offset += ' ';
-
-    let underline = error_severity_color(error.level);
-    for (let i = 0; i < underline_length; i += 1) underline += '^';
-    underline += console_standard();
-
-    text += "\n  --> " + filename + ":" + error.span.start.line as str + ":" + error.span.start.column as str + "\n\n     | " + line + "\n     | " + underline_offset + underline;
-
-    return text;
+    return generic_error_stderr_message(&error.message, &error.level, &error.span);
 }
 
 
@@ -311,35 +302,7 @@ fn semantic_checker_error_expected_found(
 
 
 fn semantic_ckecker_error_get_stderr_message(&SemanticCheckerError error): str {
-    let text = error_severity_to_string(error.level) + ": " + error.message;
-
-    let filename = "";
-    match (error.span.start.filename) {
-        OptionStr::None return text;,
-        OptionStr::Some(t) filename = t;
-    }
-
-    if (!exists_file(filename)) return text;
-
-    let file_content = read_file(filename);
-    let lines = str_split(file_content, "\n");
-
-    let normalized_line = error.span.start.line - 1;
-    if (normalized_line >= vector_size(&lines)) return text;
-
-    let line = lines[normalized_line];
-    let underline_length = error.span.end.column - error.span.start.column;
-
-    let underline_offset = "";
-    for (let i = 0; i < error.span.start.column - 1; i += 1) underline_offset += ' ';
-
-    let underline = error_severity_color(error.level);
-    for (let i = 0; i < underline_length; i += 1) underline += '^';
-    underline += console_standard();
-
-    text += "\n  --> " + filename + ":" + error.span.start.line as str + ":" + error.span.start.column as str + "\n\n     | " + line + "\n     | " + underline_offset + underline;
-
-    return text;
+    return generic_error_stderr_message(&error.message, &error.level, &error.span);
 }
 
 

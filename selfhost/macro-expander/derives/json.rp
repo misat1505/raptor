@@ -65,9 +65,8 @@ fn macro_expander_check_json_dependencies(
         DeclaredType::Enum(e) {
             parent_type = e.identifier.value;
             for (let i = 0; i < vector_size(&e.members); i += 1) {
-                match (e.members[i].value.member_type) {
-                    OptionTypeNode::Some(t) vector_push(&member_types, t.value);,
-                    OptionTypeNode::None {}
+                if (e.members[i].value.member_type matches OptionTypeNode::Some(t)) {
+                    vector_push(&member_types, t.value);
                 }
             }
         }

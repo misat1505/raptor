@@ -106,11 +106,8 @@ fn semantic_checker_lookup_struct(
     str name
 ): OptionStructDeclaration {
     for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
-        match (program.declared_types[i].value) {
-            DeclaredType::Struct(s) {
-                if (s.identifier.value == name) return OptionStructDeclaration::Some(s);
-            },
-            rest {}
+        if (program.declared_types[i].value matches DeclaredType::Struct(s)) {
+            if (s.identifier.value == name) return OptionStructDeclaration::Some(s);
         }
     }
     return OptionStructDeclaration::None;
@@ -121,11 +118,8 @@ fn semantic_checker_lookup_enum(
     str name
 ): OptionEnumDeclaration {
     for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
-        match (program.declared_types[i].value) {
-            DeclaredType::Enum(e) {
-                if (e.identifier.value == name) return OptionEnumDeclaration::Some(e);
-            },
-            rest {}
+        if (program.declared_types[i].value matches DeclaredType::Enum(e)) {
+            if (e.identifier.value == name) return OptionEnumDeclaration::Some(e);
         }
     }
     return OptionEnumDeclaration::None;
@@ -153,25 +147,18 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
         let function = program.functions[i];
         stack_push_frame(&sc.stack);
 
-        match (semantic_checker_resolve_type(&sc, &program, function.value.return_type.value, function.value.return_type.span)) {
-            ResultType::Err(e) {},
-            ResultType::Ok(rt) {
-                # rewrite not persisted; track current function for return checks
-                let fd = function.value;
-                fd.return_type = TypeNode { value: rt, span: function.value.return_type.span };
-                sc.current_function = OptionFunctionDeclaration::Some(fd);
-            }
+        if (semantic_checker_resolve_type(&sc, &program, function.value.return_type.value, function.value.return_type.span) matches ResultType::Ok(rt)) {
+            # rewrite not persisted; track current function for return checks
+            let fd = function.value;
+            fd.return_type = TypeNode { value: rt, span: function.value.return_type.span };
+            sc.current_function = OptionFunctionDeclaration::Some(fd);
         }
 
         for (let p = 0; p < vector_size(&function.value.parameters); p += 1) {
             let param = function.value.parameters[p];
-            match (semantic_checker_resolve_type(&sc, &program, param.value.parameter_type.value, param.value.parameter_type.span)) {
-                ResultType::Err(e) {},
-                ResultType::Ok(t) {
-                    match (stack_declare_variable(&sc.stack, param.value.identifier.value, t, param.value.identifier.span)) {
-                        ResultSem::Err(err) semantic_checker_push_error(&sc, err);,
-                        ResultSem::Ok {}
-                    }
+            if (semantic_checker_resolve_type(&sc, &program, param.value.parameter_type.value, param.value.parameter_type.span) matches ResultType::Ok(t)) {
+                if (stack_declare_variable(&sc.stack, param.value.identifier.value, t, param.value.identifier.span) matches ResultSem::Err(err)) {
+                    semantic_checker_push_error(&sc, err);
                 }
             }
         }
@@ -196,11 +183,8 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
             },
             DeclaredType::Enum(e) {
                 for (let m = 0; m < vector_size(&e.members); m += 1) {
-                    match (e.members[m].value.member_type) {
-                        OptionTypeNode::Some(tn) {
-                            semantic_checker_resolve_type(&sc, &program, tn.value, tn.span);
-                        },
-                        OptionTypeNode::None {}
+                    if (e.members[m].value.member_type matches OptionTypeNode::Some(tn)) {
+                        semantic_checker_resolve_type(&sc, &program, tn.value, tn.span);
                     }
                 }
             }
@@ -284,29 +268,25 @@ fn semantic_checker_check_declaration(
                 ResultType::Err(e) semantic_checker_push_error(&sc, e);,
                 ResultType::Ok(value_ty) {
                     let final_ty = value_ty;
-                    match (let_kind.var_type) {
-                        OptionTypeNode::Some(tn) {
-                            match (semantic_checker_resolve_type(&sc, &program, tn.value, tn.span)) {
-                                ResultType::Err(e) semantic_checker_push_error(&sc, e);,
-                                ResultType::Ok(ann) {
-                                    if (!type_compatible(ann, value_ty)) {
-                                        semantic_checker_push_error(&sc, semantic_checker_error_expected_found(
-                                            ErrorSeverity::HIGH,
-                                            "Type annotation does not match initializer.",
-                                            type_to_string(ann),
-                                            type_to_string(value_ty),
-                                            span
-                                        ));
-                                    }
-                                    final_ty = ann;
+                    if (let_kind.var_type matches OptionTypeNode::Some(tn)) {
+                        match (semantic_checker_resolve_type(&sc, &program, tn.value, tn.span)) {
+                            ResultType::Err(e) semantic_checker_push_error(&sc, e);,
+                            ResultType::Ok(ann) {
+                                if (!type_compatible(ann, value_ty)) {
+                                    semantic_checker_push_error(&sc, semantic_checker_error_expected_found(
+                                        ErrorSeverity::HIGH,
+                                        "Type annotation does not match initializer.",
+                                        type_to_string(ann),
+                                        type_to_string(value_ty),
+                                        span
+                                    ));
                                 }
+                                final_ty = ann;
                             }
-                        },
-                        OptionTypeNode::None {}
+                        }
                     }
-                    match (stack_declare_variable(&sc.stack, decl.identifier.value, final_ty, decl.identifier.span)) {
-                        ResultSem::Err(e) semantic_checker_push_error(&sc, e);,
-                        ResultSem::Ok {}
+                    if (stack_declare_variable(&sc.stack, decl.identifier.value, final_ty, decl.identifier.span) matches ResultSem::Err(e)) {
+                        semantic_checker_push_error(&sc, e);
                     }
                 }
             }
@@ -339,9 +319,8 @@ fn semantic_checker_check_declaration(
                             value_ty = ann;
                         }
                     }
-                    match (stack_declare_variable(&sc.stack, decl.identifier.value, value_ty, decl.identifier.span)) {
-                        ResultSem::Err(e) semantic_checker_push_error(&sc, e);,
-                        ResultSem::Ok {}
+                    if (stack_declare_variable(&sc.stack, decl.identifier.value, value_ty, decl.identifier.span) matches ResultSem::Err(e)) {
+                        semantic_checker_push_error(&sc, e);
                     }
                 }
             }
@@ -442,9 +421,8 @@ fn semantic_checker_check_assignment(
                 ResultType::Err(e) semantic_checker_push_error(&sc, e);,
                 ResultType::Ok(value_ty) {
                     if (vector_size(&assign.accessors) == 0) {
-                        match (stack_assign_variable(&sc.stack, assign.identifier.value, value_ty, span)) {
-                            ResultSem::Err(e) semantic_checker_push_error(&sc, e);,
-                            ResultSem::Ok { }
+                        if (stack_assign_variable(&sc.stack, assign.identifier.value, value_ty, span) matches ResultSem::Err(e)) {
+                            semantic_checker_push_error(&sc, e);
                         }
                     } else {
                         if (!type_compatible(current, value_ty)) {
@@ -482,9 +460,8 @@ fn semantic_checker_check_if(
         }
     }
     semantic_checker_visit_block(&sc, &program, cond.if_block);
-    match (cond.else_block) {
-        OptionBlockNode::Some(b) semantic_checker_visit_block(&sc, &program, b);,
-        OptionBlockNode::None {}
+    if (cond.else_block matches OptionBlockNode::Some(b)) {
+        semantic_checker_visit_block(&sc, &program, b);
     }
 }
 
@@ -519,9 +496,8 @@ fn semantic_checker_check_for(
     ForLoopStatement f
 ): void {
     stack_push_scope(&sc.stack);
-    match (f.declaration) {
-        OptionStatementNode::Some(st) semantic_checker_visit_statement(&sc, &program, st);,
-        OptionStatementNode::None {}
+    if (f.declaration matches OptionStatementNode::Some(st)) {
+        semantic_checker_visit_statement(&sc, &program, st);
     }
     semantic_checker_visit_expression(&sc, &program, f.condition);
     match (semantic_checker_read_last(&sc, f.condition.span)) {
@@ -536,9 +512,8 @@ fn semantic_checker_check_for(
             }
         }
     }
-    match (f.assignment) {
-        OptionStatementNode::Some(st) semantic_checker_visit_statement(&sc, &program, st);,
-        OptionStatementNode::None {}
+    if (f.assignment matches OptionStatementNode::Some(st)) {
+        semantic_checker_visit_statement(&sc, &program, st);
     }
     stack_enter_breakable(&sc.stack);
     stack_enter_continuable(&sc.stack);
@@ -602,9 +577,8 @@ fn semantic_checker_check_switch(
 ): void {
     for (let i = 0; i < vector_size(&sw.expressions); i += 1) {
         semantic_checker_visit_expression(&sc, &program, sw.expressions[i].value.expression);
-        match (semantic_checker_read_last(&sc, sw.expressions[i].value.expression.span)) {
-            ResultType::Err(e) semantic_checker_push_error(&sc, e);,
-            ResultType::Ok {}
+        if (semantic_checker_read_last(&sc, sw.expressions[i].value.expression.span) matches ResultType::Err(e)) {
+            semantic_checker_push_error(&sc, e);
         }
     }
     stack_enter_breakable(&sc.stack);
@@ -658,39 +632,35 @@ fn semantic_checker_check_match(
                                 }
                                 stack_push_scope(&sc.stack);
                                 # bind payload if present
-                                match (arm.value.variant_value) {
-                                    OptionIdentifierNode::Some(bind) {
-                                        let payload_ty = Type::Void;
-                                        let found_variant = false;
-                                        for (let v = 0; v < vector_size(&ed.members); v += 1) {
-                                            if (ed.members[v].value.identifier.value == arm.value.variant_name.value) {
-                                                found_variant = true;
-                                                match (ed.members[v].value.member_type) {
-                                                    OptionTypeNode::Some(tn) payload_ty = tn.value;,
-                                                    OptionTypeNode::None {
-                                                        semantic_checker_push_error(&sc, semantic_checker_error_at(
-                                                            ErrorSeverity::HIGH,
-                                                            "Variant '" + arm.value.variant_name.value + "' has no payload to bind.",
-                                                            arm.span
-                                                        ));
-                                                    }
+                                if (arm.value.variant_value matches OptionIdentifierNode::Some(bind)) {
+                                    let payload_ty = Type::Void;
+                                    let found_variant = false;
+                                    for (let v = 0; v < vector_size(&ed.members); v += 1) {
+                                        if (ed.members[v].value.identifier.value == arm.value.variant_name.value) {
+                                            found_variant = true;
+                                            match (ed.members[v].value.member_type) {
+                                                OptionTypeNode::Some(tn) payload_ty = tn.value;,
+                                                OptionTypeNode::None {
+                                                    semantic_checker_push_error(&sc, semantic_checker_error_at(
+                                                        ErrorSeverity::HIGH,
+                                                        "Variant '" + arm.value.variant_name.value + "' has no payload to bind.",
+                                                        arm.span
+                                                    ));
                                                 }
                                             }
                                         }
-                                        if (!found_variant) {
-                                            semantic_checker_push_error(&sc, semantic_checker_error_at(
-                                                ErrorSeverity::HIGH,
-                                                "Unknown variant '" + arm.value.variant_name.value + "' on enum '" + enum_name + "'.",
-                                                arm.value.variant_name.span
-                                            ));
-                                        } else {
-                                            match (stack_declare_variable(&sc.stack, bind.value, payload_ty, bind.span)) {
-                                                ResultSem::Err(e) semantic_checker_push_error(&sc, e);,
-                                                ResultSem::Ok {}
-                                            }
+                                    }
+                                    if (!found_variant) {
+                                        semantic_checker_push_error(&sc, semantic_checker_error_at(
+                                            ErrorSeverity::HIGH,
+                                            "Unknown variant '" + arm.value.variant_name.value + "' on enum '" + enum_name + "'.",
+                                            arm.value.variant_name.span
+                                        ));
+                                    } else {
+                                        if (stack_declare_variable(&sc.stack, bind.value, payload_ty, bind.span) matches ResultSem::Err(e)) {
+                                            semantic_checker_push_error(&sc, e);
                                         }
-                                    },
-                                    OptionIdentifierNode::None {}
+                                    }
                                 }
                                 semantic_checker_visit_block(&sc, &program, arm.value.block);
                                 semantic_checker_unused_warn(&sc);
@@ -709,9 +679,8 @@ fn semantic_checker_check_match(
             }
         }
     }
-    match (m.rest_arm) {
-        OptionBlockNode::Some(b) semantic_checker_visit_block(&sc, &program, b);,
-        OptionBlockNode::None {}
+    if (m.rest_arm matches OptionBlockNode::Some(b)) {
+        semantic_checker_visit_block(&sc, &program, b);
     }
 }
 
@@ -784,7 +753,7 @@ fn semantic_checker_visit_expression(
         },
         Expression::FieldAccess(fa) semantic_checker_check_field_access(&sc, &program, fa, expression.span);,
         Expression::Index(idx) semantic_checker_check_index(&sc, &program, idx, expression.span);,
-        Expression::Vector(elements) semantic_checker_check_vector_literal(&sc, &program, elements, expression.span);,
+        Expression::Vector(elements) semantic_checker_check_vector_literal(&sc, &program, elements);,
         Expression::StructLiteral(sl) semantic_checker_check_struct_literal(&sc, &program, sl);,
         Expression::EnumLiteral(el) semantic_checker_check_enum_literal(&sc, &program, el, expression.span);
     }
@@ -941,8 +910,7 @@ fn semantic_checker_check_index(
 fn semantic_checker_check_vector_literal(
     &SemanticChecker sc,
     &Program program,
-    ExpressionNode[] elements,
-    Span span
+    ExpressionNode[] elements
 ): void {
     if (vector_size(&elements) == 0) {
         semantic_checker_set_last(&sc, Type::Vector(Type::Void));
@@ -1122,21 +1090,18 @@ fn semantic_checker_check_enum_literal(
                     }
                 },
                 OptionTypeNode::None {
-                    match (el.variant_value) {
-                        OptionExpressionNode::Some(expr) {
-                            semantic_checker_visit_expression(&sc, &program, expr);
-                            match (semantic_checker_read_last(&sc, expr.span)) {
-                                ResultType::Err(e) semantic_checker_push_error(&sc, e);,
-                                ResultType::Ok(actual) {
-                                    semantic_checker_push_error(&sc, semantic_checker_error_at(
-                                        ErrorSeverity::HIGH,
-                                        "Enum '" + enum_name + "' variant '" + el.variant_name.value + "' doesn't expect any value. Provided '" + type_to_string(actual) + "'.",
-                                        el.enum_name.span
-                                    ));
-                                }
+                    if (el.variant_value matches OptionExpressionNode::Some(expr)) {
+                        semantic_checker_visit_expression(&sc, &program, expr);
+                        match (semantic_checker_read_last(&sc, expr.span)) {
+                            ResultType::Err(e) semantic_checker_push_error(&sc, e);,
+                            ResultType::Ok(actual) {
+                                semantic_checker_push_error(&sc, semantic_checker_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Enum '" + enum_name + "' variant '" + el.variant_name.value + "' doesn't expect any value. Provided '" + type_to_string(actual) + "'.",
+                                    el.enum_name.span
+                                ));
                             }
-                        },
-                        OptionExpressionNode::None {}
+                        }
                     }
                 }
             }
@@ -1163,7 +1128,6 @@ fn semantic_checker_check_function_call(
 
     # Externs
     let found_extern = false;
-    let extern_params: ParameterNode[] = [];
     let extern_ret = Type::Void;
     for (let i = 0; i < vector_size(&program.extern_functions); i += 1) {
         let ef = program.extern_functions[i].value;
@@ -1171,64 +1135,59 @@ fn semantic_checker_check_function_call(
         if (ef.alias matches OptionIdentifierNode::Some(a)) effective = a.value;
         if (effective == name) {
             found_extern = true;
-            extern_params = ef.parameters;
             extern_ret = ef.return_type.value;
         }
     }
 
-    match (found_fn) {
-        OptionFunctionDeclaration::Some(fd) {
-            if (vector_size(&call.arguments) != vector_size(&fd.parameters)) {
-                semantic_checker_push_error(&sc, semantic_checker_error_at(
-                    ErrorSeverity::HIGH,
-                    "Function '" + name + "' expects " + vector_size(&fd.parameters) as str
-                        + " argument(s), got " + vector_size(&call.arguments) as str + ".",
-                    span
-                ));
-            }
-            let n = vector_size(&call.arguments);
-            if (vector_size(&fd.parameters) < n) n = vector_size(&fd.parameters);
-            for (let i = 0; i < n; i += 1) {
-                semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
-                match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
-                    ResultType::Err(e) semantic_checker_push_error(&sc, e);,
-                    ResultType::Ok(actual) {
-                        match (semantic_checker_resolve_type(
-                            &sc, &program,
-                            fd.parameters[i].value.parameter_type.value,
-                            fd.parameters[i].span
-                        )) {
-                            ResultType::Err(e) semantic_checker_push_error(&sc, e);,
-                            ResultType::Ok(exp) {
-                                if (!type_compatible(exp, actual)) {
-                                    semantic_checker_push_error(&sc, semantic_checker_error_expected_found(
-                                        ErrorSeverity::HIGH,
-                                        "Argument type mismatch in call to '" + name + "'.",
-                                        type_to_string(exp),
-                                        type_to_string(actual),
-                                        call.arguments[i].span
-                                    ));
-                                }
+    if (found_fn matches OptionFunctionDeclaration::Some(fd)) {
+        if (vector_size(&call.arguments) != vector_size(&fd.parameters)) {
+            semantic_checker_push_error(&sc, semantic_checker_error_at(
+                ErrorSeverity::HIGH,
+                "Function '" + name + "' expects " + vector_size(&fd.parameters) as str
+                    + " argument(s), got " + vector_size(&call.arguments) as str + ".",
+                span
+            ));
+        }
+        let n = vector_size(&call.arguments);
+        if (vector_size(&fd.parameters) < n) n = vector_size(&fd.parameters);
+        for (let i = 0; i < n; i += 1) {
+            semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
+            match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
+                ResultType::Err(e) semantic_checker_push_error(&sc, e);,
+                ResultType::Ok(actual) {
+                    match (semantic_checker_resolve_type(
+                        &sc, &program,
+                        fd.parameters[i].value.parameter_type.value,
+                        fd.parameters[i].span
+                    )) {
+                        ResultType::Err(e) semantic_checker_push_error(&sc, e);,
+                        ResultType::Ok(exp) {
+                            if (!type_compatible(exp, actual)) {
+                                semantic_checker_push_error(&sc, semantic_checker_error_expected_found(
+                                    ErrorSeverity::HIGH,
+                                    "Argument type mismatch in call to '" + name + "'.",
+                                    type_to_string(exp),
+                                    type_to_string(actual),
+                                    call.arguments[i].span
+                                ));
                             }
                         }
                     }
                 }
             }
-            match (semantic_checker_resolve_type(&sc, &program, fd.return_type.value, fd.return_type.span)) {
-                ResultType::Err(e) semantic_checker_push_error(&sc, e);,
-                ResultType::Ok(rt) semantic_checker_set_last(&sc, rt);
-            }
-            return;
-        },
-        OptionFunctionDeclaration::None {}
+        }
+        match (semantic_checker_resolve_type(&sc, &program, fd.return_type.value, fd.return_type.span)) {
+            ResultType::Err(e) semantic_checker_push_error(&sc, e);,
+            ResultType::Ok(rt) semantic_checker_set_last(&sc, rt);
+        }
+        return;
     }
 
     if (found_extern) {
         for (let i = 0; i < vector_size(&call.arguments); i += 1) {
             semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
-            match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
-                ResultType::Err(e) semantic_checker_push_error(&sc, e);,
-                ResultType::Ok {}
+            if (semantic_checker_read_last(&sc, call.arguments[i].value.value.span) matches ResultType::Err(e)) {
+                semantic_checker_push_error(&sc, e);
             }
         }
         match (semantic_checker_resolve_type(&sc, &program, extern_ret, span)) {
@@ -1239,39 +1198,35 @@ fn semantic_checker_check_function_call(
     }
 
     # Built-in std functions
-    match (std_function_lookup(name)) {
-        OptionStdFunction::Some(std_fn) {
-            let collected: Type[] = [];
-            let arg_exprs: Expression[] = [];
-            let arg_spans: Span[] = [];
+    if (std_function_lookup(name) matches OptionStdFunction::Some(std_fn)) {
+        let collected: Type[] = [];
+        let arg_exprs: Expression[] = [];
+        let arg_spans: Span[] = [];
 
-            for (let i = 0; i < vector_size(&call.arguments); i += 1) {
-                semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
-                match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
-                    ResultType::Err(e) semantic_checker_push_error(&sc, e);,
-                    ResultType::Ok(t) vector_push(&collected, t);
-                }
-                vector_push(&arg_exprs, call.arguments[i].value.value.value);
-                vector_push(&arg_spans, call.arguments[i].span);
+        for (let i = 0; i < vector_size(&call.arguments); i += 1) {
+            semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
+            match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
+                ResultType::Err(e) semantic_checker_push_error(&sc, e);,
+                ResultType::Ok(t) vector_push(&collected, t);
             }
+            vector_push(&arg_exprs, call.arguments[i].value.value.value);
+            vector_push(&arg_spans, call.arguments[i].span);
+        }
 
-            if (vector_size(&collected) == vector_size(&call.arguments)) {
-                match (semantic_checker_check_std_call(collected, arg_exprs, arg_spans, std_fn, span)) {
-                    ResultType::Ok(rt) semantic_checker_set_last(&sc, rt);,
-                    ResultType::Err(e) semantic_checker_push_error(&sc, e);
-                }
+        if (vector_size(&collected) == vector_size(&call.arguments)) {
+            match (semantic_checker_check_std_call(collected, arg_exprs, arg_spans, std_fn, span)) {
+                ResultType::Ok(rt) semantic_checker_set_last(&sc, rt);,
+                ResultType::Err(e) semantic_checker_push_error(&sc, e);
             }
-            return;
-        },
-        OptionStdFunction::None {}
+        }
+        return;
     }
 
     # Truly unknown
     for (let i = 0; i < vector_size(&call.arguments); i += 1) {
         semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
-        match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
-            ResultType::Err(e) semantic_checker_push_error(&sc, e);,
-            ResultType::Ok {}
+        if (semantic_checker_read_last(&sc, call.arguments[i].value.value.span) matches ResultType::Err(e)) {
+            semantic_checker_push_error(&sc, e);
         }
     }
     semantic_checker_push_error(&sc, semantic_checker_error_at(

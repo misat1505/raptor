@@ -68,9 +68,8 @@ fn macro_expander_check_debug_dependencies(
         DeclaredType::Enum(enum_declaration) {
             parent_type = enum_declaration.identifier.value;
             for (let i = 0; i < vector_size(&enum_declaration.members); i += 1) {
-                match (enum_declaration.members[i].value.member_type) {
-                    OptionTypeNode::Some(t) vector_push(&member_types, t.value);,
-                    OptionTypeNode::None {}
+                if (enum_declaration.members[i].value.member_type matches OptionTypeNode::Some(t)) {
+                    vector_push(&member_types, t.value);
                 }
             }
         }
@@ -129,9 +128,8 @@ fn macro_expander_struct_debug_block(
 
     let has_vector = false;
     for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
-        match (struct_declaration.members[i].value.member_type.value) {
-            Type::Vector has_vector = true;,
-            rest {}
+        if (struct_declaration.members[i].value.member_type.value matches Type::Vector) {
+            has_vector = true;
         }
     }
 

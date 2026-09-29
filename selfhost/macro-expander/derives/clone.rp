@@ -17,20 +17,14 @@ fn macro_expander_derive_clone(
     match (declared_type) {
         DeclaredType::Struct(struct_declaration) {
             let opt = macro_expander_generate_struct_clone(&me, &program, struct_declaration, derive_span);
-            match (opt) {
-                OptionFunctionDeclaration::Some(function) {
-                    macro_expander_insert_function(&me, &program, function, derive_span);
-                },
-                OptionFunctionDeclaration::None {}
+            if (opt matches OptionFunctionDeclaration::Some(function)) {
+                macro_expander_insert_function(&me, &program, function, derive_span);
             }
         },
         DeclaredType::Enum(enum_declaration) {
             let opt = macro_expander_generate_enum_clone(&me, &program, enum_declaration, derive_span);
-            match (opt) {
-                OptionFunctionDeclaration::Some(function) {
-                    macro_expander_insert_function(&me, &program, function, derive_span);
-                },
-                OptionFunctionDeclaration::None {}
+            if (opt matches OptionFunctionDeclaration::Some(function)) {
+                macro_expander_insert_function(&me, &program, function, derive_span);
             }
         }
     }
@@ -145,13 +139,10 @@ fn macro_expander_generate_enum_clone(
     let variable_name = to_snake_case(enum_name);
 
     for (let i = 0; i < vector_size(&declaration.members); i += 1) {
-        match (declaration.members[i].value.member_type) {
-            OptionTypeNode::Some(t) {
-                if (!macro_expander_can_clone_type(&me, &program, t.value, enum_name, derive_span)) {
-                    return OptionFunctionDeclaration::None;
-                }
-            },
-            OptionTypeNode::None {}
+        if (declaration.members[i].value.member_type matches OptionTypeNode::Some(t)) {
+            if (!macro_expander_can_clone_type(&me, &program, t.value, enum_name, derive_span)) {
+                return OptionFunctionDeclaration::None;
+            }
         }
     }
 

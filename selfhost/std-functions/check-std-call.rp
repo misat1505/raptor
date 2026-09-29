@@ -44,37 +44,31 @@ fn semantic_checker_check_std_call(
     Span span
 ): ResultType {
     # Arity for fixed signatures (custom checkers re-check arity themselves).
-    match (std_fn.type_check_kind) {
-        StdTypeCheckKind::None {
-            if (vector_size(&collected_arg_types) != vector_size(&std_fn.params)) {
-                return ResultType::Err(semantic_checker_error_new(
-                    ErrorSeverity::HIGH,
-                    "Invalid usage of built-in function '" + std_fn.name + "'. Expected "
-                        + vector_size(&std_fn.params) as str + " argument(s), got "
-                        + vector_size(&collected_arg_types) as str + ".",
-                    span
-                ));
-            }
-        },
-        rest {}
+    if (std_fn.type_check_kind matches StdTypeCheckKind::None) {
+        if (vector_size(&collected_arg_types) != vector_size(&std_fn.params)) {
+            return ResultType::Err(semantic_checker_error_new(
+                ErrorSeverity::HIGH,
+                "Invalid usage of built-in function '" + std_fn.name + "'. Expected "
+                    + vector_size(&std_fn.params) as str + " argument(s), got "
+                    + vector_size(&collected_arg_types) as str + ".",
+                span
+            ));
+        }
     }
 
     # Passed-by reference constraints
     let n = vector_size(&std_fn.passed_by);
     if (vector_size(&arg_expressions) < n) n = vector_size(&arg_expressions);
     for (let i = 0; i < n; i += 1) {
-        match (std_fn.passed_by[i]) {
-            PassedBy::Reference {
-                if (!is_valid_reference_expression(arg_expressions[i])) {
-                    return ResultType::Err(semantic_checker_error_new(
-                        ErrorSeverity::HIGH,
-                        "Parameter " + i as str + " of function `" + std_fn.name
-                            + "` must be a variable, index, or field access when passed by reference.",
-                        arg_spans[i]
-                    ));
-                }
-            },
-            PassedBy::Value {}
+        if (std_fn.passed_by[i] matches PassedBy::Reference) {
+            if (!is_valid_reference_expression(arg_expressions[i])) {
+                return ResultType::Err(semantic_checker_error_new(
+                    ErrorSeverity::HIGH,
+                    "Parameter " + i as str + " of function `" + std_fn.name
+                        + "` must be a variable, index, or field access when passed by reference.",
+                    arg_spans[i]
+                ));
+            }
         }
     }
 

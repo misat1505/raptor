@@ -367,6 +367,7 @@ fn semantic_checker_check_assignment(
         OptionType::Some(base_ty) {
             let current = base_ty;
             for (let i = 0; i < vector_size(&assign.accessors); i += 1) {
+                stack_mark_used(&sc.stack, assign.identifier.value);
                 match (assign.accessors[i].value) {
                     Accessor::Index(index_expr) {
                         semantic_checker_visit_expression(&sc, &program, index_expr);
@@ -692,6 +693,7 @@ fn semantic_checker_check_match(
                                     OptionIdentifierNode::None {}
                                 }
                                 semantic_checker_visit_block(&sc, &program, arm.value.block);
+                                semantic_checker_unused_warn(&sc);
                                 stack_pop_scope(&sc.stack);
                             }
                         }

@@ -1,6 +1,5 @@
 # ============================================================
 # Mirrors src/backend/llvm/compiler/mod.rs + core.rs
-# Textual LLVM IR compiler (no inkwell).
 # ============================================================
 
 import "../../frontend/parser/ast.rp";
@@ -10,8 +9,8 @@ import "./types-ir.rp";
 
 struct CompilerVar {
     str name,
-    str ptr,   # alloca name e.g. %x.addr
-    str ty     # llvm type string
+    str ptr,
+    str ty
 };
 
 struct LlvmCompiler {
@@ -20,15 +19,18 @@ struct LlvmCompiler {
     str last_value,
     str last_type,
     str[] errors,
-    # break/continue targets
     str[] break_stack,
     str[] continue_stack,
-    # function return type of current body
     str current_ret_ty,
-    bool has_terminator
+    bool has_terminator,
+    Program program
 };
 
 fn llvm_compiler_new(): LlvmCompiler {
+    let empty_stmts: StatementNode[] = [];
+    let empty_fns: FunctionDeclarationNode[] = [];
+    let empty_ext: ExternFunctionDeclarationNode[] = [];
+    let empty_types: DeclaredTypeNode[] = [];
     return LlvmCompiler {
         ir: ir_builder_new(),
         locals: [],
@@ -38,7 +40,13 @@ fn llvm_compiler_new(): LlvmCompiler {
         break_stack: [],
         continue_stack: [],
         current_ret_ty: "i32",
-        has_terminator: false
+        has_terminator: false,
+        program: Program {
+            statements: empty_stmts,
+            functions: empty_fns,
+            extern_functions: empty_ext,
+            declared_types: empty_types
+        }
     };
 }
 
@@ -61,10 +69,8 @@ fn llvm_compiler_find_local(&LlvmCompiler c, str name): i64 {
 }
 
 fn llvm_compiler_declare_local(&LlvmCompiler c, str name, str ty): str {
-    let ptr = "%" + name + ".addr";
-    # Avoid duplicate alloca names by suffixing depth
     let n = vector_size(&c.locals);
-    ptr = "%" + name + "." + n as str + ".addr";
+    let ptr = "%" + name + "." + n as str + ".addr";
     ir_emit(&c.ir, "  " + ptr + " = alloca " + ty);
     vector_push(&c.locals, CompilerVar { name: name, ptr: ptr, ty: ty });
     return ptr;
@@ -80,4 +86,89 @@ fn llvm_compiler_pop_scope(&LlvmCompiler c, i64 marker): void {
         vector_push(&kept, c.locals[i]);
     }
     c.locals = kept;
+}
+
+fn llvm_lookup_struct(&LlvmCompiler c, str name): OptionStructDeclaration {
+    for (let i = 0; i < vector_size(&c.program.declared_types); i += 1) {
+        match (c.program.declared_types[i].value) {
+            DeclaredType::Struct(s) {
+                if (s.identifier.value == name) {
+                    return OptionStructDeclaration::Some(s);
+                }
+            },
+            rest {}
+        }
+    }
+    return OptionStructDeclaration::None;
+}
+
+fn llvm_lookup_enum(&LlvmCompiler c, str name): OptionEnumDeclaration {
+    for (let i = 0; i < vector_size(&c.program.declared_types); i += 1) {
+        match (c.program.declared_types[i].value) {
+            DeclaredType::Enum(e) {
+                if (e.identifier.value == name) {
+                    return OptionEnumDeclaration::Some(e);
+                }
+            },
+            rest {}
+        }
+    }
+    return OptionEnumDeclaration::None;
+}
+
+fn llvm_enum_variant_tag(&LlvmCompiler c, str enum_name, str variant): i64 {
+    match (llvm_lookup_enum(&c, enum_name)) {
+        OptionEnumDeclaration::Some(ed) {
+            for (let i = 0; i < vector_size(&ed.members); i += 1) {
+                if (ed.members[i].value.identifier.value == variant) {
+                    return i;
+                }
+            }
+        },
+        OptionEnumDeclaration::None {}
+    }
+    return 0;
+}
+
+fn llvm_struct_field_index(&LlvmCompiler c, str struct_name, str field): i64 {
+    match (llvm_lookup_struct(&c, struct_name)) {
+        OptionStructDeclaration::Some(sd) {
+            for (let i = 0; i < vector_size(&sd.members); i += 1) {
+                if (sd.members[i].value.identifier.value == field) {
+                    return i;
+                }
+            }
+        },
+        OptionStructDeclaration::None {}
+    }
+    return 0;
+}
+
+fn llvm_struct_field_count(&LlvmCompiler c, str struct_name): i64 {
+    match (llvm_lookup_struct(&c, struct_name)) {
+        OptionStructDeclaration::Some(sd) {
+            return vector_size(&sd.members);
+        },
+        OptionStructDeclaration::None return 0;
+    }
+}
+
+fn llvm_to_str_value(&LlvmCompiler c, str value, str ty): str {
+    if (ty == "ptr") {
+        return value;
+    }
+    let buf = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + buf + " = call ptr @malloc(i64 64)");
+    let fmt = ir_cstr_global(&c.ir, "%lld");
+    let n = 5;
+    let fp = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + fp + " = getelementptr inbounds [" + n as str + " x i8], ptr " + fmt + ", i64 0, i64 0");
+    let v = value;
+    if (ty == "i1") {
+        let e = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + e + " = zext i1 " + value + " to i64");
+        v = e;
+    }
+    ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 64, ptr " + fp + ", i64 " + v + ")");
+    return buf;
 }

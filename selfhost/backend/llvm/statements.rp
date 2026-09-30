@@ -51,17 +51,76 @@ fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
 
 fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
     llvm_compile_expression(&c, assign.value);
+    let rval = c.last_value;
+    let rty = c.last_type;
     let idx = llvm_compiler_find_local(&c, assign.identifier.value);
     if (idx < 0) {
         llvm_compiler_error(&c, "Assign to undeclared '" + assign.identifier.value + "'");
         return;
     }
-    if (vector_size(&assign.accessors) > 0) {
-        llvm_compiler_error(&c, "Indexed/field assignment not yet lowered in selfhost IR");
+    let v = c.locals[idx];
+    if (vector_size(&assign.accessors) == 0) {
+        ir_emit(&c.ir, "  store " + rty + " " + rval + ", ptr " + v.ptr);
         return;
     }
-    let v = c.locals[idx];
-    ir_emit(&c.ir, "  store " + c.last_type + " " + c.last_value + ", ptr " + v.ptr);
+    # Load base
+    let base = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + base + " = load " + v.ty + ", ptr " + v.ptr);
+    let cur = base;
+    for (let i = 0; i < vector_size(&assign.accessors); i += 1) {
+        let is_last = i == vector_size(&assign.accessors) - 1;
+        match (assign.accessors[i].value) {
+            Accessor::Field(field) {
+                let fidx = 0;
+                for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
+                    match (c.program.declared_types[t].value) {
+                        DeclaredType::Struct(s) {
+                            for (let m = 0; m < vector_size(&s.members); m += 1) {
+                                if (s.members[m].value.identifier.value == field.value) {
+                                    fidx = m;
+                                }
+                            }
+                        },
+                        rest {}
+                    }
+                }
+                let gep = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + gep + " = getelementptr i8, ptr " + cur + ", i64 " + (fidx * 8) as str);
+                if (is_last) {
+                    if (rty == "ptr") {
+                        ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + gep);
+                    } else {
+                        ir_emit(&c.ir, "  store i64 " + rval + ", ptr " + gep);
+                    }
+                } else {
+                    let n = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + n + " = load ptr, ptr " + gep);
+                    cur = n;
+                }
+            },
+            Accessor::Index(index_expr) {
+                llvm_compile_expression(&c, index_expr);
+                let i_val = c.last_value;
+                let data_p = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + data_p + " = getelementptr i8, ptr " + cur + ", i64 8");
+                let data = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + data + " = load ptr, ptr " + data_p);
+                let slot = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + slot + " = getelementptr ptr, ptr " + data + ", i64 " + i_val);
+                if (is_last) {
+                    if (rty == "ptr") {
+                        ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + slot);
+                    } else {
+                        ir_emit(&c.ir, "  store i64 " + rval + ", ptr " + slot);
+                    }
+                } else {
+                    let n = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + n + " = load ptr, ptr " + slot);
+                    cur = n;
+                }
+            }
+        }
+    }
 }
 
 fn llvm_compile_if(&LlvmCompiler c, ConditionalStatement stmt): void {
@@ -198,6 +257,78 @@ fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
     llvm_compiler_pop_scope(&c, marker);
 }
 
+
+fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
+    llvm_compile_expression(&c, m.expression);
+    let scrut = c.last_value;
+    # load tag at offset 8
+    let tag_p = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + tag_p + " = getelementptr i8, ptr " + scrut + ", i64 8");
+    let tag = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + tag + " = load i64, ptr " + tag_p);
+    let pay_p = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + pay_p + " = getelementptr i8, ptr " + scrut + ", i64 16");
+
+    let end_l = ir_label(&c.ir, "match.end");
+    let arm_labels: str[] = [];
+    for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
+        vector_push(&arm_labels, ir_label(&c.ir, "match.arm"));
+    }
+    let rest_l = ir_label(&c.ir, "match.rest");
+
+    # chain of icmp + br
+    for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
+        let arm = m.match_arms[i];
+        let expected = llvm_enum_variant_tag(&c, arm.value.enum_name.value, arm.value.variant_name.value);
+        let cmp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + cmp + " = icmp eq i64 " + tag + ", " + expected as str);
+        let next_check = ir_label(&c.ir, "match.chk");
+        ir_emit(&c.ir, "  br i1 " + cmp + ", label %" + arm_labels[i] + ", label %" + next_check);
+        ir_emit(&c.ir, next_check + ":");
+    }
+    # no arm matched -> rest or end
+    match (m.rest_arm) {
+        OptionBlockNode::Some(b) ir_emit(&c.ir, "  br label %" + rest_l);,
+        OptionBlockNode::None ir_emit(&c.ir, "  br label %" + end_l);
+    }
+
+    for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
+        let arm = m.match_arms[i];
+        ir_emit(&c.ir, arm_labels[i] + ":");
+        c.has_terminator = false;
+        let marker = llvm_compiler_push_scope_marker(&c);
+        match (arm.value.variant_value) {
+            OptionIdentifierNode::Some(bind) {
+                let ptr = llvm_compiler_declare_local(&c, bind.value, "ptr");
+                let pay = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + pay + " = load ptr, ptr " + pay_p);
+                ir_emit(&c.ir, "  store ptr " + pay + ", ptr " + ptr);
+            },
+            OptionIdentifierNode::None {}
+        }
+        llvm_compile_block(&c, arm.value.block);
+        llvm_compiler_pop_scope(&c, marker);
+        if (!c.has_terminator) {
+            ir_emit(&c.ir, "  br label %" + end_l);
+        }
+    }
+
+    match (m.rest_arm) {
+        OptionBlockNode::Some(b) {
+            ir_emit(&c.ir, rest_l + ":");
+            c.has_terminator = false;
+            llvm_compile_block(&c, b);
+            if (!c.has_terminator) {
+                ir_emit(&c.ir, "  br label %" + end_l);
+            }
+        },
+        OptionBlockNode::None {}
+    }
+
+    ir_emit(&c.ir, end_l + ":");
+    c.has_terminator = false;
+}
+
 fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
     match (node.value) {
         Statement::Declaration(d) llvm_compile_declaration(&c, d);,
@@ -212,14 +343,71 @@ fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
                     if (c.current_ret_ty == "void") {
                         ir_emit(&c.ir, "  ret void");
                     } else {
-                        ir_emit(&c.ir, "  ret " + c.last_type + " " + c.last_value);
+                        let v = c.last_value;
+                        let from = c.last_type;
+                        let to = c.current_ret_ty;
+                        if (from != to) {
+                            if (from == "ptr" && to == "i64") {
+                                let t = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + t + " = ptrtoint ptr " + v + " to i64");
+                                v = t;
+                            } else {
+                                if (from == "ptr" && to == "i32") {
+                                    let t = ir_tmp(&c.ir);
+                                    ir_emit(&c.ir, "  " + t + " = ptrtoint ptr " + v + " to i64");
+                                    let t2 = ir_tmp(&c.ir);
+                                    ir_emit(&c.ir, "  " + t2 + " = trunc i64 " + t + " to i32");
+                                    v = t2;
+                                } else {
+                                    if (from == "i64" && to == "ptr") {
+                                        let t = ir_tmp(&c.ir);
+                                        ir_emit(&c.ir, "  " + t + " = inttoptr i64 " + v + " to ptr");
+                                        v = t;
+                                    } else {
+                                        if (from == "i64" && to == "i32") {
+                                            let t = ir_tmp(&c.ir);
+                                            ir_emit(&c.ir, "  " + t + " = trunc i64 " + v + " to i32");
+                                            v = t;
+                                        } else {
+                                            if (from == "i32" && to == "i64") {
+                                                let t = ir_tmp(&c.ir);
+                                                ir_emit(&c.ir, "  " + t + " = sext i32 " + v + " to i64");
+                                                v = t;
+                                            } else {
+                                                if (from == "i1" && to == "i64") {
+                                                    let t = ir_tmp(&c.ir);
+                                                    ir_emit(&c.ir, "  " + t + " = zext i1 " + v + " to i64");
+                                                    v = t;
+                                                } else {
+                                                    if (from == "i1" && to == "i32") {
+                                                        let t = ir_tmp(&c.ir);
+                                                        ir_emit(&c.ir, "  " + t + " = zext i1 " + v + " to i32");
+                                                        v = t;
+                                                    } else {
+                                                        # last resort: bitcast if same width-ish
+                                                        let t = ir_tmp(&c.ir);
+                                                        ir_emit(&c.ir, "  " + t + " = bitcast " + from + " " + v + " to " + to);
+                                                        v = t;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ir_emit(&c.ir, "  ret " + to + " " + v);
                     }
                 },
                 OptionExpressionNode::None {
-                    if (c.current_ret_ty == "i32") {
-                        ir_emit(&c.ir, "  ret i32 0");
-                    } else {
+                    if (c.current_ret_ty == "void") {
                         ir_emit(&c.ir, "  ret void");
+                    } else {
+                        if (c.current_ret_ty == "ptr") {
+                            ir_emit(&c.ir, "  ret ptr null");
+                        } else {
+                            ir_emit(&c.ir, "  ret " + c.current_ret_ty + " 0");
+                        }
                     }
                 }
             }
@@ -248,7 +436,7 @@ fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
             llvm_compile_function_call(&c, call);
         },
         Statement::Match(m) {
-            llvm_compiler_error(&c, "match not yet lowered in selfhost IR");
+            llvm_compile_match(&c, m);
         },
         Statement::Switch(s) {
             llvm_compiler_error(&c, "switch not yet lowered in selfhost IR");

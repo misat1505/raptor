@@ -1,11 +1,11 @@
 # ============================================================
 # Textual LLVM IR builder (selfhost substitute for inkwell).
-# Mirrors the role of inkwell::builder::Builder + Module.
 # ============================================================
 
 struct IrBuilder {
-    str[] lines,
-    str[] globals,
+    str[] header,   # target datalayout / triple / comments first
+    str[] lines,    # body: declares + defines
+    str[] globals,  # @.str.* etc. — emitted AFTER header, BEFORE body
     i64 tmp_id,
     i64 str_id,
     i64 label_id
@@ -13,12 +13,17 @@ struct IrBuilder {
 
 fn ir_builder_new(): IrBuilder {
     return IrBuilder {
+        header: [],
         lines: [],
         globals: [],
         tmp_id: 0,
         str_id: 0,
         label_id: 0
     };
+}
+
+fn ir_emit_header(&IrBuilder b, str line): void {
+    vector_push(&b.header, line);
 }
 
 fn ir_emit(&IrBuilder b, str line): void {
@@ -44,7 +49,6 @@ fn ir_label(&IrBuilder b, str prefix): str {
 fn ir_cstr_global(&IrBuilder b, str value): str {
     let name = "@.str." + b.str_id as str;
     b.str_id += 1;
-    # Escape for LLVM string constant
     let escaped = "";
     for (let i = 0; i < str_len(value); i += 1) {
         let c = value[i];
@@ -71,8 +75,15 @@ fn ir_cstr_global(&IrBuilder b, str value): str {
     return name;
 }
 
+# Order required by LLVM: header → globals → body
 fn ir_finish(&IrBuilder b): str {
     let out = "";
+    for (let i = 0; i < vector_size(&b.header); i += 1) {
+        out += b.header[i] + "\n";
+    }
+    if (vector_size(&b.header) > 0) {
+        out += "\n";
+    }
     for (let i = 0; i < vector_size(&b.globals); i += 1) {
         out += b.globals[i] + "\n";
     }

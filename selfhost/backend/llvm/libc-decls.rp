@@ -40,6 +40,8 @@ fn ir_emit_libc_declarations(&IrBuilder b): void {
     ir_emit(&b, "declare i32 @close(i32)");
     ir_emit(&b, "declare i32 @connect(i32, ptr, i32)");
     ir_emit(&b, "declare i32 @inet_addr(ptr)");
+    ir_emit(&b, "declare ptr @fgets(ptr, i32, ptr)");
+    ir_emit(&b, "@stdin = external global ptr");
     ir_emit(&b, "");
     # CLI globals (mirrors declare_main_function raptor_argc/argv)
     ir_emit(&b, "@raptor_argc = internal global i32 0");

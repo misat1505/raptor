@@ -12,7 +12,7 @@ fn llvm_compile_literal(&LlvmCompiler c, Literal lit): void {
         Literal::True llvm_compiler_set_last(&c, "1", "i1");,
         Literal::False llvm_compiler_set_last(&c, "0", "i1");,
         Literal::I64(v) llvm_compiler_set_last(&c, v as str, "i64");,
-        Literal::F64(v) llvm_compiler_set_last(&c, v as str, "double");,
+        Literal::F64(v) llvm_compiler_set_last(&c, llvm_double_const(v as str), "double");,
         Literal::String(s) {
             let g = ir_cstr_global(&c.ir, s);
             let n = str_len(s) + 1;
@@ -26,14 +26,43 @@ fn llvm_compile_literal(&LlvmCompiler c, Literal lit): void {
 
 fn llvm_compile_binary_i64(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, str op): void {
     llvm_compile_expression(&c, left);
-    let lv = c.last_value;
+    let lv = llvm_as_i64(&c, c.last_value, c.last_type);
     llvm_compile_expression(&c, right);
-    let rv = c.last_value;
+    let rv = llvm_as_i64(&c, c.last_value, c.last_type);
     let result = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + result + " = " + op + " i64 " + lv + ", " + rv);
     llvm_compiler_set_last(&c, result, "i64");
 }
 
+# Slot storage (struct/enum payload): preserve f64 bits via bitcast
+fn llvm_to_slot_i64(&LlvmCompiler c, str value, str ty): str {
+    if (ty == "i64") {
+        return value;
+    }
+    if (ty == "double") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = bitcast double " + value + " to i64");
+        return t;
+    }
+    if (ty == "ptr") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = ptrtoint ptr " + value + " to i64");
+        return t;
+    }
+    if (ty == "i1") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = zext i1 " + value + " to i64");
+        return t;
+    }
+    if (ty == "i8" || ty == "i16" || ty == "i32") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = zext " + ty + " " + value + " to i64");
+        return t;
+    }
+    return value;
+}
+
+# Numeric / cmp path: f64 via fptosi
 fn llvm_as_i64(&LlvmCompiler c, str value, str ty): str {
     if (ty == "i64") {
         return value;
@@ -69,7 +98,6 @@ fn llvm_compile_cmp(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, 
     let rv = c.last_value;
     let rt = c.last_type;
     let result = ir_tmp(&c.ir);
-
     if (lt == "ptr" && rt == "ptr") {
         ir_emit(&c.ir, "  " + result + " = icmp " + pred + " ptr " + lv + ", " + rv);
     } else {
@@ -84,19 +112,15 @@ fn llvm_compile_cmp(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, 
 fn llvm_vector_alloc_empty(&LlvmCompiler c): str {
     let p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + p + " = call ptr @malloc(i64 32)");
-    # rc = 1
     let rc_gep = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + rc_gep + " = getelementptr i8, ptr " + p + ", i64 0");
     ir_emit(&c.ir, "  store i64 1, ptr " + rc_gep);
-    # data = null
     let d_gep = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + d_gep + " = getelementptr i8, ptr " + p + ", i64 8");
     ir_emit(&c.ir, "  store ptr null, ptr " + d_gep);
-    # len = 0
     let l_gep = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + l_gep + " = getelementptr i8, ptr " + p + ", i64 16");
     ir_emit(&c.ir, "  store i64 0, ptr " + l_gep);
-    # cap = 0
     let c_gep = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + c_gep + " = getelementptr i8, ptr " + p + ", i64 24");
     ir_emit(&c.ir, "  store i64 0, ptr " + c_gep);
@@ -104,7 +128,6 @@ fn llvm_vector_alloc_empty(&LlvmCompiler c): str {
 }
 
 fn llvm_vector_push_ptr(&LlvmCompiler c, str vec, str elem): void {
-    # load len, cap; grow if needed; store elem at data[len]; len++
     let len_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + len_p + " = getelementptr i8, ptr " + vec + ", i64 16");
     let len = ir_tmp(&c.ir);
@@ -153,19 +176,16 @@ fn llvm_vector_push_ptr(&LlvmCompiler c, str vec, str elem): void {
 }
 
 fn llvm_vector_push_i64(&LlvmCompiler c, str vec, str elem, str elem_ty): void {
-    # coerce to i64 (elem may be i32/i1/ptr)
-    let elem_i64 = llvm_as_i64(&c, elem, elem_ty);
+    let elem_i64 = llvm_to_slot_i64(&c, elem, elem_ty);
 
     let len_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + len_p + " = getelementptr i8, ptr " + vec + ", i64 16");
     let len = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + len + " = load i64, ptr " + len_p);
-
     let cap_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + cap_p + " = getelementptr i8, ptr " + vec + ", i64 24");
     let cap = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + cap + " = load i64, ptr " + cap_p);
-
     let data_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + data_p + " = getelementptr i8, ptr " + vec + ", i64 8");
     let data = ir_tmp(&c.ir);
@@ -218,7 +238,7 @@ fn llvm_compile_vector_literal(&LlvmCompiler c, ExpressionNode[] elems): void {
     llvm_compiler_set_last(&c, vec, "ptr");
 }
 
-# ---- Struct: n fields as ptr/i64 slots + trailing rc ----
+# ---- Struct: n fields as 8-byte slots + trailing rc ----
 fn llvm_compile_struct_literal(&LlvmCompiler c, StructLiteralNode node): void {
     let name = node.value.identifier.value;
     let nfields = llvm_struct_field_count(&c, name);
@@ -228,7 +248,6 @@ fn llvm_compile_struct_literal(&LlvmCompiler c, StructLiteralNode node): void {
     let bytes = (nfields + 1) * 8;
     let p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + p + " = call ptr @malloc(i64 " + bytes as str + ")");
-    # zero fill via memset alternative: store null/0 per slot
     for (let i = 0; i < nfields; i += 1) {
         let gep = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + gep + " = getelementptr i8, ptr " + p + ", i64 " + (i * 8) as str);
@@ -247,18 +266,7 @@ fn llvm_compile_struct_literal(&LlvmCompiler c, StructLiteralNode node): void {
         if (c.last_type == "ptr") {
             ir_emit(&c.ir, "  store ptr " + c.last_value + ", ptr " + gep);
         } else {
-            let sv = c.last_value;
-            if (c.last_type == "i1") {
-                let e = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + e + " = zext i1 " + sv + " to i64");
-                sv = e;
-            } else {
-                if (c.last_type == "i8" || c.last_type == "i16" || c.last_type == "i32") {
-                    let e = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + e + " = zext " + c.last_type + " " + sv + " to i64");
-                    sv = e;
-                }
-            }
+            let sv = llvm_to_slot_i64(&c, c.last_value, c.last_type);
             ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + gep);
         }
     }
@@ -284,18 +292,7 @@ fn llvm_compile_enum_literal(&LlvmCompiler c, EnumLiteralExpression el): void {
             if (c.last_type == "ptr") {
                 ir_emit(&c.ir, "  store ptr " + c.last_value + ", ptr " + pay_g);
             } else {
-                let sv = c.last_value;
-                if (c.last_type == "i1") {
-                    let e = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + e + " = zext i1 " + sv + " to i64");
-                    sv = e;
-                } else {
-                    if (c.last_type == "i8" || c.last_type == "i16" || c.last_type == "i32") {
-                        let e = ir_tmp(&c.ir);
-                        ir_emit(&c.ir, "  " + e + " = zext " + c.last_type + " " + sv + " to i64");
-                        sv = e;
-                    }
-                }
+                let sv = llvm_to_slot_i64(&c, c.last_value, c.last_type);
                 ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + pay_g);
             }
         },
@@ -309,33 +306,15 @@ fn llvm_compile_enum_literal(&LlvmCompiler c, EnumLiteralExpression el): void {
 fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
     llvm_compile_expression(&c, fa.instance);
     let base = c.last_value;
-    # Without static type of instance, treat as struct ptr; field index by name
-    # requires struct type — use field name hash order: try lookup via last known — fallback idx 0
-    # Heuristic: field name search across all structs
-    let idx = 0;
-    let found = false;
-    for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
-        match (c.program.declared_types[t].value) {
-            DeclaredType::Struct(s) {
-                for (let m = 0; m < vector_size(&s.members); m += 1) {
-                    if (s.members[m].value.identifier.value == fa.field.value) {
-                        idx = m;
-                        found = true;
-                    }
-                }
-            },
-            rest {}
-        }
-    }
-    let gep = ir_tmp(&c.ir);
-    ir_emit(&c.ir, "  " + gep + " = getelementptr i8, ptr " + base + ", i64 " + (idx * 8) as str);
 
+    let idx = 0;
     let field_ty = "i64";
     for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
         match (c.program.declared_types[t].value) {
             DeclaredType::Struct(s) {
                 for (let m = 0; m < vector_size(&s.members); m += 1) {
                     if (s.members[m].value.identifier.value == fa.field.value) {
+                        idx = m;
                         field_ty = type_to_llvm(s.members[m].value.member_type.value);
                     }
                 }
@@ -343,6 +322,9 @@ fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
             rest {}
         }
     }
+
+    let gep = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + gep + " = getelementptr i8, ptr " + base + ", i64 " + (idx * 8) as str);
 
     if (field_ty == "ptr") {
         let val = ir_tmp(&c.ir);
@@ -354,17 +336,23 @@ fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
         if (field_ty == "i64") {
             llvm_compiler_set_last(&c, raw, "i64");
         } else {
-            if (field_ty == "i1") {
-                let tr = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to i1");
-                llvm_compiler_set_last(&c, tr, "i1");
+            if (field_ty == "double") {
+                let d = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + d + " = bitcast i64 " + raw + " to double");
+                llvm_compiler_set_last(&c, d, "double");
             } else {
-                if (field_ty == "i8" || field_ty == "i16" || field_ty == "i32") {
+                if (field_ty == "i1") {
                     let tr = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to " + field_ty);
-                    llvm_compiler_set_last(&c, tr, field_ty);
+                    ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to i1");
+                    llvm_compiler_set_last(&c, tr, "i1");
                 } else {
-                    llvm_compiler_set_last(&c, raw, "i64");
+                    if (field_ty == "i8" || field_ty == "i16" || field_ty == "i32") {
+                        let tr = ir_tmp(&c.ir);
+                        ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to " + field_ty);
+                        llvm_compiler_set_last(&c, tr, field_ty);
+                    } else {
+                        llvm_compiler_set_last(&c, raw, "i64");
+                    }
                 }
             }
         }
@@ -374,10 +362,9 @@ fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
 fn llvm_compile_index(&LlvmCompiler c, IndexExpression ix): void {
     llvm_compile_expression(&c, ix.collection);
     let col = c.last_value;
-    let ct = c.last_type;
     llvm_compile_expression(&c, ix.index);
-    let idx = c.last_value;
-    # vector: load data ptr at +8, then gep
+    let idx = llvm_as_i64(&c, c.last_value, c.last_type);
+
     let data_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + data_p + " = getelementptr i8, ptr " + col + ", i64 8");
     let data = ir_tmp(&c.ir);
@@ -399,6 +386,7 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         vector_push(&arg_tys, c.last_type);
     }
 
+    # ========== IO ==========
     if (name == "println") {
         if (vector_size(&arg_vals) == 0) {
             let g = ir_cstr_global(&c.ir, "\n");
@@ -412,7 +400,6 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         let at = arg_tys[0];
         if (at != "ptr") {
             a = llvm_to_str_value(&c, a, at);
-            at = "ptr";
         }
         let fmt = ir_cstr_global(&c.ir, "%s\n");
         let fp = ir_tmp(&c.ir);
@@ -438,46 +425,41 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         return;
     }
 
-    if (name == "str_len") {
-        let r = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + r + " = call i64 @strlen(ptr " + arg_vals[0] + ")");
-        llvm_compiler_set_last(&c, r, "i64");
-        return;
-    }
-
-    if (name == "vector_size") {
-        let len_p = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + len_p + " = getelementptr i8, ptr " + arg_vals[0] + ", i64 16");
-        let r = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + r + " = load i64, ptr " + len_p);
-        llvm_compiler_set_last(&c, r, "i64");
-        return;
-    }
-
-    if (name == "vector_push") {
-        # arg0 = vector (ref), arg1 = element
-        if (arg_tys[1] == "ptr") {
-            llvm_vector_push_ptr(&c, arg_vals[0], arg_vals[1]);
-        } else {
-            llvm_vector_push_i64(&c, arg_vals[0], arg_vals[1], arg_tys[1]);
-        }
-
-        llvm_compiler_set_last(&c, "0", "i64");
-        return;
-    }
-
-    if (name == "sleep_ms") {
-        let micros = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + micros + " = mul i64 " + arg_vals[0] + ", 1000");
-        let trunc = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + trunc + " = trunc i64 " + micros + " to i32");
-        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @usleep(i32 " + trunc + ")");
-        llvm_compiler_set_last(&c, "0", "i64");
+    if (name == "input") {
+        # read up to 4095 chars from stdin via fgets
+        let buf = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + buf + " = call ptr @malloc(i64 4096)");
+        let stdin_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + stdin_p + " = load ptr, ptr @stdin");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call ptr @fgets(ptr " + buf + ", i32 4096, ptr " + stdin_p + ")");
+        # strip trailing newline if present
+        let ln = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + ln + " = call i64 @strlen(ptr " + buf + ")");
+        let cmp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + cmp + " = icmp ugt i64 " + ln + ", 0");
+        let strip_l = ir_label(&c.ir, "input.strip");
+        let done_l = ir_label(&c.ir, "input.done");
+        ir_emit(&c.ir, "  br i1 " + cmp + ", label %" + strip_l + ", label %" + done_l);
+        ir_emit(&c.ir, strip_l + ":");
+        let last_i = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + last_i + " = sub i64 " + ln + ", 1");
+        let last_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + last_p + " = getelementptr i8, ptr " + buf + ", i64 " + last_i);
+        let last_c = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + last_c + " = load i8, ptr " + last_p);
+        let is_nl = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + is_nl + " = icmp eq i8 " + last_c + ", 10");
+        let do_l = ir_label(&c.ir, "input.do_strip");
+        ir_emit(&c.ir, "  br i1 " + is_nl + ", label %" + do_l + ", label %" + done_l);
+        ir_emit(&c.ir, do_l + ":");
+        ir_emit(&c.ir, "  store i8 0, ptr " + last_p);
+        ir_emit(&c.ir, "  br label %" + done_l);
+        ir_emit(&c.ir, done_l + ":");
+        llvm_compiler_set_last(&c, buf, "ptr");
         return;
     }
 
     if (name == "cli_args") {
-        # Build str[] from argc/argv
         let argc32 = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + argc32 + " = load i32, ptr @raptor_argc");
         let argc = ir_tmp(&c.ir);
@@ -486,7 +468,6 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         ir_emit(&c.ir, "  " + argv + " = load ptr, ptr @raptor_argv");
         let vec = llvm_vector_alloc_empty(&c);
         let i_ptr = ir_tmp(&c.ir);
-        # use alloca for loop var
         ir_emit(&c.ir, "  " + i_ptr + " = alloca i64");
         ir_emit(&c.ir, "  store i64 0, ptr " + i_ptr);
         let cond_l = ir_label(&c.ir, "cli.cond");
@@ -504,7 +485,6 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         ir_emit(&c.ir, "  " + slot + " = getelementptr ptr, ptr " + argv + ", i64 " + i_val);
         let cstr = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + cstr + " = load ptr, ptr " + slot);
-        # strdup into owned buffer
         let ln = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + ln + " = call i64 @strlen(ptr " + cstr + ")");
         let sz = ir_tmp(&c.ir);
@@ -522,7 +502,170 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         return;
     }
 
-    # generic user / extern call
+    # ========== FILES ==========
+    if (name == "exists_file") {
+        let a = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + a + " = call i32 @access(ptr " + arg_vals[0] + ", i32 0)");
+        let ok = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + ok + " = icmp eq i32 " + a + ", 0");
+        llvm_compiler_set_last(&c, ok, "i1");
+        return;
+    }
+
+    if (name == "delete_file") {
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @remove(ptr " + arg_vals[0] + ")");
+        llvm_compiler_set_last(&c, "0", "i64");
+        return;
+    }
+
+    if (name == "read_file") {
+        let mode = ir_cstr_global(&c.ir, "rb");
+        let mode_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + mode_p + " = getelementptr inbounds [3 x i8], ptr " + mode + ", i64 0, i64 0");
+        let fp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + fp + " = call ptr @fopen(ptr " + arg_vals[0] + ", ptr " + mode_p + ")");
+        let is_null = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + is_null + " = icmp eq ptr " + fp + ", null");
+        let err_l = ir_label(&c.ir, "rf.err");
+        let ok_l = ir_label(&c.ir, "rf.ok");
+        let end_l = ir_label(&c.ir, "rf.end");
+        let res_slot = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + res_slot + " = alloca ptr");
+        ir_emit(&c.ir, "  br i1 " + is_null + ", label %" + err_l + ", label %" + ok_l);
+        ir_emit(&c.ir, err_l + ":");
+        let empty = ir_cstr_global(&c.ir, "");
+        let empty_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + empty_p + " = getelementptr inbounds [1 x i8], ptr " + empty + ", i64 0, i64 0");
+        ir_emit(&c.ir, "  store ptr " + empty_p + ", ptr " + res_slot);
+        ir_emit(&c.ir, "  br label %" + end_l);
+        ir_emit(&c.ir, ok_l + ":");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @fseek(ptr " + fp + ", i64 0, i32 2)");
+        let sz = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + sz + " = call i64 @ftell(ptr " + fp + ")");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @fseek(ptr " + fp + ", i64 0, i32 0)");
+        let bufsz = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + bufsz + " = add i64 " + sz + ", 1");
+        let buf = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + buf + " = call ptr @malloc(i64 " + bufsz + ")");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i64 @fread(ptr " + buf + ", i64 1, i64 " + sz + ", ptr " + fp + ")");
+        let nul_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + nul_p + " = getelementptr i8, ptr " + buf + ", i64 " + sz);
+        ir_emit(&c.ir, "  store i8 0, ptr " + nul_p);
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @fclose(ptr " + fp + ")");
+        ir_emit(&c.ir, "  store ptr " + buf + ", ptr " + res_slot);
+        ir_emit(&c.ir, "  br label %" + end_l);
+        ir_emit(&c.ir, end_l + ":");
+        let res = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + res + " = load ptr, ptr " + res_slot);
+        llvm_compiler_set_last(&c, res, "ptr");
+        return;
+    }
+
+    if (name == "write_file" || name == "append_file") {
+        let mode_s = "wb";
+        if (name == "append_file") {
+            mode_s = "ab";
+        }
+        let mode = ir_cstr_global(&c.ir, mode_s);
+        let mode_n = 3;
+        let mode_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + mode_p + " = getelementptr inbounds [" + mode_n as str + " x i8], ptr " + mode + ", i64 0, i64 0");
+        let fp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + fp + " = call ptr @fopen(ptr " + arg_vals[0] + ", ptr " + mode_p + ")");
+        let is_null = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + is_null + " = icmp eq ptr " + fp + ", null");
+        let skip_l = ir_label(&c.ir, "wf.skip");
+        let do_l = ir_label(&c.ir, "wf.do");
+        let end_l = ir_label(&c.ir, "wf.end");
+        ir_emit(&c.ir, "  br i1 " + is_null + ", label %" + skip_l + ", label %" + do_l);
+        ir_emit(&c.ir, do_l + ":");
+        let ln = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + ln + " = call i64 @strlen(ptr " + arg_vals[1] + ")");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i64 @fwrite(ptr " + arg_vals[1] + ", i64 1, i64 " + ln + ", ptr " + fp + ")");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @fclose(ptr " + fp + ")");
+        ir_emit(&c.ir, "  br label %" + end_l);
+        ir_emit(&c.ir, skip_l + ":");
+        ir_emit(&c.ir, "  br label %" + end_l);
+        ir_emit(&c.ir, end_l + ":");
+        llvm_compiler_set_last(&c, "0", "i64");
+        return;
+    }
+
+    # ========== VECTORS ==========
+    if (name == "vector_size") {
+        let len_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + len_p + " = getelementptr i8, ptr " + arg_vals[0] + ", i64 16");
+        let r = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + r + " = load i64, ptr " + len_p);
+        llvm_compiler_set_last(&c, r, "i64");
+        return;
+    }
+
+    if (name == "vector_push") {
+        if (arg_tys[1] == "ptr") {
+            llvm_vector_push_ptr(&c, arg_vals[0], arg_vals[1]);
+        } else {
+            llvm_vector_push_i64(&c, arg_vals[0], arg_vals[1], arg_tys[1]);
+        }
+        llvm_compiler_set_last(&c, "0", "i64");
+        return;
+    }
+
+    if (name == "vector_stringify") {
+        # minimal: return "[vector]"
+        let g = ir_cstr_global(&c.ir, "[vector]");
+        let p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + p + " = getelementptr inbounds [9 x i8], ptr " + g + ", i64 0, i64 0");
+        llvm_compiler_set_last(&c, p, "ptr");
+        return;
+    }
+
+    # ========== STRINGS ==========
+    if (name == "str_len") {
+        let r = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + r + " = call i64 @strlen(ptr " + arg_vals[0] + ")");
+        llvm_compiler_set_last(&c, r, "i64");
+        return;
+    }
+
+    # ========== TIME ==========
+    if (name == "sleep_ms") {
+        let micros = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + micros + " = mul i64 " + arg_vals[0] + ", 1000");
+        let trunc = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + trunc + " = trunc i64 " + micros + " to i32");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @usleep(i32 " + trunc + ")");
+        llvm_compiler_set_last(&c, "0", "i64");
+        return;
+    }
+
+    # ========== NETWORK (stubs via libc socket API — minimal) ==========
+    if (name == "tcp_close") {
+        let fd = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + fd + " = trunc i64 " + arg_vals[0] + " to i32");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @close(i32 " + fd + ")");
+        llvm_compiler_set_last(&c, "0", "i64");
+        return;
+    }
+
+    if (name == "tcp_listen" || name == "tcp_accept" || name == "tcp_connect" || name == "tcp_read" || name == "tcp_write") {
+        # TODO: full sockaddr setup; return -1 / empty for now so IR links
+        if (name == "tcp_read") {
+            let g = ir_cstr_global(&c.ir, "");
+            let p = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + p + " = getelementptr inbounds [1 x i8], ptr " + g + ", i64 0, i64 0");
+            llvm_compiler_set_last(&c, p, "ptr");
+        } else {
+            if (name == "tcp_write") {
+                llvm_compiler_set_last(&c, "0", "i64");
+            } else {
+                llvm_compiler_set_last(&c, "-1", "i64");
+            }
+        }
+        return;
+    }
+
+    # ========== user / extern ==========
     let ret_ty = "i64";
     for (let i = 0; i < vector_size(&c.program.functions); i += 1) {
         if (c.program.functions[i].value.identifier.value == name) {
@@ -547,12 +690,16 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         }
         args_ir += arg_tys[i] + " " + arg_vals[i];
     }
+    let link = name;
+    if (name == "main") {
+        link = "raptor_main";
+    }
     if (ret_ty == "void") {
-        ir_emit(&c.ir, "  call void @" + name + "(" + args_ir + ")");
+        ir_emit(&c.ir, "  call void @" + link + "(" + args_ir + ")");
         llvm_compiler_set_last(&c, "0", "i64");
     } else {
         let r = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + r + " = call " + ret_ty + " @" + name + "(" + args_ir + ")");
+        ir_emit(&c.ir, "  " + r + " = call " + ret_ty + " @" + link + "(" + args_ir + ")");
         llvm_compiler_set_last(&c, r, ret_ty);
     }
 }
@@ -596,8 +743,10 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
                 ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call ptr @strcat(ptr " + buf + ", ptr " + rptr + ")");
                 llvm_compiler_set_last(&c, buf, "ptr");
             } else {
+                let li = llvm_as_i64(&c, lv, lt);
+                let ri = llvm_as_i64(&c, rv, rt);
                 let result = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + result + " = add i64 " + lv + ", " + rv);
+                ir_emit(&c.ir, "  " + result + " = add i64 " + li + ", " + ri);
                 llvm_compiler_set_last(&c, result, "i64");
             }
         },
@@ -613,14 +762,29 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
         Expression::GreaterEqual(bin) llvm_compile_cmp(&c, bin.left, bin.right, "sge");,
         Expression::BooleanNegation(inner) {
             llvm_compile_expression(&c, inner);
+            let v = c.last_value;
+            let t = c.last_type;
+            if (t != "i1") {
+                if (t == "ptr") {
+                    let p = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + p + " = icmp ne ptr " + v + ", null");
+                    v = p;
+                } else {
+                    let as64 = llvm_as_i64(&c, v, t);
+                    let p = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + p + " = icmp ne i64 " + as64 + ", 0");
+                    v = p;
+                }
+            }
             let r = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + r + " = xor i1 " + c.last_value + ", true");
+            ir_emit(&c.ir, "  " + r + " = xor i1 " + v + ", true");
             llvm_compiler_set_last(&c, r, "i1");
         },
         Expression::ArithmeticNegation(inner) {
             llvm_compile_expression(&c, inner);
+            let v = llvm_as_i64(&c, c.last_value, c.last_type);
             let r = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + r + " = sub i64 0, " + c.last_value);
+            ir_emit(&c.ir, "  " + r + " = sub i64 0, " + v);
             llvm_compiler_set_last(&c, r, "i64");
         },
         Expression::FunctionCall(call) llvm_compile_function_call(&c, call);,
@@ -629,48 +793,38 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
             let from = c.last_type;
             let val = c.last_value;
             let to = type_to_llvm(cast.to_type.value);
-
             if (from == to) {
                 llvm_compiler_set_last(&c, val, to);
                 return;
             }
-
-            # → string / ptr (managed)
             if (to == "ptr") {
                 let s = llvm_to_str_value(&c, val, from);
                 llvm_compiler_set_last(&c, s, "ptr");
                 return;
             }
-
-            # wszystko inne: najpierw do i64, potem ewentualny trunc
             let as64 = llvm_as_i64(&c, val, from);
-
             if (to == "i64") {
                 llvm_compiler_set_last(&c, as64, "i64");
                 return;
             }
-
             if (to == "i1") {
                 let t = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + t + " = trunc i64 " + as64 + " to i1");
                 llvm_compiler_set_last(&c, t, "i1");
                 return;
             }
-
             if (to == "i8" || to == "i16" || to == "i32") {
                 let t = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + t + " = trunc i64 " + as64 + " to " + to);
                 llvm_compiler_set_last(&c, t, to);
                 return;
             }
-
             if (to == "double") {
                 let t = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + t + " = sitofp i64 " + as64 + " to double");
                 llvm_compiler_set_last(&c, t, "double");
                 return;
             }
-
             llvm_compiler_set_last(&c, as64, to);
         },
         Expression::Alternative(bin) {

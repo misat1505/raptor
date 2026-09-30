@@ -9,6 +9,8 @@ import "./ir-builder.rp";
 import "./types-ir.rp";
 
 fn llvm_mangle_fn_name(str name): str {
+    if (name == "main") return "@raptor_main";
+
     return "@" + name;
 }
 

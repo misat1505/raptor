@@ -191,6 +191,42 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         Ok(header_ptr)
     }
 
+    /// Allocate a managed `Str` header by copying a null-terminated C string.
+    pub fn build_str_from_cstr(
+        &mut self,
+        cstr: inkwell::values::PointerValue<'ctx>,
+        span: Span,
+    ) -> Result<inkwell::values::PointerValue<'ctx>, Box<dyn IError>> {
+        let err = Self::builder_err(span);
+        let i64_type = self.context.i64_type();
+
+        let len = self
+            .builder
+            .build_call(self.libc.strlen_fn, &[cstr.into()], "cstr.strlen")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("strlen returns i64")
+            .into_int_value();
+
+        let size = self.builder.build_int_add(len, i64_type.const_int(1, false), "cstr.size").map_err(&err)?;
+
+        let data_ptr = self
+            .builder
+            .build_call(self.libc.malloc_fn, &[size.into()], "cstr.malloc")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc returns pointer")
+            .into_pointer_value();
+
+        self.builder
+            .build_call(self.libc.memcpy_fn, &[data_ptr.into(), cstr.into(), size.into()], "cstr.memcpy")
+            .map_err(&err)?;
+
+        self.build_str_header(data_ptr, span)
+    }
+
     /// Loads the `data: i8*` field out of a `StrHeader` pointer.
     pub(in crate::backend) fn str_data_ptr(
         &mut self,

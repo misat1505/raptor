@@ -6,10 +6,10 @@ import "./macro-expander/macro-expander-mod.rp";
 import "./semantic-checker/semantic-checker-mod.rp";
 
 fn main(): void {
-    let myself = "./selfhost/raptor.rp";
-    let source = read_file(myself);
+    let entry_file = cli_args()[1];
+    let source = read_file(entry_file);
 
-    let src = lazy_stream_reader_new(source, OptionStr::Some(myself));
+    let src = lazy_stream_reader_new(source, OptionStr::Some(entry_file));
 
     let options = LexerOptions {
         max_comment_length: 1024,
@@ -38,7 +38,7 @@ fn main(): void {
                     let resolver = import_resolver_new(options);
                     let resolved_result = import_resolver_resolve(
                         &resolver,
-                        myself,
+                        entry_file,
                         &program
                     );
 

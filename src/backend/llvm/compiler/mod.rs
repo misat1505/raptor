@@ -165,6 +165,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.context
     }
 
+    pub fn module(&self) -> &Module<'ctx> {
+        &self.module
+    }
+
     pub fn set_last_value(&mut self, value: LlvmValue<'ctx>) {
         self.last_value = Some(value);
     }

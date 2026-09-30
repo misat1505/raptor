@@ -8,6 +8,8 @@ import "./std-function.rp";
 
 fn get_std_functions(): StdFunction[] {
     let out: StdFunction[] = [];
+    let empty_type_vector: Type[] = [];
+    let empty_passedby_vector: PassedBy[] = [];
 
     # --- io ---
     vector_push(&out, std_function_new(
@@ -29,6 +31,13 @@ fn get_std_functions(): StdFunction[] {
         [Type::Str],
         [PassedBy::Value],
         Type::Str,
+        StdTypeCheckKind::None
+    ));
+    vector_push(&out, std_function_new(
+        "cli_args",
+        empty_type_vector,
+        empty_passedby_vector,
+        Type::Vector(Type::Str),
         StdTypeCheckKind::None
     ));
 

@@ -1,0 +1,86 @@
+# ============================================================
+# Textual LLVM IR builder (selfhost substitute for inkwell).
+# Mirrors the role of inkwell::builder::Builder + Module.
+# ============================================================
+
+struct IrBuilder {
+    str[] lines,
+    str[] globals,
+    i64 tmp_id,
+    i64 str_id,
+    i64 label_id
+};
+
+fn ir_builder_new(): IrBuilder {
+    return IrBuilder {
+        lines: [],
+        globals: [],
+        tmp_id: 0,
+        str_id: 0,
+        label_id: 0
+    };
+}
+
+fn ir_emit(&IrBuilder b, str line): void {
+    vector_push(&b.lines, line);
+}
+
+fn ir_emit_global(&IrBuilder b, str line): void {
+    vector_push(&b.globals, line);
+}
+
+fn ir_tmp(&IrBuilder b): str {
+    let name = "%t" + b.tmp_id as str;
+    b.tmp_id += 1;
+    return name;
+}
+
+fn ir_label(&IrBuilder b, str prefix): str {
+    let name = prefix + "." + b.label_id as str;
+    b.label_id += 1;
+    return name;
+}
+
+fn ir_cstr_global(&IrBuilder b, str value): str {
+    let name = "@.str." + b.str_id as str;
+    b.str_id += 1;
+    # Escape for LLVM string constant
+    let escaped = "";
+    for (let i = 0; i < str_len(value); i += 1) {
+        let c = value[i];
+        if (c == '\\') {
+            escaped += "\\\\";
+        } else {
+            if (c == '"') {
+                escaped += "\\22";
+            } else {
+                if (c == '\n') {
+                    escaped += "\\0A";
+                } else {
+                    if (c == '\0') {
+                        escaped += "\\00";
+                    } else {
+                        escaped += c;
+                    }
+                }
+            }
+        }
+    }
+    let n = str_len(value) + 1;
+    ir_emit_global(&b, name + " = private unnamed_addr constant [" + n as str + " x i8] c\"" + escaped + "\\00\"");
+    return name;
+}
+
+fn ir_finish(&IrBuilder b): str {
+    let out = "";
+    for (let i = 0; i < vector_size(&b.globals); i += 1) {
+        out += b.globals[i] + "\n";
+    }
+    if (vector_size(&b.globals) > 0) {
+        out += "\n";
+    }
+    for (let i = 0; i < vector_size(&b.lines); i += 1) {
+        out += b.lines[i] + "\n";
+    }
+    return out;
+}

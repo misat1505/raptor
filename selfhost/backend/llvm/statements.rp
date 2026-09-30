@@ -1,0 +1,260 @@
+# ============================================================
+# Mirrors src/backend/llvm/compiler/statements.rs
+# ============================================================
+
+import "../../frontend/parser/ast.rp";
+import "./compiler-core.rp";
+import "./expressions.rp";
+import "./ir-builder.rp";
+import "./types-ir.rp";
+
+fn llvm_compile_block(&LlvmCompiler c, BlockNode block): void {
+    let marker = llvm_compiler_push_scope_marker(&c);
+    for (let i = 0; i < vector_size(&block.value.statements); i += 1) {
+        if (c.has_terminator) {
+            break;
+        }
+        llvm_compile_statement(&c, block.value.statements[i]);
+    }
+    llvm_compiler_pop_scope(&c, marker);
+}
+
+fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
+    match (decl.kind) {
+        VariableDeclarationKind::LET(k) {
+            llvm_compile_expression(&c, k.value);
+            let ty = c.last_type;
+            match (k.var_type) {
+                OptionTypeNode::Some(tn) {
+                    ty = type_to_llvm(tn.value);
+                },
+                OptionTypeNode::None {}
+            }
+            let ptr = llvm_compiler_declare_local(&c, decl.identifier.value, ty);
+            ir_emit(&c.ir, "  store " + c.last_type + " " + c.last_value + ", ptr " + ptr);
+        },
+        VariableDeclarationKind::TYPE(k) {
+            let ty = type_to_llvm(k.var_type.value);
+            let ptr = llvm_compiler_declare_local(&c, decl.identifier.value, ty);
+            match (k.value) {
+                OptionExpressionNode::Some(expr) {
+                    llvm_compile_expression(&c, expr);
+                    ir_emit(&c.ir, "  store " + c.last_type + " " + c.last_value + ", ptr " + ptr);
+                },
+                OptionExpressionNode::None {
+                    ir_emit(&c.ir, "  store " + ty + " " + type_default_llvm(k.var_type.value) + ", ptr " + ptr);
+                }
+            }
+        }
+    }
+}
+
+fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
+    llvm_compile_expression(&c, assign.value);
+    let idx = llvm_compiler_find_local(&c, assign.identifier.value);
+    if (idx < 0) {
+        llvm_compiler_error(&c, "Assign to undeclared '" + assign.identifier.value + "'");
+        return;
+    }
+    if (vector_size(&assign.accessors) > 0) {
+        llvm_compiler_error(&c, "Indexed/field assignment not yet lowered in selfhost IR");
+        return;
+    }
+    let v = c.locals[idx];
+    ir_emit(&c.ir, "  store " + c.last_type + " " + c.last_value + ", ptr " + v.ptr);
+}
+
+fn llvm_compile_if(&LlvmCompiler c, ConditionalStatement stmt): void {
+    llvm_compile_expression(&c, stmt.condition);
+    let cond = c.last_value;
+    if (c.last_type != "i1") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = icmp ne i64 " + cond + ", 0");
+        cond = t;
+    }
+    let then_l = ir_label(&c.ir, "if.then");
+    let else_l = ir_label(&c.ir, "if.else");
+    let end_l = ir_label(&c.ir, "if.end");
+    let has_else = false;
+    match (stmt.else_block) {
+        OptionBlockNode::Some(b) has_else = true;,
+        OptionBlockNode::None {}
+    }
+    if (has_else) {
+        ir_emit(&c.ir, "  br i1 " + cond + ", label %" + then_l + ", label %" + else_l);
+    } else {
+        ir_emit(&c.ir, "  br i1 " + cond + ", label %" + then_l + ", label %" + end_l);
+    }
+
+    ir_emit(&c.ir, then_l + ":");
+    c.has_terminator = false;
+    llvm_compile_block(&c, stmt.if_block);
+    if (!c.has_terminator) {
+        ir_emit(&c.ir, "  br label %" + end_l);
+    }
+
+    match (stmt.else_block) {
+        OptionBlockNode::Some(eb) {
+            ir_emit(&c.ir, else_l + ":");
+            c.has_terminator = false;
+            llvm_compile_block(&c, eb);
+            if (!c.has_terminator) {
+                ir_emit(&c.ir, "  br label %" + end_l);
+            }
+        },
+        OptionBlockNode::None {}
+    }
+
+    ir_emit(&c.ir, end_l + ":");
+    c.has_terminator = false;
+}
+
+fn llvm_compile_while(&LlvmCompiler c, WhileLoopStatement stmt): void {
+    let cond_l = ir_label(&c.ir, "while.cond");
+    let body_l = ir_label(&c.ir, "while.body");
+    let end_l = ir_label(&c.ir, "while.end");
+    ir_emit(&c.ir, "  br label %" + cond_l);
+    ir_emit(&c.ir, cond_l + ":");
+    c.has_terminator = false;
+    llvm_compile_expression(&c, stmt.condition);
+    let cond = c.last_value;
+    if (c.last_type != "i1") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = icmp ne i64 " + cond + ", 0");
+        cond = t;
+    }
+    ir_emit(&c.ir, "  br i1 " + cond + ", label %" + body_l + ", label %" + end_l);
+    ir_emit(&c.ir, body_l + ":");
+    c.has_terminator = false;
+    vector_push(&c.break_stack, end_l);
+    vector_push(&c.continue_stack, cond_l);
+    llvm_compile_block(&c, stmt.block);
+    # pop stacks
+    let nb: str[] = [];
+    for (let i = 0; i < vector_size(&c.break_stack) - 1; i += 1) {
+        vector_push(&nb, c.break_stack[i]);
+    }
+    c.break_stack = nb;
+    let nc: str[] = [];
+    for (let i = 0; i < vector_size(&c.continue_stack) - 1; i += 1) {
+        vector_push(&nc, c.continue_stack[i]);
+    }
+    c.continue_stack = nc;
+    if (!c.has_terminator) {
+        ir_emit(&c.ir, "  br label %" + cond_l);
+    }
+    ir_emit(&c.ir, end_l + ":");
+    c.has_terminator = false;
+}
+
+fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
+    let marker = llvm_compiler_push_scope_marker(&c);
+    match (stmt.declaration) {
+        OptionStatementNode::Some(d) llvm_compile_statement(&c, d);,
+        OptionStatementNode::None {}
+    }
+    let cond_l = ir_label(&c.ir, "for.cond");
+    let body_l = ir_label(&c.ir, "for.body");
+    let step_l = ir_label(&c.ir, "for.step");
+    let end_l = ir_label(&c.ir, "for.end");
+    ir_emit(&c.ir, "  br label %" + cond_l);
+    ir_emit(&c.ir, cond_l + ":");
+    c.has_terminator = false;
+    llvm_compile_expression(&c, stmt.condition);
+    let cond = c.last_value;
+    if (c.last_type != "i1") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = icmp ne i64 " + cond + ", 0");
+        cond = t;
+    }
+    ir_emit(&c.ir, "  br i1 " + cond + ", label %" + body_l + ", label %" + end_l);
+    ir_emit(&c.ir, body_l + ":");
+    c.has_terminator = false;
+    vector_push(&c.break_stack, end_l);
+    vector_push(&c.continue_stack, step_l);
+    llvm_compile_block(&c, stmt.block);
+    let nb: str[] = [];
+    for (let i = 0; i < vector_size(&c.break_stack) - 1; i += 1) {
+        vector_push(&nb, c.break_stack[i]);
+    }
+    c.break_stack = nb;
+    let nc: str[] = [];
+    for (let i = 0; i < vector_size(&c.continue_stack) - 1; i += 1) {
+        vector_push(&nc, c.continue_stack[i]);
+    }
+    c.continue_stack = nc;
+    if (!c.has_terminator) {
+        ir_emit(&c.ir, "  br label %" + step_l);
+    }
+    ir_emit(&c.ir, step_l + ":");
+    c.has_terminator = false;
+    match (stmt.assignment) {
+        OptionStatementNode::Some(a) llvm_compile_statement(&c, a);,
+        OptionStatementNode::None {}
+    }
+    ir_emit(&c.ir, "  br label %" + cond_l);
+    ir_emit(&c.ir, end_l + ":");
+    c.has_terminator = false;
+    llvm_compiler_pop_scope(&c, marker);
+}
+
+fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
+    match (node.value) {
+        Statement::Declaration(d) llvm_compile_declaration(&c, d);,
+        Statement::Assignment(a) llvm_compile_assignment(&c, a);,
+        Statement::Conditional(s) llvm_compile_if(&c, s);,
+        Statement::WhileLoop(s) llvm_compile_while(&c, s);,
+        Statement::ForLoop(s) llvm_compile_for(&c, s);,
+        Statement::Return(opt) {
+            match (opt) {
+                OptionExpressionNode::Some(expr) {
+                    llvm_compile_expression(&c, expr);
+                    if (c.current_ret_ty == "void") {
+                        ir_emit(&c.ir, "  ret void");
+                    } else {
+                        ir_emit(&c.ir, "  ret " + c.last_type + " " + c.last_value);
+                    }
+                },
+                OptionExpressionNode::None {
+                    if (c.current_ret_ty == "i32") {
+                        ir_emit(&c.ir, "  ret i32 0");
+                    } else {
+                        ir_emit(&c.ir, "  ret void");
+                    }
+                }
+            }
+            c.has_terminator = true;
+        },
+        Statement::Break {
+            if (vector_size(&c.break_stack) == 0) {
+                llvm_compiler_error(&c, "break outside loop");
+            } else {
+                let t = c.break_stack[vector_size(&c.break_stack) - 1];
+                ir_emit(&c.ir, "  br label %" + t);
+                c.has_terminator = true;
+            }
+        },
+        Statement::Continue {
+            if (vector_size(&c.continue_stack) == 0) {
+                llvm_compiler_error(&c, "continue outside loop");
+            } else {
+                let t = c.continue_stack[vector_size(&c.continue_stack) - 1];
+                ir_emit(&c.ir, "  br label %" + t);
+                c.has_terminator = true;
+            }
+        },
+        Statement::FunctionCall(call) {
+            # Statement form of call - wrap as expression
+            llvm_compile_function_call(&c, call);
+        },
+        Statement::Match(m) {
+            llvm_compiler_error(&c, "match not yet lowered in selfhost IR");
+        },
+        Statement::Switch(s) {
+            llvm_compiler_error(&c, "switch not yet lowered in selfhost IR");
+        },
+        Statement::Import(imp) {
+            # imports already resolved before compile
+        }
+    }
+}

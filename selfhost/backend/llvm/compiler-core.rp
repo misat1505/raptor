@@ -1,0 +1,83 @@
+# ============================================================
+# Mirrors src/backend/llvm/compiler/mod.rs + core.rs
+# Textual LLVM IR compiler (no inkwell).
+# ============================================================
+
+import "../../frontend/parser/ast.rp";
+import "../../common/span.rp";
+import "./ir-builder.rp";
+import "./types-ir.rp";
+
+struct CompilerVar {
+    str name,
+    str ptr,   # alloca name e.g. %x.addr
+    str ty     # llvm type string
+};
+
+struct LlvmCompiler {
+    IrBuilder ir,
+    CompilerVar[] locals,
+    str last_value,
+    str last_type,
+    str[] errors,
+    # break/continue targets
+    str[] break_stack,
+    str[] continue_stack,
+    # function return type of current body
+    str current_ret_ty,
+    bool has_terminator
+};
+
+fn llvm_compiler_new(): LlvmCompiler {
+    return LlvmCompiler {
+        ir: ir_builder_new(),
+        locals: [],
+        last_value: "0",
+        last_type: "i64",
+        errors: [],
+        break_stack: [],
+        continue_stack: [],
+        current_ret_ty: "i32",
+        has_terminator: false
+    };
+}
+
+fn llvm_compiler_error(&LlvmCompiler c, str msg): void {
+    vector_push(&c.errors, msg);
+}
+
+fn llvm_compiler_set_last(&LlvmCompiler c, str value, str ty): void {
+    c.last_value = value;
+    c.last_type = ty;
+}
+
+fn llvm_compiler_find_local(&LlvmCompiler c, str name): i64 {
+    for (let i = vector_size(&c.locals) - 1; i >= 0; i -= 1) {
+        if (c.locals[i].name == name) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+fn llvm_compiler_declare_local(&LlvmCompiler c, str name, str ty): str {
+    let ptr = "%" + name + ".addr";
+    # Avoid duplicate alloca names by suffixing depth
+    let n = vector_size(&c.locals);
+    ptr = "%" + name + "." + n as str + ".addr";
+    ir_emit(&c.ir, "  " + ptr + " = alloca " + ty);
+    vector_push(&c.locals, CompilerVar { name: name, ptr: ptr, ty: ty });
+    return ptr;
+}
+
+fn llvm_compiler_push_scope_marker(&LlvmCompiler c): i64 {
+    return vector_size(&c.locals);
+}
+
+fn llvm_compiler_pop_scope(&LlvmCompiler c, i64 marker): void {
+    let kept: CompilerVar[] = [];
+    for (let i = 0; i < marker; i += 1) {
+        vector_push(&kept, c.locals[i]);
+    }
+    c.locals = kept;
+}

@@ -1,0 +1,44 @@
+# ============================================================
+# Map Raptor Type -> LLVM IR type string (simplified runtime).
+# Full Rust path uses inkwell types + refcounted headers;
+# selfhost emits opaque ptr for managed values (str/vector/struct/enum).
+# ============================================================
+
+import "../../frontend/parser/ast.rp";
+
+fn type_to_llvm(Type t): str {
+    match (t) {
+        Type::Bool return "i1";,
+        Type::I8 return "i8";,
+        Type::I16 return "i16";,
+        Type::I32 return "i32";,
+        Type::I64 return "i64";,
+        Type::U8 return "i8";,
+        Type::U16 return "i16";,
+        Type::U32 return "i32";,
+        Type::U64 return "i64";,
+        Type::F64 return "double";,
+        Type::Char return "i32";,
+        Type::Void return "void";,
+        Type::Str return "ptr";,
+        Type::Vector(inner) return "ptr";,
+        Type::Unresolved(name) return "ptr";
+    }
+}
+
+fn type_is_void(Type t): bool {
+    if (t matches Type::Void) return true;
+    return false;
+}
+
+fn type_default_llvm(Type t): str {
+    match (t) {
+        Type::Bool return "0";,
+        Type::F64 return "0.0";,
+        Type::Str return "null";,
+        Type::Vector(inner) return "null";,
+        Type::Unresolved(name) return "null";,
+        Type::Void return "0";,
+        rest return "0";
+    }
+}

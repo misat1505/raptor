@@ -1,0 +1,9 @@
+# Aggregator for selfhost LLVM IR backend (mirrors src/backend/llvm/mod.rs)
+import "./ir-builder.rp";
+import "./libc-decls.rp";
+import "./types-ir.rp";
+import "./compiler-core.rp";
+import "./expressions.rp";
+import "./statements.rp";
+import "./functions.rp";
+import "./compiler.rp";

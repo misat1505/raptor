@@ -310,16 +310,13 @@ fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
     let idx = 0;
     let field_ty = "i64";
     for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
-        match (c.program.declared_types[t].value) {
-            DeclaredType::Struct(s) {
-                for (let m = 0; m < vector_size(&s.members); m += 1) {
-                    if (s.members[m].value.identifier.value == fa.field.value) {
-                        idx = m;
-                        field_ty = type_to_llvm(s.members[m].value.member_type.value);
-                    }
+        if (c.program.declared_types[t].value matches DeclaredType::Struct(s)) {
+            for (let m = 0; m < vector_size(&s.members); m += 1) {
+                if (s.members[m].value.identifier.value == fa.field.value) {
+                    idx = m;
+                    field_ty = type_to_llvm(s.members[m].value.member_type.value);
                 }
-            },
-            rest {}
+            }
         }
     }
 
@@ -675,9 +672,8 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
     for (let i = 0; i < vector_size(&c.program.extern_functions); i += 1) {
         let ef = c.program.extern_functions[i].value;
         let n = ef.identifier.value;
-        match (ef.alias) {
-            OptionIdentifierNode::Some(a) n = a.value;,
-            OptionIdentifierNode::None {}
+        if (ef.alias matches OptionIdentifierNode::Some(a)) {
+            n = a.value;
         }
         if (n == name) {
             ret_ty = type_to_llvm(ef.return_type.value);

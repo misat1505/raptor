@@ -90,11 +90,8 @@ fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
         VariableDeclarationKind::LET(k) {
             llvm_compile_expression(&c, k.value);
             let ty = c.last_type;
-            match (k.var_type) {
-                OptionTypeNode::Some(tn) {
-                    ty = type_to_llvm(tn.value);
-                },
-                OptionTypeNode::None {}
+            if (k.var_type matches OptionTypeNode::Some(tn)) {
+                ty = type_to_llvm(tn.value);
             }
             let ptr = llvm_compiler_declare_local(&c, decl.identifier.value, ty);
             llvm_store_typed(&c, ptr, ty, c.last_value, c.last_type);
@@ -144,15 +141,12 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
             Accessor::Field(field) {
                 let fidx = 0;
                 for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
-                    match (c.program.declared_types[t].value) {
-                        DeclaredType::Struct(s) {
-                            for (let m = 0; m < vector_size(&s.members); m += 1) {
-                                if (s.members[m].value.identifier.value == field.value) {
-                                    fidx = m;
-                                }
+                    if (c.program.declared_types[t].value matches DeclaredType::Struct(s)) {
+                        for (let m = 0; m < vector_size(&s.members); m += 1) {
+                            if (s.members[m].value.identifier.value == field.value) {
+                                fidx = m;
                             }
-                        },
-                        rest {}
+                        }
                     }
                 }
                 let gep = ir_tmp(&c.ir);
@@ -208,9 +202,8 @@ fn llvm_compile_if(&LlvmCompiler c, ConditionalStatement stmt): void {
     let else_l = ir_label(&c.ir, "if.else");
     let end_l = ir_label(&c.ir, "if.end");
     let has_else = false;
-    match (stmt.else_block) {
-        OptionBlockNode::Some(b) has_else = true;,
-        OptionBlockNode::None {}
+    if (stmt.else_block matches OptionBlockNode::Some) {
+        has_else = true;
     }
     if (has_else) {
         ir_emit(&c.ir, "  br i1 " + cond + ", label %" + then_l + ", label %" + else_l);
@@ -225,16 +218,13 @@ fn llvm_compile_if(&LlvmCompiler c, ConditionalStatement stmt): void {
         ir_emit(&c.ir, "  br label %" + end_l);
     }
 
-    match (stmt.else_block) {
-        OptionBlockNode::Some(eb) {
-            ir_emit(&c.ir, else_l + ":");
-            c.has_terminator = false;
-            llvm_compile_block(&c, eb);
-            if (!c.has_terminator) {
-                ir_emit(&c.ir, "  br label %" + end_l);
-            }
-        },
-        OptionBlockNode::None {}
+    if (stmt.else_block matches OptionBlockNode::Some(eb)) {
+        ir_emit(&c.ir, else_l + ":");
+        c.has_terminator = false;
+        llvm_compile_block(&c, eb);
+        if (!c.has_terminator) {
+            ir_emit(&c.ir, "  br label %" + end_l);
+        }
     }
 
     ir_emit(&c.ir, end_l + ":");
@@ -281,9 +271,8 @@ fn llvm_compile_while(&LlvmCompiler c, WhileLoopStatement stmt): void {
 
 fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
     let marker = llvm_compiler_push_scope_marker(&c);
-    match (stmt.declaration) {
-        OptionStatementNode::Some(d) llvm_compile_statement(&c, d);,
-        OptionStatementNode::None {}
+    if (stmt.declaration matches OptionStatementNode::Some(d)) {
+        llvm_compile_statement(&c, d);
     }
     let cond_l = ir_label(&c.ir, "for.cond");
     let body_l = ir_label(&c.ir, "for.body");
@@ -320,9 +309,8 @@ fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
     }
     ir_emit(&c.ir, step_l + ":");
     c.has_terminator = false;
-    match (stmt.assignment) {
-        OptionStatementNode::Some(a) llvm_compile_statement(&c, a);,
-        OptionStatementNode::None {}
+    if (stmt.assignment matches OptionStatementNode::Some(a)) {
+        llvm_compile_statement(&c, a);
     }
     ir_emit(&c.ir, "  br label %" + cond_l);
     ir_emit(&c.ir, end_l + ":");
@@ -361,7 +349,7 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
     }
     # no arm matched -> rest or end
     match (m.rest_arm) {
-        OptionBlockNode::Some(b) ir_emit(&c.ir, "  br label %" + rest_l);,
+        OptionBlockNode::Some ir_emit(&c.ir, "  br label %" + rest_l);,
         OptionBlockNode::None ir_emit(&c.ir, "  br label %" + end_l);
     }
 
@@ -370,14 +358,11 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
         ir_emit(&c.ir, arm_labels[i] + ":");
         c.has_terminator = false;
         let marker = llvm_compiler_push_scope_marker(&c);
-        match (arm.value.variant_value) {
-            OptionIdentifierNode::Some(bind) {
-                let ptr = llvm_compiler_declare_local(&c, bind.value, "ptr");
-                let pay = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + pay + " = load ptr, ptr " + pay_p);
-                ir_emit(&c.ir, "  store ptr " + pay + ", ptr " + ptr);
-            },
-            OptionIdentifierNode::None {}
+        if (arm.value.variant_value matches OptionIdentifierNode::Some(bind)) {
+            let ptr = llvm_compiler_declare_local(&c, bind.value, "ptr");
+            let pay = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + pay + " = load ptr, ptr " + pay_p);
+            ir_emit(&c.ir, "  store ptr " + pay + ", ptr " + ptr);
         }
         llvm_compile_block(&c, arm.value.block);
         llvm_compiler_pop_scope(&c, marker);
@@ -386,16 +371,13 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
         }
     }
 
-    match (m.rest_arm) {
-        OptionBlockNode::Some(b) {
-            ir_emit(&c.ir, rest_l + ":");
-            c.has_terminator = false;
-            llvm_compile_block(&c, b);
-            if (!c.has_terminator) {
-                ir_emit(&c.ir, "  br label %" + end_l);
-            }
-        },
-        OptionBlockNode::None {}
+    if (m.rest_arm matches OptionBlockNode::Some(b)) {
+        ir_emit(&c.ir, rest_l + ":");
+        c.has_terminator = false;
+        llvm_compile_block(&c, b);
+        if (!c.has_terminator) {
+            ir_emit(&c.ir, "  br label %" + end_l);
+        }
     }
 
     ir_emit(&c.ir, end_l + ":");
@@ -511,10 +493,10 @@ fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
         Statement::Match(m) {
             llvm_compile_match(&c, m);
         },
-        Statement::Switch(s) {
+        Statement::Switch {
             llvm_compiler_error(&c, "switch not yet lowered in selfhost IR");
         },
-        Statement::Import(imp) {
+        Statement::Import {
             # imports already resolved before compile
         }
     }

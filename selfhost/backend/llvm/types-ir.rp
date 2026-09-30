@@ -21,8 +21,8 @@ fn type_to_llvm(Type t): str {
         Type::Char return "i32";,
         Type::Void return "void";,
         Type::Str return "ptr";,
-        Type::Vector(inner) return "ptr";,
-        Type::Unresolved(name) return "ptr";
+        Type::Vector return "ptr";,
+        Type::Unresolved return "ptr";
     }
 }
 
@@ -36,8 +36,8 @@ fn type_default_llvm(Type t): str {
         Type::Bool return "0";,
         Type::F64 return "0.0";,
         Type::Str return "null";,
-        Type::Vector(inner) return "null";,
-        Type::Unresolved(name) return "null";,
+        Type::Vector return "null";,
+        Type::Unresolved return "null";,
         Type::Void return "0";,
         rest return "0";
     }

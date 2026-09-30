@@ -80,9 +80,8 @@ fn llvm_compile_extern(&LlvmCompiler c, ExternFunctionDeclarationNode e): void {
         params_ir += type_to_llvm(e.value.parameters[i].value.parameter_type.value);
     }
     let link_name = e.value.identifier.value;
-    match (e.value.alias) {
-        OptionIdentifierNode::Some(a) link_name = a.value;,
-        OptionIdentifierNode::None {}
+    if (e.value.alias matches OptionIdentifierNode::Some(a)) {
+        link_name = a.value;
     }
     ir_emit(&c.ir, "declare " + ret + " @" + link_name + "(" + params_ir + ")");
 }

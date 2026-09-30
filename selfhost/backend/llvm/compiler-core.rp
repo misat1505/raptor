@@ -93,13 +93,10 @@ fn llvm_compiler_pop_scope(&LlvmCompiler c, i64 marker): void {
 
 fn llvm_lookup_struct(&LlvmCompiler c, str name): OptionStructDeclaration {
     for (let i = 0; i < vector_size(&c.program.declared_types); i += 1) {
-        match (c.program.declared_types[i].value) {
-            DeclaredType::Struct(s) {
-                if (s.identifier.value == name) {
-                    return OptionStructDeclaration::Some(s);
-                }
-            },
-            rest {}
+        if (c.program.declared_types[i].value matches DeclaredType::Struct(s)) {
+            if (s.identifier.value == name) {
+                return OptionStructDeclaration::Some(s);
+            }
         }
     }
     return OptionStructDeclaration::None;
@@ -107,42 +104,33 @@ fn llvm_lookup_struct(&LlvmCompiler c, str name): OptionStructDeclaration {
 
 fn llvm_lookup_enum(&LlvmCompiler c, str name): OptionEnumDeclaration {
     for (let i = 0; i < vector_size(&c.program.declared_types); i += 1) {
-        match (c.program.declared_types[i].value) {
-            DeclaredType::Enum(e) {
-                if (e.identifier.value == name) {
-                    return OptionEnumDeclaration::Some(e);
-                }
-            },
-            rest {}
+        if (c.program.declared_types[i].value matches DeclaredType::Enum(e)) {
+            if (e.identifier.value == name) {
+                return OptionEnumDeclaration::Some(e);
+            }
         }
     }
     return OptionEnumDeclaration::None;
 }
 
 fn llvm_enum_variant_tag(&LlvmCompiler c, str enum_name, str variant): i64 {
-    match (llvm_lookup_enum(&c, enum_name)) {
-        OptionEnumDeclaration::Some(ed) {
-            for (let i = 0; i < vector_size(&ed.members); i += 1) {
-                if (ed.members[i].value.identifier.value == variant) {
-                    return i;
-                }
+    if (llvm_lookup_enum(&c, enum_name) matches OptionEnumDeclaration::Some(ed)) {
+        for (let i = 0; i < vector_size(&ed.members); i += 1) {
+            if (ed.members[i].value.identifier.value == variant) {
+                return i;
             }
-        },
-        OptionEnumDeclaration::None {}
+        }
     }
     return 0;
 }
 
 fn llvm_struct_field_index(&LlvmCompiler c, str struct_name, str field): i64 {
-    match (llvm_lookup_struct(&c, struct_name)) {
-        OptionStructDeclaration::Some(sd) {
-            for (let i = 0; i < vector_size(&sd.members); i += 1) {
-                if (sd.members[i].value.identifier.value == field) {
-                    return i;
-                }
+    if (llvm_lookup_struct(&c, struct_name) matches OptionStructDeclaration::Some(sd)) {
+        for (let i = 0; i < vector_size(&sd.members); i += 1) {
+            if (sd.members[i].value.identifier.value == field) {
+                return i;
             }
-        },
-        OptionStructDeclaration::None {}
+        }
     }
     return 0;
 }

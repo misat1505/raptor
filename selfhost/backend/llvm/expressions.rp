@@ -34,6 +34,33 @@ fn llvm_compile_binary_i64(&LlvmCompiler c, ExpressionNode left, ExpressionNode 
     llvm_compiler_set_last(&c, result, "i64");
 }
 
+fn llvm_as_i64(&LlvmCompiler c, str value, str ty): str {
+    if (ty == "i64") {
+        return value;
+    }
+    if (ty == "ptr") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = ptrtoint ptr " + value + " to i64");
+        return t;
+    }
+    if (ty == "i1") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = zext i1 " + value + " to i64");
+        return t;
+    }
+    if (ty == "i8" || ty == "i16" || ty == "i32") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = zext " + ty + " " + value + " to i64");
+        return t;
+    }
+    if (ty == "double") {
+        let t = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t + " = fptosi double " + value + " to i64");
+        return t;
+    }
+    return value;
+}
+
 fn llvm_compile_cmp(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, str pred): void {
     llvm_compile_expression(&c, left);
     let lv = c.last_value;
@@ -42,10 +69,13 @@ fn llvm_compile_cmp(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, 
     let rv = c.last_value;
     let rt = c.last_type;
     let result = ir_tmp(&c.ir);
-    if (lt == "ptr" || rt == "ptr") {
+
+    if (lt == "ptr" && rt == "ptr") {
         ir_emit(&c.ir, "  " + result + " = icmp " + pred + " ptr " + lv + ", " + rv);
     } else {
-        ir_emit(&c.ir, "  " + result + " = icmp " + pred + " i64 " + lv + ", " + rv);
+        let li = llvm_as_i64(&c, lv, lt);
+        let ri = llvm_as_i64(&c, rv, rt);
+        ir_emit(&c.ir, "  " + result + " = icmp " + pred + " i64 " + li + ", " + ri);
     }
     llvm_compiler_set_last(&c, result, "i1");
 }
@@ -122,16 +152,20 @@ fn llvm_vector_push_ptr(&LlvmCompiler c, str vec, str elem): void {
     ir_emit(&c.ir, "  store i64 " + nlen + ", ptr " + len_p);
 }
 
-fn llvm_vector_push_i64(&LlvmCompiler c, str vec, str elem): void {
-    # store i64 elements in data buffer
+fn llvm_vector_push_i64(&LlvmCompiler c, str vec, str elem, str elem_ty): void {
+    # coerce to i64 (elem may be i32/i1/ptr)
+    let elem_i64 = llvm_as_i64(&c, elem, elem_ty);
+
     let len_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + len_p + " = getelementptr i8, ptr " + vec + ", i64 16");
     let len = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + len + " = load i64, ptr " + len_p);
+
     let cap_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + cap_p + " = getelementptr i8, ptr " + vec + ", i64 24");
     let cap = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + cap + " = load i64, ptr " + cap_p);
+
     let data_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + data_p + " = getelementptr i8, ptr " + vec + ", i64 8");
     let data = ir_tmp(&c.ir);
@@ -165,7 +199,7 @@ fn llvm_vector_push_i64(&LlvmCompiler c, str vec, str elem): void {
     ir_emit(&c.ir, "  " + len2 + " = load i64, ptr " + len_p);
     let slot = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + slot + " = getelementptr i64, ptr " + data2 + ", i64 " + len2);
-    ir_emit(&c.ir, "  store i64 " + elem + ", ptr " + slot);
+    ir_emit(&c.ir, "  store i64 " + elem_i64 + ", ptr " + slot);
     let nlen = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + nlen + " = add i64 " + len2 + ", 1");
     ir_emit(&c.ir, "  store i64 " + nlen + ", ptr " + len_p);
@@ -178,13 +212,7 @@ fn llvm_compile_vector_literal(&LlvmCompiler c, ExpressionNode[] elems): void {
         if (c.last_type == "ptr") {
             llvm_vector_push_ptr(&c, vec, c.last_value);
         } else {
-            let v = c.last_value;
-            if (c.last_type == "i1") {
-                let e = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + e + " = zext i1 " + v + " to i64");
-                v = e;
-            }
-            llvm_vector_push_i64(&c, vec, v);
+            llvm_vector_push_i64(&c, vec, c.last_value, c.last_type);
         }
     }
     llvm_compiler_set_last(&c, vec, "ptr");
@@ -219,13 +247,19 @@ fn llvm_compile_struct_literal(&LlvmCompiler c, StructLiteralNode node): void {
         if (c.last_type == "ptr") {
             ir_emit(&c.ir, "  store ptr " + c.last_value + ", ptr " + gep);
         } else {
-            let v = c.last_value;
+            let sv = c.last_value;
             if (c.last_type == "i1") {
                 let e = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + e + " = zext i1 " + v + " to i64");
-                v = e;
+                ir_emit(&c.ir, "  " + e + " = zext i1 " + sv + " to i64");
+                sv = e;
+            } else {
+                if (c.last_type == "i8" || c.last_type == "i16" || c.last_type == "i32") {
+                    let e = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + e + " = zext " + c.last_type + " " + sv + " to i64");
+                    sv = e;
+                }
             }
-            ir_emit(&c.ir, "  store i64 " + v + ", ptr " + gep);
+            ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + gep);
         }
     }
     llvm_compiler_set_last(&c, p, "ptr");
@@ -250,13 +284,19 @@ fn llvm_compile_enum_literal(&LlvmCompiler c, EnumLiteralExpression el): void {
             if (c.last_type == "ptr") {
                 ir_emit(&c.ir, "  store ptr " + c.last_value + ", ptr " + pay_g);
             } else {
-                let v = c.last_value;
+                let sv = c.last_value;
                 if (c.last_type == "i1") {
                     let e = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + e + " = zext i1 " + v + " to i64");
-                    v = e;
+                    ir_emit(&c.ir, "  " + e + " = zext i1 " + sv + " to i64");
+                    sv = e;
+                } else {
+                    if (c.last_type == "i8" || c.last_type == "i16" || c.last_type == "i32") {
+                        let e = ir_tmp(&c.ir);
+                        ir_emit(&c.ir, "  " + e + " = zext " + c.last_type + " " + sv + " to i64");
+                        sv = e;
+                    }
                 }
-                ir_emit(&c.ir, "  store i64 " + v + ", ptr " + pay_g);
+                ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + pay_g);
             }
         },
         OptionExpressionNode::None {
@@ -289,10 +329,46 @@ fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
     }
     let gep = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + gep + " = getelementptr i8, ptr " + base + ", i64 " + (idx * 8) as str);
-    let val = ir_tmp(&c.ir);
-    # load as ptr first (covers str/vector/struct/enum); integers also fit in 8 bytes
-    ir_emit(&c.ir, "  " + val + " = load ptr, ptr " + gep);
-    llvm_compiler_set_last(&c, val, "ptr");
+
+    let field_ty = "i64";
+    for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
+        match (c.program.declared_types[t].value) {
+            DeclaredType::Struct(s) {
+                for (let m = 0; m < vector_size(&s.members); m += 1) {
+                    if (s.members[m].value.identifier.value == fa.field.value) {
+                        field_ty = type_to_llvm(s.members[m].value.member_type.value);
+                    }
+                }
+            },
+            rest {}
+        }
+    }
+
+    if (field_ty == "ptr") {
+        let val = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + val + " = load ptr, ptr " + gep);
+        llvm_compiler_set_last(&c, val, "ptr");
+    } else {
+        let raw = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + raw + " = load i64, ptr " + gep);
+        if (field_ty == "i64") {
+            llvm_compiler_set_last(&c, raw, "i64");
+        } else {
+            if (field_ty == "i1") {
+                let tr = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to i1");
+                llvm_compiler_set_last(&c, tr, "i1");
+            } else {
+                if (field_ty == "i8" || field_ty == "i16" || field_ty == "i32") {
+                    let tr = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to " + field_ty);
+                    llvm_compiler_set_last(&c, tr, field_ty);
+                } else {
+                    llvm_compiler_set_last(&c, raw, "i64");
+                }
+            }
+        }
+    }
 }
 
 fn llvm_compile_index(&LlvmCompiler c, IndexExpression ix): void {
@@ -383,14 +459,9 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         if (arg_tys[1] == "ptr") {
             llvm_vector_push_ptr(&c, arg_vals[0], arg_vals[1]);
         } else {
-            let v = arg_vals[1];
-            if (arg_tys[1] == "i1") {
-                let e = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + e + " = zext i1 " + v + " to i64");
-                v = e;
-            }
-            llvm_vector_push_i64(&c, arg_vals[0], v);
+            llvm_vector_push_i64(&c, arg_vals[0], arg_vals[1], arg_tys[1]);
         }
+
         llvm_compiler_set_last(&c, "0", "i64");
         return;
     }
@@ -555,19 +626,52 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
         Expression::FunctionCall(call) llvm_compile_function_call(&c, call);,
         Expression::Casting(cast) {
             llvm_compile_expression(&c, cast.value);
+            let from = c.last_type;
+            let val = c.last_value;
             let to = type_to_llvm(cast.to_type.value);
+
+            if (from == to) {
+                llvm_compiler_set_last(&c, val, to);
+                return;
+            }
+
+            # → string / ptr (managed)
             if (to == "ptr") {
-                let s = llvm_to_str_value(&c, c.last_value, c.last_type);
+                let s = llvm_to_str_value(&c, val, from);
                 llvm_compiler_set_last(&c, s, "ptr");
                 return;
             }
-            if (c.last_type == "i1" && to == "i64") {
-                let r = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + r + " = zext i1 " + c.last_value + " to i64");
-                llvm_compiler_set_last(&c, r, "i64");
+
+            # wszystko inne: najpierw do i64, potem ewentualny trunc
+            let as64 = llvm_as_i64(&c, val, from);
+
+            if (to == "i64") {
+                llvm_compiler_set_last(&c, as64, "i64");
                 return;
             }
-            llvm_compiler_set_last(&c, c.last_value, to);
+
+            if (to == "i1") {
+                let t = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + t + " = trunc i64 " + as64 + " to i1");
+                llvm_compiler_set_last(&c, t, "i1");
+                return;
+            }
+
+            if (to == "i8" || to == "i16" || to == "i32") {
+                let t = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + t + " = trunc i64 " + as64 + " to " + to);
+                llvm_compiler_set_last(&c, t, to);
+                return;
+            }
+
+            if (to == "double") {
+                let t = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + t + " = sitofp i64 " + as64 + " to double");
+                llvm_compiler_set_last(&c, t, "double");
+                return;
+            }
+
+            llvm_compiler_set_last(&c, as64, to);
         },
         Expression::Alternative(bin) {
             llvm_compile_expression(&c, bin.left);

@@ -23,7 +23,8 @@ struct LlvmCompiler {
     str[] continue_stack,
     str current_ret_ty,
     bool has_terminator,
-    Program program
+    Program program,
+    i64 local_id
 };
 
 fn llvm_compiler_new(): LlvmCompiler {
@@ -46,7 +47,8 @@ fn llvm_compiler_new(): LlvmCompiler {
             functions: empty_fns,
             extern_functions: empty_ext,
             declared_types: empty_types
-        }
+        },
+        local_id: 0
     };
 }
 
@@ -69,7 +71,8 @@ fn llvm_compiler_find_local(&LlvmCompiler c, str name): i64 {
 }
 
 fn llvm_compiler_declare_local(&LlvmCompiler c, str name, str ty): str {
-    let n = vector_size(&c.locals);
+    let n = c.local_id;
+    c.local_id += 1;
     let ptr = "%" + name + "." + n as str + ".addr";
     ir_emit(&c.ir, "  " + ptr + " = alloca " + ty);
     vector_push(&c.locals, CompilerVar { name: name, ptr: ptr, ty: ty });
@@ -163,12 +166,31 @@ fn llvm_to_str_value(&LlvmCompiler c, str value, str ty): str {
     let n = 5;
     let fp = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + fp + " = getelementptr inbounds [" + n as str + " x i8], ptr " + fmt + ", i64 0, i64 0");
+
+    # snprintf expects i64 for %lld
     let v = value;
-    if (ty == "i1") {
-        let e = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + e + " = zext i1 " + value + " to i64");
-        v = e;
+    if (ty == "i64") {
+        v = value;
+    } else {
+        if (ty == "i1") {
+            let e = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + e + " = zext i1 " + value + " to i64");
+            v = e;
+        } else {
+            if (ty == "i8" || ty == "i16" || ty == "i32") {
+                let e = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + e + " = zext " + ty + " " + value + " to i64");
+                v = e;
+            } else {
+                if (ty == "double") {
+                    let e = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + e + " = fptosi double " + value + " to i64");
+                    v = e;
+                }
+            }
+        }
     }
+
     ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 64, ptr " + fp + ", i64 " + v + ")");
     return buf;
 }

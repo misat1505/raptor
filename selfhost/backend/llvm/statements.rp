@@ -90,7 +90,19 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                     if (rty == "ptr") {
                         ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + gep);
                     } else {
-                        ir_emit(&c.ir, "  store i64 " + rval + ", ptr " + gep);
+                        let sv = rval;
+                        if (rty == "i1") {
+                            let e = ir_tmp(&c.ir);
+                            ir_emit(&c.ir, "  " + e + " = zext i1 " + sv + " to i64");
+                            sv = e;
+                        } else {
+                            if (rty == "i8" || rty == "i16" || rty == "i32") {
+                                let e = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + e + " = zext " + rty + " " + sv + " to i64");
+                                sv = e;
+                            }
+                        }
+                        ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + gep);
                     }
                 } else {
                     let n = ir_tmp(&c.ir);
@@ -111,7 +123,19 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                     if (rty == "ptr") {
                         ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + slot);
                     } else {
-                        ir_emit(&c.ir, "  store i64 " + rval + ", ptr " + slot);
+                        let sv = rval;
+                        if (rty == "i1") {
+                            let e = ir_tmp(&c.ir);
+                            ir_emit(&c.ir, "  " + e + " = zext i1 " + sv + " to i64");
+                            sv = e;
+                        } else {
+                            if (rty == "i8" || rty == "i16" || rty == "i32") {
+                                let e = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + e + " = zext " + rty + " " + sv + " to i64");
+                                sv = e;
+                            }
+                        }
+                        ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + slot);
                     }
                 } else {
                     let n = ir_tmp(&c.ir);

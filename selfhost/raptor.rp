@@ -6,7 +6,12 @@ import "./macro-expander/macro-expander-mod.rp";
 import "./semantic-checker/semantic-checker-mod.rp";
 
 fn main(): void {
-    let entry_file = cli_args()[1];
+    let args = cli_args();
+    let entry_file = args[1];
+    let is_dumping = false;
+    if (vector_size(&args) >= 3) {
+        is_dumping = args[2] == "--dump";
+    }
     let source = read_file(entry_file);
 
     let src = lazy_stream_reader_new(source, OptionStr::Some(entry_file));
@@ -90,11 +95,13 @@ fn main(): void {
                                 + vector_size(&merged.declared_types) as str + " type(s), "
                                 + vector_size(&checker.errors) as str + " warning(s).");
 
-                            let output_path = "./selfhost/ast.rp";
-                            let dump = "let ast = " + program_debug(&merged) + ";";
-                            write_file(output_path, dump);
+                            if (is_dumping) {
+                                let output_path = "./selfhost/ast.rp";
+                                let dump = "let ast = " + program_debug(&merged) + ";";
+                                write_file(output_path, dump);
 
-                            println("Wrote AST dump to " + output_path);
+                                println("Wrote AST dump to " + output_path);
+                            }
                         }
                     }
                 }

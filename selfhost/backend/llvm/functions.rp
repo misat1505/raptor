@@ -42,6 +42,7 @@ fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void 
         let p = f.value.parameters[i];
         let ty = type_to_llvm(p.value.parameter_type.value);
         let ptr = llvm_compiler_declare_local(&c, p.value.identifier.value, ty);
+        llvm_compiler_set_last_local_rty(&c, llvm_type_rname(p.value.parameter_type.value));
         ir_emit(&c.ir, "  store " + ty + " %" + p.value.identifier.value + ".arg, ptr " + ptr);
     }
 

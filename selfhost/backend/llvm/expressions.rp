@@ -99,7 +99,15 @@ fn llvm_compile_cmp(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, 
     let rt = c.last_type;
     let result = ir_tmp(&c.ir);
     if (lt == "ptr" && rt == "ptr") {
-        ir_emit(&c.ir, "  " + result + " = icmp " + pred + " ptr " + lv + ", " + rv);
+        # `str == str` must compare contents, not addresses. The type checker
+        # guarantees both sides are `str` when one of them is.
+        if ((pred == "eq" || pred == "ne") && (llvm_expr_is_str(&c, left) || llvm_expr_is_str(&c, right))) {
+            let cmp = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + cmp + " = call i32 @strcmp(ptr " + lv + ", ptr " + rv + ")");
+            ir_emit(&c.ir, "  " + result + " = icmp " + pred + " i32 " + cmp + ", 0");
+        } else {
+            ir_emit(&c.ir, "  " + result + " = icmp " + pred + " ptr " + lv + ", " + rv);
+        }
     } else {
         let li = llvm_as_i64(&c, lv, lt);
         let ri = llvm_as_i64(&c, rv, rt);
@@ -320,6 +328,21 @@ fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
         }
     }
 
+    # The by-name scan above is ambiguous when several structs share a field
+    # name (e.g. `filename`, `src`). If the instance's struct is known, use its
+    # own layout instead.
+    let base_rty = llvm_expr_rtype(&c, fa.instance);
+    if (base_rty != "") {
+        if (llvm_lookup_struct(&c, base_rty) matches OptionStructDeclaration::Some(sd)) {
+            for (let m = 0; m < vector_size(&sd.members); m += 1) {
+                if (sd.members[m].value.identifier.value == fa.field.value) {
+                    idx = m;
+                    field_ty = type_to_llvm(sd.members[m].value.member_type.value);
+                }
+            }
+        }
+    }
+
     let gep = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + gep + " = getelementptr i8, ptr " + base + ", i64 " + (idx * 8) as str);
 
@@ -356,11 +379,87 @@ fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
     }
 }
 
+# Best-effort static type of an expression, as a Raptor type name: "str", a
+# struct name, or "" when unknown. The backend only tracks LLVM types (`ptr`
+# for str, vectors, structs, ...), so indexing and field access need this to
+# know what a pointer actually points to.
+fn llvm_expr_rtype(&LlvmCompiler c, ExpressionNode e): str {
+    match (e.value) {
+        Expression::Literal(lit) {
+            if (lit matches Literal::String) return "str";
+            return "";
+        },
+        Expression::Concatenation return "str";,
+        Expression::Casting(cs) return llvm_type_rname(cs.to_type.value);,
+        Expression::StructLiteral(sl) return sl.value.identifier.value;,
+        Expression::Variable(name) {
+            let li = llvm_compiler_find_local(&c, name);
+            if (li < 0) return "";
+            return c.locals[li].rty;
+        },
+        Expression::FieldAccess(fa) {
+            let base = llvm_expr_rtype(&c, fa.instance);
+            if (base != "") {
+                if (llvm_lookup_struct(&c, base) matches OptionStructDeclaration::Some(sd)) {
+                    for (let m = 0; m < vector_size(&sd.members); m += 1) {
+                        if (sd.members[m].value.identifier.value == fa.field.value) {
+                            return llvm_type_rname(sd.members[m].value.member_type.value);
+                        }
+                    }
+                    return "";
+                }
+            }
+            # Instance type unknown: accept the field only if every struct that
+            # declares it agrees on its type.
+            let found = false;
+            let result = "";
+            for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
+                if (c.program.declared_types[t].value matches DeclaredType::Struct(s)) {
+                    for (let m = 0; m < vector_size(&s.members); m += 1) {
+                        if (s.members[m].value.identifier.value == fa.field.value) {
+                            let name = llvm_type_rname(s.members[m].value.member_type.value);
+                            if (found && name != result) return "";
+                            found = true;
+                            result = name;
+                        }
+                    }
+                }
+            }
+            return result;
+        },
+        Expression::FunctionCall(call) {
+            for (let i = 0; i < vector_size(&c.program.functions); i += 1) {
+                if (c.program.functions[i].value.identifier.value == call.identifier.value) {
+                    return llvm_type_rname(c.program.functions[i].value.return_type.value);
+                }
+            }
+            return "";
+        },
+        rest return "";
+    }
+}
+
+fn llvm_expr_is_str(&LlvmCompiler c, ExpressionNode e): bool {
+    return llvm_expr_rtype(&c, e) == "str";
+}
+
 fn llvm_compile_index(&LlvmCompiler c, IndexExpression ix): void {
     llvm_compile_expression(&c, ix.collection);
     let col = c.last_value;
     llvm_compile_expression(&c, ix.index);
     let idx = llvm_as_i64(&c, c.last_value, c.last_type);
+
+    # str[i]: the string is a raw byte buffer; yield the byte as a `char` (i32).
+    if (llvm_expr_is_str(&c, ix.collection)) {
+        let byte_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + byte_p + " = getelementptr i8, ptr " + col + ", i64 " + idx);
+        let byte_v = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + byte_v + " = load i8, ptr " + byte_p);
+        let wide = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + wide + " = zext i8 " + byte_v + " to i32");
+        llvm_compiler_set_last(&c, wide, "i32");
+        return;
+    }
 
     let data_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + data_p + " = getelementptr i8, ptr " + col + ", i64 8");

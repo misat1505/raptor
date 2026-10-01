@@ -10,7 +10,12 @@ import "./types-ir.rp";
 struct CompilerVar {
     str name,
     str ptr,
-    str ty
+    str ty,
+    # Raptor-level type name of the variable: "str", a struct name, or "" when
+    # unknown. In the LLVM IR `str`, vectors and structs are all plain `ptr`,
+    # so this is what lets indexing tell a string (bytes) apart from a vector
+    # (8-byte slots), and lets field access find the right struct.
+    str rty
 };
 
 struct LlvmCompiler {
@@ -75,8 +80,23 @@ fn llvm_compiler_declare_local(&LlvmCompiler c, str name, str ty): str {
     c.local_id += 1;
     let ptr = "%" + name + "." + n as str + ".addr";
     ir_emit(&c.ir, "  " + ptr + " = alloca " + ty);
-    vector_push(&c.locals, CompilerVar { name: name, ptr: ptr, ty: ty });
+    vector_push(&c.locals, CompilerVar { name: name, ptr: ptr, ty: ty, rty: "" });
     return ptr;
+}
+
+# Records the Raptor type name of the most recently declared local.
+fn llvm_compiler_set_last_local_rty(&LlvmCompiler c, str rty): void {
+    let last = vector_size(&c.locals) - 1;
+    if (last >= 0) {
+        c.locals[last].rty = rty;
+    }
+}
+
+# Raptor type -> name used for `rty`: "str", a struct/enum name, or "".
+fn llvm_type_rname(Type t): str {
+    if (t matches Type::Str) return "str";
+    if (t matches Type::Unresolved(n)) return n;
+    return "";
 }
 
 fn llvm_compiler_push_scope_marker(&LlvmCompiler c): i64 {

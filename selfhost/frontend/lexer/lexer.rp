@@ -97,9 +97,7 @@ fn lexer_create_error(&Lexer lexer, str message): LexerError {
 
 
 fn lexer_next(&Lexer lexer): ResultOptionToken {
-    let token = lexer_generate_token(&lexer);
-    println(result_option_token_debug(&token));
-    return token;
+    return lexer_generate_token(&lexer);
 }
 
 

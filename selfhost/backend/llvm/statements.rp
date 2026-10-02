@@ -19,11 +19,25 @@ fn llvm_compile_block(&LlvmCompiler c, BlockNode block): void {
     llvm_compiler_pop_scope(&c, marker);
 }
 
+# LLVM requires a '.' in decimal double literals ("1e+20" is rejected).
 fn llvm_double_const(str int_or_float): str {
-    for (let i = 0; i < str_len(int_or_float); i += 1) {
+    let n = str_len(int_or_float);
+    for (let i = 0; i < n; i += 1) {
+        if (int_or_float[i] == '.') return int_or_float;
+    }
+    for (let i = 0; i < n; i += 1) {
         let c = int_or_float[i];
-        if (c == '.' || c == 'e' || c == 'E') {
-            return int_or_float;
+        if (c == 'e' || c == 'E') {
+            let head = "";
+            let tail = "";
+            for (let j = 0; j < n; j += 1) {
+                if (j < i) {
+                    head += int_or_float[j];
+                } else {
+                    tail += int_or_float[j];
+                }
+            }
+            return head + ".0" + tail;
         }
     }
     return int_or_float + ".0";
@@ -380,10 +394,44 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
         c.has_terminator = false;
         let marker = llvm_compiler_push_scope_marker(&c);
         if (arm.value.variant_value matches OptionIdentifierNode::Some(bind)) {
-            let ptr = llvm_compiler_declare_local(&c, bind.value, "ptr");
-            let pay = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + pay + " = load ptr, ptr " + pay_p);
-            ir_emit(&c.ir, "  store ptr " + pay + ", ptr " + ptr);
+            # Bind the payload with the variant's real type. Primitive payloads
+            # are stored in the enum as i64 slots (see llvm_compile_enum_literal),
+            # so they must be loaded as i64 and narrowed, not loaded as `ptr`.
+            let pay_ty = "ptr";
+            let pay_rty = "";
+            if (llvm_lookup_enum(&c, arm.value.enum_name.value) matches OptionEnumDeclaration::Some(ed)) {
+                for (let mi = 0; mi < vector_size(&ed.members); mi += 1) {
+                    if (ed.members[mi].value.identifier.value == arm.value.variant_name.value) {
+                        if (ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)) {
+                            pay_ty = type_to_llvm(ptn.value);
+                            pay_rty = llvm_type_rname(ptn.value);
+                        }
+                    }
+                }
+            }
+            let ptr = llvm_compiler_declare_local(&c, bind.value, pay_ty);
+            llvm_compiler_set_last_local_rty(&c, pay_rty);
+            if (pay_ty == "ptr") {
+                let pay = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + pay + " = load ptr, ptr " + pay_p);
+                ir_emit(&c.ir, "  store ptr " + pay + ", ptr " + ptr);
+            } else {
+                let raw = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + raw + " = load i64, ptr " + pay_p);
+                if (pay_ty == "i64") {
+                    ir_emit(&c.ir, "  store i64 " + raw + ", ptr " + ptr);
+                } else {
+                    if (pay_ty == "double") {
+                        let d = ir_tmp(&c.ir);
+                        ir_emit(&c.ir, "  " + d + " = bitcast i64 " + raw + " to double");
+                        ir_emit(&c.ir, "  store double " + d + ", ptr " + ptr);
+                    } else {
+                        let nr = ir_tmp(&c.ir);
+                        ir_emit(&c.ir, "  " + nr + " = trunc i64 " + raw + " to " + pay_ty);
+                        ir_emit(&c.ir, "  store " + pay_ty + " " + nr + ", ptr " + ptr);
+                    }
+                }
+            }
         }
         llvm_compile_block(&c, arm.value.block);
         llvm_compiler_pop_scope(&c, marker);

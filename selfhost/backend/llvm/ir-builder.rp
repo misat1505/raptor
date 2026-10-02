@@ -75,23 +75,52 @@ fn ir_cstr_global(&IrBuilder b, str value): str {
     return name;
 }
 
+# Joins `parts` (each followed by "\n") with a balanced pairwise merge.
+#
+# A plain `out += line` loop copies the whole accumulated string for every line:
+# O(n^2) bytes allocated. The self-hosted backend emits raw C strings and never
+# frees them, so for a multi-megabyte module that exhausts memory. Merging in
+# pairs copies each byte only O(log n) times.
+fn ir_join_lines(&str[] parts): str {
+    let cur: str[] = [];
+    for (let i = 0; i < vector_size(&parts); i += 1) {
+        vector_push(&cur, parts[i] + "\n");
+    }
+    if (vector_size(&cur) == 0) return "";
+    while (vector_size(&cur) > 1) {
+        let next: str[] = [];
+        let n = vector_size(&cur);
+        let i = 0;
+        while (i < n) {
+            if (i + 1 < n) {
+                vector_push(&next, cur[i] + cur[i + 1]);
+            } else {
+                vector_push(&next, cur[i]);
+            }
+            i += 2;
+        }
+        cur = next;
+    }
+    return cur[0];
+}
+
 # Order required by LLVM: header → globals → body
 fn ir_finish(&IrBuilder b): str {
-    let out = "";
+    let parts: str[] = [];
     for (let i = 0; i < vector_size(&b.header); i += 1) {
-        out += b.header[i] + "\n";
+        vector_push(&parts, b.header[i]);
     }
     if (vector_size(&b.header) > 0) {
-        out += "\n";
+        vector_push(&parts, "");
     }
     for (let i = 0; i < vector_size(&b.globals); i += 1) {
-        out += b.globals[i] + "\n";
+        vector_push(&parts, b.globals[i]);
     }
     if (vector_size(&b.globals) > 0) {
-        out += "\n";
+        vector_push(&parts, "");
     }
     for (let i = 0; i < vector_size(&b.lines); i += 1) {
-        out += b.lines[i] + "\n";
+        vector_push(&parts, b.lines[i]);
     }
-    return out;
+    return ir_join_lines(&parts);
 }

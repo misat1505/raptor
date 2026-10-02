@@ -14,6 +14,22 @@ fn llvm_mangle_fn_name(str name): str {
     return "@" + name;
 }
 
+# `&i64 x`, `&bool x`, ... : a by-reference primitive is passed as the address
+# of the caller's variable so the callee can modify it. Heap-managed types
+# (str, vectors, structs, enums) are already pointers and are unchanged.
+fn llvm_param_is_prim_ref(ParameterNode p): bool {
+    if (p.value.passed_by matches PassedBy::Reference) {
+        let ty = type_to_llvm(p.value.parameter_type.value);
+        if (ty != "ptr" && ty != "void") return true;
+    }
+    return false;
+}
+
+fn llvm_param_llvm_type(ParameterNode p): str {
+    if (llvm_param_is_prim_ref(p)) return "ptr";
+    return type_to_llvm(p.value.parameter_type.value);
+}
+
 fn llvm_emit_function_signature(FunctionDeclarationNode f): str {
     let ret = type_to_llvm(f.value.return_type.value);
     let params_ir = "";
@@ -22,7 +38,7 @@ fn llvm_emit_function_signature(FunctionDeclarationNode f): str {
             params_ir += ", ";
         }
         let p = f.value.parameters[i];
-        params_ir += type_to_llvm(p.value.parameter_type.value) + " %" + p.value.identifier.value + ".arg";
+        params_ir += llvm_param_llvm_type(p) + " %" + p.value.identifier.value + ".arg";
     }
     return "define " + ret + " " + llvm_mangle_fn_name(f.value.identifier.value) + "(" + params_ir + ")";
 }
@@ -41,6 +57,16 @@ fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void 
     for (let i = 0; i < vector_size(&f.value.parameters); i += 1) {
         let p = f.value.parameters[i];
         let ty = type_to_llvm(p.value.parameter_type.value);
+        if (llvm_param_is_prim_ref(p)) {
+            # The incoming pointer IS the variable's storage: no alloca/copy.
+            vector_push(&c.locals, CompilerVar {
+                name: p.value.identifier.value,
+                ptr: "%" + p.value.identifier.value + ".arg",
+                ty: ty,
+                rty: llvm_type_rname(p.value.parameter_type.value)
+            });
+            continue;
+        }
         let ptr = llvm_compiler_declare_local(&c, p.value.identifier.value, ty);
         llvm_compiler_set_last_local_rty(&c, llvm_type_rname(p.value.parameter_type.value));
         ir_emit(&c.ir, "  store " + ty + " %" + p.value.identifier.value + ".arg, ptr " + ptr);

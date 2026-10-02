@@ -95,7 +95,28 @@ fn llvm_compiler_set_last_local_rty(&LlvmCompiler c, str rty): void {
 # Raptor type -> name used for `rty`: "str", a struct/enum name, or "".
 fn llvm_type_rname(Type t): str {
     if (t matches Type::Str) return "str";
+    if (t matches Type::Char) return "char";
     if (t matches Type::Unresolved(n)) return n;
+    # Vectors are written as "<element>[]", e.g. "str[]", "Token[][]". The
+    # element part is empty when the element type is a primitive we do not
+    # track ("[]"), which still tells us it IS a vector.
+    if (t matches Type::Vector(inner)) return llvm_type_rname(inner) + "[]";
+    return "";
+}
+
+# "T[]" -> "T"; anything else -> "".
+fn llvm_rty_element(str rty): str {
+    let n = str_len(rty);
+    # Raptor's `&&` does not short-circuit and indexing is bounds-checked, so
+    # the length test has to be its own `if`.
+    if (n < 2) return "";
+    if (rty[n - 1] == ']' && rty[n - 2] == '[') {
+        let out = "";
+        for (let i = 0; i < n - 2; i += 1) {
+            out += rty[i];
+        }
+        return out;
+    }
     return "";
 }
 
@@ -164,12 +185,35 @@ fn llvm_struct_field_count(&LlvmCompiler c, str struct_name): i64 {
     }
 }
 
+# `char` (an i32 in the IR) -> one-character C string. `to_str_value` below
+# would print the code point as a decimal number ("l" -> "108"), which is what
+# `str + char` and `char as str` must NOT do.
+fn llvm_char_to_str(&LlvmCompiler c, str value): str {
+    let buf = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + buf + " = call ptr @malloc(i64 2)");
+    let byte = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + byte + " = trunc i32 " + value + " to i8");
+    ir_emit(&c.ir, "  store i8 " + byte + ", ptr " + buf);
+    let nul_p = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + nul_p + " = getelementptr i8, ptr " + buf + ", i64 1");
+    ir_emit(&c.ir, "  store i8 0, ptr " + nul_p);
+    return buf;
+}
+
 fn llvm_to_str_value(&LlvmCompiler c, str value, str ty): str {
     if (ty == "ptr") {
         return value;
     }
     let buf = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + buf + " = call ptr @malloc(i64 64)");
+    if (ty == "double") {
+        # "%.15g": 10.0 -> "10", 0.5 -> "0.5" (not truncated to an integer).
+        let dfmt = ir_cstr_global(&c.ir, "%.15g");
+        let dfp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + dfp + " = getelementptr inbounds [6 x i8], ptr " + dfmt + ", i64 0, i64 0");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 64, ptr " + dfp + ", double " + value + ")");
+        return buf;
+    }
     let fmt = ir_cstr_global(&c.ir, "%lld");
     let n = 5;
     let fp = ir_tmp(&c.ir);

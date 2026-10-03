@@ -4,3 +4,5 @@
 build/
 examples/libs
 examples/raylib
+
+/bootstrap/raptor

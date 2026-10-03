@@ -99,7 +99,6 @@ fn main(): void {
                             # 4) LLVM IR emission (selfhost compiler, text .ll)
                             let ll_path = "./build/out.ll";
                             llvm_compiler_compile_to_file(&merged, ll_path);
-                            println("Next: ./selfhost/scripts/link-ll.sh " + ll_path + " ./build/raptor_out");
 
                             if (is_dumping) {
                                 let output_path = "./selfhost/ast.rp";

@@ -1,0 +1,118 @@
+import "./frontend/lexer/lazy-stream-reader.rp";
+import "./frontend/lexer/lexer.rp";
+import "./frontend/parser/parser-mod.rp";
+import "./import-resolver/import-resolver.rp";
+import "./macro-expander/macro-expander-mod.rp";
+import "./semantic-checker/semantic-checker-mod.rp";
+import "./backend/llvm/llvm-mod.rp";
+
+fn main(): void {
+    let args = cli_args();
+    let entry_file = args[1];
+    let is_dumping = false;
+    if (vector_size(&args) >= 3) {
+        is_dumping = args[2] == "--dump";
+    }
+    let source = read_file(entry_file);
+
+    let src = lazy_stream_reader_new(source, OptionStr::Some(entry_file));
+
+    let options = LexerOptions {
+        max_comment_length: 1024,
+        max_identifier_length: 256
+    };
+
+    let lexer = lexer_new(src, options);
+
+    let parser_result = parser_new(lexer);
+
+    match (parser_result) {
+        ResultParser::Err(err) {
+            println(parser_error_get_stderr_message(&err));
+            return;
+        },
+        ResultParser::Ok(parser) {
+            let program_result = parser_parse(&parser);
+
+            match (program_result) {
+                ResultProgram::Err(err) {
+                    println(parser_error_get_stderr_message(&err));
+                    return;
+                },
+                ResultProgram::Ok(program) {
+                    # 1) Import resolution
+                    let resolver = import_resolver_new(options);
+                    let resolved_result = import_resolver_resolve(
+                        &resolver,
+                        entry_file,
+                        &program
+                    );
+
+                    match (resolved_result) {
+                        ResultProgram::Err(err) {
+                            println(parser_error_get_stderr_message(&err));
+                            return;
+                        },
+                        ResultProgram::Ok(merged) {
+                            # 2) Macro expansion (derive Debug / Json / Clone)
+                            let expander = macro_expander_new();
+                            macro_expander_run(&expander, &merged);
+
+                            if (vector_size(&expander.errors) > 0) {
+                                for (let i = 0; i < vector_size(&expander.errors); i += 1) {
+                                    let err = expander.errors[i];
+                                    println(error_severity_to_string(err.level) + ": " + err.message);
+                                }
+                                println("Macro expander finished with "
+                                    + vector_size(&expander.errors) as str
+                                    + " error(s).");
+                                return;
+                            }
+
+                            # 3) Semantic checking
+                            let checker = semantic_checker_new();
+                            semantic_checker_check(&checker, &merged);
+
+                            let high_errors = 0;
+                            for (let i = 0; i < vector_size(&checker.errors); i += 1) {
+                                let err = checker.errors[i];
+                                println(semantic_ckecker_error_get_stderr_message(&err) + '\n');
+                                if (err.level matches ErrorSeverity::HIGH) {
+                                    high_errors += 1;
+                                }
+                            }
+
+                            if (high_errors > 0) {
+                                println("Semantic checker finished with "
+                                    + high_errors as str
+                                    + " high-severity error(s).");
+                                return;
+                            }
+
+                            println("Pipeline OK: "
+                                + vector_size(&merged.statements) as str + " statement(s), "
+                                + vector_size(&merged.functions) as str + " function(s), "
+                                + vector_size(&merged.extern_functions) as str + " extern(s), "
+                                + vector_size(&merged.declared_types) as str + " type(s), "
+                                + vector_size(&checker.errors) as str + " warning(s).");
+
+                            # 4) LLVM IR emission (selfhost compiler, text .ll)
+                            let ll_path = "./build/out.ll";
+                            llvm_compiler_compile_to_file(&merged, ll_path);
+
+                            if (is_dumping) {
+                                let output_path = "./selfhost/ast.rp";
+                                let dump = "let ast = " + program_debug(&merged) + ";";
+                                write_file(output_path, dump);
+
+                                println("Wrote AST dump to " + output_path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+main();

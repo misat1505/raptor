@@ -1,0 +1,424 @@
+# ============================================================
+# Mirrors `src/macro_expander/derives/debug.rs`
+# ============================================================
+
+import "../../common/errors.rp";
+import "../../common/span.rp";
+import "../../../stdlib/string.rp";
+import "../../frontend/parser/ast.rp";
+import "../macro-expander.rp";
+
+fn macro_expander_derive_debug(
+    &MacroExpander me,
+    &Program program,
+    DeclaredType declared_type,
+    Span derive_span
+): void {
+    if (!macro_expander_check_debug_dependencies(&me, &program, declared_type, derive_span)) {
+        return;
+    }
+
+    let type_name = "";
+    let stmts: StatementNode[] = [];
+    let block = me_block(stmts);
+
+    match (declared_type) {
+        DeclaredType::Enum(enum_declaration) {
+            type_name = enum_declaration.identifier.value;
+            block = macro_expander_enum_debug_block(enum_declaration);
+        },
+        DeclaredType::Struct(struct_declaration) {
+            type_name = struct_declaration.identifier.value;
+            block = macro_expander_struct_debug_block(struct_declaration);
+        }
+    }
+
+    let debug_fn_name = to_snake_case(type_name) + "_debug";
+    let param_name = to_snake_case(type_name);
+
+    let params: ParameterNode[] = [];
+    vector_push(&params, me_param_ref(type_name, param_name));
+
+    let debug_fn = FunctionDeclaration {
+        identifier: me_ident(debug_fn_name),
+        parameters: params,
+        return_type: me_type(Type::Str),
+        block: block
+    };
+
+    macro_expander_insert_function(&me, &program, debug_fn, derive_span);
+}
+
+fn macro_expander_check_debug_dependencies(
+    &MacroExpander me,
+    &Program program,
+    DeclaredType declared_type,
+    Span derive_span
+): bool {
+    let parent_type = "";
+    let member_types: Type[] = [];
+
+    match (declared_type) {
+        DeclaredType::Struct(struct_declaration) {
+            parent_type = struct_declaration.identifier.value;
+            for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
+                vector_push(&member_types, struct_declaration.members[i].value.member_type.value);
+            }
+        },
+        DeclaredType::Enum(enum_declaration) {
+            parent_type = enum_declaration.identifier.value;
+            for (let i = 0; i < vector_size(&enum_declaration.members); i += 1) {
+                if (enum_declaration.members[i].value.member_type matches OptionTypeNode::Some(t)) {
+                    vector_push(&member_types, t.value);
+                }
+            }
+        }
+    }
+
+    let ok = true;
+    for (let i = 0; i < vector_size(&member_types); i += 1) {
+        if (!macro_expander_check_debug_type(&me, &program, member_types[i], parent_type, derive_span)) {
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+fn macro_expander_check_debug_type(
+    &MacroExpander me,
+    &Program program,
+    Type ty,
+    str parent_type,
+    Span derive_span
+): bool {
+    match (ty) {
+        Type::Vector(inner) return macro_expander_check_debug_type(&me, &program, inner, parent_type, derive_span);,
+        Type::Unresolved(dependency_type) {
+            if (dependency_type == parent_type) return true;
+
+            let debug_fn_name = to_snake_case(dependency_type) + "_debug";
+            if (me_function_exists(&program, debug_fn_name)) return true;
+
+            if (me_type_has_derive(&program, dependency_type, "Debug")) return true;
+
+            vector_push(&me.errors, macro_expander_error_at(
+                ErrorSeverity::HIGH,
+                "Type '" + dependency_type + "' used by '" + parent_type + "' cannot be debugged. Hint: add 'Debug' to the derives of '" + dependency_type + "', or implement the function 'fn " + debug_fn_name + "(&" + dependency_type + " value): str'.",
+                derive_span
+            ));
+            return false;
+        },
+        Type::Void {
+            vector_push(&me.errors, macro_expander_error_at(
+                ErrorSeverity::HIGH,
+                "Void type cannot be debugged (used by '" + parent_type + "').",
+                derive_span
+            ));
+            return false;
+        },
+        rest return true;
+    }
+}
+
+fn macro_expander_struct_debug_block(
+    StructDeclaration struct_declaration
+): BlockNode {
+    let struct_name = struct_declaration.identifier.value;
+    let variable_name = to_snake_case(struct_name);
+
+    let has_vector = false;
+    for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
+        if (struct_declaration.members[i].value.member_type.value matches Type::Vector) {
+            has_vector = true;
+        }
+    }
+
+    if (has_vector) {
+        return macro_expander_struct_debug_block_with_vectors(struct_declaration, variable_name);
+    }
+
+    let expressions: Expression[] = [];
+    vector_push(&expressions, me_str_lit(struct_name + " { "));
+
+    for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
+        let member = struct_declaration.members[i];
+        let field_name = member.value.identifier.value;
+        let field_type = member.value.member_type.value;
+
+        if (i > 0) {
+            vector_push(&expressions, me_str_lit(", "));
+        }
+        vector_push(&expressions, me_str_lit(field_name + ": "));
+        vector_push(&expressions, macro_expander_debug_expression_for_expression(field_type, me_field_access(variable_name, field_name)));
+    }
+
+    vector_push(&expressions, me_str_lit(" }"));
+
+    let stmts: StatementNode[] = [];
+    vector_push(&stmts, me_stmt(me_return_expr(me_combine_strings(expressions))));
+    return me_block(stmts);
+}
+
+fn macro_expander_struct_debug_block_with_vectors(
+    StructDeclaration struct_declaration,
+    str variable_name
+): BlockNode {
+    let struct_name = struct_declaration.identifier.value;
+    let result_variable = "struct_str";
+    let stmts: StatementNode[] = [];
+
+    vector_push(&stmts, me_stmt(me_let(result_variable, me_str_lit(struct_name + " { "))));
+
+    for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
+        let member = struct_declaration.members[i];
+        let field_name = member.value.identifier.value;
+        let field_type = member.value.member_type.value;
+
+        if (i > 0) {
+            vector_push(&stmts, me_stmt(me_append_str(result_variable, me_str_lit(", "))));
+        }
+        vector_push(&stmts, me_stmt(me_append_str(result_variable, me_str_lit(field_name + ": "))));
+
+        let field_expr = me_field_access(variable_name, field_name);
+
+        match (field_type) {
+            Type::Vector(inner_type) {
+                let vector_variable = variable_name + "_" + field_name + "_str";
+                let vector_stmts = macro_expander_vector_debug_statements(vector_variable, field_expr, inner_type);
+                for (let j = 0; j < vector_size(&vector_stmts); j += 1) {
+                    vector_push(&stmts, vector_stmts[j]);
+                }
+                vector_push(&stmts, me_stmt(me_append_str(result_variable, me_var(vector_variable))));
+            },
+            rest {
+                vector_push(&stmts, me_stmt(me_append_str(
+                    result_variable,
+                    macro_expander_debug_expression_for_expression(field_type, field_expr)
+                )));
+            }
+        }
+    }
+
+    vector_push(&stmts, me_stmt(me_append_str(result_variable, me_str_lit(" }"))));
+    vector_push(&stmts, me_stmt(me_return_expr(me_var(result_variable))));
+    return me_block(stmts);
+}
+
+fn macro_expander_enum_debug_block(
+    EnumDeclaration enum_declaration
+): BlockNode {
+    let enum_name = enum_declaration.identifier.value;
+    let variable_name = to_snake_case(enum_name);
+    let match_arms: MatchArmNode[] = [];
+
+    for (let i = 0; i < vector_size(&enum_declaration.members); i += 1) {
+        let member = enum_declaration.members[i];
+        let variant_name = member.value.identifier.value;
+
+        match (member.value.member_type) {
+            OptionTypeNode::None {
+                let arm_stmts: StatementNode[] = [];
+                vector_push(&arm_stmts, me_stmt(me_return_expr(me_str_lit(enum_name + "::" + variant_name))));
+                vector_push(&match_arms, MatchArmNode {
+                    value: MatchArm {
+                        enum_name: me_ident(enum_name),
+                        variant_name: me_ident(variant_name),
+                        variant_value: OptionIdentifierNode::None,
+                        block: me_block(arm_stmts)
+                    },
+                    span: me_span()
+                });
+            },
+            OptionTypeNode::Some(type_node) {
+                let member_type = type_node.value;
+                let payload_variable = macro_expander_debug_variable_name(member_type);
+
+                match (member_type) {
+                    Type::Vector(inner_type) {
+                        let vector_block = macro_expander_vector_enum_debug_block(
+                            enum_name, variant_name, payload_variable, inner_type
+                        );
+                        vector_push(&match_arms, MatchArmNode {
+                            value: MatchArm {
+                                enum_name: me_ident(enum_name),
+                                variant_name: me_ident(variant_name),
+                                variant_value: OptionIdentifierNode::Some(me_ident(payload_variable)),
+                                block: vector_block
+                            },
+                            span: me_span()
+                        });
+                    },
+                    rest {
+                        let debug_expression = macro_expander_debug_expression_for_variable(member_type, payload_variable);
+                        let return_expression = me_addition(
+                            me_str_lit(enum_name + "::" + variant_name + "("),
+                            me_addition(debug_expression, me_str_lit(")"))
+                        );
+                        let arm_stmts: StatementNode[] = [];
+                        vector_push(&arm_stmts, me_stmt(me_return_expr(return_expression)));
+                        vector_push(&match_arms, MatchArmNode {
+                            value: MatchArm {
+                                enum_name: me_ident(enum_name),
+                                variant_name: me_ident(variant_name),
+                                variant_value: OptionIdentifierNode::Some(me_ident(payload_variable)),
+                                block: me_block(arm_stmts)
+                            },
+                            span: me_span()
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    let stmts: StatementNode[] = [];
+    vector_push(&stmts, me_stmt(Statement::Match(MatchStatement {
+        expression: me_expr(me_var(variable_name)),
+        match_arms: match_arms,
+        rest_arm: OptionBlockNode::None
+    })));
+    return me_block(stmts);
+}
+
+fn macro_expander_vector_enum_debug_block(
+    str enum_name,
+    str variant_name,
+    str vector_variable,
+    Type inner_type
+): BlockNode {
+    let vector_str = "vector_str";
+    let index = "i";
+    let stmts: StatementNode[] = [];
+
+    vector_push(&stmts, me_stmt(me_let(vector_str, me_str_lit("["))));
+    vector_push(&stmts, me_stmt(me_let(index, me_i64_lit(0))));
+
+    let loop_body: StatementNode[] = [];
+    vector_push(&loop_body, me_stmt(Statement::Conditional(ConditionalStatement {
+        condition: me_expr(me_less(me_i64_lit(0), me_var(index))),
+        if_block: me_block([me_stmt(me_append_str(vector_str, me_str_lit(", ")))]),
+        else_block: OptionBlockNode::None
+    })));
+
+    let indexed = me_index(vector_variable, index);
+    vector_push(&loop_body, me_stmt(me_append_str(
+        vector_str,
+        macro_expander_debug_expression_for_expression(inner_type, indexed)
+    )));
+    vector_push(&loop_body, me_stmt(me_assign(index, me_addition(me_var(index), me_i64_lit(1)))));
+
+    let condition = me_less(
+        me_var(index),
+        me_call_ref("vector_size", me_var(vector_variable))
+    );
+
+    vector_push(&stmts, me_stmt(Statement::WhileLoop(WhileLoopStatement {
+        condition: me_expr(condition),
+        block: me_block(loop_body)
+    })));
+
+    vector_push(&stmts, me_stmt(me_append_str(vector_str, me_str_lit("]"))));
+
+    let return_expression = me_addition(
+        me_str_lit(enum_name + "::" + variant_name + "("),
+        me_addition(me_var(vector_str), me_str_lit(")"))
+    );
+    vector_push(&stmts, me_stmt(me_return_expr(return_expression)));
+    return me_block(stmts);
+}
+
+fn macro_expander_vector_debug_statements(
+    str vector_str,
+    Expression field_expression,
+    Type inner_type
+): StatementNode[] {
+    let index = vector_str + "_i";
+    let stmts: StatementNode[] = [];
+
+    # Bind vector field to a temp so we can index it in the loop.
+    let temp_vec = vector_str + "_vec";
+    vector_push(&stmts, me_stmt(me_let(temp_vec, field_expression)));
+    vector_push(&stmts, me_stmt(me_let(vector_str, me_str_lit("["))));
+    vector_push(&stmts, me_stmt(me_let(index, me_i64_lit(0))));
+
+    let loop_body: StatementNode[] = [];
+    vector_push(&loop_body, me_stmt(Statement::Conditional(ConditionalStatement {
+        condition: me_expr(me_less(me_i64_lit(0), me_var(index))),
+        if_block: me_block([me_stmt(me_append_str(vector_str, me_str_lit(", ")))]),
+        else_block: OptionBlockNode::None
+    })));
+
+    let indexed = me_index(temp_vec, index);
+    vector_push(&loop_body, me_stmt(me_append_str(
+        vector_str,
+        macro_expander_debug_expression_for_expression(inner_type, indexed)
+    )));
+    vector_push(&loop_body, me_stmt(me_assign(index, me_addition(me_var(index), me_i64_lit(1)))));
+
+    vector_push(&stmts, me_stmt(Statement::WhileLoop(WhileLoopStatement {
+        condition: me_expr(me_less(me_var(index), me_call_ref("vector_size", me_var(temp_vec)))),
+        block: me_block(loop_body)
+    })));
+
+    vector_push(&stmts, me_stmt(me_append_str(vector_str, me_str_lit("]"))));
+    return stmts;
+}
+
+fn macro_expander_debug_expression_for_variable(
+    Type member_type,
+    str variable_name
+): Expression {
+    return macro_expander_debug_expression_for_expression(member_type, me_var(variable_name));
+}
+
+fn macro_expander_debug_expression_for_expression(
+    Type member_type,
+    Expression expression
+): Expression {
+    match (member_type) {
+        Type::Str {
+            return me_addition(me_str_lit("\""), me_addition(expression, me_str_lit("\"")));
+        },
+        Type::Char {
+            return me_addition(me_str_lit("'"), me_addition(me_cast_to_str(expression), me_str_lit("'")));
+        },
+        Type::Bool return me_cast_to_str(expression);,
+        Type::F64 return me_cast_to_str(expression);,
+        Type::I8 return me_cast_to_str(expression);,
+        Type::I16 return me_cast_to_str(expression);,
+        Type::I32 return me_cast_to_str(expression);,
+        Type::I64 return me_cast_to_str(expression);,
+        Type::U8 return me_cast_to_str(expression);,
+        Type::U16 return me_cast_to_str(expression);,
+        Type::U32 return me_cast_to_str(expression);,
+        Type::U64 return me_cast_to_str(expression);,
+        Type::Unresolved(identifier) {
+            return me_call_ref(to_snake_case(identifier) + "_debug", expression);
+        },
+        Type::Vector {
+            # handled at statement level
+            return me_str_lit("<vector>");
+        },
+        rest return me_str_lit("<unprintable>");
+    }
+}
+
+fn macro_expander_debug_variable_name(Type member_type): str {
+    match (member_type) {
+        Type::Bool return "bool_var";,
+        Type::Str return "str_var";,
+        Type::Char return "char_var";,
+        Type::I8 return "i8_var";,
+        Type::I16 return "i16_var";,
+        Type::I32 return "i32_var";,
+        Type::I64 return "i64_var";,
+        Type::U8 return "u8_var";,
+        Type::U16 return "u16_var";,
+        Type::U32 return "u32_var";,
+        Type::U64 return "u64_var";,
+        Type::F64 return "f64_var";,
+        Type::Void return "void_var";,
+        Type::Vector return "vector_var";,
+        Type::Unresolved return "unresolved_var";
+    }
+}

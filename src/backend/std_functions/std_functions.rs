@@ -6,7 +6,7 @@ use crate::{
         llvm::compiler::Compiler,
         std_functions::{
             files::{append_file::append_file, delete_file::delete_file, exists_file::exists_file, read_file::read_file, write_file::write_file},
-            io::{input::input, print::print, println::println},
+            io::{cli_args::cli_args, input::input, print::print, println::println},
             network::{
                 tcp_accept::tcp_accept, tcp_close::tcp_close, tcp_connect::tcp_connect, tcp_listen::tcp_listen, tcp_read::tcp_read,
                 tcp_write::tcp_write,
@@ -64,6 +64,7 @@ pub fn get_std_functions() -> HashMap<String, StdFunction> {
     HashMap::from([
         ("print".into(), print()),
         ("println".into(), println()),
+        ("cli_args".into(), cli_args()),
         ("input".into(), input()),
         ("read_file".into(), read_file()),
         ("write_file".into(), write_file()),

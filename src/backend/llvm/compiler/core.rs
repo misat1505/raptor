@@ -112,12 +112,37 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     }
 
     pub(in crate::backend::llvm::compiler) fn declare_main_function(&mut self) {
-        let fn_type = self.i32_type().fn_type(&[], false);
+        use inkwell::module::Linkage;
+        use inkwell::AddressSpace;
+
+        let i32_type = self.i32_type();
+        let ptr_type = self.context.ptr_type(AddressSpace::default());
+
+        // int main(int argc, char **argv)
+        let fn_type = i32_type.fn_type(&[i32_type.into(), ptr_type.into()], false);
         let function = self.module.add_function("main", fn_type, None);
 
         let entry_block = self.context.append_basic_block(function, "entry");
-
         self.builder.position_at_end(entry_block);
+
+        // Module-level storage so std `cli_args` can read argv from anywhere.
+        let argc_global = self.module.add_global(i32_type, None, "raptor_argc");
+        argc_global.set_linkage(Linkage::Internal);
+        argc_global.set_initializer(&i32_type.const_zero());
+
+        let argv_global = self.module.add_global(ptr_type, None, "raptor_argv");
+        argv_global.set_linkage(Linkage::Internal);
+        argv_global.set_initializer(&ptr_type.const_null());
+
+        let argc = function.get_nth_param(0).expect("main argc").into_int_value();
+        let argv = function.get_nth_param(1).expect("main argv").into_pointer_value();
+
+        self.builder
+            .build_store(argc_global.as_pointer_value(), argc)
+            .expect("store raptor_argc");
+        self.builder
+            .build_store(argv_global.as_pointer_value(), argv)
+            .expect("store raptor_argv");
 
         self.main_fn = Some(function);
     }

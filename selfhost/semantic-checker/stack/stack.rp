@@ -1,0 +1,229 @@
+# ============================================================
+# Mirrors `src/semantic/stack/*` (scopes + stack frames)
+# ============================================================
+
+import "../../common/errors.rp";
+import "../../common/span.rp";
+import "../../frontend/parser/ast.rp";
+import "../semantic-helpers.rp";
+
+struct VariableInfo {
+    str name,
+    Type ty,
+    Span span,
+    bool used
+};
+
+struct Scope {
+    VariableInfo[] variables
+};
+
+struct StackFrame {
+    Scope[] scopes,
+    i64 breakable_count,
+    i64 continuable_count
+};
+
+struct StaticCheckerStack {
+    StackFrame[] frames
+};
+
+fn stack_new(): StaticCheckerStack {
+    let frames: StackFrame[] = [];
+    let frame = stack_frame_new();
+    vector_push(&frames, frame);
+    return StaticCheckerStack { frames: frames };
+}
+
+fn stack_frame_new(): StackFrame {
+    let scopes: Scope[] = [];
+    vector_push(&scopes, Scope { variables: [] });
+    return StackFrame {
+        scopes: scopes,
+        breakable_count: 0,
+        continuable_count: 0
+    };
+}
+
+fn stack_push_frame(&StaticCheckerStack stack): void {
+    vector_push(&stack.frames, stack_frame_new());
+}
+
+fn stack_pop_frame(&StaticCheckerStack stack): void {
+    if (vector_size(&stack.frames) == 0) return;
+    let new_frames: StackFrame[] = [];
+    for (let i = 0; i < vector_size(&stack.frames) - 1; i += 1) {
+        vector_push(&new_frames, stack.frames[i]);
+    }
+    stack.frames = new_frames;
+}
+
+fn stack_current_frame(&StaticCheckerStack stack): StackFrame {
+    return stack.frames[vector_size(&stack.frames) - 1];
+}
+
+fn stack_set_current_frame(&StaticCheckerStack stack, StackFrame frame): void {
+    stack.frames[vector_size(&stack.frames) - 1] = frame;
+}
+
+fn stack_push_scope(&StaticCheckerStack stack): void {
+    let frame = stack_current_frame(&stack);
+    vector_push(&frame.scopes, Scope { variables: [] });
+    stack_set_current_frame(&stack, frame);
+}
+
+fn stack_pop_scope(&StaticCheckerStack stack): VariableInfo[] {
+    let frame = stack_current_frame(&stack);
+    if (vector_size(&frame.scopes) == 0) {
+        let empty: VariableInfo[] = [];
+        return empty;
+    }
+    let last = frame.scopes[vector_size(&frame.scopes) - 1];
+    let new_scopes: Scope[] = [];
+    for (let i = 0; i < vector_size(&frame.scopes) - 1; i += 1) {
+        vector_push(&new_scopes, frame.scopes[i]);
+    }
+    frame.scopes = new_scopes;
+    stack_set_current_frame(&stack, frame);
+    return last.variables;
+}
+
+fn stack_enter_breakable(&StaticCheckerStack stack): void {
+    let frame = stack_current_frame(&stack);
+    frame.breakable_count += 1;
+    stack_set_current_frame(&stack, frame);
+}
+
+fn stack_leave_breakable(&StaticCheckerStack stack): void {
+    let frame = stack_current_frame(&stack);
+    if (frame.breakable_count > 0) frame.breakable_count -= 1;
+    stack_set_current_frame(&stack, frame);
+}
+
+fn stack_enter_continuable(&StaticCheckerStack stack): void {
+    let frame = stack_current_frame(&stack);
+    frame.continuable_count += 1;
+    stack_set_current_frame(&stack, frame);
+}
+
+fn stack_leave_continuable(&StaticCheckerStack stack): void {
+    let frame = stack_current_frame(&stack);
+    if (frame.continuable_count > 0) frame.continuable_count -= 1;
+    stack_set_current_frame(&stack, frame);
+}
+
+fn stack_can_break(&StaticCheckerStack stack): bool {
+    return stack_current_frame(&stack).breakable_count > 0;
+}
+
+fn stack_can_continue(&StaticCheckerStack stack): bool {
+    return stack_current_frame(&stack).continuable_count > 0;
+}
+
+fn stack_declare_variable(
+    &StaticCheckerStack stack,
+    str name,
+    Type ty,
+    Span span
+): ResultSem {
+    let frame = stack_current_frame(&stack);
+    let scope_idx = vector_size(&frame.scopes) - 1;
+    let scope = frame.scopes[scope_idx];
+
+    for (let i = 0; i < vector_size(&scope.variables); i += 1) {
+        if (scope.variables[i].name == name) {
+            return ResultSem::Err(semantic_checker_error_new(
+                ErrorSeverity::HIGH,
+                "Cannot redeclare variable '" + name + "'.",
+                span
+            ));
+        }
+    }
+
+    # Also forbid shadowing within the same frame's outer scopes? Rust
+    # only forbids redeclare in the *current* scope; outer shadowing OK.
+    vector_push(&scope.variables, VariableInfo {
+        name: name,
+        ty: ty,
+        span: span,
+        used: false
+    });
+    frame.scopes[scope_idx] = scope;
+    stack_set_current_frame(&stack, frame);
+    return ResultSem::Ok;
+}
+
+fn stack_get_variable(
+    &StaticCheckerStack stack,
+    str name
+): OptionType {
+    let frame = stack_current_frame(&stack);
+    # innermost scope first
+    for (let s = vector_size(&frame.scopes); s > 0; s -= 1) {
+        let scope = frame.scopes[s - 1];
+        for (let i = 0; i < vector_size(&scope.variables); i += 1) {
+            if (scope.variables[i].name == name) {
+                return OptionType::Some(scope.variables[i].ty);
+            }
+        }
+    }
+    return OptionType::None;
+}
+
+fn stack_mark_used(&StaticCheckerStack stack, str name): void {
+    let frame = stack_current_frame(&stack);
+    for (let s = vector_size(&frame.scopes); s > 0; s -= 1) {
+        let scope = frame.scopes[s - 1];
+        for (let i = 0; i < vector_size(&scope.variables); i += 1) {
+            if (scope.variables[i].name == name) {
+                scope.variables[i].used = true;
+                frame.scopes[s - 1] = scope;
+                stack_set_current_frame(&stack, frame);
+                return;
+            }
+        }
+    }
+}
+
+fn stack_assign_variable(
+    &StaticCheckerStack stack,
+    str name,
+    Type value,
+    Span span
+): ResultSem {
+    let frame = stack_current_frame(&stack);
+    for (let s = vector_size(&frame.scopes); s > 0; s -= 1) {
+        let scope = frame.scopes[s - 1];
+        for (let i = 0; i < vector_size(&scope.variables); i += 1) {
+            if (scope.variables[i].name == name) {
+                let prev = scope.variables[i].ty;
+                if (type_eq(prev, value)) {
+                    return ResultSem::Ok;
+                }
+                return ResultSem::Err(semantic_checker_error_new(
+                    ErrorSeverity::HIGH,
+                    "Cannot assign '" + type_to_string(value) + "' to variable '" + name + "' which was previously declared as '" + type_to_string(prev) + "'.",
+                    span
+                ));
+            }
+        }
+    }
+    return ResultSem::Err(semantic_checker_error_new(
+        ErrorSeverity::HIGH,
+        "Variable '" + name + "' not declared.",
+        span
+    ));
+}
+
+fn stack_unused_in_last_scope(&StaticCheckerStack stack): VariableInfo[] {
+    let frame = stack_current_frame(&stack);
+    let unused: VariableInfo[] = [];
+    if (vector_size(&frame.scopes) == 0) return unused;
+    let scope = frame.scopes[vector_size(&frame.scopes) - 1];
+    for (let i = 0; i < vector_size(&scope.variables); i += 1) {
+        if (!scope.variables[i].used) {
+            vector_push(&unused, scope.variables[i]);
+        }
+    }
+    return unused;
+}

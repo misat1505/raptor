@@ -1,0 +1,58 @@
+# ============================================================
+# Mirrors `src/backend/std_functions/std_functions.rs` — only the
+# parts needed for semantic type-checking (no interpreter / LLVM).
+#
+# StdFunction cannot live on Program as a field of a user struct in
+# the usual sense; the registry is a free-function table looked up by
+# name during check_function_call.
+# ============================================================
+
+import "../frontend/parser/ast.rp";
+import "../common/errors.rp";
+import "../common/span.rp";
+import "../semantic-checker/semantic-helpers.rp";
+
+# Which custom type_check to run (host uses Option<fn(&[Type]) -> ...>).
+enum StdTypeCheckKind {
+    None,
+    VectorPush,
+    VectorSize,
+    VectorStringify
+};
+
+struct StdFunction {
+    str name,
+    Type[] params,
+    PassedBy[] passed_by,
+    Type return_type,
+    StdTypeCheckKind type_check_kind
+};
+
+enum OptionStdFunction {
+    Some(StdFunction),
+    None
+};
+
+fn std_function_new(
+    str name,
+    Type[] params,
+    PassedBy[] passed_by,
+    Type return_type,
+    StdTypeCheckKind type_check_kind
+): StdFunction {
+    return StdFunction {
+        name: name,
+        params: params,
+        passed_by: passed_by,
+        return_type: return_type,
+        type_check_kind: type_check_kind
+    };
+}
+
+fn std_function_lookup(str name): OptionStdFunction {
+    let all = get_std_functions();
+    for (let i = 0; i < vector_size(&all); i += 1) {
+        if (all[i].name == name) return OptionStdFunction::Some(all[i]);
+    }
+    return OptionStdFunction::None;
+}

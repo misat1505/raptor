@@ -1,0 +1,58 @@
+# ============================================================
+# Mirrors `src/frontend/parser/mod.rs`: that file's only job is
+# `mod core; mod enums; mod expressions; mod functions; mod misc;
+# mod program; mod statements; mod structs;` - pulling every submodule
+# into the crate. This file is the same thing for the selfhost parser:
+# importing it (from `main.rp`) is enough to make every
+# `parser_parse_*` function in the whole parser reachable, without every
+# individual production file having to import all of its siblings (see
+# the note in misc/derive_declaration.rp for why that would be risky:
+# many of these productions call each other back and forth, e.g.
+# `parser_parse_statement` <-> `parser_parse_statement_block`, which
+# would form real import cycles if spelled out as direct file-to-file
+# imports).
+# ============================================================
+
+import "./ast.rp";
+import "./parser-results.rp";
+import "./core.rp";
+
+import "./misc/identifier.rp";
+import "./misc/types.rp";
+import "./misc/derive-declaration.rp";
+
+import "./expressions/literal.rp";
+import "./expressions/vector-literal.rp";
+import "./expressions/arguments.rp";
+import "./expressions/identifier-or-call-or-struct-literal-or-enum-literal.rp";
+import "./expressions/factor.rp";
+import "./expressions/unary-term.rp";
+import "./expressions/casted-term.rp";
+import "./expressions/multiplicative-term.rp";
+import "./expressions/additive-term.rp";
+import "./expressions/relation-term.rp";
+import "./expressions/concatenation-term.rp";
+import "./expressions/expression.rp";
+
+import "./statements/block.rp";
+import "./statements/assign-or-call.rp";
+import "./statements/declaration.rp";
+import "./statements/return-statement.rp";
+import "./statements/break-statement.rp";
+import "./statements/continue-statement.rp";
+import "./statements/import-declaration.rp";
+import "./statements/match-statement.rp";
+import "./statements/switch-statement.rp";
+import "./statements/for-statement.rp";
+import "./statements/while-statement.rp";
+import "./statements/if-statement.rp";
+
+import "./functions/parameters.rp";
+import "./functions/function-declaration.rp";
+import "./functions/extern-function-declaration.rp";
+
+import "./structs/struct-declaration.rp";
+
+import "./enums/enum-declaration.rp";
+
+import "./program.rp";

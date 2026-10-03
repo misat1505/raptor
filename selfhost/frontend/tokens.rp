@@ -1,0 +1,211 @@
+import "../common/span.rp";
+
+
+enum TokenCategory derives Debug {
+    # Comparison
+    Greater,
+    GreaterOrEqual,
+    Less,
+    LessOrEqual,
+    Equal,
+    NotEqual,
+
+    # Arithmetic
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
+
+    # Boolean arithmetic
+    Negate,
+    And,
+    Or,
+
+    # Parentheses
+    ParenOpen,
+    ParenClose,
+    BracketOpen,
+    BracketClose,
+    BraceOpen,
+    BraceClose,
+
+    # Keywords
+    For,
+    While,
+    If,
+    Else,
+    As,
+    Fn,
+    True,
+    False,
+    Return,
+    Switch,
+    Break,
+    Continue,
+    Import,
+
+    # Type keywords
+    Bool,
+    String,
+    I8,
+    I16,
+    I32,
+    I64,
+    U8,
+    U16,
+    U32,
+    U64,
+    F64,
+    Void,
+    Char,
+
+    # Others
+    Assign,
+    PlusEquals,
+    MinusEquals,
+    TimesEquals,
+    DivideEquals,
+    ModuloEquals,
+
+    Colon,
+    DoubleColon,
+    Semicolon,
+    Comma,
+    Reference,
+    Arrow,
+
+    STX,
+    ETX,
+
+    # Complex
+    Identifier,
+    Comment,
+
+    # Literals
+    CharValue,
+    StringValue,
+    I64Value,
+    F64Value,
+
+    Extern,
+    Let,
+    Struct,
+    Dot,
+
+    Enum,
+    Match,
+    Rest,
+    Derives,
+    Matches,
+    Not
+};
+
+
+enum TokenValue derives Debug {
+    Char(char),
+    String(str),
+    F64(f64),
+    I64(i64),
+    Null
+};
+
+
+struct Token derives Debug {
+    TokenCategory category,
+    TokenValue value,
+    Span span
+};
+
+
+fn token_category_to_string(TokenCategory category): str {
+    match (category) {
+        TokenCategory::Greater return ">";,
+        TokenCategory::GreaterOrEqual return ">=";,
+        TokenCategory::Less return "<";,
+        TokenCategory::LessOrEqual return "<=";,
+        TokenCategory::Equal return "==";,
+        TokenCategory::NotEqual return "!=";,
+
+        TokenCategory::Plus return "+";,
+        TokenCategory::Minus return "-";,
+        TokenCategory::Multiply return "*";,
+        TokenCategory::Divide return "/";,
+        TokenCategory::Modulo return "%";,
+
+        TokenCategory::Negate return "!";,
+        TokenCategory::And return "&&";,
+        TokenCategory::Or return "||";,
+
+        TokenCategory::ParenOpen return "(";,
+        TokenCategory::ParenClose return ")";,
+        TokenCategory::BracketOpen return "[";,
+        TokenCategory::BracketClose return "]";,
+        TokenCategory::BraceOpen return "{";,
+        TokenCategory::BraceClose return "}";,
+
+        TokenCategory::For return "for";,
+        TokenCategory::While return "while";,
+        TokenCategory::If return "if";,
+        TokenCategory::Else return "else";,
+        TokenCategory::As return "as";,
+        TokenCategory::Fn return "fn";,
+        TokenCategory::True return "true";,
+        TokenCategory::False return "false";,
+        TokenCategory::Return return "return";,
+        TokenCategory::Switch return "switch";,
+        TokenCategory::Break return "break";,
+        TokenCategory::Continue return "continue";,
+        TokenCategory::Import return "import";,
+
+        TokenCategory::Bool return "bool type";,
+        TokenCategory::String return "str type";,
+        TokenCategory::I8 return "i8 type";,
+        TokenCategory::I16 return "i16 type";,
+        TokenCategory::I32 return "i32 type";,
+        TokenCategory::I64 return "i64 type";,
+        TokenCategory::U8 return "u8 type";,
+        TokenCategory::U16 return "u16 type";,
+        TokenCategory::U32 return "u32 type";,
+        TokenCategory::U64 return "u64 type";,
+        TokenCategory::F64 return "f64 type";,
+        TokenCategory::Void return "void";,
+        TokenCategory::Char return "char type";,
+
+        TokenCategory::Assign return "=";,
+        TokenCategory::PlusEquals return "+=";,
+        TokenCategory::MinusEquals return "-=";,
+        TokenCategory::TimesEquals return "*=";,
+        TokenCategory::DivideEquals return "/=";,
+        TokenCategory::ModuloEquals return "%=";,
+
+        TokenCategory::Colon return ":";,
+        TokenCategory::DoubleColon return "::";,
+        TokenCategory::Semicolon return ";";,
+        TokenCategory::Comma return ",";,
+        TokenCategory::Reference return "&";,
+        TokenCategory::Arrow return "->";,
+
+        TokenCategory::STX return "STX";,
+        TokenCategory::ETX return "ETX";,
+
+        TokenCategory::Identifier return "identifier";,
+        TokenCategory::Comment return "comment";,
+
+        TokenCategory::StringValue return "str value";,
+        TokenCategory::I64Value return "i64 value";,
+        TokenCategory::F64Value return "f64 value";,
+        TokenCategory::CharValue return "char value";,
+
+        TokenCategory::Extern return "extern";,
+        TokenCategory::Let return "let";,
+        TokenCategory::Struct return "struct";,
+        TokenCategory::Dot return "dot";,
+        TokenCategory::Enum return "enum";,
+        TokenCategory::Match return "match";,
+        TokenCategory::Rest return "rest";,
+        TokenCategory::Derives return "derives";,
+        TokenCategory::Matches return "matches";,
+        TokenCategory::Not return "not";
+    }
+}

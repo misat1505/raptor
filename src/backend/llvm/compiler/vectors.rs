@@ -674,7 +674,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .build_load(element_llvm_type, element_ptr, "copy.retain.element")
             .map_err(&err)?;
 
-        if matches!(inner_type, Type::Str | Type::Vector(_) | Type::Struct { .. }) {
+        if matches!(inner_type, Type::Str | Type::Vector(_) | Type::Struct { .. } | Type::Enum { .. }) {
             let element_value = LlvmValue::from_basic_value_enum(element_raw, inner_type);
 
             self.retain_value(&element_value, span)?;

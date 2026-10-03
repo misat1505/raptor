@@ -1,0 +1,126 @@
+# ============================================================
+# Textual LLVM IR builder (selfhost substitute for inkwell).
+# ============================================================
+
+struct IrBuilder {
+    str[] header,   # target datalayout / triple / comments first
+    str[] lines,    # body: declares + defines
+    str[] globals,  # @.str.* etc. — emitted AFTER header, BEFORE body
+    i64 tmp_id,
+    i64 str_id,
+    i64 label_id
+};
+
+fn ir_builder_new(): IrBuilder {
+    return IrBuilder {
+        header: [],
+        lines: [],
+        globals: [],
+        tmp_id: 0,
+        str_id: 0,
+        label_id: 0
+    };
+}
+
+fn ir_emit_header(&IrBuilder b, str line): void {
+    vector_push(&b.header, line);
+}
+
+fn ir_emit(&IrBuilder b, str line): void {
+    vector_push(&b.lines, line);
+}
+
+fn ir_emit_global(&IrBuilder b, str line): void {
+    vector_push(&b.globals, line);
+}
+
+fn ir_tmp(&IrBuilder b): str {
+    let name = "%t" + b.tmp_id as str;
+    b.tmp_id += 1;
+    return name;
+}
+
+fn ir_label(&IrBuilder b, str prefix): str {
+    let name = prefix + "." + b.label_id as str;
+    b.label_id += 1;
+    return name;
+}
+
+fn ir_cstr_global(&IrBuilder b, str value): str {
+    let name = "@.str." + b.str_id as str;
+    b.str_id += 1;
+    let escaped = "";
+    for (let i = 0; i < str_len(value); i += 1) {
+        let c = value[i];
+        if (c == '\\') {
+            escaped += "\\\\";
+        } else {
+            if (c == '"') {
+                escaped += "\\22";
+            } else {
+                if (c == '\n') {
+                    escaped += "\\0A";
+                } else {
+                    if (c == '\0') {
+                        escaped += "\\00";
+                    } else {
+                        escaped += c;
+                    }
+                }
+            }
+        }
+    }
+    let n = str_len(value) + 1;
+    ir_emit_global(&b, name + " = private unnamed_addr constant [" + n as str + " x i8] c\"" + escaped + "\\00\"");
+    return name;
+}
+
+# Joins `parts` (each followed by "\n") with a balanced pairwise merge.
+#
+# A plain `out += line` loop copies the whole accumulated string for every line:
+# O(n^2) bytes allocated. The self-hosted backend emits raw C strings and never
+# frees them, so for a multi-megabyte module that exhausts memory. Merging in
+# pairs copies each byte only O(log n) times.
+fn ir_join_lines(&str[] parts): str {
+    let cur: str[] = [];
+    for (let i = 0; i < vector_size(&parts); i += 1) {
+        vector_push(&cur, parts[i] + "\n");
+    }
+    if (vector_size(&cur) == 0) return "";
+    while (vector_size(&cur) > 1) {
+        let next: str[] = [];
+        let n = vector_size(&cur);
+        let i = 0;
+        while (i < n) {
+            if (i + 1 < n) {
+                vector_push(&next, cur[i] + cur[i + 1]);
+            } else {
+                vector_push(&next, cur[i]);
+            }
+            i += 2;
+        }
+        cur = next;
+    }
+    return cur[0];
+}
+
+# Order required by LLVM: header → globals → body
+fn ir_finish(&IrBuilder b): str {
+    let parts: str[] = [];
+    for (let i = 0; i < vector_size(&b.header); i += 1) {
+        vector_push(&parts, b.header[i]);
+    }
+    if (vector_size(&b.header) > 0) {
+        vector_push(&parts, "");
+    }
+    for (let i = 0; i < vector_size(&b.globals); i += 1) {
+        vector_push(&parts, b.globals[i]);
+    }
+    if (vector_size(&b.globals) > 0) {
+        vector_push(&parts, "");
+    }
+    for (let i = 0; i < vector_size(&b.lines); i += 1) {
+        vector_push(&parts, b.lines[i]);
+    }
+    return ir_join_lines(&parts);
+}

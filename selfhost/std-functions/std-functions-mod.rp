@@ -1,0 +1,4 @@
+# Aggregator for selfhost std_functions (type-check registry only).
+import "./std-function.rp";
+import "./type-checks.rp";
+import "./registry.rp";

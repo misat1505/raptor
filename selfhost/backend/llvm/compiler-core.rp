@@ -1,0 +1,248 @@
+# ============================================================
+# Mirrors src/backend/llvm/compiler/mod.rs + core.rs
+# ============================================================
+
+import "../../frontend/parser/ast.rp";
+import "../../common/span.rp";
+import "./ir-builder.rp";
+import "./types-ir.rp";
+
+struct CompilerVar {
+    str name,
+    str ptr,
+    str ty,
+    # Raptor-level type name of the variable: "str", a struct name, or "" when
+    # unknown. In the LLVM IR `str`, vectors and structs are all plain `ptr`,
+    # so this is what lets indexing tell a string (bytes) apart from a vector
+    # (8-byte slots), and lets field access find the right struct.
+    str rty
+};
+
+struct LlvmCompiler {
+    IrBuilder ir,
+    CompilerVar[] locals,
+    str last_value,
+    str last_type,
+    str[] errors,
+    str[] break_stack,
+    str[] continue_stack,
+    str current_ret_ty,
+    bool has_terminator,
+    Program program,
+    i64 local_id
+};
+
+fn llvm_compiler_new(): LlvmCompiler {
+    let empty_stmts: StatementNode[] = [];
+    let empty_fns: FunctionDeclarationNode[] = [];
+    let empty_ext: ExternFunctionDeclarationNode[] = [];
+    let empty_types: DeclaredTypeNode[] = [];
+    return LlvmCompiler {
+        ir: ir_builder_new(),
+        locals: [],
+        last_value: "0",
+        last_type: "i64",
+        errors: [],
+        break_stack: [],
+        continue_stack: [],
+        current_ret_ty: "i32",
+        has_terminator: false,
+        program: Program {
+            statements: empty_stmts,
+            functions: empty_fns,
+            extern_functions: empty_ext,
+            declared_types: empty_types
+        },
+        local_id: 0
+    };
+}
+
+fn llvm_compiler_error(&LlvmCompiler c, str msg): void {
+    vector_push(&c.errors, msg);
+}
+
+fn llvm_compiler_set_last(&LlvmCompiler c, str value, str ty): void {
+    c.last_value = value;
+    c.last_type = ty;
+}
+
+fn llvm_compiler_find_local(&LlvmCompiler c, str name): i64 {
+    for (let i = vector_size(&c.locals) - 1; i >= 0; i -= 1) {
+        if (c.locals[i].name == name) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+fn llvm_compiler_declare_local(&LlvmCompiler c, str name, str ty): str {
+    let n = c.local_id;
+    c.local_id += 1;
+    let ptr = "%" + name + "." + n as str + ".addr";
+    ir_emit(&c.ir, "  " + ptr + " = alloca " + ty);
+    vector_push(&c.locals, CompilerVar { name: name, ptr: ptr, ty: ty, rty: "" });
+    return ptr;
+}
+
+# Records the Raptor type name of the most recently declared local.
+fn llvm_compiler_set_last_local_rty(&LlvmCompiler c, str rty): void {
+    let last = vector_size(&c.locals) - 1;
+    if (last >= 0) {
+        c.locals[last].rty = rty;
+    }
+}
+
+# Raptor type -> name used for `rty`: "str", a struct/enum name, or "".
+fn llvm_type_rname(Type t): str {
+    if (t matches Type::Str) return "str";
+    if (t matches Type::Char) return "char";
+    if (t matches Type::Unresolved(n)) return n;
+    # Vectors are written as "<element>[]", e.g. "str[]", "Token[][]". The
+    # element part is empty when the element type is a primitive we do not
+    # track ("[]"), which still tells us it IS a vector.
+    if (t matches Type::Vector(inner)) return llvm_type_rname(inner) + "[]";
+    return "";
+}
+
+# "T[]" -> "T"; anything else -> "".
+fn llvm_rty_element(str rty): str {
+    let n = str_len(rty);
+    # Raptor's `&&` does not short-circuit and indexing is bounds-checked, so
+    # the length test has to be its own `if`.
+    if (n < 2) return "";
+    if (rty[n - 1] == ']' && rty[n - 2] == '[') {
+        let out = "";
+        for (let i = 0; i < n - 2; i += 1) {
+            out += rty[i];
+        }
+        return out;
+    }
+    return "";
+}
+
+fn llvm_compiler_push_scope_marker(&LlvmCompiler c): i64 {
+    return vector_size(&c.locals);
+}
+
+fn llvm_compiler_pop_scope(&LlvmCompiler c, i64 marker): void {
+    let kept: CompilerVar[] = [];
+    for (let i = 0; i < marker; i += 1) {
+        vector_push(&kept, c.locals[i]);
+    }
+    c.locals = kept;
+}
+
+fn llvm_lookup_struct(&LlvmCompiler c, str name): OptionStructDeclaration {
+    for (let i = 0; i < vector_size(&c.program.declared_types); i += 1) {
+        if (c.program.declared_types[i].value matches DeclaredType::Struct(s)) {
+            if (s.identifier.value == name) {
+                return OptionStructDeclaration::Some(s);
+            }
+        }
+    }
+    return OptionStructDeclaration::None;
+}
+
+fn llvm_lookup_enum(&LlvmCompiler c, str name): OptionEnumDeclaration {
+    for (let i = 0; i < vector_size(&c.program.declared_types); i += 1) {
+        if (c.program.declared_types[i].value matches DeclaredType::Enum(e)) {
+            if (e.identifier.value == name) {
+                return OptionEnumDeclaration::Some(e);
+            }
+        }
+    }
+    return OptionEnumDeclaration::None;
+}
+
+fn llvm_enum_variant_tag(&LlvmCompiler c, str enum_name, str variant): i64 {
+    if (llvm_lookup_enum(&c, enum_name) matches OptionEnumDeclaration::Some(ed)) {
+        for (let i = 0; i < vector_size(&ed.members); i += 1) {
+            if (ed.members[i].value.identifier.value == variant) {
+                return i;
+            }
+        }
+    }
+    return 0;
+}
+
+fn llvm_struct_field_index(&LlvmCompiler c, str struct_name, str field): i64 {
+    if (llvm_lookup_struct(&c, struct_name) matches OptionStructDeclaration::Some(sd)) {
+        for (let i = 0; i < vector_size(&sd.members); i += 1) {
+            if (sd.members[i].value.identifier.value == field) {
+                return i;
+            }
+        }
+    }
+    return 0;
+}
+
+fn llvm_struct_field_count(&LlvmCompiler c, str struct_name): i64 {
+    match (llvm_lookup_struct(&c, struct_name)) {
+        OptionStructDeclaration::Some(sd) {
+            return vector_size(&sd.members);
+        },
+        OptionStructDeclaration::None return 0;
+    }
+}
+
+# `char` (an i32 in the IR) -> one-character C string. `to_str_value` below
+# would print the code point as a decimal number ("l" -> "108"), which is what
+# `str + char` and `char as str` must NOT do.
+fn llvm_char_to_str(&LlvmCompiler c, str value): str {
+    let buf = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + buf + " = call ptr @malloc(i64 2)");
+    let byte = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + byte + " = trunc i32 " + value + " to i8");
+    ir_emit(&c.ir, "  store i8 " + byte + ", ptr " + buf);
+    let nul_p = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + nul_p + " = getelementptr i8, ptr " + buf + ", i64 1");
+    ir_emit(&c.ir, "  store i8 0, ptr " + nul_p);
+    return buf;
+}
+
+fn llvm_to_str_value(&LlvmCompiler c, str value, str ty): str {
+    if (ty == "ptr") {
+        return value;
+    }
+    let buf = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + buf + " = call ptr @malloc(i64 64)");
+    if (ty == "double") {
+        # "%.15g": 10.0 -> "10", 0.5 -> "0.5" (not truncated to an integer).
+        let dfmt = ir_cstr_global(&c.ir, "%.15g");
+        let dfp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + dfp + " = getelementptr inbounds [6 x i8], ptr " + dfmt + ", i64 0, i64 0");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 64, ptr " + dfp + ", double " + value + ")");
+        return buf;
+    }
+    let fmt = ir_cstr_global(&c.ir, "%lld");
+    let n = 5;
+    let fp = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + fp + " = getelementptr inbounds [" + n as str + " x i8], ptr " + fmt + ", i64 0, i64 0");
+
+    # snprintf expects i64 for %lld
+    let v = value;
+    if (ty == "i64") {
+        v = value;
+    } else {
+        if (ty == "i1") {
+            let e = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + e + " = zext i1 " + value + " to i64");
+            v = e;
+        } else {
+            if (ty == "i8" || ty == "i16" || ty == "i32") {
+                let e = ir_tmp(&c.ir);
+                ir_emit(&c.ir, "  " + e + " = zext " + ty + " " + value + " to i64");
+                v = e;
+            } else {
+                if (ty == "double") {
+                    let e = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + e + " = fptosi double " + value + " to i64");
+                    v = e;
+                }
+            }
+        }
+    }
+
+    ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 64, ptr " + fp + ", i64 " + v + ")");
+    return buf;
+}

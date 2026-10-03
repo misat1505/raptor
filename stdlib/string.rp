@@ -387,34 +387,37 @@ fn str_replace_all(str s, str old, str replacement): str {
 
 fn str_split(str s, str sep): str[] {
     let result: str[] = [];
+    let sep_len = str_len(sep);
+    let s_len = str_len(s);
 
-    if (str_len(sep) == 0) {
+    if (sep_len == 0) {
         vector_push(&result, s);
         return result;
     }
 
-    let remaining = s;
-    let sep_len = str_len(sep);
+    let start = 0;
+    let i = 0;
 
-    while (true) {
-        let idx = str_index_of_str(remaining, sep);
-
-        if (idx < 0) {
-            vector_push(&result, remaining);
-            return result;
+    while (i + sep_len <= s_len) {
+        let matched = true;
+        for (let j = 0; j < sep_len; j += 1) {
+            if (s[i + j] != sep[j]) {
+                matched = false;
+                break;
+            }
         }
 
-        vector_push(
-            &result,
-            str_substring(remaining, 0, idx)
-        );
-
-        remaining = str_substring(
-            remaining,
-            idx + sep_len,
-            str_len(remaining)
-        );
+        if (matched) {
+            vector_push(&result, str_substring(s, start, i));
+            i += sep_len;
+            start = i;
+        } else {
+            i += 1;
+        }
     }
+
+    vector_push(&result, str_substring(s, start, s_len));
+    return result;
 }
 
 fn str_join(str[] parts, str separator): str {

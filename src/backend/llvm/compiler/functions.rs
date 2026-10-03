@@ -3,6 +3,7 @@ use inkwell::values::{BasicMetadataValueEnum, FunctionValue, PointerValue};
 use inkwell::AddressSpace;
 
 use super::Compiler;
+use crate::backend::llvm::llvm_alu::llvm_value::{ENUM_PAYLOAD, ENUM_REFCOUNT, ENUM_TAG};
 use crate::common::visitor::Visitor;
 use crate::{
     backend::llvm::llvm_alu::llvm_value::LlvmValue,
@@ -298,6 +299,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             }
 
                             compiled_args.push(LlvmValue::Struct(copy_ptr, ty).as_basic_value_enum().into());
+                        }
+
+                        (false, LlvmValue::Enum(ptr, ty)) => {
+                            let value = LlvmValue::Enum(ptr, ty.clone());
+                            let copy_ptr = self.build_shallow_copy_enum(ptr, &ty, span)?;
+                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
+                                self.release_value(&value, span)?;
+                            }
+                            compiled_args.push(LlvmValue::Enum(copy_ptr, ty).as_basic_value_enum().into());
                         }
 
                         (_, value) => {
@@ -647,7 +657,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
             let resolved_field_type = self.resolve_type(field_type);
 
-            if matches!(resolved_field_type, Type::Str | Type::Vector(_) | Type::Struct { .. }) {
+            if matches!(resolved_field_type, Type::Str | Type::Vector(_) | Type::Struct { .. } | Type::Enum { .. }) {
                 let field_llvm_value = LlvmValue::from_basic_value_enum(field_value, &resolved_field_type);
 
                 self.retain_value(&field_llvm_value, span)?;
@@ -668,6 +678,161 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.builder
             .build_store(refcount_field, self.context.i64_type().const_int(1, false))
             .map_err(&err)?;
+
+        Ok(new_ptr)
+    }
+
+    pub(in crate::backend::llvm::compiler) fn build_shallow_copy_enum(
+        &mut self,
+        src: PointerValue<'ctx>,
+        ty: &Type,
+        span: Span,
+    ) -> Result<PointerValue<'ctx>, Box<dyn IError>> {
+        let err = Self::builder_err(span);
+
+        let Type::Enum { identifier, .. } = ty else {
+            return Err(Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                "build_shallow_copy_enum called with non-enum type.".to_string(),
+                span,
+            )));
+        };
+
+        let (header_ty, variant_indices, ordered_variants) = self.enum_llvm_type(identifier, span)?;
+
+        // --- allocate new header (same layout as src, including [N x i64]) ---
+        let size = header_ty.size_of().ok_or_else(|| {
+            Box::new(CompilerError::at(
+                ErrorSeverity::HIGH,
+                format!("Cannot compute size of enum '{}'.", identifier),
+                span,
+            )) as Box<dyn IError>
+        })?;
+
+        let new_ptr = self
+            .builder
+            .build_call(self.libc.malloc_fn, &[size.into()], "enum.copy.malloc")
+            .map_err(&err)?
+            .try_as_basic_value()
+            .basic()
+            .expect("malloc should return a value")
+            .into_pointer_value();
+
+        // --- refcount = 1 ---
+        let rc_dst = self
+            .builder
+            .build_struct_gep(header_ty, new_ptr, ENUM_REFCOUNT, "enum.copy.rc")
+            .map_err(&err)?;
+        self.builder
+            .build_store(rc_dst, self.context.i64_type().const_int(1, false))
+            .map_err(&err)?;
+
+        // --- copy tag ---
+        let src_tag = self
+            .builder
+            .build_struct_gep(header_ty, src, ENUM_TAG, "enum.copy.tag.src")
+            .map_err(&err)?;
+        let tag_val = self
+            .builder
+            .build_load(self.context.i64_type(), src_tag, "enum.copy.tag.val")
+            .map_err(&err)?;
+        let dst_tag = self
+            .builder
+            .build_struct_gep(header_ty, new_ptr, ENUM_TAG, "enum.copy.tag.dst")
+            .map_err(&err)?;
+        self.builder.build_store(dst_tag, tag_val).map_err(&err)?;
+
+        // --- copy payload words (bitwise) ---
+        // header = { i64 rc, i64 tag, [N x i64] payload }
+        // If N == 0 (unit-only enum), this block is a no-op.
+        let payload_src = self
+            .builder
+            .build_struct_gep(header_ty, src, ENUM_PAYLOAD, "enum.copy.payload.src")
+            .map_err(&err)?;
+        let payload_dst = self
+            .builder
+            .build_struct_gep(header_ty, new_ptr, ENUM_PAYLOAD, "enum.copy.payload.dst")
+            .map_err(&err)?;
+
+        if let Some(field_ty) = header_ty.get_field_type_at_index(ENUM_PAYLOAD) {
+            if field_ty.is_array_type() {
+                let arr_ty = field_ty.into_array_type();
+                let n = arr_ty.len() as u64;
+                let i64_ty = self.context.i64_type();
+
+                for i in 0..n {
+                    let src_word = unsafe {
+                        self.builder
+                            .build_gep(
+                                arr_ty,
+                                payload_src,
+                                &[i64_ty.const_int(0, false), i64_ty.const_int(i, false)],
+                                &format!("enum.copy.word.src.{}", i),
+                            )
+                            .map_err(&err)?
+                    };
+                    let word = self
+                        .builder
+                        .build_load(i64_ty, src_word, &format!("enum.copy.word.{}", i))
+                        .map_err(&err)?;
+                    let dst_word = unsafe {
+                        self.builder
+                            .build_gep(
+                                arr_ty,
+                                payload_dst,
+                                &[i64_ty.const_int(0, false), i64_ty.const_int(i, false)],
+                                &format!("enum.copy.word.dst.{}", i),
+                            )
+                            .map_err(&err)?
+                    };
+                    self.builder.build_store(dst_word, word).map_err(&err)?;
+                }
+            }
+        }
+
+        // --- retain managed payload according to tag ---
+        let current_block = self.builder.get_insert_block().unwrap();
+        let parent_fn = current_block.get_parent().unwrap();
+        let after_block = self.context.append_basic_block(parent_fn, "enum.copy.retain.after");
+
+        let mut cases = Vec::new();
+
+        for (variant_name, payload_ty_opt) in &ordered_variants {
+            let Some(payload_ty) = payload_ty_opt else {
+                continue; // unit variant
+            };
+
+            let resolved = self.resolve_type(payload_ty);
+            if !matches!(resolved, Type::Str | Type::Vector(_) | Type::Struct { .. } | Type::Enum { .. }) {
+                continue; // primitive payload — bitwise copy is enough
+            }
+
+            let tag_index = *variant_indices.get(variant_name).unwrap();
+            let case_block = self.context.append_basic_block(parent_fn, &format!("enum.copy.retain.{}", variant_name));
+            cases.push((self.context.i64_type().const_int(tag_index as u64, false), case_block));
+
+            self.builder.position_at_end(case_block);
+
+            // First payload word holds the managed pointer.
+            let payload_ptr = self
+                .builder
+                .build_load(
+                    self.context.ptr_type(inkwell::AddressSpace::default()),
+                    payload_dst,
+                    "enum.copy.payload.ptr",
+                )
+                .map_err(&err)?
+                .into_pointer_value();
+
+            let payload_val = LlvmValue::from_basic_value_enum(payload_ptr.into(), &resolved);
+            self.retain_value(&payload_val, span)?;
+
+            self.builder.build_unconditional_branch(after_block).map_err(&err)?;
+        }
+
+        self.builder.position_at_end(current_block);
+        self.builder.build_switch(tag_val.into_int_value(), after_block, &cases).map_err(&err)?;
+        self.builder.position_at_end(after_block);
 
         Ok(new_ptr)
     }

@@ -1,0 +1,205 @@
+# ============================================================
+# Mirrors `src/semantic/type_alu/*`
+# ============================================================
+
+import "../../common/errors.rp";
+import "../../common/span.rp";
+import "../../frontend/parser/ast.rp";
+import "../semantic-helpers.rp";
+
+fn type_alu_check_numeric(Type t1, Type t2, str op_name, Span span): ResultType {
+    match (t1) {
+        Type::I8 {
+            if (t2 matches Type::I8) return ResultType::Ok(Type::I8);
+        },
+        Type::I16 {
+            if (t2 matches Type::I16) return ResultType::Ok(Type::I16);
+        },
+        Type::I32 {
+            if (t2 matches Type::I32) return ResultType::Ok(Type::I32);
+        },
+        Type::I64 {
+            if (t2 matches Type::I64) return ResultType::Ok(Type::I64);
+        },
+        Type::U8 {
+            if (t2 matches Type::U8) return ResultType::Ok(Type::U8);
+        },
+        Type::U16 {
+            if (t2 matches Type::U16) return ResultType::Ok(Type::U16);
+        },
+        Type::U32 {
+            if (t2 matches Type::U32) return ResultType::Ok(Type::U32);
+        },
+        Type::U64 {
+            if (t2 matches Type::U64) return ResultType::Ok(Type::U64);
+        },
+        Type::F64 {
+            if (t2 matches Type::F64) return ResultType::Ok(Type::F64);
+        },
+        rest {}
+    }
+
+    return ResultType::Err(semantic_checker_error_new(
+        ErrorSeverity::HIGH,
+        "Cannot perform " + op_name + " between values of type '" + type_to_string(t1) + "' and '" + type_to_string(t2) + "'.",
+        span
+    ));
+}
+
+fn type_alu_add(Type t1, Type t2, Span span): ResultType {
+    match (t1) {
+        Type::Str {
+            if (t2 matches Type::Str) return ResultType::Ok(Type::Str);
+            if (t2 matches Type::Char) return ResultType::Ok(Type::Str);
+        },
+        Type::Char {
+            if (t2 matches Type::Char) return ResultType::Ok(Type::Str);
+            if (t2 matches Type::Str) return ResultType::Ok(Type::Str);
+        },
+        rest {}
+    }
+
+    return type_alu_check_numeric(t1, t2, "addition", span);
+}
+
+fn type_alu_subtract(Type t1, Type t2, Span span): ResultType {
+    return type_alu_check_numeric(t1, t2, "subtraction", span);
+}
+
+fn type_alu_multiply(Type t1, Type t2, Span span): ResultType {
+    return type_alu_check_numeric(t1, t2, "multiplication", span);
+}
+
+fn type_alu_divide(Type t1, Type t2, Span span): ResultType {
+    return type_alu_check_numeric(t1, t2, "division", span);
+}
+
+fn type_alu_modulo(Type t1, Type t2, Span span): ResultType {
+    return type_alu_check_numeric(t1, t2, "modulo", span);
+}
+
+fn type_alu_compare(Type t1, Type t2, Span span): ResultType {
+    if (!type_eq(t1, t2)) {
+        return ResultType::Err(semantic_checker_error_new(
+            ErrorSeverity::HIGH,
+            "Cannot compare values of type '" + type_to_string(t1) + "' and '" + type_to_string(t2) + "'.",
+            span
+        ));
+    }
+
+    match (t1) {
+        Type::Bool return ResultType::Ok(Type::Bool);,
+        Type::Str return ResultType::Ok(Type::Bool);,
+        Type::Char return ResultType::Ok(Type::Bool);,
+        Type::I8 return ResultType::Ok(Type::Bool);,
+        Type::I16 return ResultType::Ok(Type::Bool);,
+        Type::I32 return ResultType::Ok(Type::Bool);,
+        Type::I64 return ResultType::Ok(Type::Bool);,
+        Type::U8 return ResultType::Ok(Type::Bool);,
+        Type::U16 return ResultType::Ok(Type::Bool);,
+        Type::U32 return ResultType::Ok(Type::Bool);,
+        Type::U64 return ResultType::Ok(Type::Bool);,
+        Type::F64 return ResultType::Ok(Type::Bool);,
+        rest {
+            return ResultType::Err(semantic_checker_error_new(
+                ErrorSeverity::HIGH,
+                "Cannot compare values of type '" + type_to_string(t1) + "' and '" + type_to_string(t2) + "'.",
+                span
+            ));
+        }
+    }
+}
+
+fn type_alu_logical(Type t1, Type t2, Span span): ResultType {
+    if (t1 matches Type::Bool) {
+        if (t2 matches Type::Bool) {
+            return ResultType::Ok(Type::Bool);
+        }
+    }
+
+    return ResultType::Err(semantic_checker_error_new(
+        ErrorSeverity::HIGH,
+        "Logical operators require bool operands, got '" + type_to_string(t1) + "' and '" + type_to_string(t2) + "'.",
+        span
+    ));
+}
+
+fn type_alu_boolean_negation(Type t, Span span): ResultType {
+    if (t matches Type::Bool) return ResultType::Ok(Type::Bool);
+
+    return ResultType::Err(semantic_checker_error_new(
+        ErrorSeverity::HIGH,
+        "Boolean negation requires bool, got '" + type_to_string(t) + "'.",
+        span
+    ));
+}
+
+fn type_alu_arithmetic_negation(Type t, Span span): ResultType {
+    match (t) {
+        Type::I8 return ResultType::Ok(Type::I8);,
+        Type::I16 return ResultType::Ok(Type::I16);,
+        Type::I32 return ResultType::Ok(Type::I32);,
+        Type::I64 return ResultType::Ok(Type::I64);,
+        Type::F64 return ResultType::Ok(Type::F64);,
+        rest {
+            return ResultType::Err(semantic_checker_error_new(
+                ErrorSeverity::HIGH,
+                "Arithmetic negation not defined for type '" + type_to_string(t) + "'.",
+                span
+            ));
+        }
+    }
+}
+
+fn type_alu_cast(Type value, Type target, Span span): ResultType {
+    if (type_eq(value, target)) return ResultType::Ok(value);
+
+    let value_num = type_is_numeric(value);
+    let target_num = type_is_numeric(target);
+
+    if (value_num) {
+        if (target_num) return ResultType::Ok(target);
+        if (target matches Type::Bool) return ResultType::Ok(Type::Bool);
+        if (target matches Type::Str) return ResultType::Ok(Type::Str);
+    }
+
+    if (value matches Type::Bool) {
+        if (target_num) return ResultType::Ok(target);
+        if (target matches Type::Str) return ResultType::Ok(Type::Str);
+    }
+
+    if (value matches Type::Str) {
+        if (target matches Type::Bool) return ResultType::Ok(Type::Bool);
+    }
+
+    if (value matches Type::Char) {
+        if (target matches Type::Str) return ResultType::Ok(Type::Str);
+        if (target matches Type::U8) return ResultType::Ok(Type::U8);
+        if (target_num) return ResultType::Ok(target);
+    }
+
+    if (value matches Type::U8) {
+        if (target matches Type::Char) return ResultType::Ok(Type::Char);
+    }
+
+    return ResultType::Err(semantic_checker_error_new(
+        ErrorSeverity::HIGH,
+        "Cannot cast '" + type_to_string(value) + "' to '" + type_to_string(target) + "'.",
+        span
+    ));
+}
+
+fn type_is_numeric(Type t): bool {
+    match (t) {
+        Type::I8 return true;,
+        Type::I16 return true;,
+        Type::I32 return true;,
+        Type::I64 return true;,
+        Type::U8 return true;,
+        Type::U16 return true;,
+        Type::U32 return true;,
+        Type::U64 return true;,
+        Type::F64 return true;,
+        rest return false;
+    }
+}

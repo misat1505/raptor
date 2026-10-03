@@ -1,0 +1,492 @@
+import "../../common/span.rp";
+import "../../common/position.rp";
+
+# ============================================================
+# This file mirrors `src/frontend/ast.rs` and `src/common/types.rs`
+# from the Rust bootstrap compiler.
+#
+# Rust leans on two generic building blocks that Raptor does not have:
+#
+#   - `Node<T> { value: T, span: Span }` - attaches a source span to any
+#     value.
+#   - `Option<T>` - "maybe a T".
+#
+# Since Raptor has no generics, both are recreated by hand, once per
+# concrete `T`: for every AST value type `X` there is a matching
+# `XNode { X value, Span span }` struct playing the role of `Node<X>`,
+# and, wherever Rust used `Option<Node<X>>`, an `OptionXNode` enum
+# playing the role of `Option<Node<X>>`.
+#
+# Rust's enum variants may carry more than one field
+# (`Addition(BNode<Expression>, BNode<Expression>)`). Raptor's enum
+# variants may only carry a single payload, so any such variant is
+# given a small carrier struct instead (e.g. `BinaryExpression`).
+#
+# There is no `Box<T>` here either: Raptor's structs/enums are already
+# heap-allocated, reference-counted values (see docs/memory-management.md),
+# so directly recursive types (an `Expression` containing an
+# `ExpressionNode` which itself contains an `Expression`, and so on) are
+# fine without any indirection wrapper.
+# ============================================================
+
+
+# ==================== Types (common/types.rs) ====================
+
+enum Type derives Debug, Clone {
+    Bool,
+    Str,
+    Char,
+    I8,
+    I16,
+    I32,
+    I64,
+    U8,
+    U16,
+    U32,
+    U64,
+    F64,
+    Void,
+
+    # Vector(Box<Type>) in Rust.
+    Vector(Type),
+
+    # Placeholder for an identifier found in type position (e.g. `Hobby[]
+    # hobbies`) before it's known whether it names a struct or an enum.
+    # Resolving it is a semantic-checker concern and out of scope for this
+    # parser; it is kept around unresolved, exactly like the Rust parser
+    # produces it.
+    Unresolved(str)
+};
+
+struct TypeNode derives Debug, Clone {
+    Type value,
+    Span span
+};
+
+enum OptionTypeNode derives Debug, Clone {
+    Some(TypeNode),
+    None
+};
+
+
+# ==================== Identifiers (Node<String>) ====================
+
+struct IdentifierNode derives Debug, Clone {
+    str value,
+    Span span
+};
+
+enum OptionIdentifierNode derives Debug, Clone {
+    Some(IdentifierNode),
+    None
+};
+
+
+# ==================== Literals ====================
+
+enum Literal derives Debug, Clone {
+    True,
+    False,
+    String(str),
+    Char(char),
+    I64(i64),
+    F64(f64)
+};
+
+struct LiteralNode derives Debug, Clone {
+    Literal value,
+    Span span
+};
+
+enum OptionLiteralNode derives Debug, Clone {
+    Some(LiteralNode),
+    None
+};
+
+
+# ==================== Passed by ====================
+
+enum PassedBy derives Debug, Clone {
+    Reference,
+    Value
+};
+
+
+# ==================== Expressions ====================
+
+# Forward declared here in comments only (Raptor resolves all
+# declarations in a file before checking bodies, so the mutual
+# recursion between `Expression` and `ExpressionNode` below is fine):
+#
+#   Expression   - the *kind* of expression (no span)
+#   ExpressionNode - Expression + Span (== Node<Expression> in Rust,
+#                    used wherever Rust used `BNode<Expression>` too,
+#                    since there is no Box here)
+
+struct BinaryExpression derives Debug, Clone {
+    ExpressionNode left,
+    ExpressionNode right
+};
+
+struct CastingExpression derives Debug, Clone {
+    ExpressionNode value,
+    TypeNode to_type
+};
+
+struct IndexExpression derives Debug, Clone {
+    ExpressionNode collection,
+    ExpressionNode index
+};
+
+struct FieldAccessExpression derives Debug, Clone {
+    ExpressionNode instance,
+    IdentifierNode field
+};
+
+struct ArgumentNode derives Debug, Clone {
+    Argument value,
+    Span span
+};
+
+struct Argument derives Debug, Clone {
+    ExpressionNode value,
+    PassedBy passed_by
+};
+
+struct FunctionCallExpression derives Debug, Clone {
+    IdentifierNode identifier,
+    ArgumentNode[] arguments
+};
+
+struct StructLiteralField derives Debug, Clone {
+    IdentifierNode identifier,
+    ExpressionNode value
+};
+
+struct StructLiteralFieldNode derives Debug, Clone {
+    StructLiteralField value,
+    Span span
+};
+
+struct StructLiteral derives Debug, Clone {
+    IdentifierNode identifier,
+    StructLiteralFieldNode[] fields
+};
+
+struct StructLiteralNode derives Debug, Clone {
+    StructLiteral value,
+    Span span
+};
+
+struct EnumLiteralExpression derives Debug, Clone {
+    IdentifierNode enum_name,
+    IdentifierNode variant_name,
+    OptionExpressionNode variant_value
+};
+
+enum Expression derives Debug, Clone {
+    # Boolean operations
+    Alternative(BinaryExpression),
+    Concatenation(BinaryExpression),
+
+    # Relations
+    Greater(BinaryExpression),
+    GreaterEqual(BinaryExpression),
+    Less(BinaryExpression),
+    LessEqual(BinaryExpression),
+    Equal(BinaryExpression),
+    NotEqual(BinaryExpression),
+
+    # Arithmetic operations
+    Addition(BinaryExpression),
+    Subtraction(BinaryExpression),
+    Multiplication(BinaryExpression),
+    Division(BinaryExpression),
+    Modulo(BinaryExpression),
+
+    # Unary operations
+    BooleanNegation(ExpressionNode),
+    ArithmeticNegation(ExpressionNode),
+
+    # Casting
+    Casting(CastingExpression),
+
+    # Values
+    Literal(Literal),
+    Vector(ExpressionNode[]),
+    Index(IndexExpression),
+    FieldAccess(FieldAccessExpression),
+    Variable(str),
+    FunctionCall(FunctionCallExpression),
+    StructLiteral(StructLiteralNode),
+    EnumLiteral(EnumLiteralExpression)
+};
+
+struct ExpressionNode derives Debug, Clone {
+    Expression value,
+    Span span
+};
+
+enum OptionExpressionNode derives Debug, Clone {
+    Some(ExpressionNode),
+    None
+};
+
+
+# ==================== Variable declarations ====================
+
+struct LetDeclarationKind derives Debug, Clone {
+    OptionTypeNode var_type,
+    ExpressionNode value
+};
+
+struct TypeDeclarationKind derives Debug, Clone {
+    TypeNode var_type,
+    OptionExpressionNode value
+};
+
+enum VariableDeclarationKind derives Debug, Clone {
+    LET(LetDeclarationKind),
+    TYPE(TypeDeclarationKind)
+};
+
+
+# ==================== Accessors (x[0].field) ====================
+
+enum Accessor derives Debug, Clone {
+    Index(ExpressionNode),
+    Field(IdentifierNode)
+};
+
+struct AccessorNode derives Debug, Clone {
+    Accessor value,
+    Span span
+};
+
+
+# ==================== Blocks ====================
+
+struct Block derives Debug, Clone {
+    StatementNode[] statements
+};
+
+struct BlockNode derives Debug, Clone {
+    Block value,
+    Span span
+};
+
+enum OptionBlockNode derives Debug, Clone {
+    Some(BlockNode),
+    None
+};
+
+
+# ==================== Statements ====================
+
+struct DeclarationStatement derives Debug, Clone {
+    IdentifierNode identifier,
+    VariableDeclarationKind kind
+};
+
+struct AssignmentStatement derives Debug, Clone {
+    IdentifierNode identifier,
+    AccessorNode[] accessors,
+    ExpressionNode value
+};
+
+struct ConditionalStatement derives Debug, Clone {
+    ExpressionNode condition,
+    BlockNode if_block,
+    OptionBlockNode else_block
+};
+
+struct WhileLoopStatement derives Debug, Clone {
+    ExpressionNode condition,
+    BlockNode block
+};
+
+struct ForLoopStatement derives Debug, Clone {
+    OptionStatementNode declaration,
+    ExpressionNode condition,
+    OptionStatementNode assignment,
+    BlockNode block
+};
+
+struct SwitchExpression derives Debug, Clone {
+    ExpressionNode expression,
+    OptionIdentifierNode alias
+};
+
+struct SwitchExpressionNode derives Debug, Clone {
+    SwitchExpression value,
+    Span span
+};
+
+struct SwitchCase derives Debug, Clone {
+    ExpressionNode condition,
+    BlockNode block
+};
+
+struct SwitchCaseNode derives Debug, Clone {
+    SwitchCase value,
+    Span span
+};
+
+struct SwitchStatement derives Debug, Clone {
+    SwitchExpressionNode[] expressions,
+    SwitchCaseNode[] cases
+};
+
+struct MatchArm derives Debug, Clone {
+    IdentifierNode enum_name,
+    IdentifierNode variant_name,
+    OptionIdentifierNode variant_value,
+    BlockNode block
+};
+
+struct MatchArmNode derives Debug, Clone {
+    MatchArm value,
+    Span span
+};
+
+struct MatchStatement derives Debug, Clone {
+    ExpressionNode expression,
+    MatchArmNode[] match_arms,
+    OptionBlockNode rest_arm
+};
+
+enum Statement derives Debug, Clone {
+    FunctionCall(FunctionCallExpression),
+    Declaration(DeclarationStatement),
+    Assignment(AssignmentStatement),
+    Conditional(ConditionalStatement),
+    WhileLoop(WhileLoopStatement),
+    ForLoop(ForLoopStatement),
+    Switch(SwitchStatement),
+    Return(OptionExpressionNode),
+    Break,
+    Continue,
+    Import(IdentifierNode),
+    Match(MatchStatement)
+};
+
+struct StatementNode derives Debug, Clone {
+    Statement value,
+    Span span
+};
+
+enum OptionStatementNode derives Debug, Clone {
+    Some(StatementNode),
+    None
+};
+
+
+# ==================== Functions ====================
+
+struct Parameter derives Debug, Clone {
+    PassedBy passed_by,
+    TypeNode parameter_type,
+    IdentifierNode identifier
+};
+
+struct ParameterNode derives Debug, Clone {
+    Parameter value,
+    Span span
+};
+
+struct FunctionDeclaration derives Debug, Clone {
+    IdentifierNode identifier,
+    ParameterNode[] parameters,
+    TypeNode return_type,
+    BlockNode block
+};
+
+struct FunctionDeclarationNode derives Debug, Clone {
+    FunctionDeclaration value,
+    Span span
+};
+
+struct ExternFunctionDeclaration derives Debug, Clone {
+    IdentifierNode identifier,
+    OptionIdentifierNode alias,
+    ParameterNode[] parameters,
+    TypeNode return_type
+};
+
+struct ExternFunctionDeclarationNode derives Debug, Clone {
+    ExternFunctionDeclaration value,
+    Span span
+};
+
+
+# ==================== Structs & Enums (user-declared types) ====================
+
+struct StructMember derives Debug, Clone {
+    IdentifierNode identifier,
+    TypeNode member_type
+};
+
+struct StructMemberNode derives Debug, Clone {
+    StructMember value,
+    Span span
+};
+
+struct StructDeclaration derives Debug, Clone {
+    IdentifierNode identifier,
+    StructMemberNode[] members,
+    IdentifierNode[] struct_derives
+};
+
+struct StructDeclarationNode derives Debug, Clone {
+    StructDeclaration value,
+    Span span
+};
+
+struct EnumMember derives Debug, Clone {
+    IdentifierNode identifier,
+    OptionTypeNode member_type
+};
+
+struct EnumMemberNode derives Debug, Clone {
+    EnumMember value,
+    Span span
+};
+
+struct EnumDeclaration derives Debug, Clone {
+    IdentifierNode identifier,
+    EnumMemberNode[] members,
+    IdentifierNode[] enum_derives
+};
+
+struct EnumDeclarationNode derives Debug, Clone {
+    EnumDeclaration value,
+    Span span
+};
+
+enum DeclaredType derives Debug, Clone {
+    Struct(StructDeclaration),
+    Enum(EnumDeclaration)
+};
+
+struct DeclaredTypeNode derives Debug, Clone {
+    DeclaredType value,
+    Span span
+};
+
+
+# ==================== Program ====================
+
+# The Rust `Program` keys functions/extern_functions/declared_types by
+# name in `HashMap`s, and also carries the registry of built-in std
+# functions plus a fully resolved `types` table. Raptor has no map type
+# available at the language level yet, and resolving declared types /
+# registering std functions is semantic-checker work anyway - both are
+# out of scope for a parser whose pipeline stops at AST creation. So
+# `Program` here keeps only what parsing itself produces, as flat
+# vectors instead of maps.
+struct Program derives Debug {
+    StatementNode[] statements,
+    FunctionDeclarationNode[] functions,
+    ExternFunctionDeclarationNode[] extern_functions,
+    DeclaredTypeNode[] declared_types
+};

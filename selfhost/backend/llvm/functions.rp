@@ -1,0 +1,114 @@
+# ============================================================
+# Mirrors src/backend/llvm/compiler/functions.rs (declare + body)
+# ============================================================
+
+import "../../frontend/parser/ast.rp";
+import "./compiler-core.rp";
+import "./statements.rp";
+import "./ir-builder.rp";
+import "./types-ir.rp";
+
+fn llvm_mangle_fn_name(str name): str {
+    if (name == "main") return "@raptor_main";
+
+    return "@" + name;
+}
+
+# `&i64 x`, `&bool x`, ... : a by-reference primitive is passed as the address
+# of the caller's variable so the callee can modify it. Heap-managed types
+# (str, vectors, structs, enums) are already pointers and are unchanged.
+fn llvm_param_is_prim_ref(ParameterNode p): bool {
+    if (p.value.passed_by matches PassedBy::Reference) {
+        let ty = type_to_llvm(p.value.parameter_type.value);
+        if (ty != "ptr" && ty != "void") return true;
+    }
+    return false;
+}
+
+fn llvm_param_llvm_type(ParameterNode p): str {
+    if (llvm_param_is_prim_ref(p)) return "ptr";
+    return type_to_llvm(p.value.parameter_type.value);
+}
+
+fn llvm_emit_function_signature(FunctionDeclarationNode f): str {
+    let ret = type_to_llvm(f.value.return_type.value);
+    let params_ir = "";
+    for (let i = 0; i < vector_size(&f.value.parameters); i += 1) {
+        if (i > 0) {
+            params_ir += ", ";
+        }
+        let p = f.value.parameters[i];
+        params_ir += llvm_param_llvm_type(p) + " %" + p.value.identifier.value + ".arg";
+    }
+    return "define " + ret + " " + llvm_mangle_fn_name(f.value.identifier.value) + "(" + params_ir + ")";
+}
+
+fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void {
+    let ret = type_to_llvm(f.value.return_type.value);
+    c.current_ret_ty = ret;
+    c.has_terminator = false;
+    let compiler_vars: CompilerVar[] = [];
+    c.locals = compiler_vars;
+
+    ir_emit(&c.ir, llvm_emit_function_signature(f) + " {");
+    ir_emit(&c.ir, "entry:");
+
+    # Spill arguments into allocas (mirrors Rust param setup)
+    for (let i = 0; i < vector_size(&f.value.parameters); i += 1) {
+        let p = f.value.parameters[i];
+        let ty = type_to_llvm(p.value.parameter_type.value);
+        if (llvm_param_is_prim_ref(p)) {
+            # The incoming pointer IS the variable's storage: no alloca/copy.
+            vector_push(&c.locals, CompilerVar {
+                name: p.value.identifier.value,
+                ptr: "%" + p.value.identifier.value + ".arg",
+                ty: ty,
+                rty: llvm_type_rname(p.value.parameter_type.value)
+            });
+            continue;
+        }
+        let ptr = llvm_compiler_declare_local(&c, p.value.identifier.value, ty);
+        llvm_compiler_set_last_local_rty(&c, llvm_type_rname(p.value.parameter_type.value));
+        ir_emit(&c.ir, "  store " + ty + " %" + p.value.identifier.value + ".arg, ptr " + ptr);
+    }
+
+    llvm_compile_block(&c, f.value.block);
+
+    if (!c.has_terminator) {
+        if (ret == "void") {
+            ir_emit(&c.ir, "  ret void");
+        } else {
+            if (ret == "i32") {
+                ir_emit(&c.ir, "  ret i32 0");
+            } else {
+                if (ret == "i64") {
+                    ir_emit(&c.ir, "  ret i64 0");
+                } else {
+                    if (ret == "ptr") {
+                        ir_emit(&c.ir, "  ret ptr null");
+                    } else {
+                        ir_emit(&c.ir, "  ret " + ret + " 0");
+                    }
+                }
+            }
+        }
+    }
+    ir_emit(&c.ir, "}");
+    ir_emit(&c.ir, "");
+}
+
+fn llvm_compile_extern(&LlvmCompiler c, ExternFunctionDeclarationNode e): void {
+    let ret = type_to_llvm(e.value.return_type.value);
+    let params_ir = "";
+    for (let i = 0; i < vector_size(&e.value.parameters); i += 1) {
+        if (i > 0) {
+            params_ir += ", ";
+        }
+        params_ir += type_to_llvm(e.value.parameters[i].value.parameter_type.value);
+    }
+    let link_name = e.value.identifier.value;
+    if (e.value.alias matches OptionIdentifierNode::Some(a)) {
+        link_name = a.value;
+    }
+    ir_emit(&c.ir, "declare " + ret + " @" + link_name + "(" + params_ir + ")");
+}

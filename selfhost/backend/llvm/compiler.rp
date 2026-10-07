@@ -6,6 +6,7 @@ import "../../frontend/parser/ast.rp";
 import "./compiler-core.rp";
 import "./ir-builder.rp";
 import "./libc-decls.rp";
+import "./arc.rp";
 import "./functions.rp";
 import "./statements.rp";
 import "./types-ir.rp";
@@ -20,6 +21,12 @@ fn llvm_compiler_compile(&LlvmCompiler c, &Program program): str {
     c.program = program;
 
     ir_emit_libc_declarations(&c.ir);
+    if (c.overflow != "ignore") {
+        ir_emit_overflow_intrinsics(&c.ir);
+    }
+    if (c.arc) {
+        ir_emit_arc_runtime(&c.ir);
+    }
 
     for (let i = 0; i < vector_size(&program.extern_functions); i += 1) {
         llvm_compile_extern(&c, program.extern_functions[i]);
@@ -31,9 +38,11 @@ fn llvm_compiler_compile(&LlvmCompiler c, &Program program): str {
     }
 
     ir_emit(&c.ir, "define i32 @main(i32 %argc, ptr %argv) {");
-    ir_emit(&c.ir, "entry:");
+    llvm_begin_body(&c);
     ir_emit(&c.ir, "  store i32 %argc, ptr @raptor_argc");
     ir_emit(&c.ir, "  store ptr %argv, ptr @raptor_argv");
+    ir_emit(&c.ir, "  br label %allocas");
+    ir_emit(&c.ir, "start:");
 
     c.current_ret_ty = "i32";
     c.has_terminator = false;
@@ -48,21 +57,30 @@ fn llvm_compiler_compile(&LlvmCompiler c, &Program program): str {
     }
 
     if (!c.has_terminator) {
+        # Top-level variables are released like any other scope's.
+        llvm_emit_release_locals_from(&c, 0);
         ir_emit(&c.ir, "  ret i32 0");
     }
+    llvm_end_body(&c);
     ir_emit(&c.ir, "}");
+
+    llvm_emit_drop_functions(&c);
+    for (let i = 0; i < vector_size(&c.extra_fns); i += 1) {
+        ir_emit(&c.ir, c.extra_fns[i]);
+    }
 
     return ir_finish(&c.ir);
 }
 
-fn llvm_compiler_compile_to_file(&Program program, str out_path): void {
+# Generates the LLVM IR text for `program`. Code generation errors are appended
+# to `errors` (the IR is then incomplete and must not be used).
+fn llvm_compiler_generate(&Program program, bool arc, str overflow, &str[] errors): str {
     let c = llvm_compiler_new();
+    c.arc = arc;
+    c.overflow = overflow;
     let ir = llvm_compiler_compile(&c, &program);
-
     for (let i = 0; i < vector_size(&c.errors); i += 1) {
-        println("compiler: " + c.errors[i]);
+        vector_push(&errors, c.errors[i]);
     }
-
-    write_file(out_path, ir);
-    println("Wrote LLVM IR to " + out_path + " (" + str_len(ir) as str + " bytes)");
+    return ir;
 }

@@ -83,7 +83,13 @@ fn generic_error_stderr_message(&str message, &ErrorSeverity level, &Span span):
 
     let file_content = read_file(filename);
     let lines = str_split(file_content, "\n");
+    return generic_error_with_source(text, &level, &span, filename, &lines);
+}
 
+# The part of generic_error_stderr_message that needs the source lines, so callers
+# that format many diagnostics (the backend's runtime checks) can read the file once.
+fn generic_error_with_source(str message_text, &ErrorSeverity level, &Span span, str filename, &str[] lines): str {
+    let text = message_text;
     let normalized_line = span.start.line - 1;
     if (normalized_line >= vector_size(&lines)) return text;
 

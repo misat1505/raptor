@@ -6,6 +6,13 @@ import "../../frontend/parser/ast.rp";
 import "../../common/span.rp";
 import "./ir-builder.rp";
 import "./types-ir.rp";
+import "../../common/errors.rp";
+
+# Source file kept in memory for runtime-check diagnostics.
+struct SourceLines {
+    str path,
+    str[] lines
+};
 
 struct CompilerVar {
     str name,
@@ -15,7 +22,10 @@ struct CompilerVar {
     # unknown. In the LLVM IR `str`, vectors and structs are all plain `ptr`,
     # so this is what lets indexing tell a string (bytes) apart from a vector
     # (8-byte slots), and lets field access find the right struct.
-    str rty
+    str rty,
+    # True when this slot owns a reference (ARC): it is released when the scope
+    # ends. Parameters and match bindings only borrow, so they are not owned.
+    bool owned
 };
 
 struct LlvmCompiler {
@@ -29,7 +39,25 @@ struct LlvmCompiler {
     str current_ret_ty,
     bool has_terminator,
     Program program,
-    i64 local_id
+    i64 local_id,
+    # Memory management mode: true = automatic reference counting (default),
+    # false = leak everything (fast for short-lived processes).
+    bool arc,
+    # Integer overflow policy: "ignore" (default, no checks), "warn" (print and
+    # continue with the wrapped value) or "error" (print and exit(1)).
+    str overflow,
+    # locals.len() at the start of each enclosing loop body (parallel to
+    # break_stack), so `break` / `continue` know which locals to release.
+    i64[] loop_marks,
+    # `alloca`s of the current function. They are emitted in one block after the
+    # body (entry -> allocas -> start): an alloca inside a loop would otherwise
+    # grow the stack on every iteration.
+    str[] allocas,
+    SourceLines[] sources,
+    # Helper functions generated on demand (vector_stringify per element type),
+    # emitted after the program.
+    str[] extra_fn_names,
+    str[] extra_fns
 };
 
 fn llvm_compiler_new(): LlvmCompiler {
@@ -53,7 +81,14 @@ fn llvm_compiler_new(): LlvmCompiler {
             extern_functions: empty_ext,
             declared_types: empty_types
         },
-        local_id: 0
+        local_id: 0,
+        arc: true,
+        overflow: "ignore",
+        loop_marks: [],
+        allocas: [],
+        sources: [],
+        extra_fn_names: [],
+        extra_fns: []
     };
 }
 
@@ -79,8 +114,8 @@ fn llvm_compiler_declare_local(&LlvmCompiler c, str name, str ty): str {
     let n = c.local_id;
     c.local_id += 1;
     let ptr = "%" + name + "." + n as str + ".addr";
-    ir_emit(&c.ir, "  " + ptr + " = alloca " + ty);
-    vector_push(&c.locals, CompilerVar { name: name, ptr: ptr, ty: ty, rty: "" });
+    vector_push(&c.allocas, "  " + ptr + " = alloca " + ty);
+    vector_push(&c.locals, CompilerVar { name: name, ptr: ptr, ty: ty, rty: "", owned: false });
     return ptr;
 }
 
@@ -96,6 +131,16 @@ fn llvm_compiler_set_last_local_rty(&LlvmCompiler c, str rty): void {
 fn llvm_type_rname(Type t): str {
     if (t matches Type::Str) return "str";
     if (t matches Type::Char) return "char";
+    if (t matches Type::Bool) return "bool";
+    if (t matches Type::I8) return "i8";
+    if (t matches Type::I16) return "i16";
+    if (t matches Type::I32) return "i32";
+    if (t matches Type::I64) return "i64";
+    if (t matches Type::U8) return "u8";
+    if (t matches Type::U16) return "u16";
+    if (t matches Type::U32) return "u32";
+    if (t matches Type::U64) return "u64";
+    if (t matches Type::F64) return "f64";
     if (t matches Type::Unresolved(n)) return n;
     # Vectors are written as "<element>[]", e.g. "str[]", "Token[][]". The
     # element part is empty when the element type is a primitive we do not
@@ -189,8 +234,7 @@ fn llvm_struct_field_count(&LlvmCompiler c, str struct_name): i64 {
 # would print the code point as a decimal number ("l" -> "108"), which is what
 # `str + char` and `char as str` must NOT do.
 fn llvm_char_to_str(&LlvmCompiler c, str value): str {
-    let buf = ir_tmp(&c.ir);
-    ir_emit(&c.ir, "  " + buf + " = call ptr @malloc(i64 2)");
+    let buf = llvm_alloc_bytes(&c, "2", "null");
     let byte = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + byte + " = trunc i32 " + value + " to i8");
     ir_emit(&c.ir, "  store i8 " + byte + ", ptr " + buf);
@@ -204,13 +248,15 @@ fn llvm_to_str_value(&LlvmCompiler c, str value, str ty): str {
     if (ty == "ptr") {
         return value;
     }
-    let buf = ir_tmp(&c.ir);
-    ir_emit(&c.ir, "  " + buf + " = call ptr @malloc(i64 64)");
+    if (ty == "i1") {
+        return llvm_bool_to_str(&c, value);
+    }
+    let buf = llvm_alloc_bytes(&c, "64", "null");
     if (ty == "double") {
-        # "%.15g": 10.0 -> "10", 0.5 -> "0.5" (not truncated to an integer).
-        let dfmt = ir_cstr_global(&c.ir, "%.15g");
+        # "%g" like the Rust backend: 10.0 -> "10", 0.5 -> "0.5".
+        let dfmt = ir_cstr_global(&c.ir, "%g");
         let dfp = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + dfp + " = getelementptr inbounds [6 x i8], ptr " + dfmt + ", i64 0, i64 0");
+        ir_emit(&c.ir, "  " + dfp + " = getelementptr inbounds [3 x i8], ptr " + dfmt + ", i64 0, i64 0");
         ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 64, ptr " + dfp + ", double " + value + ")");
         return buf;
     }
@@ -245,4 +291,297 @@ fn llvm_to_str_value(&LlvmCompiler c, str value, str ty): str {
 
     ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 64, ptr " + fp + ", i64 " + v + ")");
     return buf;
+}
+
+
+# ============================================================
+# ARC helpers
+#
+# Ownership model ("borrowed parameters"):
+#   * an expression result is either BORROWED (a variable, a field or an element:
+#     somebody else keeps it alive) or FRESH (+1, nobody else owns it).
+#   * storing a value in a slot that owns (let, assignment, struct field, vector
+#     element, enum payload, return) takes the +1: FRESH values are moved in,
+#     BORROWED ones are retained first.
+#   * parameters and match bindings only borrow; locals declared by `let` own and
+#     are released when their scope ends (also on return / break / continue).
+#   * a FRESH value that is only used temporarily (call argument, operand) is
+#     released by the code that created the temporary.
+# ============================================================
+
+fn llvm_compiler_mark_last_owned(&LlvmCompiler c): void {
+    let last = vector_size(&c.locals) - 1;
+    if (last >= 0) {
+        c.locals[last].owned = true;
+    }
+}
+
+fn llvm_emit_retain(&LlvmCompiler c, str v): void {
+    if (c.arc) {
+        ir_emit(&c.ir, "  call void @rt_retain(ptr " + v + ")");
+    }
+}
+
+fn llvm_emit_release(&LlvmCompiler c, str v): void {
+    if (c.arc) {
+        ir_emit(&c.ir, "  call void @rt_release(ptr " + v + ")");
+    }
+}
+
+# malloc in leak mode; in ARC mode an object with an {rc, drop} header in front.
+# `drop` is "null" or the name of a `void(ptr)` function that releases children.
+fn llvm_alloc_bytes(&LlvmCompiler c, str size, str drop): str {
+    let p = ir_tmp(&c.ir);
+    if (c.arc) {
+        ir_emit(&c.ir, "  " + p + " = call ptr @rt_alloc(i64 " + size + ", ptr " + drop + ")");
+    } else {
+        ir_emit(&c.ir, "  " + p + " = call ptr @malloc(i64 " + size + ")");
+    }
+    return p;
+}
+
+# Pointer to the characters of a string literal.
+fn llvm_str_literal(&LlvmCompiler c, str text): str {
+    let n = str_len(text) + 1;
+    let tmp = ir_tmp(&c.ir);
+    if (c.arc) {
+        let g = ir_managed_str_global(&c.ir, text);
+        ir_emit(&c.ir, "  " + tmp + " = getelementptr inbounds { i64, i64, [" + n as str + " x i8] }, ptr " + g + ", i32 0, i32 2");
+    } else {
+        let g = ir_cstr_global(&c.ir, text);
+        ir_emit(&c.ir, "  " + tmp + " = getelementptr inbounds [" + n as str + " x i8], ptr " + g + ", i64 0, i64 0");
+    }
+    return tmp;
+}
+
+# Releases the owned locals declared since `start` (innermost first).
+fn llvm_emit_release_locals_from(&LlvmCompiler c, i64 start): void {
+    if (!c.arc) return;
+    let i = vector_size(&c.locals) - 1;
+    while (i >= start) {
+        if (c.locals[i].owned) {
+            let v = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + v + " = load ptr, ptr " + c.locals[i].ptr);
+            llvm_emit_release(&c, v);
+        }
+        i -= 1;
+    }
+}
+
+# Does evaluating this expression yield a reference somebody else owns?
+fn llvm_expr_is_borrowed(ExpressionNode e): bool {
+    match (e.value) {
+        Expression::Variable return true;,
+        Expression::FieldAccess return true;,
+        Expression::Index return true;,
+        rest return false;
+    }
+}
+
+fn llvm_type_is_managed(&LlvmCompiler c, Type t): bool {
+    if (t matches Type::Str) return true;
+    if (t matches Type::Vector) return true;
+    if (t matches Type::Unresolved(n)) {
+        if (llvm_lookup_struct(&c, n) matches OptionStructDeclaration::Some) return true;
+        if (llvm_lookup_enum(&c, n) matches OptionEnumDeclaration::Some) return true;
+    }
+    return false;
+}
+
+# Name of the drop function for a struct / enum, or "null" if it owns nothing.
+fn llvm_struct_drop_ref(&LlvmCompiler c, str name): str {
+    if (!c.arc) return "null";
+    if (llvm_lookup_struct(&c, name) matches OptionStructDeclaration::Some(sd)) {
+        for (let m = 0; m < vector_size(&sd.members); m += 1) {
+            if (llvm_type_is_managed(&c, sd.members[m].value.member_type.value)) {
+                return "@drop.struct." + name;
+            }
+        }
+    }
+    return "null";
+}
+
+fn llvm_enum_drop_ref(&LlvmCompiler c, str name): str {
+    if (!c.arc) return "null";
+    if (llvm_lookup_enum(&c, name) matches OptionEnumDeclaration::Some(ed)) {
+        for (let m = 0; m < vector_size(&ed.members); m += 1) {
+            if (ed.members[m].value.member_type matches OptionTypeNode::Some(tn)) {
+                if (llvm_type_is_managed(&c, tn.value)) {
+                    return "@drop.enum." + name;
+                }
+            }
+        }
+    }
+    return "null";
+}
+
+# Raptor primitive type name -> LLVM type ("" if `rty` is not a primitive).
+fn llvm_rname_prim_ty(str rty): str {
+    if (rty == "bool") return "i1";
+    if (rty == "i8" || rty == "u8") return "i8";
+    if (rty == "i16" || rty == "u16") return "i16";
+    if (rty == "i32" || rty == "u32" || rty == "char") return "i32";
+    if (rty == "i64" || rty == "u64") return "i64";
+    if (rty == "f64") return "double";
+    return "";
+}
+
+# Opens a function body: entry jumps to the alloca block, `start` is the body.
+fn llvm_begin_body(&LlvmCompiler c): void {
+    let fresh: str[] = [];
+    c.allocas = fresh;
+    ir_emit(&c.ir, "entry:");
+}
+
+# Emits the alloca block after the body and wires entry -> allocas -> start.
+# `entry_line` is the index in ir.lines where "entry:" was emitted.
+fn llvm_end_body(&LlvmCompiler c): void {
+    ir_emit(&c.ir, "allocas:");
+    for (let i = 0; i < vector_size(&c.allocas); i += 1) {
+        ir_emit(&c.ir, c.allocas[i]);
+    }
+    ir_emit(&c.ir, "  br label %start");
+}
+
+
+# ============================================================
+# Numeric type helpers. The backend tracks LLVM types, which cannot tell i32 from
+# u32, so signedness and width come from the Raptor type name ("rty").
+# ============================================================
+
+fn llvm_rname_is_unsigned(str r): bool {
+    return r == "u8" || r == "u16" || r == "u32" || r == "u64" || r == "char" || r == "bool";
+}
+
+fn llvm_rname_is_int(str r): bool {
+    return r == "i8" || r == "i16" || r == "i32" || r == "i64" || r == "u8" || r == "u16" || r == "u32" || r == "u64";
+}
+
+fn llvm_ty_bits(str ty): i64 {
+    if (ty == "i1") return 1;
+    if (ty == "i8") return 8;
+    if (ty == "i16") return 16;
+    if (ty == "i32") return 32;
+    return 64;
+}
+
+# Default Raptor type for an LLVM scalar type when nothing better is known.
+fn llvm_ty_default_rty(str ty): str {
+    if (ty == "i1") return "bool";
+    if (ty == "i8") return "i8";
+    if (ty == "i16") return "i16";
+    if (ty == "i32") return "i32";
+    if (ty == "i64") return "i64";
+    if (ty == "double") return "f64";
+    return "";
+}
+
+fn llvm_int_max_signed(i64 bits): str {
+    if (bits == 8) return "127";
+    if (bits == 16) return "32767";
+    if (bits == 32) return "2147483647";
+    return "9223372036854775807";
+}
+
+fn llvm_int_min_signed(i64 bits): str {
+    if (bits == 8) return "-128";
+    if (bits == 16) return "-32768";
+    if (bits == 32) return "-2147483648";
+    return "-9223372036854775808";
+}
+
+fn llvm_int_max_unsigned(i64 bits): str {
+    if (bits == 8) return "255";
+    if (bits == 16) return "65535";
+    if (bits == 32) return "4294967295";
+    return "-1";
+}
+
+# Resizes an integer value between LLVM int types (extension follows the
+# signedness of the source, like the Rust backend).
+fn llvm_resize_int(&LlvmCompiler c, str v, str from, str to, bool from_signed): str {
+    if (from == to) return v;
+    let src = v;
+    let src_ty = from;
+    if (from == "ptr") {
+        let p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + p + " = ptrtoint ptr " + v + " to i64");
+        src = p;
+        src_ty = "i64";
+    }
+    if (src_ty == to) return src;
+    let r = ir_tmp(&c.ir);
+    if (llvm_ty_bits(src_ty) > llvm_ty_bits(to)) {
+        ir_emit(&c.ir, "  " + r + " = trunc " + src_ty + " " + src + " to " + to);
+    } else {
+        if (from_signed) {
+            ir_emit(&c.ir, "  " + r + " = sext " + src_ty + " " + src + " to " + to);
+        } else {
+            ir_emit(&c.ir, "  " + r + " = zext " + src_ty + " " + src + " to " + to);
+        }
+    }
+    return r;
+}
+
+# Lines of a source file, read once per file.
+fn llvm_source_lines(&LlvmCompiler c, str path): str[] {
+    for (let i = 0; i < vector_size(&c.sources); i += 1) {
+        if (c.sources[i].path == path) return c.sources[i].lines;
+    }
+    let lines: str[] = [];
+    if (exists_file(path)) {
+        lines = str_split(read_file(path), "\n");
+    }
+    vector_push(&c.sources, SourceLines { path: path, lines: lines });
+    return lines;
+}
+
+# Same text as generic_error_stderr_message, without re-reading the file.
+fn llvm_diag_text(&LlvmCompiler c, str message, ErrorSeverity level, Span span): str {
+    let text = error_severity_to_string(level) + ": " + message;
+    match (span.start.filename) {
+        OptionStr::None return text;,
+        OptionStr::Some(filename) {
+            let lines = llvm_source_lines(&c, filename);
+            if (vector_size(&lines) == 0) return text;
+            return generic_error_with_source(text, &level, &span, filename, &lines);
+        }
+    }
+}
+
+# Emits `if (cond) { print the diagnostic; [exit(1)] }`. `is_error` selects the
+# severity (HIGH + exit(1), or LOW and continue). The text is built at compile
+# time exactly like the Rust backend does (message + source snippet).
+fn llvm_emit_diag(&LlvmCompiler c, str cond, str message, Span span, bool is_error): void {
+    let err_l = ir_label(&c.ir, "diag.err");
+    let ok_l = ir_label(&c.ir, "diag.ok");
+    ir_emit(&c.ir, "  br i1 " + cond + ", label %" + err_l + ", label %" + ok_l);
+    ir_emit(&c.ir, err_l + ":");
+    let level = ErrorSeverity::LOW;
+    if (is_error) {
+        level = ErrorSeverity::HIGH;
+    }
+    let text = llvm_diag_text(&c, message, level, span) + "\n";
+    let g = ir_cstr_global(&c.ir, text);
+    let gp = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + gp + " = getelementptr inbounds [" + (str_len(text) + 1) as str + " x i8], ptr " + g + ", i64 0, i64 0");
+    let fg = ir_cstr_global(&c.ir, "%s");
+    let fp = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + fp + " = getelementptr inbounds [3 x i8], ptr " + fg + ", i64 0, i64 0");
+    let e = ir_tmp(&c.ir);
+    ir_emit(&c.ir, "  " + e + " = load ptr, ptr @stderr");
+    ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, ptr, ...) @fprintf(ptr " + e + ", ptr " + fp + ", ptr " + gp + ")");
+    if (is_error) {
+        ir_emit(&c.ir, "  call void @exit(i32 1)");
+        ir_emit(&c.ir, "  unreachable");
+    } else {
+        ir_emit(&c.ir, "  br label %" + ok_l);
+    }
+    ir_emit(&c.ir, ok_l + ":");
+}
+
+# Same, but the severity follows the overflow policy (only called when it is not
+# "ignore").
+fn llvm_emit_overflow_diag(&LlvmCompiler c, str cond, str message, Span span): void {
+    llvm_emit_diag(&c, cond, message, span, c.overflow == "error");
 }

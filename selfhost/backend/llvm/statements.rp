@@ -16,6 +16,9 @@ fn llvm_compile_block(&LlvmCompiler c, BlockNode block): void {
         }
         llvm_compile_statement(&c, block.value.statements[i]);
     }
+    if (!c.has_terminator) {
+        llvm_emit_release_locals_from(&c, marker);
+    }
     llvm_compiler_pop_scope(&c, marker);
 }
 
@@ -102,7 +105,7 @@ fn llvm_store_typed(&LlvmCompiler c, str dst_ptr, str dst_ty, str rval, str rty)
 fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
     match (decl.kind) {
         VariableDeclarationKind::LET(k) {
-            llvm_compile_expression(&c, k.value);
+            llvm_compile_owned(&c, k.value);
             let ty = c.last_type;
             let rty = llvm_expr_rtype(&c, k.value);
             if (k.var_type matches OptionTypeNode::Some(tn)) {
@@ -112,14 +115,20 @@ fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
             let ptr = llvm_compiler_declare_local(&c, decl.identifier.value, ty);
             llvm_compiler_set_last_local_rty(&c, rty);
             llvm_store_typed(&c, ptr, ty, c.last_value, c.last_type);
+            if (ty == "ptr") {
+                llvm_compiler_mark_last_owned(&c);
+            }
         },
         VariableDeclarationKind::TYPE(k) {
             let ty = type_to_llvm(k.var_type.value);
             let ptr = llvm_compiler_declare_local(&c, decl.identifier.value, ty);
             llvm_compiler_set_last_local_rty(&c, llvm_type_rname(k.var_type.value));
+            if (ty == "ptr") {
+                llvm_compiler_mark_last_owned(&c);
+            }
             match (k.value) {
                 OptionExpressionNode::Some(expr) {
-                    llvm_compile_expression(&c, expr);
+                    llvm_compile_owned(&c, expr);
                     llvm_store_typed(&c, ptr, ty, c.last_value, c.last_type);
                 },
                 OptionExpressionNode::None {
@@ -135,7 +144,7 @@ fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
 }
 
 fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
-    llvm_compile_expression(&c, assign.value);
+    llvm_compile_owned(&c, assign.value);
     let rval = c.last_value;
     let rty = c.last_type;
     let idx = llvm_compiler_find_local(&c, assign.identifier.value);
@@ -145,6 +154,14 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
     }
     let v = c.locals[idx];
     if (vector_size(&assign.accessors) == 0) {
+        # The old reference is released after the new one is in place.
+        if (c.arc && v.owned && v.ty == "ptr") {
+            let old = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + old + " = load ptr, ptr " + v.ptr);
+            llvm_store_typed(&c, v.ptr, v.ty, rval, rty);
+            llvm_emit_release(&c, old);
+            return;
+        }
         llvm_store_typed(&c, v.ptr, v.ty, rval, rty);
         return;
     }
@@ -187,7 +204,14 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                 ir_emit(&c.ir, "  " + gep + " = getelementptr i8, ptr " + cur + ", i64 " + (fidx * 8) as str);
                 if (is_last) {
                     if (rty == "ptr") {
-                        ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + gep);
+                        if (c.arc) {
+                            let old_f = ir_tmp(&c.ir);
+                            ir_emit(&c.ir, "  " + old_f + " = load ptr, ptr " + gep);
+                            ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + gep);
+                            llvm_emit_release(&c, old_f);
+                        } else {
+                            ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + gep);
+                        }
                     } else {
                         let sv = llvm_to_slot_i64(&c, rval, rty);
                         ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + gep);
@@ -202,6 +226,7 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                 cur_rty = "";
                 llvm_compile_expression(&c, index_expr);
                 let i_val = llvm_as_i64(&c, c.last_value, c.last_type);
+                llvm_emit_bounds_check(&c, cur, i_val, false, index_expr.span);
                 let data_p = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + data_p + " = getelementptr i8, ptr " + cur + ", i64 8");
                 let data = ir_tmp(&c.ir);
@@ -210,7 +235,15 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                 ir_emit(&c.ir, "  " + slot + " = getelementptr ptr, ptr " + data + ", i64 " + i_val);
                 if (is_last) {
                     if (rty == "ptr") {
-                        ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + slot);
+                        if (c.arc) {
+                            let old_e = ir_tmp(&c.ir);
+                            ir_emit(&c.ir, "  " + old_e + " = load ptr, ptr " + slot);
+                            ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + slot);
+                            ir_emit(&c.ir, "  store i64 1, ptr " + cur);   # elements are managed pointers
+                            llvm_emit_release(&c, old_e);
+                        } else {
+                            ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + slot);
+                        }
                     } else {
                         let sv = llvm_to_slot_i64(&c, rval, rty);
                         ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + slot);
@@ -285,6 +318,7 @@ fn llvm_compile_while(&LlvmCompiler c, WhileLoopStatement stmt): void {
     c.has_terminator = false;
     vector_push(&c.break_stack, end_l);
     vector_push(&c.continue_stack, cond_l);
+    vector_push(&c.loop_marks, vector_size(&c.locals));
     llvm_compile_block(&c, stmt.block);
     # pop stacks
     let nb: str[] = [];
@@ -297,6 +331,11 @@ fn llvm_compile_while(&LlvmCompiler c, WhileLoopStatement stmt): void {
         vector_push(&nc, c.continue_stack[i]);
     }
     c.continue_stack = nc;
+    let nm: i64[] = [];
+    for (let i = 0; i < vector_size(&c.loop_marks) - 1; i += 1) {
+        vector_push(&nm, c.loop_marks[i]);
+    }
+    c.loop_marks = nm;
     if (!c.has_terminator) {
         ir_emit(&c.ir, "  br label %" + cond_l);
     }
@@ -328,6 +367,7 @@ fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
     c.has_terminator = false;
     vector_push(&c.break_stack, end_l);
     vector_push(&c.continue_stack, step_l);
+    vector_push(&c.loop_marks, vector_size(&c.locals));
     llvm_compile_block(&c, stmt.block);
     let nb: str[] = [];
     for (let i = 0; i < vector_size(&c.break_stack) - 1; i += 1) {
@@ -339,6 +379,11 @@ fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
         vector_push(&nc, c.continue_stack[i]);
     }
     c.continue_stack = nc;
+    let nm: i64[] = [];
+    for (let i = 0; i < vector_size(&c.loop_marks) - 1; i += 1) {
+        vector_push(&nm, c.loop_marks[i]);
+    }
+    c.loop_marks = nm;
     if (!c.has_terminator) {
         ir_emit(&c.ir, "  br label %" + step_l);
     }
@@ -350,13 +395,23 @@ fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
     ir_emit(&c.ir, "  br label %" + cond_l);
     ir_emit(&c.ir, end_l + ":");
     c.has_terminator = false;
+    llvm_emit_release_locals_from(&c, marker);
     llvm_compiler_pop_scope(&c, marker);
 }
 
 
-fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
+fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
+    let outer_marker = llvm_compiler_push_scope_marker(&c);
     llvm_compile_expression(&c, m.expression);
     let scrut = c.last_value;
+    # A fresh subject (e.g. the result of a call) must outlive the arms, whose
+    # bindings point into it: park it in a hidden owned local, released when the
+    # match ends or on any return / break out of an arm.
+    if (c.arc && c.last_type == "ptr" && !llvm_expr_is_borrowed(m.expression)) {
+        let hidden = llvm_compiler_declare_local(&c, "$match", "ptr");
+        ir_emit(&c.ir, "  store ptr " + scrut + ", ptr " + hidden);
+        llvm_compiler_mark_last_owned(&c);
+    }
     # load tag at offset 8
     let tag_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + tag_p + " = getelementptr i8, ptr " + scrut + ", i64 8");
@@ -385,7 +440,12 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
     # no arm matched -> rest or end
     match (m.rest_arm) {
         OptionBlockNode::Some ir_emit(&c.ir, "  br label %" + rest_l);,
-        OptionBlockNode::None ir_emit(&c.ir, "  br label %" + end_l);
+        OptionBlockNode::None {
+            # The semantic checker should guarantee exhaustiveness; like the
+            # Rust backend, fail loudly if it did not.
+            llvm_emit_diag(&c, "true", "Non-exhaustive match: no arm matched.", span, true);
+            ir_emit(&c.ir, "  br label %" + end_l);
+        }
     }
 
     for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
@@ -414,6 +474,11 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
             if (pay_ty == "ptr") {
                 let pay = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + pay + " = load ptr, ptr " + pay_p);
+                # The binding owns a reference of its own: the arm may replace
+                # or mutate the matched value (e.g. `x.f = None;`), which would
+                # otherwise free the payload while the binding is still used.
+                llvm_emit_retain(&c, pay);
+                llvm_compiler_mark_last_owned(&c);
                 ir_emit(&c.ir, "  store ptr " + pay + ", ptr " + ptr);
             } else {
                 let raw = ir_tmp(&c.ir);
@@ -434,6 +499,9 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
             }
         }
         llvm_compile_block(&c, arm.value.block);
+        if (!c.has_terminator) {
+            llvm_emit_release_locals_from(&c, marker);
+        }
         llvm_compiler_pop_scope(&c, marker);
         if (!c.has_terminator) {
             ir_emit(&c.ir, "  br label %" + end_l);
@@ -451,6 +519,8 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m): void {
 
     ir_emit(&c.ir, end_l + ":");
     c.has_terminator = false;
+    llvm_emit_release_locals_from(&c, outer_marker);
+    llvm_compiler_pop_scope(&c, outer_marker);
 }
 
 fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
@@ -463,7 +533,9 @@ fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
         Statement::Return(opt) {
             match (opt) {
                 OptionExpressionNode::Some(expr) {
-                    llvm_compile_expression(&c, expr);
+                    # The caller receives a +1 reference; all locals die here.
+                    llvm_compile_owned(&c, expr);
+                    llvm_emit_release_locals_from(&c, 0);
                     if (c.current_ret_ty == "void") {
                         ir_emit(&c.ir, "  ret void");
                     } else {
@@ -524,6 +596,7 @@ fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
                     }
                 },
                 OptionExpressionNode::None {
+                    llvm_emit_release_locals_from(&c, 0);
                     if (c.current_ret_ty == "void") {
                         ir_emit(&c.ir, "  ret void");
                     } else {
@@ -542,6 +615,7 @@ fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
                 llvm_compiler_error(&c, "break outside loop");
             } else {
                 let t = c.break_stack[vector_size(&c.break_stack) - 1];
+                llvm_emit_release_locals_from(&c, c.loop_marks[vector_size(&c.loop_marks) - 1]);
                 ir_emit(&c.ir, "  br label %" + t);
                 c.has_terminator = true;
             }
@@ -551,6 +625,7 @@ fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
                 llvm_compiler_error(&c, "continue outside loop");
             } else {
                 let t = c.continue_stack[vector_size(&c.continue_stack) - 1];
+                llvm_emit_release_locals_from(&c, c.loop_marks[vector_size(&c.loop_marks) - 1]);
                 ir_emit(&c.ir, "  br label %" + t);
                 c.has_terminator = true;
             }
@@ -558,9 +633,14 @@ fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
         Statement::FunctionCall(call) {
             # Statement form of call - wrap as expression
             llvm_compile_function_call(&c, call);
+            # A discarded result still carries a +1 reference. User functions
+            # always return one; builtins only when they return a string/vector.
+            if (c.arc && c.last_type == "ptr") {
+                llvm_emit_release(&c, c.last_value);
+            }
         },
         Statement::Match(m) {
-            llvm_compile_match(&c, m);
+            llvm_compile_match(&c, m, node.span);
         },
         Statement::Switch {
             llvm_compiler_error(&c, "switch not yet lowered in selfhost IR");

@@ -46,9 +46,8 @@ fn ir_label(&IrBuilder b, str prefix): str {
     return name;
 }
 
-fn ir_cstr_global(&IrBuilder b, str value): str {
-    let name = "@.str." + b.str_id as str;
-    b.str_id += 1;
+# Escapes `value` for use inside an LLVM `c"..."` string constant.
+fn ir_escape_cstr(str value): str {
     let escaped = "";
     for (let i = 0; i < str_len(value); i += 1) {
         let c = value[i];
@@ -70,8 +69,27 @@ fn ir_cstr_global(&IrBuilder b, str value): str {
             }
         }
     }
+    return escaped;
+}
+
+# Plain NUL-terminated constant (printf formats, fopen modes, ...). Never handed
+# to user code, so it carries no ARC header.
+fn ir_cstr_global(&IrBuilder b, str value): str {
+    let name = "@.str." + b.str_id as str;
+    b.str_id += 1;
     let n = str_len(value) + 1;
-    ir_emit_global(&b, name + " = private unnamed_addr constant [" + n as str + " x i8] c\"" + escaped + "\\00\"");
+    ir_emit_global(&b, name + " = private unnamed_addr constant [" + n as str + " x i8] c\"" + ir_escape_cstr(value) + "\\00\"");
+    return name;
+}
+
+# String literal as seen by user code in ARC mode: { rc, drop, chars }.
+# rc = -1 marks it immortal, so rt_retain / rt_release ignore it. The value
+# handed to user code points at `chars`, i.e. it is still a plain char*.
+fn ir_managed_str_global(&IrBuilder b, str value): str {
+    let name = "@.mstr." + b.str_id as str;
+    b.str_id += 1;
+    let n = str_len(value) + 1;
+    ir_emit_global(&b, name + " = private constant { i64, i64, [" + n as str + " x i8] } { i64 -1, i64 0, [" + n as str + " x i8] c\"" + ir_escape_cstr(value) + "\\00\" }");
     return name;
 }
 

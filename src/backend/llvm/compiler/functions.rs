@@ -265,6 +265,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     match (is_extern, value) {
                         (true, LlvmValue::Str(ptr)) => {
                             let data_ptr = self.str_data_ptr(ptr, span)?;
+                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
+                                self.release_value(&LlvmValue::Str(ptr), span)?;
+                            }
                             compiled_args.push(data_ptr.into());
                         }
 

@@ -63,7 +63,7 @@ After changing anything in `selfhost/`, rebuild the IR with the compiler itself:
 
 ```sh
 ./bootstrap/raptor ./selfhost/raptor.rp
-cp ./build/out.ll ./bootstrap/raptor.ll
+cp ./build/raptor.ll ./bootstrap/raptor.ll
 ./bootstrap/bootstrap.sh
 ```
 

@@ -57,7 +57,13 @@ struct LlvmCompiler {
     # Helper functions generated on demand (vector_stringify per element type),
     # emitted after the program.
     str[] extra_fn_names,
-    str[] extra_fns
+    str[] extra_fns,
+    # Fresh (+1) values that were only used as the base of `.field` / `[i]`
+    # (`make().field`). The field is borrowed from them, so they are released when
+    # the statement that created them ends (or on return / break / continue).
+    str[] temps,
+    # temps.len() at the start of each enclosing loop body (parallel to break_stack)
+    i64[] loop_temp_marks
 };
 
 fn llvm_compiler_new(): LlvmCompiler {
@@ -88,7 +94,9 @@ fn llvm_compiler_new(): LlvmCompiler {
         allocas: [],
         sources: [],
         extra_fn_names: [],
-        extra_fns: []
+        extra_fns: [],
+        temps: [],
+        loop_temp_marks: []
     };
 }
 
@@ -430,6 +438,8 @@ fn llvm_rname_prim_ty(str rty): str {
 fn llvm_begin_body(&LlvmCompiler c): void {
     let fresh: str[] = [];
     c.allocas = fresh;
+    let no_temps: str[] = [];
+    c.temps = no_temps;
     ir_emit(&c.ir, "entry:");
 }
 
@@ -584,4 +594,41 @@ fn llvm_emit_diag(&LlvmCompiler c, str cond, str message, Span span, bool is_err
 # "ignore").
 fn llvm_emit_overflow_diag(&LlvmCompiler c, str cond, str message, Span span): void {
     llvm_emit_diag(&c, cond, message, span, c.overflow == "error");
+}
+
+
+# ---- temporaries that are only the base of a field access / index ----
+
+# Remembers `value` (the result of `base`) when it is a fresh +1 reference.
+fn llvm_note_temp_base(&LlvmCompiler c, ExpressionNode base, str value, str ty): void {
+    if (!c.arc) return;
+    if (ty != "ptr") return;
+    if (llvm_expr_is_borrowed(base)) return;
+    vector_push(&c.temps, value);
+}
+
+# Emits a release for every pending temporary from `start` on, innermost first.
+# The temporaries stay registered (other paths out of the code may still need them).
+fn llvm_release_temps_from(&LlvmCompiler c, i64 start): void {
+    if (!c.arc) return;
+    let i = vector_size(&c.temps) - 1;
+    while (i >= start) {
+        llvm_emit_release(&c, c.temps[i]);
+        i -= 1;
+    }
+}
+
+fn llvm_forget_temps_from(&LlvmCompiler c, i64 start): void {
+    let kept: str[] = [];
+    for (let i = 0; i < start; i += 1) {
+        if (i < vector_size(&c.temps)) {
+            vector_push(&kept, c.temps[i]);
+        }
+    }
+    c.temps = kept;
+}
+
+fn llvm_flush_temps_from(&LlvmCompiler c, i64 start): void {
+    llvm_release_temps_from(&c, start);
+    llvm_forget_temps_from(&c, start);
 }

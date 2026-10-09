@@ -316,7 +316,10 @@ fn quoted(str s): str {
 # Runs a shell command. Returns "" on success, otherwise the message Rust prints.
 fn run_command(str command, str program, str step): str {
     let err_file = "build/.last-command.err";
-    let status = system(command + " 2> " + quoted(err_file)) as i64;
+    # A temporary passed straight to an extern function is never released, so the
+    # command string is kept in a variable that owns it (and is released on return).
+    let full_command = command + " 2> " + quoted(err_file);
+    let status = system(full_command) as i64;
     if (status == 0) return "";
     let code = status / 256;
     if (code == 127) {
@@ -360,10 +363,12 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
         OptionStr::None exe_path = "build/" + stem;
     }
 
-    system("mkdir -p build");
+    let mkdir_build = "mkdir -p build";
+    system(mkdir_build);
     let out_dir = parent_dir(exe_path);
     if (str_len(out_dir) > 0) {
-        system("mkdir -p " + quoted(out_dir));
+        let mkdir_out = "mkdir -p " + quoted(out_dir);
+        system(mkdir_out);
     }
 
     let t = now_ms();

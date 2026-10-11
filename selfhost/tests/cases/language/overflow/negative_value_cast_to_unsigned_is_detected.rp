@@ -1,0 +1,5 @@
+
+let value = -1;
+let result = value as u8;
+
+println(result as str);

@@ -1,0 +1,32 @@
+
+struct Numbers {
+    i64 value,
+    f64 fvalue,
+    bool bvalue,
+    char cvalue
+};
+
+let a = 1 as i64;
+let f = 1.1;
+let b = true;
+let c = 'A';
+
+let n = Numbers { value: a, fvalue: f, bvalue: b, cvalue: c };
+
+a = 2 as i64;
+f = 2.2;
+b = false;
+c = 'B';
+
+println(a as str);
+println(n.value as str);
+
+println(f as str);
+println(n.fvalue as str);
+
+println(b as str);
+println(n.bvalue as str);
+
+println(c as str);
+println(n.cvalue as str);
+        

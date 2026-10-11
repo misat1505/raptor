@@ -1,0 +1,13 @@
+
+fn identity(str x): str {
+    return x;
+}
+
+let a = "A";
+let b = identity(a);
+
+b[0] = 'B';
+
+println(a);
+println(b);
+        

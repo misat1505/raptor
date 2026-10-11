@@ -1,0 +1,3 @@
+flags: --unsafe --overflow error
+exit: 1
+stderr-contains: "error"

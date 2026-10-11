@@ -1,0 +1,9 @@
+
+    str empty = "";
+    str nonempty = "x";
+    bool a = empty as bool;
+    bool b = nonempty as bool;
+
+    println(a as str);
+    println(b as str);
+    

@@ -1,0 +1,17 @@
+
+fn str_by_value(str text): void {
+    text[0] = 'B';
+}
+
+fn str_by_ref(&str text): void {
+    text[0] = 'B';
+}
+
+let text = "A";
+
+str_by_value(text);
+println(text);
+
+str_by_ref(&text);
+println(text);
+        

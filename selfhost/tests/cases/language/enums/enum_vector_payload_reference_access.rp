@@ -1,0 +1,30 @@
+
+enum Data {
+    Numbers(i64[])
+};
+
+fn modify(&Data data): void {
+    match (data) {
+        Data::Numbers(numbers) {
+            numbers[0] = 999;
+        }
+    }
+}
+
+fn first(&Data data): i64 {
+    match (data) {
+        Data::Numbers(numbers) {
+            return numbers[0];
+        }
+    }
+}
+
+let numbers = [10, 20, 30];
+let data = Data::Numbers(numbers);
+
+println(first(&data) as str);
+
+modify(&data);
+
+println(first(&data) as str);
+    

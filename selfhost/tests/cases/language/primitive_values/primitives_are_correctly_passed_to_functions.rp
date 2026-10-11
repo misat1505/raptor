@@ -1,0 +1,57 @@
+
+fn i64_by_value(i64 x): void {
+    x = 99 as i64;
+}
+
+fn i64_by_ref(&i64 x): void {
+    x = 99 as i64;
+}
+
+fn f64_by_value(f64 x): void {
+    x = 9.9;
+}
+
+fn f64_by_ref(&f64 x): void {
+    x = 9.9;
+}
+
+fn bool_by_value(bool x): void {
+    x = false;
+}
+
+fn bool_by_ref(&bool x): void {
+    x = false;
+}
+
+fn char_by_value(char x): void {
+    x = 'Z';
+}
+
+fn char_by_ref(&char x): void {
+    x = 'Z';
+}
+
+let a = 1 as i64;
+i64_by_value(a);
+println(a as str);
+i64_by_ref(&a);
+println(a as str);
+
+let f = 1.1;
+f64_by_value(f);
+println(f as str);
+f64_by_ref(&f);
+println(f as str);
+
+let b = true;
+bool_by_value(b);
+println(b as str);
+bool_by_ref(&b);
+println(b as str);
+
+let c = 'A';
+char_by_value(c);
+println(c as str);
+char_by_ref(&c);
+println(c as str);
+        

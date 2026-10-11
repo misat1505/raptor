@@ -1,0 +1,2 @@
+--- stdout ---
+TaskRepository { tasks: [Task::InProgress(Deadline { date: "today" }), Task::Completed("completed"), Task::Aborted] }

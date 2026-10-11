@@ -1,0 +1,30 @@
+
+enum Data {
+    Numbers(i64[])
+};
+
+fn add_number(&Data data, i64 value): void {
+    match (data) {
+        Data::Numbers(numbers) {
+            vector_push(&numbers, value);
+        }
+    }
+}
+
+fn print_numbers(&Data data): void {
+    match (data) {
+        Data::Numbers(numbers) {
+            for (let i = 0; i < vector_size(&numbers); i += 1) {
+                println(numbers[i] as str);
+            }
+        }
+    }
+}
+
+let numbers = [10, 20];
+
+let data = Data::Numbers(numbers);
+
+add_number(&data, 30);
+print_numbers(&data);
+    

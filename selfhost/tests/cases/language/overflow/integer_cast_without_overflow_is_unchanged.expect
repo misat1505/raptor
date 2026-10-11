@@ -1,0 +1,4 @@
+flags: --overflow error
+stderr: empty
+--- stdout ---
+42

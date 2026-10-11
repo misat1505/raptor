@@ -1,0 +1,5 @@
+flags: --overflow ignore
+valgrind: no
+stderr: empty
+--- stdout ---
+99

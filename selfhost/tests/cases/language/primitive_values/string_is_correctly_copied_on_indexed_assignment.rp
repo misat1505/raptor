@@ -1,0 +1,17 @@
+
+struct Person {
+    str name
+};
+
+let c = "A";
+let vec = ["X"];
+let person = Person { name: "X" };
+
+vec[0] = c;
+person.name = c;
+c[0] = 'B';
+
+println(c);
+println(vec[0]);
+println(person.name);
+        

@@ -1,0 +1,15 @@
+
+    i64 a;
+    f64 b;
+    str c;
+    bool d;
+    i64[] e;
+    i64[][] f;
+
+    println(a as str);
+    println(b as str);
+    println(c);
+    println(d as str);
+    println(vector_stringify(e));
+    println(vector_stringify(f));
+    

@@ -1,0 +1,36 @@
+
+enum State {
+    Text(str),
+    Number(i64),
+    Empty
+};
+
+fn state_repr(&State state): str {
+    match (state) {
+        State::Text(text) {
+            return "text:" + text;
+        },
+        State::Number(number) {
+            return "number:" + number as str;
+        },
+        State::Empty {
+            return "empty";
+        }
+    }
+}
+
+let state = State::Text("first");
+println(state_repr(&state));
+
+state = State::Text("second");
+println(state_repr(&state));
+
+state = State::Number(123);
+println(state_repr(&state));
+
+state = State::Text("third");
+println(state_repr(&state));
+
+state = State::Empty;
+println(state_repr(&state));
+    

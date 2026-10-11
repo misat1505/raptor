@@ -1,0 +1,9 @@
+
+    fn do_nothing(): void {
+      i64 x = 5;
+    }
+    do_nothing();
+    i64 marker = 1;
+
+    println(marker as str);
+    

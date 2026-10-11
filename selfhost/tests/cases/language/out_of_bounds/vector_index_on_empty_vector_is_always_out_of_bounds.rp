@@ -1,0 +1,4 @@
+
+let numbers: i64[] = [];
+
+println(numbers[0] as str);

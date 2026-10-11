@@ -1,0 +1,5 @@
+
+let numbers: i64[] = [420];
+let idx = 0 - 1;
+
+println(numbers[idx] as str);

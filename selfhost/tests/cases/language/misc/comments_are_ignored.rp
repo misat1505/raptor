@@ -1,0 +1,8 @@
+
+    # this is a full line comment
+    i64 x = 5; # trailing comment
+    # another comment
+    i64 y = x + 1;
+
+    println(y as str);
+    

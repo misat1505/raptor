@@ -1,0 +1,4 @@
+flags: --overflow error
+exit: 1
+stderr-contains: "error"
+stderr-contains: "Integer overflow in cast"

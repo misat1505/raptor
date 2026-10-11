@@ -1,0 +1,9 @@
+
+    fn foo(&i64 x): void {
+      x = x + 1;
+    }
+
+    i64 x = 2;
+    foo(&x);
+    println(x as str);
+    

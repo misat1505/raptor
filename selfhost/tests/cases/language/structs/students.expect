@@ -1,0 +1,4 @@
+--- stdout ---
+
+Student { first_name: "Bob", last_name: "Bobson", age: 12, average: 1 }
+

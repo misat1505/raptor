@@ -1,0 +1,23 @@
+
+let a = "A";
+let b = a;
+
+a[0] = 'B';
+
+println(a);
+println(b);
+
+str c = "A";
+str d = c;
+
+c[0] = 'B';
+
+println(c);
+println(d);
+
+a = b;
+b[0] = 'B';
+
+println(a);
+println(b);
+        

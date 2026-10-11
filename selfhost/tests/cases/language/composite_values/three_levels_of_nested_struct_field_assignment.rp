@@ -1,0 +1,23 @@
+
+struct Level3 {
+    i64 value
+};
+
+struct Level2 {
+    Level3 inner
+};
+
+struct Level1 {
+    Level2 inner
+};
+
+let l3 = Level3 { value: 1 as i64 };
+let l2 = Level2 { inner: l3 };
+let l1 = Level1 { inner: l2 };
+
+l1.inner.inner.value = 99 as i64;
+
+println(l1.inner.inner.value as str);
+println(l2.inner.value as str);
+println(l3.value as str);
+        

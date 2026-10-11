@@ -1,0 +1,7 @@
+
+    i64 a = 7 / 2;
+    i64 b = -7 / 2;
+
+    println(a as str);
+    println(b as str);
+    

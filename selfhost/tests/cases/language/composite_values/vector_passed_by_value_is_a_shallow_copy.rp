@@ -1,0 +1,10 @@
+
+fn vec_by_value(i64[] v): void {
+    v[0] = 99 as i64;
+}
+
+let vec = [1 as i64, 2 as i64];
+vec_by_value(vec);
+
+println(vec[0] as str);
+        

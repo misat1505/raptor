@@ -1,0 +1,13 @@
+
+struct Person {
+    str name
+};
+
+let name = "A";
+let person = Person { name };
+
+person.name[0] = 'B';
+
+println(name);
+println(person.name);
+        

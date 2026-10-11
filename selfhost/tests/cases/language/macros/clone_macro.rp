@@ -1,0 +1,74 @@
+
+enum AccountStatus derives Debug, Clone {
+    Active,
+    Suspended(str),
+    Deleted(Timestamp)
+};
+
+struct Timestamp derives Debug, Clone {
+    i64 day,
+    i64 month,
+    i64 year
+};
+
+enum Role derives Debug, Clone {
+    Admin,
+    Moderator,
+    User
+};
+
+struct User derives Debug, Clone {
+    str name,
+    AccountStatus status,
+    Role role,
+    i64[] scores
+};
+
+struct UserRepository derives Debug, Clone {
+    User[] users
+};
+
+let original = UserRepository {
+    users: [
+        User {
+            name: "Alice",
+            status: AccountStatus::Active,
+            role: Role::Admin,
+            scores: [10, 20, 30]
+        },
+        User {
+            name: "Bob",
+            status: AccountStatus::Suspended("too many failed logins"),
+            role: Role::User,
+            scores: [40, 50]
+        },
+        User {
+            name: "Charlie",
+            status: AccountStatus::Deleted(Timestamp {
+                day: 17,
+                month: 9,
+                year: 2026
+            }),
+            role: Role::Moderator,
+            scores: [60, 70, 80, 90]
+        }
+    ]
+};
+
+let cloned = user_repository_clone(&original);
+
+original.users[0].name = "Changed";
+original.users[0].scores[0] = 999;
+
+match (original.users[2].status) {
+    AccountStatus::Deleted(timestamp) {
+        timestamp.day = 1;
+    },
+    rest {}
+}
+
+original.users[2].role = Role::Admin;
+
+println(user_repository_debug(&original));
+println(user_repository_debug(&cloned));
+        

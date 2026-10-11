@@ -1,0 +1,31 @@
+
+struct Data {
+    str value
+};
+
+enum Wrapper {
+    Data(Data)
+};
+
+fn modify(&Wrapper wrapper): void {
+    match (wrapper) {
+        Wrapper::Data(data) {
+            data.value = "modified";
+        }
+    }
+}
+
+let original = Data {
+    value: "original"
+};
+
+let wrapper = Wrapper::Data(original);
+
+modify(&wrapper);
+
+match (wrapper) {
+    Wrapper::Data(data) {
+        println(data.value);
+    }
+}
+    

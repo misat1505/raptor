@@ -1,0 +1,27 @@
+
+enum Data {
+    Numbers(i64[]),
+    Text(str)
+};
+
+fn data_sum(&Data data): i64 {
+    match (data) {
+        Data::Numbers(numbers) {
+            let sum: i64 = 0;
+
+            for (let i = 0; i < vector_size(&numbers); i += 1) {
+                sum += numbers[i];
+            }
+
+            return sum;
+        },
+        Data::Text {
+            return 0;
+        }
+    }
+}
+
+let data = Data::Numbers([10, 20, 30, 40]);
+
+println(data_sum(&data) as str);
+    

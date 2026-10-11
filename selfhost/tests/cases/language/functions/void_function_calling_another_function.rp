@@ -1,0 +1,14 @@
+
+    fn helper(i64 x): i64 {
+      return x * 2;
+    }
+
+    fn main_logic(&i64 result): void {
+      result = helper(21);
+    }
+
+    i64 output = 0;
+    main_logic(&output);
+
+    println(output as str);
+    

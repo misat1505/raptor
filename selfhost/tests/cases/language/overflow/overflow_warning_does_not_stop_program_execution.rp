@@ -1,0 +1,6 @@
+
+let value = 256;
+let result = value as i8;
+
+println(result as str);
+println(123 as str);

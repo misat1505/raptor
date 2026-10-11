@@ -1,0 +1,5 @@
+flags: --overflow warn
+stderr-contains: "warning"
+stderr-contains: "Integer overflow in cast"
+--- stdout ---
+0

@@ -1,0 +1,4 @@
+--- stdout ---
+success: 42
+failure: invalid input
+skipped

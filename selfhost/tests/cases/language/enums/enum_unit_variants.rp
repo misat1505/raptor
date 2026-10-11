@@ -1,0 +1,30 @@
+
+enum Status {
+    Pending,
+    Running,
+    Finished
+};
+
+fn status_repr(&Status status): str {
+    match (status) {
+        Status::Pending {
+            return "pending";
+        },
+        Status::Running {
+            return "running";
+        },
+        Status::Finished {
+            return "finished";
+        }
+    }
+}
+
+let status1 = Status::Pending;
+println(status_repr(&status1));
+
+let status2 = Status::Running;
+println(status_repr(&status2));
+
+let status3 = Status::Finished;
+println(status_repr(&status3));
+    

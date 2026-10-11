@@ -1,0 +1,17 @@
+
+struct Item {
+    i64 value
+};
+
+let a = Item { value: 1 as i64 };
+let b = Item { value: 2 as i64 };
+let items = [a, b];
+
+items[0].value = 99 as i64;
+
+println(items[0].value as str);
+println(items[1].value as str);
+
+# items[0] shares the same underlying struct object as `a` (struct in vector is not copied)
+println(a.value as str);
+        

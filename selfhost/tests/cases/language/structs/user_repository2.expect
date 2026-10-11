@@ -1,0 +1,5 @@
+--- stdout ---
+UserRepository { users: [] }
+User { id: 1, name: "Elon" }
+UserRepository { users: [ User { id: 1, name: "Elon" } ] }
+UserRepository { users: [ User { id: 1, name: "Elon" }, User { id: 2, name: "Fred" } ] }

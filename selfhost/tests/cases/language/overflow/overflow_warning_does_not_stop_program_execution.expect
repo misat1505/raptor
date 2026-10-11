@@ -1,0 +1,5 @@
+flags: --overflow warn
+stderr-contains: "warning"
+--- stdout ---
+0
+123

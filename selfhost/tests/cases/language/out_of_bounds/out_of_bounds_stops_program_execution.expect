@@ -1,0 +1,4 @@
+flags: --unsafe --overflow ignore
+valgrind: no
+--- stdout ---
+420

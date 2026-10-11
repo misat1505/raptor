@@ -42,9 +42,30 @@ fn ir_emit_libc_declarations(&IrBuilder b): void {
     ir_emit(&b, "declare i32 @inet_addr(ptr)");
     ir_emit(&b, "declare ptr @fgets(ptr, i32, ptr)");
     ir_emit(&b, "@stdin = external global ptr");
+    ir_emit(&b, "@stderr = external global ptr");
     ir_emit(&b, "");
     # CLI globals (mirrors declare_main_function raptor_argc/argv)
     ir_emit(&b, "@raptor_argc = internal global i32 0");
     ir_emit(&b, "@raptor_argv = internal global ptr null");
     ir_emit(&b, "");
+}
+
+
+# llvm.{s,u}{add,sub,mul}.with.overflow.iN - only needed when an overflow
+# policy other than `ignore` is active.
+fn ir_emit_overflow_intrinsics(&IrBuilder b): void {
+    let widths: str[] = ["i8", "i16", "i32", "i64"];
+    let ops: str[] = ["add", "sub", "mul"];
+    for (let w = 0; w < vector_size(&widths); w += 1) {
+        for (let o = 0; o < vector_size(&ops); o += 1) {
+            for (let k = 0; k < 2; k += 1) {
+                let sign = "s";
+                if (k == 1) {
+                    sign = "u";
+                }
+                let ty = widths[w];
+                ir_emit(&b, "declare { " + ty + ", i1 } @llvm." + sign + ops[o] + ".with.overflow." + ty + "(" + ty + ", " + ty + ")");
+            }
+        }
+    }
 }

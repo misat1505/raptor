@@ -1,0 +1,188 @@
+# ============================================================
+# Automatic reference counting for the self-hosted LLVM backend.
+#
+# Every managed object (str, vector, struct, enum) is allocated with a 16-byte
+# header IN FRONT of the pointer user code sees:
+#
+#       p - 16 : i64 refcount   (negative = immortal, e.g. string literals)
+#       p -  8 : ptr drop       (void(ptr) releasing children, or null)
+#       p      : the object, laid out exactly as before
+#
+# Because the header is in front, a `str` is still a plain char* (libc keeps
+# working on it) and no field offset changes. retain / release are type
+# agnostic: all type knowledge lives in the per-type drop functions.
+# ============================================================
+
+import "./ir-builder.rp";
+import "./compiler-core.rp";
+import "../../frontend/parser/ast.rp";
+
+fn ir_emit_arc_runtime(&IrBuilder b): void {
+    let rt: str[] = [
+        "; --- ARC runtime ---",
+        "; retain/release ignore null and any value below 64 KiB: those are never",
+        "; heap pointers, only small integers that the backend typed as `ptr`.",
+        "define ptr @rt_alloc(i64 %size, ptr %drop) {",
+        "entry:",
+        "  %total = add i64 %size, 16",
+        "  %raw = call ptr @malloc(i64 %total)",
+        "  store i64 1, ptr %raw",
+        "  %dp = getelementptr i8, ptr %raw, i64 8",
+        "  store ptr %drop, ptr %dp",
+        "  %obj = getelementptr i8, ptr %raw, i64 16",
+        "  ret ptr %obj",
+        "}",
+        "",
+        "define void @rt_retain(ptr %p) {",
+        "entry:",
+        "  %addr = ptrtoint ptr %p to i64",
+        "  %small = icmp ult i64 %addr, 65536",
+        "  br i1 %small, label %done, label %chk",
+        "chk:",
+        "  %rcp = getelementptr i8, ptr %p, i64 -16",
+        "  %rc = load i64, ptr %rcp",
+        "  %imm = icmp slt i64 %rc, 0",
+        "  br i1 %imm, label %done, label %inc",
+        "inc:",
+        "  %n = add i64 %rc, 1",
+        "  store i64 %n, ptr %rcp",
+        "  br label %done",
+        "done:",
+        "  ret void",
+        "}",
+        "",
+        "define void @rt_release(ptr %p) {",
+        "entry:",
+        "  %addr = ptrtoint ptr %p to i64",
+        "  %small = icmp ult i64 %addr, 65536",
+        "  br i1 %small, label %done, label %chk",
+        "chk:",
+        "  %rcp = getelementptr i8, ptr %p, i64 -16",
+        "  %rc = load i64, ptr %rcp",
+        "  %imm = icmp slt i64 %rc, 0",
+        "  br i1 %imm, label %done, label %dec",
+        "dec:",
+        "  %n = sub i64 %rc, 1",
+        "  store i64 %n, ptr %rcp",
+        "  %z = icmp eq i64 %n, 0",
+        "  br i1 %z, label %drop, label %done",
+        "drop:",
+        "  %dpp = getelementptr i8, ptr %p, i64 -8",
+        "  %dfn = load ptr, ptr %dpp",
+        "  %has = icmp ne ptr %dfn, null",
+        "  br i1 %has, label %calldrop, label %dofree",
+        "calldrop:",
+        "  call void %dfn(ptr %p)",
+        "  br label %dofree",
+        "dofree:",
+        "  call void @free(ptr %rcp)",
+        "  br label %done",
+        "done:",
+        "  ret void",
+        "}",
+        "",
+        "; vector: { i64 elems_are_managed, ptr data, i64 len, i64 cap }",
+        "define void @rt_drop_vec(ptr %v) {",
+        "entry:",
+        "  %flag = load i64, ptr %v",
+        "  %dpp = getelementptr i8, ptr %v, i64 8",
+        "  %data = load ptr, ptr %dpp",
+        "  %lp = getelementptr i8, ptr %v, i64 16",
+        "  %len = load i64, ptr %lp",
+        "  %idx = alloca i64",
+        "  store i64 0, ptr %idx",
+        "  %managed = icmp ne i64 %flag, 0",
+        "  br i1 %managed, label %cond, label %fin",
+        "cond:",
+        "  %i = load i64, ptr %idx",
+        "  %c = icmp slt i64 %i, %len",
+        "  br i1 %c, label %body, label %fin",
+        "body:",
+        "  %slot = getelementptr ptr, ptr %data, i64 %i",
+        "  %el = load ptr, ptr %slot",
+        "  call void @rt_release(ptr %el)",
+        "  %nx = add i64 %i, 1",
+        "  store i64 %nx, ptr %idx",
+        "  br label %cond",
+        "fin:",
+        "  call void @free(ptr %data)",
+        "  ret void",
+        "}",
+        "",
+        "; copy of a foreign C string (extern returns, ...) as a managed string",
+        "define ptr @rt_adopt_cstr(ptr %s) {",
+        "entry:",
+        "  %isnull = icmp eq ptr %s, null",
+        "  br i1 %isnull, label %nul, label %cp",
+        "nul:",
+        "  ret ptr null",
+        "cp:",
+        "  %len = call i64 @strlen(ptr %s)",
+        "  %sz = add i64 %len, 1",
+        "  %buf = call ptr @rt_alloc(i64 %sz, ptr null)",
+        "  %r = call ptr @memcpy(ptr %buf, ptr %s, i64 %sz)",
+        "  ret ptr %buf",
+        "}",
+        ""
+    ];
+    for (let i = 0; i < vector_size(&rt); i += 1) {
+        ir_emit(&b, rt[i]);
+    }
+}
+
+# One `void(ptr)` per struct / enum that owns managed fields / payloads.
+fn llvm_emit_drop_functions(&LlvmCompiler c): void {
+    if (!c.arc) return;
+    for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
+        if (c.program.declared_types[t].value matches DeclaredType::Struct(sd)) {
+            let name = sd.identifier.value;
+            if (llvm_struct_drop_ref(&c, name) != "null") {
+                ir_emit(&c.ir, "define void @drop.struct." + name + "(ptr %p) {");
+                ir_emit(&c.ir, "entry:");
+                for (let m = 0; m < vector_size(&sd.members); m += 1) {
+                    if (llvm_type_is_managed(&c, sd.members[m].value.member_type.value)) {
+                        ir_emit(&c.ir, "  %f" + m as str + ".p = getelementptr i8, ptr %p, i64 " + (m * 8) as str);
+                        ir_emit(&c.ir, "  %f" + m as str + " = load ptr, ptr %f" + m as str + ".p");
+                        ir_emit(&c.ir, "  call void @rt_release(ptr %f" + m as str + ")");
+                    }
+                }
+                ir_emit(&c.ir, "  ret void");
+                ir_emit(&c.ir, "}");
+                ir_emit(&c.ir, "");
+            }
+        }
+        if (c.program.declared_types[t].value matches DeclaredType::Enum(ed)) {
+            let name = ed.identifier.value;
+            if (llvm_enum_drop_ref(&c, name) != "null") {
+                ir_emit(&c.ir, "define void @drop.enum." + name + "(ptr %p) {");
+                ir_emit(&c.ir, "entry:");
+                ir_emit(&c.ir, "  %tagp = getelementptr i8, ptr %p, i64 8");
+                ir_emit(&c.ir, "  %tag = load i64, ptr %tagp");
+                ir_emit(&c.ir, "  %payp = getelementptr i8, ptr %p, i64 16");
+                let cases = "";
+                for (let m = 0; m < vector_size(&ed.members); m += 1) {
+                    if (ed.members[m].value.member_type matches OptionTypeNode::Some(tn)) {
+                        if (llvm_type_is_managed(&c, tn.value)) {
+                            cases += " i64 " + m as str + ", label %v" + m as str;
+                        }
+                    }
+                }
+                ir_emit(&c.ir, "  switch i64 %tag, label %done [" + cases + " ]");
+                for (let m = 0; m < vector_size(&ed.members); m += 1) {
+                    if (ed.members[m].value.member_type matches OptionTypeNode::Some(tn)) {
+                        if (llvm_type_is_managed(&c, tn.value)) {
+                            ir_emit(&c.ir, "v" + m as str + ":");
+                            ir_emit(&c.ir, "  %pl" + m as str + " = load ptr, ptr %payp");
+                            ir_emit(&c.ir, "  call void @rt_release(ptr %pl" + m as str + ")");
+                            ir_emit(&c.ir, "  br label %done");
+                        }
+                    }
+                }
+                ir_emit(&c.ir, "done:");
+                ir_emit(&c.ir, "  ret void");
+                ir_emit(&c.ir, "}");
+                ir_emit(&c.ir, "");
+            }
+        }
+    }
+}

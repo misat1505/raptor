@@ -151,36 +151,56 @@ fn type_alu_arithmetic_negation(Type t, Span span): ResultType {
     }
 }
 
+fn type_alu_is_int(Type t): bool {
+    match (t) {
+        Type::I8 return true;,
+        Type::I16 return true;,
+        Type::I32 return true;,
+        Type::I64 return true;,
+        Type::U8 return true;,
+        Type::U16 return true;,
+        Type::U32 return true;,
+        Type::U64 return true;,
+        rest return false;
+    }
+}
+
+# Mirrors src/semantic/type_alu/cast.rs.
 fn type_alu_cast(Type value, Type target, Span span): ResultType {
-    if (type_eq(value, target)) return ResultType::Ok(value);
+    let value_int = type_alu_is_int(value);
+    let target_int = type_alu_is_int(target);
 
-    let value_num = type_is_numeric(value);
-    let target_num = type_is_numeric(target);
-
-    if (value_num) {
-        if (target_num) return ResultType::Ok(target);
+    if (value_int && target_int) return ResultType::Ok(target);
+    if (value_int) {
+        if (target matches Type::Str) return ResultType::Ok(Type::Str);
+        if (target matches Type::F64) return ResultType::Ok(Type::F64);
         if (target matches Type::Bool) return ResultType::Ok(Type::Bool);
-        if (target matches Type::Str) return ResultType::Ok(Type::Str);
     }
-
-    if (value matches Type::Bool) {
-        if (target_num) return ResultType::Ok(target);
-        if (target matches Type::Str) return ResultType::Ok(Type::Str);
+    if (target_int) {
+        if (value matches Type::F64) return ResultType::Ok(target);
+        if (value matches Type::Str) return ResultType::Ok(target);
+        if (value matches Type::Bool) return ResultType::Ok(target);
     }
-
+    if (value matches Type::F64) {
+        if (target matches Type::Str) return ResultType::Ok(Type::Str);
+        if (target matches Type::Bool) return ResultType::Ok(Type::Bool);
+    }
     if (value matches Type::Str) {
+        if (target matches Type::F64) return ResultType::Ok(Type::F64);
         if (target matches Type::Bool) return ResultType::Ok(Type::Bool);
     }
-
+    if (value matches Type::Bool) {
+        if (target matches Type::F64) return ResultType::Ok(Type::F64);
+        if (target matches Type::Str) return ResultType::Ok(Type::Str);
+    }
     if (value matches Type::Char) {
         if (target matches Type::Str) return ResultType::Ok(Type::Str);
         if (target matches Type::U8) return ResultType::Ok(Type::U8);
-        if (target_num) return ResultType::Ok(target);
     }
-
     if (value matches Type::U8) {
         if (target matches Type::Char) return ResultType::Ok(Type::Char);
     }
+    if (type_eq(value, target)) return ResultType::Ok(value);
 
     return ResultType::Err(semantic_checker_error_new(
         ErrorSeverity::HIGH,

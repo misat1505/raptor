@@ -254,6 +254,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         })?;
 
         let mut compiled_args: Vec<BasicMetadataValueEnum> = Vec::with_capacity(arguments.len());
+        // Extern functions only borrow the raw char*; the managed StrHeader
+        // stays ours. We must NOT free it before the call (use-after-free),
+        // so temps are collected here and released after build_call.
+        let mut extern_str_temps_to_release: Vec<PointerValue<'ctx>> = Vec::new();
 
         for argument in arguments {
             match argument.value.passed_by {
@@ -265,6 +269,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     match (is_extern, value) {
                         (true, LlvmValue::Str(ptr)) => {
                             let data_ptr = self.str_data_ptr(ptr, span)?;
+                            if Self::expr_needs_release_in_function_call(&argument.value.value.value) {
+                                extern_str_temps_to_release.push(ptr);
+                            }
                             compiled_args.push(data_ptr.into());
                         }
 
@@ -328,6 +335,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .builder
             .build_call(function, &compiled_args, "call")
             .map_err(|err| Box::new(CompilerError::at(ErrorSeverity::HIGH, err.to_string(), span)) as Box<dyn IError>)?;
+
+        // Safe to free now: extern has finished reading the char* buffers.
+        for ptr in extern_str_temps_to_release {
+            self.release_value(&LlvmValue::Str(ptr), span)?;
+        }
 
         let return_type = if let Some(function) = self.program.functions.get(name) {
             &self.resolve_type(&function.value.return_type.value)

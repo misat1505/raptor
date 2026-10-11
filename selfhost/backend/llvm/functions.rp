@@ -51,7 +51,9 @@ fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void 
     c.locals = compiler_vars;
 
     ir_emit(&c.ir, llvm_emit_function_signature(f) + " {");
-    ir_emit(&c.ir, "entry:");
+    llvm_begin_body(&c);
+    ir_emit(&c.ir, "  br label %allocas");
+    ir_emit(&c.ir, "start:");
 
     # Spill arguments into allocas (mirrors Rust param setup)
     for (let i = 0; i < vector_size(&f.value.parameters); i += 1) {
@@ -63,7 +65,8 @@ fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void 
                 name: p.value.identifier.value,
                 ptr: "%" + p.value.identifier.value + ".arg",
                 ty: ty,
-                rty: llvm_type_rname(p.value.parameter_type.value)
+                rty: llvm_type_rname(p.value.parameter_type.value),
+                owned: false
             });
             continue;
         }
@@ -93,8 +96,23 @@ fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void 
             }
         }
     }
+    llvm_end_body(&c);
     ir_emit(&c.ir, "}");
     ir_emit(&c.ir, "");
+}
+
+# Functions libc-decls.rp already declares: declaring them again is an LLVM error.
+fn llvm_libc_declares(str name): bool {
+    let known: str[] = [
+        "printf", "fflush", "snprintf", "fprintf", "strcmp", "strlen", "strcpy", "strcat",
+        "malloc", "free", "atoll", "atof", "realloc", "memcpy", "usleep", "exit", "fopen",
+        "fclose", "fread", "fwrite", "fseek", "ftell", "remove", "access", "read", "socket",
+        "bind", "listen", "accept", "recv", "send", "close", "connect", "inet_addr", "fgets"
+    ];
+    for (let i = 0; i < vector_size(&known); i += 1) {
+        if (known[i] == name) return true;
+    }
+    return false;
 }
 
 fn llvm_compile_extern(&LlvmCompiler c, ExternFunctionDeclarationNode e): void {
@@ -106,9 +124,9 @@ fn llvm_compile_extern(&LlvmCompiler c, ExternFunctionDeclarationNode e): void {
         }
         params_ir += type_to_llvm(e.value.parameters[i].value.parameter_type.value);
     }
+    # `extern fn InitWindow(...) as init_window;` links against the C symbol
+    # `InitWindow`; the alias is only the name used from Raptor code.
     let link_name = e.value.identifier.value;
-    if (e.value.alias matches OptionIdentifierNode::Some(a)) {
-        link_name = a.value;
-    }
+    if (llvm_libc_declares(link_name)) return;
     ir_emit(&c.ir, "declare " + ret + " @" + link_name + "(" + params_ir + ")");
 }

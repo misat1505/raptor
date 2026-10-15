@@ -37,7 +37,9 @@ jobs:
           echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
 
       - name: Build self-hosted compiler
-        run: ./bootstrap/bootstrap.sh
+        run: |
+          chmod +x ./bootstrap/bootstrap.sh
+          ./bootstrap/bootstrap.sh
 
       - name: Run self-hosted tests (ARC)
         run: |

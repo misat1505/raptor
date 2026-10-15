@@ -172,7 +172,7 @@ fn macro_expander_enum_json_block(
             OptionTypeNode::None {
                 let arm_stmts: StatementNode[] = [];
                 vector_push(&arm_stmts, me_stmt(me_return_expr(me_str_lit(
-                    "{\"variant\":\"" + variant_name + "\"}"
+                    "\"" + variant_name + "\""
                 ))));
                 vector_push(&match_arms, MatchArmNode {
                     value: MatchArm {
@@ -192,7 +192,7 @@ fn macro_expander_enum_json_block(
 
                 vector_push(&arm_stmts, me_stmt(me_let(
                     result_variable,
-                    me_str_lit("{\"variant\":\"" + variant_name + "\",\"value\":")
+                    me_str_lit("{\"" + variant_name + "\":")
                 )));
 
                 match (member_type) {

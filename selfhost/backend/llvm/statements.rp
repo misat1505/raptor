@@ -132,11 +132,19 @@ fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
                     llvm_store_typed(&c, ptr, ty, c.last_value, c.last_type);
                 },
                 OptionExpressionNode::None {
-                    let def = type_default_llvm(k.var_type.value);
-                    if (ty == "double") {
-                        def = llvm_double_const(def);
+                    if (k.var_type.value matches Type::Str) {
+                        ir_emit(&c.ir, "  store ptr " + llvm_str_literal(&c, "") + ", ptr " + ptr);
+                    } else {
+                        if (k.var_type.value matches Type::Vector) {
+                            ir_emit(&c.ir, "  store ptr " + llvm_vector_alloc_empty(&c) + ", ptr " + ptr);
+                        } else {
+                            let def = type_default_llvm(k.var_type.value);
+                            if (ty == "double") {
+                                def = llvm_double_const(def);
+                            }
+                            ir_emit(&c.ir, "  store " + ty + " " + def + ", ptr " + ptr);
+                        }
                     }
-                    ir_emit(&c.ir, "  store " + ty + " " + def + ", ptr " + ptr);
                 }
             }
         }
@@ -223,9 +231,19 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                 }
             },
             Accessor::Index(index_expr) {
-                cur_rty = "";
+                let container_rty = cur_rty;
+                cur_rty = llvm_rty_element(container_rty);
                 llvm_compile_expression(&c, index_expr);
                 let i_val = llvm_as_i64(&c, c.last_value, c.last_type);
+                if (container_rty == "str" && is_last) {
+                    # s[i] = c: overwrite one byte of the (private) string in place.
+                    llvm_emit_bounds_check(&c, cur, i_val, true, index_expr.span);
+                    let byte_p = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + byte_p + " = getelementptr i8, ptr " + cur + ", i64 " + i_val);
+                    let byte_v = llvm_resize_int(&c, rval, rty, "i8", false);
+                    ir_emit(&c.ir, "  store i8 " + byte_v + ", ptr " + byte_p);
+                    return;
+                }
                 llvm_emit_bounds_check(&c, cur, i_val, false, index_expr.span);
                 let data_p = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + data_p + " = getelementptr i8, ptr " + cur + ", i64 8");
@@ -324,6 +342,8 @@ fn llvm_compile_while(&LlvmCompiler c, WhileLoopStatement stmt): void {
     vector_push(&c.continue_stack, cond_l);
     vector_push(&c.loop_marks, vector_size(&c.locals));
     vector_push(&c.loop_temp_marks, vector_size(&c.temps));
+    vector_push(&c.cont_marks, vector_size(&c.locals));
+    vector_push(&c.cont_temp_marks, vector_size(&c.temps));
     llvm_compile_block(&c, stmt.block);
     # pop stacks
     let nb: str[] = [];
@@ -346,6 +366,14 @@ fn llvm_compile_while(&LlvmCompiler c, WhileLoopStatement stmt): void {
         vector_push(&ntm, c.loop_temp_marks[i]);
     }
     c.loop_temp_marks = ntm;
+    let ncm: i64[] = [];
+    let nctm: i64[] = [];
+    for (let i = 0; i < vector_size(&c.cont_marks) - 1; i += 1) {
+        vector_push(&ncm, c.cont_marks[i]);
+        vector_push(&nctm, c.cont_temp_marks[i]);
+    }
+    c.cont_marks = ncm;
+    c.cont_temp_marks = nctm;
     if (!c.has_terminator) {
         ir_emit(&c.ir, "  br label %" + cond_l);
     }
@@ -381,6 +409,8 @@ fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
     vector_push(&c.continue_stack, step_l);
     vector_push(&c.loop_marks, vector_size(&c.locals));
     vector_push(&c.loop_temp_marks, vector_size(&c.temps));
+    vector_push(&c.cont_marks, vector_size(&c.locals));
+    vector_push(&c.cont_temp_marks, vector_size(&c.temps));
     llvm_compile_block(&c, stmt.block);
     let nb: str[] = [];
     for (let i = 0; i < vector_size(&c.break_stack) - 1; i += 1) {
@@ -402,6 +432,14 @@ fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
         vector_push(&ntm, c.loop_temp_marks[i]);
     }
     c.loop_temp_marks = ntm;
+    let ncm: i64[] = [];
+    let nctm: i64[] = [];
+    for (let i = 0; i < vector_size(&c.cont_marks) - 1; i += 1) {
+        vector_push(&ncm, c.cont_marks[i]);
+        vector_push(&nctm, c.cont_temp_marks[i]);
+    }
+    c.cont_marks = ncm;
+    c.cont_temp_marks = nctm;
     if (!c.has_terminator) {
         ir_emit(&c.ir, "  br label %" + step_l);
     }
@@ -541,6 +579,84 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
     llvm_compiler_pop_scope(&c, outer_marker);
 }
 
+# switch (expr: alias, ...) { (cond) -> { ... } ... }
+# Like the Rust backend: the aliased expressions are evaluated once, then every
+# case condition is tested in order and EVERY matching case runs (there is no
+# implicit stop after a match). `break` leaves the switch, `continue` belongs to
+# the enclosing loop.
+fn llvm_compile_switch(&LlvmCompiler c, SwitchStatement sw): void {
+    let marker = llvm_compiler_push_scope_marker(&c);
+    for (let i = 0; i < vector_size(&sw.expressions); i += 1) {
+        if (sw.expressions[i].value.alias matches OptionIdentifierNode::Some(alias)) {
+            let source = sw.expressions[i].value.expression;
+            llvm_compile_owned(&c, source);
+            let alias_ty = c.last_type;
+            let alias_rty = llvm_expr_rtype(&c, source);
+            let alias_val = c.last_value;
+            let slot = llvm_compiler_declare_local(&c, alias.value, alias_ty);
+            llvm_compiler_set_last_local_rty(&c, alias_rty);
+            llvm_store_typed(&c, slot, alias_ty, alias_val, alias_ty);
+            if (alias_ty == "ptr") {
+                llvm_compiler_mark_last_owned(&c);
+            }
+        }
+    }
+
+    let after_l = ir_label(&c.ir, "switch.after");
+    vector_push(&c.break_stack, after_l);
+    vector_push(&c.loop_marks, vector_size(&c.locals));
+    vector_push(&c.loop_temp_marks, vector_size(&c.temps));
+
+    let n = vector_size(&sw.cases);
+    for (let i = 0; i < n; i += 1) {
+        let case_l = ir_label(&c.ir, "switch.case");
+        let next_l = after_l;
+        if (i + 1 < n) {
+            next_l = ir_label(&c.ir, "switch.check");
+        }
+        let cond_temps = vector_size(&c.temps);
+        llvm_compile_expression(&c, sw.cases[i].value.condition);
+        let cond = c.last_value;
+        if (c.last_type != "i1") {
+            let t = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + t + " = icmp ne i64 " + cond + ", 0");
+            cond = t;
+        }
+        llvm_flush_temps_from(&c, cond_temps);
+        ir_emit(&c.ir, "  br i1 " + cond + ", label %" + case_l + ", label %" + next_l);
+        ir_emit(&c.ir, case_l + ":");
+        c.has_terminator = false;
+        llvm_compile_block(&c, sw.cases[i].value.block);
+        if (!c.has_terminator) {
+            ir_emit(&c.ir, "  br label %" + next_l);
+        }
+        if (i + 1 < n) {
+            ir_emit(&c.ir, next_l + ":");
+            c.has_terminator = false;
+        }
+    }
+    if (n == 0) {
+        ir_emit(&c.ir, "  br label %" + after_l);
+    }
+
+    let nb: str[] = [];
+    let nm: i64[] = [];
+    let ntm: i64[] = [];
+    for (let i = 0; i < vector_size(&c.break_stack) - 1; i += 1) {
+        vector_push(&nb, c.break_stack[i]);
+        vector_push(&nm, c.loop_marks[i]);
+        vector_push(&ntm, c.loop_temp_marks[i]);
+    }
+    c.break_stack = nb;
+    c.loop_marks = nm;
+    c.loop_temp_marks = ntm;
+
+    ir_emit(&c.ir, after_l + ":");
+    c.has_terminator = false;
+    llvm_emit_release_locals_from(&c, marker);
+    llvm_compiler_pop_scope(&c, marker);
+}
+
 # Every statement releases the temporaries it created once it is done.
 fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
     let temps_start = vector_size(&c.temps);
@@ -658,8 +774,8 @@ fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
                 llvm_compiler_error(&c, "continue outside loop");
             } else {
                 let t = c.continue_stack[vector_size(&c.continue_stack) - 1];
-                llvm_release_temps_from(&c, c.loop_temp_marks[vector_size(&c.loop_temp_marks) - 1]);
-                llvm_emit_release_locals_from(&c, c.loop_marks[vector_size(&c.loop_marks) - 1]);
+                llvm_release_temps_from(&c, c.cont_temp_marks[vector_size(&c.cont_temp_marks) - 1]);
+                llvm_emit_release_locals_from(&c, c.cont_marks[vector_size(&c.cont_marks) - 1]);
                 ir_emit(&c.ir, "  br label %" + t);
                 c.has_terminator = true;
             }
@@ -676,8 +792,8 @@ fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
         Statement::Match(m) {
             llvm_compile_match(&c, m, node.span);
         },
-        Statement::Switch {
-            llvm_compiler_error(&c, "switch not yet lowered in selfhost IR");
+        Statement::Switch(sw) {
+            llvm_compile_switch(&c, sw);
         },
         Statement::Import {
             # imports already resolved before compile

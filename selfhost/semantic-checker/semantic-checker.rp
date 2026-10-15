@@ -577,8 +577,20 @@ fn semantic_checker_check_switch(
 ): void {
     for (let i = 0; i < vector_size(&sw.expressions); i += 1) {
         semantic_checker_visit_expression(&sc, &program, sw.expressions[i].value.expression);
-        if (semantic_checker_read_last(&sc, sw.expressions[i].value.expression.span) matches ResultType::Err(e)) {
-            semantic_checker_push_error(&sc, e);
+        match (semantic_checker_read_last(&sc, sw.expressions[i].value.expression.span)) {
+            ResultType::Err(e) semantic_checker_push_error(&sc, e);,
+            ResultType::Ok(alias_type) {
+                # `switch (expr: name)` declares `name` for the cases.
+                if (sw.expressions[i].value.alias matches OptionIdentifierNode::Some(alias)) {
+                    if (stack_declare_variable(&sc.stack, alias.value, alias_type, alias.span) matches ResultSem::Err(err)) {
+                        semantic_checker_push_error(&sc, semantic_checker_error_at(
+                            ErrorSeverity::HIGH,
+                            err.message,
+                            sw.expressions[i].span
+                        ));
+                    }
+                }
+            }
         }
     }
     stack_enter_breakable(&sc.stack);

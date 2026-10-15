@@ -65,6 +65,7 @@ fn llvm_compiler_compile(&LlvmCompiler c, &Program program): str {
     ir_emit(&c.ir, "}");
 
     llvm_emit_drop_functions(&c);
+    llvm_emit_copy_functions(&c);
     for (let i = 0; i < vector_size(&c.extra_fns); i += 1) {
         ir_emit(&c.ir, c.extra_fns[i]);
     }

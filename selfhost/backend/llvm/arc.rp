@@ -186,3 +186,117 @@ fn llvm_emit_drop_functions(&LlvmCompiler c): void {
         }
     }
 }
+
+
+# ============================================================
+# Value semantics (same as the Rust backend):
+#   * str            full copy whenever it is stored or passed by value
+#   * T[] (by value) new header + new backing array, elements shared
+#   * struct (by value) new struct, primitive fields copied, composite fields shared
+# ============================================================
+
+# Emits the allocation of `size` bytes in the mode the program is compiled in.
+fn llvm_copy_alloc(&LlvmCompiler c, str size, str drop): str {
+    if (c.arc) return "call ptr @rt_alloc(i64 " + size + ", ptr " + drop + ")";
+    return "call ptr @malloc(i64 " + size + ")";
+}
+
+fn llvm_emit_copy_functions(&LlvmCompiler c): void {
+    let L: str[] = [];
+    # ---- str ----
+    vector_push(&L, "define ptr @rt_str_copy(ptr %s) {");
+    vector_push(&L, "entry:");
+    vector_push(&L, "  %isnull = icmp eq ptr %s, null");
+    vector_push(&L, "  br i1 %isnull, label %nul, label %cp");
+    vector_push(&L, "nul:");
+    vector_push(&L, "  ret ptr null");
+    vector_push(&L, "cp:");
+    vector_push(&L, "  %len = call i64 @strlen(ptr %s)");
+    vector_push(&L, "  %sz = add i64 %len, 1");
+    vector_push(&L, "  %buf = " + llvm_copy_alloc(&c, "%sz", "null"));
+    vector_push(&L, "  %r = call ptr @memcpy(ptr %buf, ptr %s, i64 %sz)");
+    vector_push(&L, "  ret ptr %buf");
+    vector_push(&L, "}");
+    vector_push(&L, "");
+    # ---- vector: { elements_are_managed, data, len, cap } ----
+    vector_push(&L, "define ptr @rt_vec_copy(ptr %v) {");
+    vector_push(&L, "entry:");
+    vector_push(&L, "  %flag = load i64, ptr %v");
+    vector_push(&L, "  %dpp = getelementptr i8, ptr %v, i64 8");
+    vector_push(&L, "  %data = load ptr, ptr %dpp");
+    vector_push(&L, "  %lp = getelementptr i8, ptr %v, i64 16");
+    vector_push(&L, "  %len = load i64, ptr %lp");
+    vector_push(&L, "  %cp = getelementptr i8, ptr %v, i64 24");
+    vector_push(&L, "  %cap = load i64, ptr %cp");
+    vector_push(&L, "  %new = " + llvm_copy_alloc(&c, "32", "@rt_drop_vec"));
+    vector_push(&L, "  store i64 %flag, ptr %new");
+    vector_push(&L, "  %ndp = getelementptr i8, ptr %new, i64 8");
+    vector_push(&L, "  %nlp = getelementptr i8, ptr %new, i64 16");
+    vector_push(&L, "  store i64 %len, ptr %nlp");
+    vector_push(&L, "  %ncp = getelementptr i8, ptr %new, i64 24");
+    vector_push(&L, "  store i64 %cap, ptr %ncp");
+    vector_push(&L, "  %has = icmp sgt i64 %cap, 0");
+    vector_push(&L, "  br i1 %has, label %copy, label %empty");
+    vector_push(&L, "empty:");
+    vector_push(&L, "  store ptr null, ptr %ndp");
+    vector_push(&L, "  ret ptr %new");
+    vector_push(&L, "copy:");
+    vector_push(&L, "  %cb = mul i64 %cap, 8");
+    vector_push(&L, "  %nd = call ptr @malloc(i64 %cb)");
+    vector_push(&L, "  store ptr %nd, ptr %ndp");
+    vector_push(&L, "  %lb = mul i64 %len, 8");
+    vector_push(&L, "  %m = call ptr @memcpy(ptr %nd, ptr %data, i64 %lb)");
+    if (c.arc) {
+        vector_push(&L, "  %mg = icmp ne i64 %flag, 0");
+        vector_push(&L, "  %idx = alloca i64");
+        vector_push(&L, "  store i64 0, ptr %idx");
+        vector_push(&L, "  br i1 %mg, label %rc, label %done");
+        vector_push(&L, "rc:");
+        vector_push(&L, "  %i = load i64, ptr %idx");
+        vector_push(&L, "  %k = icmp slt i64 %i, %len");
+        vector_push(&L, "  br i1 %k, label %rb, label %done");
+        vector_push(&L, "rb:");
+        vector_push(&L, "  %slot = getelementptr ptr, ptr %nd, i64 %i");
+        vector_push(&L, "  %el = load ptr, ptr %slot");
+        vector_push(&L, "  call void @rt_retain(ptr %el)");
+        vector_push(&L, "  %nx = add i64 %i, 1");
+        vector_push(&L, "  store i64 %nx, ptr %idx");
+        vector_push(&L, "  br label %rc");
+        vector_push(&L, "done:");
+    }
+    vector_push(&L, "  ret ptr %new");
+    vector_push(&L, "}");
+    vector_push(&L, "");
+    for (let i = 0; i < vector_size(&L); i += 1) {
+        ir_emit(&c.ir, L[i]);
+    }
+
+    # ---- one copy function per struct ----
+    for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
+        if (c.program.declared_types[t].value matches DeclaredType::Struct(sd)) {
+            let name = sd.identifier.value;
+            let nf = vector_size(&sd.members);
+            ir_emit(&c.ir, "define ptr @copy.struct." + name + "(ptr %p) {");
+            ir_emit(&c.ir, "entry:");
+            ir_emit(&c.ir, "  %new = " + llvm_copy_alloc(&c, ((nf + 1) * 8) as str, llvm_struct_drop_ref(&c, name)));
+            for (let m = 0; m < nf; m += 1) {
+                let off = (m * 8) as str;
+                ir_emit(&c.ir, "  %s" + m as str + " = getelementptr i8, ptr %p, i64 " + off);
+                ir_emit(&c.ir, "  %d" + m as str + " = getelementptr i8, ptr %new, i64 " + off);
+                if (c.arc && llvm_type_is_managed(&c, sd.members[m].value.member_type.value)) {
+                    ir_emit(&c.ir, "  %v" + m as str + " = load ptr, ptr %s" + m as str);
+                    ir_emit(&c.ir, "  store ptr %v" + m as str + ", ptr %d" + m as str);
+                    ir_emit(&c.ir, "  call void @rt_retain(ptr %v" + m as str + ")");
+                } else {
+                    ir_emit(&c.ir, "  %v" + m as str + " = load i64, ptr %s" + m as str);
+                    ir_emit(&c.ir, "  store i64 %v" + m as str + ", ptr %d" + m as str);
+                }
+            }
+            ir_emit(&c.ir, "  %rcp = getelementptr i8, ptr %new, i64 " + (nf * 8) as str);
+            ir_emit(&c.ir, "  store i64 1, ptr %rcp");
+            ir_emit(&c.ir, "  ret ptr %new");
+            ir_emit(&c.ir, "}");
+            ir_emit(&c.ir, "");
+        }
+    }
+}

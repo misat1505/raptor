@@ -63,7 +63,11 @@ struct LlvmCompiler {
     # the statement that created them ends (or on return / break / continue).
     str[] temps,
     # temps.len() at the start of each enclosing loop body (parallel to break_stack)
-    i64[] loop_temp_marks
+    i64[] loop_temp_marks,
+    # Same for `continue`: it targets the enclosing loop even from inside a switch,
+    # so it needs marks that only loops (not switches) push.
+    i64[] cont_marks,
+    i64[] cont_temp_marks
 };
 
 fn llvm_compiler_new(): LlvmCompiler {
@@ -96,7 +100,9 @@ fn llvm_compiler_new(): LlvmCompiler {
         extra_fn_names: [],
         extra_fns: [],
         temps: [],
-        loop_temp_marks: []
+        loop_temp_marks: [],
+        cont_marks: [],
+        cont_temp_marks: []
     };
 }
 

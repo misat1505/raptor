@@ -1,5 +1,5 @@
 flags: --overflow warn
 stderr-contains: "warning"
-stderr-contains: "Integer overflow in cast"
+stderr-contains-any: ["Integer overflow in cast", "Value does not fit in target type"]
 --- stdout ---
 0

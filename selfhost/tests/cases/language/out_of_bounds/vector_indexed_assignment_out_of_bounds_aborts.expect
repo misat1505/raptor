@@ -1,4 +1,5 @@
 flags: --overflow ignore
-valgrind: no
+exit: nonzero
+stderr-contains-i: "out of bounds"
 --- stdout ---
 420

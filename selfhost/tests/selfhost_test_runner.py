@@ -20,10 +20,13 @@ Format of `.expect` (every line is optional):
     flags: --overflow error                  extra compiler flags (shell syntax)
     compile: ok | fail                       must the compiler accept the program? (default ok)
     compile-stderr-contains: "text"          repeatable, JSON string or plain text
-    exit: 1                                  exit code of the program (default 0)
+    exit: 1 | nonzero                        exit code of the program (default 0)
     valgrind: yes | no                       default: yes when exit is 0, otherwise no
     stderr: empty                            the program must not write to stderr
     stderr-contains: "text"                  repeatable
+    stderr-contains-i: "text"                case-insensitive, repeatable
+    stderr-contains-any: ["a", "b"]          at least one of the texts, repeatable
+    stderr-contains-any-i: ["a", "b"]        same, case-insensitive
     --- stdout ---                           everything after this line is the exact stdout
     first line of expected output
     ...
@@ -70,9 +73,12 @@ def parse_expect(path):
         "compile": "ok",
         "compile_contains": [],
         "exit": 0,
+        "exit_nonzero": False,
         "valgrind": None,
         "stderr_empty": False,
         "stderr_contains": [],
+        "stderr_contains_i": [],
+        "stderr_any": [],
         "stdout": None,
     }
     with open(path, encoding="utf-8", newline="") as fh:
@@ -93,17 +99,24 @@ def parse_expect(path):
         elif key == "compile-stderr-contains":
             exp["compile_contains"].append(parse_value(value))
         elif key == "exit":
-            exp["exit"] = int(value)
+            if value.strip() == "nonzero":
+                exp["exit_nonzero"] = True
+            else:
+                exp["exit"] = int(value)
         elif key == "valgrind":
             exp["valgrind"] = value.strip() in ("yes", "true", "1")
         elif key == "stderr":
             exp["stderr_empty"] = value.strip() == "empty"
         elif key == "stderr-contains":
             exp["stderr_contains"].append(parse_value(value))
+        elif key == "stderr-contains-i":
+            exp["stderr_contains_i"].append(parse_value(value))
+        elif key in ("stderr-contains-any", "stderr-contains-any-i"):
+            exp["stderr_any"].append({"texts": json.loads(value), "ci": key.endswith("-i")})
         else:
             raise ValueError(f"{path}: unknown key {key!r}")
     if exp["valgrind"] is None:
-        exp["valgrind"] = exp["exit"] == 0 and exp["compile"] == "ok"
+        exp["valgrind"] = exp["exit"] == 0 and not exp["exit_nonzero"] and exp["compile"] == "ok"
     return exp
 
 
@@ -113,15 +126,22 @@ def write_expect(path, exp):
         lines.append("flags: " + " ".join(shlex.quote(f) for f in exp["flags"]))
     if exp.get("compile", "ok") != "ok":
         lines.append("compile: " + exp["compile"])
-    if exp.get("exit", 0) != 0:
+    if exp.get("exit_nonzero"):
+        lines.append("exit: nonzero")
+    elif exp.get("exit", 0) != 0:
         lines.append(f"exit: {exp['exit']}")
-    default_valgrind = exp.get("exit", 0) == 0
+    default_valgrind = exp.get("exit", 0) == 0 and not exp.get("exit_nonzero")
     if exp.get("valgrind", default_valgrind) != default_valgrind:
         lines.append("valgrind: " + ("yes" if exp["valgrind"] else "no"))
     if exp.get("stderr_empty"):
         lines.append("stderr: empty")
     for needle in exp.get("stderr_contains", []):
         lines.append("stderr-contains: " + json.dumps(needle))
+    for needle in exp.get("stderr_contains_i", []):
+        lines.append("stderr-contains-i: " + json.dumps(needle))
+    for group in exp.get("stderr_any", []):
+        key = "stderr-contains-any-i" if group["ci"] else "stderr-contains-any"
+        lines.append(key + ": " + json.dumps(group["texts"]))
     text = "\n".join(lines) + ("\n" if lines else "")
     if exp.get("stdout") is not None:
         text += STDOUT_MARKER + "\n" + exp["stdout"]
@@ -229,6 +249,9 @@ def check_case(opts, rp_path, exp):
                 return "FAIL", "compilation failed:\n" + out.compile_log[-500:]
             if out.valgrind_failed:
                 problems.append("valgrind: memory error or leak\n" + out.stderr[-500:])
+            elif exp["exit_nonzero"]:
+                if out.exit == 0:
+                    problems.append("exit code 0, expected a non-zero exit code")
             elif out.exit != exp["exit"]:
                 problems.append(f"exit code {out.exit}, expected {exp['exit']}")
             if exp["stdout"] is not None and out.stdout != exp["stdout"]:
@@ -241,6 +264,17 @@ def check_case(opts, rp_path, exp):
                 if needle not in out.stderr:
                     problems.append(
                         f"stderr does not contain {needle!r}\n  stderr: {out.stderr[:300]!r}"
+                    )
+            for needle in exp["stderr_contains_i"]:
+                if needle.lower() not in out.stderr.lower():
+                    problems.append(
+                        f"stderr does not contain {needle!r} (ignoring case)\n  stderr: {out.stderr[:300]!r}"
+                    )
+            for group in exp["stderr_any"]:
+                hay = out.stderr.lower() if group["ci"] else out.stderr
+                if not any((t.lower() if group["ci"] else t) in hay for t in group["texts"]):
+                    problems.append(
+                        f"stderr contains none of {group['texts']!r}\n  stderr: {out.stderr[:300]!r}"
                     )
         if problems:
             return "FAIL", "\n".join(problems)
@@ -438,6 +472,113 @@ def parse_rust_string(src, i):
 POLICY = {"Ignore": "ignore", "Warn": "warn", "Error": "error"}
 
 
+def iter_assertions(body):
+    """Yields (kind, args) for every assert!/assert_eq!/assert_ne! in a test body.
+
+    `args` are the top-level, comma separated arguments as source text.
+    """
+    for m in re.finditer(r"\bassert(_eq|_ne)?!\(", body):
+        j, depth, cur, args = m.end(), 1, [], []
+        while True:
+            c = body[j]
+            if c == '"' or re.match(r'r#*"', body[j : j + 8]):
+                lit = parse_rust_string(body, j)
+                cur.append(body[j : lit[1]])
+                j = lit[1]
+                continue
+            if c in "([{":
+                depth += 1
+            elif c in ")]}":
+                depth -= 1
+                if depth == 0:
+                    break
+            if c == "," and depth == 1:
+                args.append("".join(cur).strip())
+                cur = []
+                j += 1
+                continue
+            cur.append(c)
+            j += 1
+        args.append("".join(cur).strip())
+        yield m.group(1) or "", args
+
+
+def split_top_level(text, sep):
+    """Splits `text` on `sep`, ignoring separators inside strings and brackets."""
+    parts, cur, depth, j = [], [], 0, 0
+    while j < len(text):
+        c = text[j]
+        if c == '"' or re.match(r'r#*"', text[j : j + 8]):
+            lit = parse_rust_string(text, j)
+            cur.append(text[j : lit[1]])
+            j = lit[1]
+            continue
+        if text.startswith(sep, j) and depth == 0:
+            parts.append("".join(cur).strip())
+            cur = []
+            j += len(sep)
+            continue
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+        cur.append(c)
+        j += 1
+    parts.append("".join(cur).strip())
+    return parts
+
+
+def string_literal(text):
+    lit = parse_rust_string(text.strip(), 0)
+    if lit is None or lit[1] != len(text.strip()):
+        return None
+    return lit[0]
+
+
+def apply_assertions(body, exp):
+    """Fills `exp` from the assertions on stdout / stderr / exit_code.
+
+    Returns None, or the reason why an assertion could not be translated (so a
+    test is never silently imported with weaker expectations).
+    """
+    for kind, args in iter_assertions(body):
+        mentioned = " ".join(args[:2])
+        if not re.search(r"\b(stdout|stderr|exit_code)\b", mentioned):
+            continue
+        if kind == "_eq" and args[0] == "exit_code":
+            exp["exit"] = int(args[1])
+        elif kind == "_ne" and args[0] == "exit_code" and args[1] == "0":
+            exp["exit_nonzero"] = True
+        elif kind == "_eq" and args[0] == "stdout":
+            value = string_literal(args[1])
+            if value is None:
+                return "stdout is not compared with a plain string literal"
+            exp["stdout"] = value
+        elif kind == "" and args[0] == "stdout.is_empty()":
+            exp["stdout"] = ""
+        elif kind == "" and args[0] == "stderr.is_empty()":
+            exp["stderr_empty"] = True
+        elif kind == "":
+            atoms, ci_flags = [], []
+            for atom in split_top_level(args[0], "||"):
+                m = re.fullmatch(r"stderr\.(to_lowercase\(\)\.)?contains\((.*)\)", atom, re.S)
+                text = string_literal(m.group(2)) if m else None
+                if text is None:
+                    return f"unsupported assertion: {args[0][:60]}"
+                atoms.append(text)
+                ci_flags.append(m.group(1) is not None)
+            if len(set(ci_flags)) != 1:
+                return "assertion mixes case-sensitive and case-insensitive stderr checks"
+            if len(atoms) == 1:
+                key = "stderr_contains_i" if ci_flags[0] else "stderr_contains"
+                exp[key].append(atoms[0])
+            else:
+                exp["stderr_any"].append({"texts": atoms, "ci": ci_flags[0]})
+        else:
+            return f"unsupported assertion: {args[0][:60]}"
+    return None
+
+
 def extract_rust_test(body):
     """Returns (source, expectation) or (None, reason)."""
     prog = re.search(r'r(#+)"(.*?)"\1', body, re.S)
@@ -468,26 +609,18 @@ def extract_rust_test(body):
             "flags": flags + ["--overflow", POLICY[m.group(2)]],
             "valgrind": m.group(1) is None,
             "exit": 0,
+            "exit_nonzero": False,
             "stdout": None,
             "stderr_empty": False,
             "stderr_contains": [],
+            "stderr_contains_i": [],
+            "stderr_any": [],
         }
-        code = re.search(r"assert_eq!\(\s*exit_code\s*,\s*(\d+)\s*\)", body)
-        if code:
-            exp["exit"] = int(code.group(1))
-        out = re.search(r"assert_eq!\(\s*stdout\s*,\s*", body)
-        if out:
-            lit = parse_rust_string(body, out.end())
-            if lit is None:
-                return None, "stdout is not a plain string literal"
-            exp["stdout"] = lit[0]
-        if re.search(r"assert!\(\s*stderr\.is_empty\(\)", body):
-            exp["stderr_empty"] = True
-        for c in re.finditer(r"assert!\(\s*stderr\.contains\(", body):
-            lit = parse_rust_string(body, c.end())
-            if lit is None:
-                return None, "stderr pattern is not a plain string literal"
-            exp["stderr_contains"].append(lit[0])
+        reason = apply_assertions(body, exp)
+        if reason:
+            return None, reason
+        if exp["exit_nonzero"]:
+            exp["valgrind"] = False
         return source, exp
     return None, "unrecognised test shape"
 

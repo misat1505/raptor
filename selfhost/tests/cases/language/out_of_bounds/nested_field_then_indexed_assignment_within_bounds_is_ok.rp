@@ -1,0 +1,10 @@
+
+struct Container {
+    i64[] items
+};
+
+let container = Container { items: [1, 2] };
+
+container.items[1] = 99;
+
+println(container.items[1] as str);

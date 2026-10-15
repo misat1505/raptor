@@ -1,0 +1,13 @@
+
+    fn set_both(&i64 a, &i64 b): void {
+      a = 1;
+      b = 2;
+    }
+
+    i64 x = 0;
+    i64 y = 0;
+    set_both(&x, &y);
+
+    println(x as str);
+    println(y as str);
+    

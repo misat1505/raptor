@@ -1,0 +1,5 @@
+flags: --overflow ignore
+exit: nonzero
+stderr-contains-i: "out of bounds"
+--- stdout ---
+420

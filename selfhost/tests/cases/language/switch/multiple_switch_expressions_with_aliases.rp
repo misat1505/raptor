@@ -1,0 +1,12 @@
+
+    i64 a = 3;
+    i64 b = 7;
+    str result;
+    switch (a: x, b: y) {
+      (x + y == 10) -> {
+        result = "sums to ten";
+      }
+    }
+
+    println(result);
+    

@@ -1,0 +1,67 @@
+
+let a = 1 as i64;
+let b = a;
+a = 2 as i64;
+println(a as str);
+println(b as str);
+
+i8 c = 1 as i8;
+i8 d = c;
+c = 2 as i8;
+println(c as str);
+println(d as str);
+
+i16 e = 1 as i16;
+i16 f = e;
+e = 2 as i16;
+println(e as str);
+println(f as str);
+
+i32 g = 1 as i32;
+i32 h = g;
+g = 2 as i32;
+println(g as str);
+println(h as str);
+
+u8 i2 = 1 as u8;
+u8 j = i2;
+i2 = 2 as u8;
+println(i2 as str);
+println(j as str);
+
+u16 k = 1 as u16;
+u16 l = k;
+k = 2 as u16;
+println(k as str);
+println(l as str);
+
+u32 m = 1 as u32;
+u32 n = m;
+m = 2 as u32;
+println(m as str);
+println(n as str);
+
+u64 o = 1 as u64;
+u64 p = o;
+o = 2 as u64;
+println(o as str);
+println(p as str);
+
+let q = 1.5;
+let r = q;
+q = 2.5;
+println(q as str);
+println(r as str);
+
+let s = true;
+let t = s;
+s = false;
+println(s as str);
+println(t as str);
+
+let u = 'A';
+let v = u;
+u = 'B';
+println(u as str);
+println(v as str);
+        

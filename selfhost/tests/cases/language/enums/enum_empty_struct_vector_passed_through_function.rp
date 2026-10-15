@@ -1,0 +1,26 @@
+
+struct Data {
+    str data
+};
+
+enum MyEnum {
+    Complex(Data[])
+};
+
+fn create_empty(): MyEnum {
+    return MyEnum::Complex([]);
+}
+
+fn get_size(&MyEnum value): i64 {
+    match (value) {
+        MyEnum::Complex(data) {
+            return vector_size(&data);
+        }
+    }
+}
+
+let value = create_empty();
+
+println(get_size(&value) as str);
+println(get_size(&value) as str);
+    

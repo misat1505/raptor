@@ -1,0 +1,14 @@
+
+    fn pass_by_change_outer(i64[][] arr): void {
+        arr[0] = [42];
+    }
+
+    i64[][] arr = [[1], [2]];
+    pass_by_change_outer(arr);
+
+    fn pass_by_change_inner(i64[][] arr): void {
+        arr[1][0] = 69;
+    }
+    pass_by_change_inner(arr);
+    println(vector_stringify(arr));
+    

@@ -1,0 +1,14 @@
+
+    fn count_down(i64 n, &i64 steps): void {
+      if (n <= 0) {
+        return;
+      }
+      steps = steps + 1;
+      count_down(n - 1, &steps);
+    }
+
+    i64 steps = 0;
+    count_down(5, &steps);
+
+    println(steps as str);
+    

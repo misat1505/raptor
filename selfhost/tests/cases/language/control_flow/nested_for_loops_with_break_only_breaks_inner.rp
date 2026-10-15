@@ -1,0 +1,16 @@
+
+    i64 outer_count = 0;
+    i64 inner_count = 0;
+    for (i64 i = 0; i < 3; i = i + 1) {
+      outer_count = outer_count + 1;
+      for (i64 j = 0; j < 10; j = j + 1) {
+        if (j == 2) {
+          break;
+        }
+        inner_count = inner_count + 1;
+      }
+    }
+
+    println(outer_count as str);
+    println(inner_count as str);
+    

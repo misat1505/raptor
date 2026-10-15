@@ -53,20 +53,14 @@ fn ir_escape_cstr(str value): str {
         let c = value[i];
         if (c == '\\') {
             escaped += "\\\\";
+        } else if (c == '"') {
+            escaped += "\\22";
+        } else if (c == '\n') {
+            escaped += "\\0A";
+        } else if (c == '\0') {
+            escaped += "\\00";
         } else {
-            if (c == '"') {
-                escaped += "\\22";
-            } else {
-                if (c == '\n') {
-                    escaped += "\\0A";
-                } else {
-                    if (c == '\0') {
-                        escaped += "\\00";
-                    } else {
-                        escaped += c;
-                    }
-                }
-            }
+            escaped += c;
         }
     }
     return escaped;

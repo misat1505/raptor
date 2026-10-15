@@ -1,0 +1,35 @@
+
+enum Slot {
+    Full(i64),
+    Empty
+};
+
+let slots = [
+    Slot::Full(1),
+    Slot::Full(2),
+    Slot::Full(3),
+    Slot::Full(4),
+    Slot::Full(5),
+    Slot::Empty
+];
+
+let idx = 0;
+let sum = 0;
+
+while (slots[idx] matches Slot::Full(value)) {
+    idx += 1;
+
+    if (value == 2) {
+        continue;
+    }
+
+    if (value == 4) {
+        break;
+    }
+
+    sum += value;
+}
+
+println(sum as str);
+println(idx as str);
+        

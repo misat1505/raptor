@@ -1,0 +1,21 @@
+
+enum AccountStatus {
+    Active,
+    Suspended(str),
+    Deleted(Timestamp)
+};
+
+struct Timestamp {
+    i64 day,
+    i64 month,
+    i64 year
+};
+
+let status = AccountStatus::Active;
+
+if (status matches AccountStatus::Suspended(reason)) {
+    println("should not print: " + reason);
+}
+
+println("done");
+        

@@ -1,0 +1,5 @@
+--- stdout ---
+number=42
+text=hello
+flag=true
+flag=false

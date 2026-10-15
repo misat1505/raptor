@@ -1,0 +1,21 @@
+
+struct Data {
+    str data
+};
+
+enum MyEnum {
+    Empty,
+    Complex(Data[])
+};
+
+let value = MyEnum::Complex([]);
+
+match (value) {
+    MyEnum::Empty {
+        println("empty");
+    },
+    MyEnum::Complex(data) {
+        println(vector_size(&data) as str);
+    }
+}
+    

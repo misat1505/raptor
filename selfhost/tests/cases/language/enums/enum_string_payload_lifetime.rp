@@ -1,0 +1,26 @@
+
+enum Message {
+    Text(str),
+    Empty
+};
+
+fn make_message(str text): Message {
+    return Message::Text(text);
+}
+
+fn message_text(&Message message): str {
+    match (message) {
+        Message::Text(text) {
+            return text;
+        },
+        Message::Empty {
+            return "empty";
+        }
+    }
+}
+
+let message = make_message("hello world");
+
+println(message_text(&message));
+println(message_text(&message));
+    

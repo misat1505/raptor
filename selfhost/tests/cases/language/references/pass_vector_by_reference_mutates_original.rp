@@ -1,0 +1,12 @@
+
+    fn append_one(&i64[] arr): void {
+      vector_push(&arr, 1);
+    }
+
+    i64[] numbers = [];
+    append_one(&numbers);
+    append_one(&numbers);
+    i64 size = vector_size(&numbers);
+
+    println(size as str);
+    

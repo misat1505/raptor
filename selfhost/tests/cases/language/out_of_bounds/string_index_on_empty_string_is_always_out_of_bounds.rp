@@ -1,0 +1,4 @@
+
+let text = "";
+
+println(text[0] as str);

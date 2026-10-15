@@ -1,0 +1,2 @@
+--- stdout ---
+{"users":[{"name":"Alice","status":"Active","role":"Admin","scores":[10,20,30]},{"name":"Bob","status":{"Suspended":"too many failed logins"},"role":"User","scores":[40,50]},{"name":"Charlie","status":{"Deleted":{"day":17,"month":9,"year":2026}},"role":"Moderator","scores":[60,70,80,90]}]}

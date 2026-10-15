@@ -1,0 +1,17 @@
+
+    str text;
+    i64 x = 10;
+    switch (x) {
+      (x > 0) -> {
+        text = ">0";
+      }
+      (x > 1) -> {
+        text = ">1";
+        break;
+      }
+      (x > 2) -> {
+        text = ">2";
+      }
+    }
+    println(text);
+    

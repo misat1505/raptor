@@ -1,0 +1,24 @@
+
+struct Inner {
+    i64 value
+};
+
+struct Outer {
+    i64 primitive_field,
+    Inner composite_field
+};
+
+fn mutate(Outer o): void {
+    o.primitive_field = 99 as i64;
+    o.composite_field.value = 99 as i64;
+}
+
+let inner = Inner { value: 1 as i64 };
+let outer = Outer { primitive_field: 1 as i64, composite_field: inner };
+
+mutate(outer);
+
+println(outer.primitive_field as str);
+
+println(outer.composite_field.value as str);
+        

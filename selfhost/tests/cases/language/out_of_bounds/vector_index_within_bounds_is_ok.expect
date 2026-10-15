@@ -1,0 +1,4 @@
+flags: --overflow ignore
+stderr: empty
+--- stdout ---
+420

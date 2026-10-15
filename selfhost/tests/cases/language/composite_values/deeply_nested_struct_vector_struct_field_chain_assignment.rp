@@ -1,0 +1,30 @@
+
+struct Tag {
+    str label
+};
+
+struct Item {
+    i64 value,
+    Tag[] tags
+};
+
+struct Container {
+    str name,
+    Item[] items
+};
+
+let tag1 = Tag { label: "x" };
+let item1 = Item { value: 1 as i64, tags: [tag1] };
+let container = Container { name: "c", items: [item1] };
+
+container.items[0].value = 99 as i64;
+container.items[0].tags[0].label = "changed";
+
+println(container.items[0].value as str);
+println(container.items[0].tags[0].label as str);
+
+# intermediate objects were not copied along the chain - mutation through the chain
+# is visible from the originally referenced objects too
+println(item1.value as str);
+println(tag1.label as str);
+        

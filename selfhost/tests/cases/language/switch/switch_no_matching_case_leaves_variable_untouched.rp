@@ -1,0 +1,14 @@
+
+    i64 x = -5;
+    str result = "default";
+    switch (x) {
+      (x > 0) -> {
+        result = "positive";
+      }
+      (x == 0) -> {
+        result = "zero";
+      }
+    }
+
+    println(result);
+    

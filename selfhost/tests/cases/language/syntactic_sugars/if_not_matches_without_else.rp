@@ -1,0 +1,29 @@
+
+enum AccountStatus {
+    Active,
+    Suspended(str),
+    Deleted(Timestamp)
+};
+
+struct Timestamp {
+    i64 day,
+    i64 month,
+    i64 year
+};
+
+let statuses = [
+    AccountStatus::Active,
+    AccountStatus::Suspended("spam"),
+    AccountStatus::Deleted(Timestamp { day: 17, month: 9, year: 2026 })
+];
+
+if (statuses[0] not matches AccountStatus::Deleted) {
+    println("first is not deleted");
+}
+
+if (statuses[2] not matches AccountStatus::Deleted) {
+    println("should not print");
+}
+
+println("done");
+        

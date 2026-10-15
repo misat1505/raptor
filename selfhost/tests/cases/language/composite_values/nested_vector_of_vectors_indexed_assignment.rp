@@ -1,0 +1,18 @@
+
+let matrix = [[1 as i64, 2 as i64], [3 as i64, 4 as i64]];
+
+matrix[0][1] = 99 as i64;
+matrix[1][0] = 88 as i64;
+
+println(matrix[0][0] as str);
+println(matrix[0][1] as str);
+println(matrix[1][0] as str);
+println(matrix[1][1] as str);
+
+# row is the same underlying object as matrix[0] (vector assignment is by reference)
+let row = matrix[0];
+row[0] = 77 as i64;
+
+println(matrix[0][0] as str);
+println(row[0] as str);
+        

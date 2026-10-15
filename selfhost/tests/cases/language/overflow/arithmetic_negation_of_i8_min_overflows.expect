@@ -1,0 +1,5 @@
+flags: --overflow warn
+stderr-contains: "warning"
+stderr-contains: "Arithmetic negation overflow"
+--- stdout ---
+-128

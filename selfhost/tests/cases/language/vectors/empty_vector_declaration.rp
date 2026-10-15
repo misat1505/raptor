@@ -1,0 +1,9 @@
+
+    i64[] empty = [];
+    i64 size = vector_size(&empty);
+    vector_push(&empty, 1);
+    i64 size_after = vector_size(&empty);
+
+    println(size as str);
+    println(size_after as str);
+    

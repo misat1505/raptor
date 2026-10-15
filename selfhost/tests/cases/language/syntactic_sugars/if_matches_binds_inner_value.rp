@@ -1,0 +1,25 @@
+
+enum AccountStatus {
+    Active,
+    Suspended(str),
+    Deleted(Timestamp)
+};
+
+struct Timestamp {
+    i64 day,
+    i64 month,
+    i64 year
+};
+
+let suspended = AccountStatus::Suspended("too many failed logins");
+
+if (suspended matches AccountStatus::Suspended(reason)) {
+    println("suspended: " + reason);
+}
+
+let deleted = AccountStatus::Deleted(Timestamp { day: 17, month: 9, year: 2026 });
+
+if (deleted matches AccountStatus::Deleted(timestamp)) {
+    println(timestamp.day as str + "-" + timestamp.month as str + "-" + timestamp.year as str);
+}
+        

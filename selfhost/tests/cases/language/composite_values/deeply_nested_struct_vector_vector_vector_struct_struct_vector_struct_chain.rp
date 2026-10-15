@@ -1,0 +1,45 @@
+
+struct C {
+    i64 value
+};
+
+struct B {
+    C[] items
+};
+
+struct A {
+    B b
+};
+
+struct Root {
+    A[][][] cube
+};
+
+let c = C { value: 1 as i64 };
+let b = B { items: [c] };
+let a = A { b: b };
+let cube = [[[a]]];
+let root = Root { cube: cube };
+
+root.cube[0][0][0].b.items[0].value = 99 as i64;
+
+println(root.cube[0][0][0].b.items[0].value as str);
+
+# nothing along the chain was copied - every original object sees the mutation
+println(a.b.items[0].value as str);
+println(b.items[0].value as str);
+println(c.value as str);
+
+# mutate one level higher in the chain (reassign the whole C struct via the vector)
+root.cube[0][0][0].b.items[0] = C { value: 42 as i64 };
+
+println(root.cube[0][0][0].b.items[0].value as str);
+println(b.items[0].value as str);
+
+# mutate through an intermediate alias obtained by indexing the vector-of-vectors
+let inner_cube = root.cube[0][0];
+inner_cube[0].b.items[0].value = 7 as i64;
+
+println(root.cube[0][0][0].b.items[0].value as str);
+println(a.b.items[0].value as str);
+        

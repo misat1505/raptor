@@ -1,0 +1,16 @@
+
+        i64 i = 0;
+        i64 total = 0;
+
+        while (i < 5) {
+            i = i + 1;
+
+            if (i % 2 == 0) {
+                continue;
+            }
+
+            total = total + i;
+        }
+
+        println(total as str);
+        

@@ -1,0 +1,31 @@
+
+struct Data {
+    str data
+};
+
+enum MyEnum {
+    Empty,
+    Numbers(i64[]),
+    Complex(Data[])
+};
+
+fn enum_repr(&MyEnum value): str {
+    match (value) {
+        MyEnum::Empty {
+            return "empty";
+        },
+        MyEnum::Numbers(numbers) {
+            return "numbers:" + vector_size(&numbers) as str;
+        },
+        MyEnum::Complex(data) {
+            return "complex:" + vector_size(&data) as str;
+        }
+    }
+}
+
+let a = MyEnum::Numbers([]);
+let b = MyEnum::Complex([]);
+
+println(enum_repr(&a));
+println(enum_repr(&b));
+    

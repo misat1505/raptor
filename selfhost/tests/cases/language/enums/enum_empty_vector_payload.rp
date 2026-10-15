@@ -1,0 +1,21 @@
+
+enum Data {
+    Numbers(i64[]),
+    Text(str)
+};
+
+fn numbers_size(&Data data): i64 {
+    match (data) {
+        Data::Numbers(numbers) {
+            return vector_size(&numbers);
+        },
+        Data::Text {
+            return 0;
+        }
+    }
+}
+
+let data = Data::Numbers([]);
+
+println(numbers_size(&data) as str);
+    

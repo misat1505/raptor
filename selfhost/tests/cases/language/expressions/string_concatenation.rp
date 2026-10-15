@@ -1,0 +1,6 @@
+
+    str a = "Hello, ";
+    str b = "world!";
+    str c = a + b;
+    println(c);
+    

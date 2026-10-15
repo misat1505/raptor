@@ -1,0 +1,10 @@
+
+    str a = "hello";
+    str b = "hello";
+    str c = "world";
+    bool eq = a == b;
+    bool neq = a != c;
+
+    println(eq as str);
+    println(neq as str);
+    

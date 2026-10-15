@@ -1,0 +1,4 @@
+--- stdout ---
+OK: Alice, 30
+NOT_FOUND
+ERROR: database failure

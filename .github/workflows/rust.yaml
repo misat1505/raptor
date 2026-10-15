@@ -36,6 +36,17 @@ jobs:
         run: |
           echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
 
+      - name: Build self-hosted compiler
+        run: |
+          chmod +x ./bootstrap/bootstrap.sh
+          ./bootstrap/bootstrap.sh
+
+      - name: Run self-hosted tests (ARC)
+        run: |
+          python3 ./selfhost/tests/selfhost_test_runner.py run \
+            --compiler ./bootstrap/raptor \
+            --memory arc
+
       - name: Run Clippy
         run: cargo clippy --lib -p raptor -- -D warnings
 

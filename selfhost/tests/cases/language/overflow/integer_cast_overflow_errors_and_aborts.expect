@@ -1,0 +1,5 @@
+flags: --overflow error
+exit: 1
+stderr-contains: "error"
+stderr-contains-any: ["Integer overflow in cast", "Value does not fit in target type"]
+--- stdout ---

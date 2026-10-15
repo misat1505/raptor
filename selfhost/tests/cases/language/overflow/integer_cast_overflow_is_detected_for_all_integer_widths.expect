@@ -1,0 +1,2 @@
+flags: --overflow warn
+stderr-contains: "warning"

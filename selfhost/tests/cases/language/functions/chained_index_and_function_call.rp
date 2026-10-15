@@ -1,0 +1,9 @@
+
+    fn make_matrix(): i64[][] {
+      return [[1, 2], [3, 4]];
+    }
+
+    i64 x = make_matrix()[1][0];
+    
+    println(x as str);
+    

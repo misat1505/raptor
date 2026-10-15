@@ -1,0 +1,13 @@
+
+    i64 a = 2 + 3 * 4;
+    i64 b = (2 + 3) * 4;
+    bool c = 2 + 2 == 4 && 1 < 2;
+    bool d = !false || false;
+    i64 e = 10 - 2 - 3;
+
+    println(a as str);
+    println(b as str);
+    println(c as str);
+    println(d as str);
+    println(e as str);
+    

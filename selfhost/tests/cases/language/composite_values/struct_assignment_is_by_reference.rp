@@ -1,0 +1,13 @@
+
+struct Point {
+    i64 x
+};
+
+let a = Point { x: 1 as i64 };
+let b = a;
+
+a.x = 99 as i64;
+
+println(a.x as str);
+println(b.x as str);
+        

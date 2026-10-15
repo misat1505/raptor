@@ -1,0 +1,8 @@
+
+struct Container {
+    i64[] items
+};
+
+let container = Container { items: [1, 2] };
+
+println(container.items[5] as str);

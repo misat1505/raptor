@@ -1,0 +1,15 @@
+
+    i64 a = 5;
+    f64 b = a as f64 + 0.1;
+    str c = a as str;
+    bool d = a as bool;
+    bool e = 0 as bool;
+    i64 f = "123" as i64;
+
+    println(a as str);
+    println(b as str);
+    println(c);
+    println(d as str);
+    println(e as str);
+    println(f as str);
+    

@@ -1,0 +1,33 @@
+
+enum AccountStatus {
+    Active,
+    Deleted(Timestamp)
+};
+
+struct Timestamp {
+    i64 day,
+    i64 month,
+    i64 year
+};
+
+struct Account {
+    str name,
+    AccountStatus status
+};
+
+let account = Account {
+    name: "Charlie",
+    status: AccountStatus::Deleted(Timestamp { day: 17, month: 9, year: 2026 })
+};
+
+if (account.status matches AccountStatus::Deleted(timestamp)) {
+    timestamp.day = 1;
+}
+
+match (account.status) {
+    AccountStatus::Deleted(timestamp) {
+        println(timestamp.day as str);
+    },
+    rest {}
+}
+        

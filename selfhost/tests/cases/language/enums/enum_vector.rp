@@ -1,0 +1,33 @@
+
+enum Token {
+    Number(i64),
+    Word(str),
+    End
+};
+
+fn token_repr(&Token token): str {
+    match (token) {
+        Token::Number(value) {
+            return "N" + value as str;
+        },
+        Token::Word(value) {
+            return "W" + value;
+        },
+        Token::End {
+            return "E";
+        }
+    }
+}
+
+let tokens: Token[] = [
+    Token::Number(10),
+    Token::Word("hello"),
+    Token::Number(20),
+    Token::Word("world"),
+    Token::End
+];
+
+for (let i = 0; i < vector_size(&tokens); i += 1) {
+    println(token_repr(&tokens[i]));
+}
+    

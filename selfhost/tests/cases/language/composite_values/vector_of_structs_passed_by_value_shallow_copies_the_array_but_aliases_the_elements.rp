@@ -1,0 +1,25 @@
+
+struct Item {
+    i64 value
+};
+
+fn replace_first(Item[] items): void {
+    # reassigning an element only affects this function's own (shallow-copied) array
+    items[0] = Item { value: 999 as i64 };
+}
+
+fn mutate_first_field(Item[] items): void {
+    # mutating a field on an aliased element affects the caller's original struct object
+    items[0].value = 555 as i64;
+}
+
+let a = Item { value: 1 as i64 };
+let items = [a];
+
+replace_first(items);
+println(items[0].value as str);
+
+mutate_first_field(items);
+println(items[0].value as str);
+println(a.value as str);
+        

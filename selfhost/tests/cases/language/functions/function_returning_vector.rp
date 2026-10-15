@@ -1,0 +1,17 @@
+
+    fn make_range(i64 n): i64[] {
+      i64[] result = [];
+      for (i64 i = 0; i < n; i = i + 1) {
+        vector_push(&result, i);
+      }
+      return result;
+    }
+
+    i64[] range = make_range(4);
+    i64 sum = 0;
+    for (i64 i = 0; i < vector_size(&range); i += 1) {
+      sum += range[i];
+    }
+
+    println(sum as str);
+    

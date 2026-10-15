@@ -1,0 +1,25 @@
+
+let a = 1 as i64;
+let vec_i = [a];
+a = 2 as i64;
+println(a as str);
+println(vec_i[0] as str);
+
+let f = 1.1;
+let vec_f = [f];
+f = 2.2;
+println(f as str);
+println(vec_f[0] as str);
+
+let b = true;
+let vec_b = [b];
+b = false;
+println(b as str);
+println(vec_b[0] as str);
+
+let c = 'A';
+let vec_c = [c];
+c = 'B';
+println(c as str);
+println(vec_c[0] as str);
+        

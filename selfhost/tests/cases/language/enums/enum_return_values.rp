@@ -1,0 +1,31 @@
+
+enum Result {
+    Success(str),
+    Failure(str)
+};
+
+fn get_result(bool success): Result {
+    if (success) {
+        return Result::Success("everything is fine");
+    }
+
+    return Result::Failure("something went wrong");
+}
+
+fn print_result(&Result result): void {
+    match (result) {
+        Result::Success(message) {
+            println("SUCCESS: " + message);
+        },
+        Result::Failure(message) {
+            println("FAILURE: " + message);
+        }
+    }
+}
+
+let first = get_result(true);
+let second = get_result(false);
+
+print_result(&first);
+print_result(&second);
+    

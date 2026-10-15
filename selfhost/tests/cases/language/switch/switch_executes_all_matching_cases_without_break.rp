@@ -1,0 +1,17 @@
+
+    i64 x = 5;
+    i64 counter = 0;
+    switch (x) {
+      (x > 0) -> {
+        counter = counter + 1;
+      }
+      (x > 1) -> {
+        counter = counter + 1;
+      }
+      (x > 100) -> {
+        counter = counter + 1;
+      }
+    }
+
+    println(counter as str);
+    

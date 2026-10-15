@@ -1,0 +1,9 @@
+
+let text = "A";
+let vec = [text];
+
+vec[0][0] = 'B';
+
+println(text);
+println(vec[0]);
+        

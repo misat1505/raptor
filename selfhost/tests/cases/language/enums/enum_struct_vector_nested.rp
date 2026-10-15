@@ -1,0 +1,38 @@
+
+struct Item {
+    str name
+};
+
+enum Result {
+    Item(Item),
+    Empty
+};
+
+struct Container {
+    Result[] results
+};
+
+fn item_name(&Result result): str {
+    match (result) {
+        Result::Item(item) {
+            return item.name;
+        },
+        Result::Empty {
+            return "empty";
+        }
+    }
+}
+
+let container = Container {
+    results: [
+        Result::Item(Item { name: "one" }),
+        Result::Empty,
+        Result::Item(Item { name: "two" }),
+        Result::Item(Item { name: "three" })
+    ]
+};
+
+for (let i = 0; i < vector_size(&container.results); i += 1) {
+    println(item_name(&container.results[i]));
+}
+    

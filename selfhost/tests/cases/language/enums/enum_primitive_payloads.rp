@@ -1,0 +1,37 @@
+
+enum Value {
+    Number(i64),
+    Text(str),
+    Flag(bool)
+};
+
+fn value_repr(&Value value): str {
+    match (value) {
+        Value::Number(n) {
+            return "number=" + n as str;
+        },
+        Value::Text(text) {
+            return "text=" + text;
+        },
+        Value::Flag(flag) {
+            if (flag) {
+                return "flag=true";
+            }
+
+            return "flag=false";
+        }
+    }
+}
+
+let val1 = Value::Number(42);
+println(value_repr(&val1));
+
+let val2 = Value::Text("hello");
+println(value_repr(&val2));
+
+let val3 = Value::Flag(true);
+println(value_repr(&val3));
+
+let val4 = Value::Flag(false);
+println(value_repr(&val4));
+    

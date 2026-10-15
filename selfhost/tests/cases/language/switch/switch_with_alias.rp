@@ -1,0 +1,9 @@
+
+    str result;
+    switch (5 + 5: sum) {
+      (sum == 10) -> {
+        result = "ten";
+      }
+    }
+    println(result);
+    

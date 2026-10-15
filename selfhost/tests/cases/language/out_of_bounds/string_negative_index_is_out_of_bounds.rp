@@ -1,0 +1,5 @@
+
+let text = "hi";
+let idx = 0 - 1;
+
+println(text[idx] as str);

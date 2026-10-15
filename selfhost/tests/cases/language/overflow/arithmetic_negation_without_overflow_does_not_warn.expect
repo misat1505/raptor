@@ -1,0 +1,4 @@
+flags: --overflow warn
+stderr: empty
+--- stdout ---
+-127

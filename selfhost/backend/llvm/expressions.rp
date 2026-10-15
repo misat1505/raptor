@@ -74,10 +74,8 @@ fn llvm_resolve_num_rty(str hint, str lt, str rt): str {
     if (rt != "ptr") {
         if (best == "") {
             best = rt;
-        } else {
-            if (llvm_ty_bits(rt) > llvm_ty_bits(best)) {
-                best = rt;
-            }
+        } else if (llvm_ty_bits(rt) > llvm_ty_bits(best)) {
+            best = rt;
         }
     }
     let d = llvm_ty_default_rty(best);
@@ -399,15 +397,12 @@ fn llvm_compile_cast(&LlvmCompiler c, CastingExpression cast, Span span): void {
     llvm_compile_expression(&c, cast.value);
     let val = c.last_value;
     let from = c.last_type;
-    let to = type_to_llvm(cast.to_type.value);
     let to_rty = llvm_type_rname(cast.to_type.value);
     let from_rty = llvm_expr_rtype(&c, cast.value);
     if (from == "ptr") {
         from_rty = "str";
-    } else {
-        if (llvm_rname_prim_ty(from_rty) != from) {
-            from_rty = llvm_ty_default_rty(from);
-        }
+    } else if (llvm_rname_prim_ty(from_rty) != from) {
+        from_rty = llvm_ty_default_rty(from);
     }
 
     # Same type. A str stays a (shared) str; for ARC it is a +1 value.
@@ -557,10 +552,8 @@ fn llvm_vstr_sanitize(str rty): str {
         let ch = rty[i];
         if (ch == '[') {
             out += "_";
-        } else {
-            if (ch != ']') {
-                out += ch;
-            }
+        } else if (ch != ']') {
+            out += ch;
         }
     }
     return out;
@@ -673,34 +666,32 @@ fn llvm_vstr_fn(&LlvmCompiler c, str elem): str {
             vector_push(&L, "  %dv = bitcast i64 %raw to double");
             vector_push(&L, llvm_vstr_cstr(&c, "%g", "%fmt"));
             call = "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, double %dv)";
+        } else if (elem == "bool") {
+            vector_push(&L, "  %bv = trunc i64 %raw to i1");
+            vector_push(&L, llvm_vstr_cstr(&c, "true", "%tt"));
+            vector_push(&L, llvm_vstr_cstr(&c, "false", "%ff"));
+            vector_push(&L, "  %bs = select i1 %bv, ptr %tt, ptr %ff");
+            vector_push(&L, llvm_vstr_cstr(&c, "%s", "%fmt"));
+            call = "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %bs)";
         } else {
-            if (elem == "bool") {
-                vector_push(&L, "  %bv = trunc i64 %raw to i1");
-                vector_push(&L, llvm_vstr_cstr(&c, "true", "%tt"));
-                vector_push(&L, llvm_vstr_cstr(&c, "false", "%ff"));
-                vector_push(&L, "  %bs = select i1 %bv, ptr %tt, ptr %ff");
-                vector_push(&L, llvm_vstr_cstr(&c, "%s", "%fmt"));
-                call = "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %bs)";
-            } else {
-                let ity = llvm_rname_prim_ty(elem);
-                let uns = llvm_rname_is_unsigned(elem);
-                let wide = "%raw";
-                if (ity != "i64") {
-                    let ext = "sext";
-                    if (uns) {
-                        ext = "zext";
-                    }
-                    vector_push(&L, "  %nv = trunc i64 %raw to " + ity);
-                    vector_push(&L, "  %xv = " + ext + " " + ity + " %nv to i64");
-                    wide = "%xv";
-                }
-                let fmt = "%lld";
+            let ity = llvm_rname_prim_ty(elem);
+            let uns = llvm_rname_is_unsigned(elem);
+            let wide = "%raw";
+            if (ity != "i64") {
+                let ext = "sext";
                 if (uns) {
-                    fmt = "%llu";
+                    ext = "zext";
                 }
-                vector_push(&L, llvm_vstr_cstr(&c, fmt, "%fmt"));
-                call = "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, i64 " + wide + ")";
+                vector_push(&L, "  %nv = trunc i64 %raw to " + ity);
+                vector_push(&L, "  %xv = " + ext + " " + ity + " %nv to i64");
+                wide = "%xv";
             }
+            let fmt = "%lld";
+            if (uns) {
+                fmt = "%llu";
+            }
+            vector_push(&L, llvm_vstr_cstr(&c, fmt, "%fmt"));
+            call = "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, i64 " + wide + ")";
         }
     }
     if (str_len(call) > 0) {
@@ -1023,26 +1014,20 @@ fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
         ir_emit(&c.ir, "  " + raw + " = load i64, ptr " + gep);
         if (field_ty == "i64") {
             llvm_compiler_set_last(&c, raw, "i64");
+        } else if (field_ty == "double") {
+            let d = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + d + " = bitcast i64 " + raw + " to double");
+            llvm_compiler_set_last(&c, d, "double");
+        } else if (field_ty == "i1") {
+            let tr = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to i1");
+            llvm_compiler_set_last(&c, tr, "i1");
+        } else if (field_ty == "i8" || field_ty == "i16" || field_ty == "i32") {
+            let tr = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to " + field_ty);
+            llvm_compiler_set_last(&c, tr, field_ty);
         } else {
-            if (field_ty == "double") {
-                let d = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + d + " = bitcast i64 " + raw + " to double");
-                llvm_compiler_set_last(&c, d, "double");
-            } else {
-                if (field_ty == "i1") {
-                    let tr = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to i1");
-                    llvm_compiler_set_last(&c, tr, "i1");
-                } else {
-                    if (field_ty == "i8" || field_ty == "i16" || field_ty == "i32") {
-                        let tr = ir_tmp(&c.ir);
-                        ir_emit(&c.ir, "  " + tr + " = trunc i64 " + raw + " to " + field_ty);
-                        llvm_compiler_set_last(&c, tr, field_ty);
-                    } else {
-                        llvm_compiler_set_last(&c, raw, "i64");
-                    }
-                }
-            }
+            llvm_compiler_set_last(&c, raw, "i64");
         }
     }
 }
@@ -1168,7 +1153,7 @@ fn llvm_emit_bounds_check(&LlvmCompiler c, str col, str idx, bool is_string, Spa
     llvm_emit_diag(&c, oob, "Index out of bounds.", span, true);
 }
 
-fn llvm_compile_index(&LlvmCompiler c, IndexExpression ix, Span span): void {
+fn llvm_compile_index(&LlvmCompiler c, IndexExpression ix): void {
     llvm_compile_expression(&c, ix.collection);
     let col = c.last_value;
     llvm_note_temp_base(&c, ix.collection, col, c.last_type);
@@ -1205,16 +1190,14 @@ fn llvm_compile_index(&LlvmCompiler c, IndexExpression ix, Span span): void {
         ir_emit(&c.ir, "  " + raw + " = load i64, ptr " + slot);
         if (elem_ty == "i64") {
             llvm_compiler_set_last(&c, raw, "i64");
+        } else if (elem_ty == "double") {
+            let d = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + d + " = bitcast i64 " + raw + " to double");
+            llvm_compiler_set_last(&c, d, "double");
         } else {
-            if (elem_ty == "double") {
-                let d = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + d + " = bitcast i64 " + raw + " to double");
-                llvm_compiler_set_last(&c, d, "double");
-            } else {
-                let nr = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + nr + " = trunc i64 " + raw + " to " + elem_ty);
-                llvm_compiler_set_last(&c, nr, elem_ty);
-            }
+            let nr = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + nr + " = trunc i64 " + raw + " to " + elem_ty);
+            llvm_compiler_set_last(&c, nr, elem_ty);
         }
         return;
     }
@@ -1224,7 +1207,6 @@ fn llvm_compile_index(&LlvmCompiler c, IndexExpression ix, Span span): void {
 }
 
 fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): void {
-    let name = call.identifier.value;
     let arg_vals: str[] = [];
     let arg_tys: str[] = [];
     # "1" when the argument is a fresh (+1) temporary the caller must release.
@@ -1533,10 +1515,8 @@ fn llvm_compile_call_dispatch(
                 # str elements are values too
                 elem_val = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + elem_val + " = call ptr @rt_str_copy(ptr " + arg_vals[1] + ")");
-            } else {
-                if (arg_fresh[1] != "1") {
-                    llvm_emit_retain(&c, arg_vals[1]);
-                }
+            } else if (arg_fresh[1] != "1") {
+                llvm_emit_retain(&c, arg_vals[1]);
             }
             llvm_vector_push_ptr(&c, arg_vals[0], elem_val);
         } else {
@@ -1593,12 +1573,10 @@ fn llvm_compile_call_dispatch(
         # TODO: full sockaddr setup; return -1 / empty for now so IR links
         if (name == "tcp_read") {
             llvm_compiler_set_last(&c, llvm_str_literal(&c, ""), "ptr");
+        } else if (name == "tcp_write") {
+            llvm_compiler_set_last(&c, "0", "i64");
         } else {
-            if (name == "tcp_write") {
-                llvm_compiler_set_last(&c, "0", "i64");
-            } else {
-                llvm_compiler_set_last(&c, "-1", "i64");
-            }
+            llvm_compiler_set_last(&c, "-1", "i64");
         }
         return;
     }
@@ -1797,7 +1775,7 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
             llvm_compiler_set_last(&c, r, "i1");
         },
         Expression::Vector(elems) llvm_compile_vector_literal(&c, elems);,
-        Expression::Index(ix) llvm_compile_index(&c, ix, node.span);,
+        Expression::Index(ix) llvm_compile_index(&c, ix);,
         Expression::FieldAccess(fa) llvm_compile_field_access(&c, fa);,
         Expression::StructLiteral(sl) llvm_compile_struct_literal(&c, sl);,
         Expression::EnumLiteral(el) llvm_compile_enum_literal(&c, el);

@@ -134,16 +134,14 @@ fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
                 OptionExpressionNode::None {
                     if (k.var_type.value matches Type::Str) {
                         ir_emit(&c.ir, "  store ptr " + llvm_str_literal(&c, "") + ", ptr " + ptr);
+                    } else if (k.var_type.value matches Type::Vector) {
+                        ir_emit(&c.ir, "  store ptr " + llvm_vector_alloc_empty(&c) + ", ptr " + ptr);
                     } else {
-                        if (k.var_type.value matches Type::Vector) {
-                            ir_emit(&c.ir, "  store ptr " + llvm_vector_alloc_empty(&c) + ", ptr " + ptr);
-                        } else {
-                            let def = type_default_llvm(k.var_type.value);
-                            if (ty == "double") {
-                                def = llvm_double_const(def);
-                            }
-                            ir_emit(&c.ir, "  store " + ty + " " + def + ", ptr " + ptr);
+                        let def = type_default_llvm(k.var_type.value);
+                        if (ty == "double") {
+                            def = llvm_double_const(def);
                         }
+                        ir_emit(&c.ir, "  store " + ty + " " + def + ", ptr " + ptr);
                     }
                 }
             }
@@ -541,16 +539,14 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
                 ir_emit(&c.ir, "  " + raw + " = load i64, ptr " + pay_p);
                 if (pay_ty == "i64") {
                     ir_emit(&c.ir, "  store i64 " + raw + ", ptr " + ptr);
+                } else if (pay_ty == "double") {
+                    let d = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + d + " = bitcast i64 " + raw + " to double");
+                    ir_emit(&c.ir, "  store double " + d + ", ptr " + ptr);
                 } else {
-                    if (pay_ty == "double") {
-                        let d = ir_tmp(&c.ir);
-                        ir_emit(&c.ir, "  " + d + " = bitcast i64 " + raw + " to double");
-                        ir_emit(&c.ir, "  store double " + d + ", ptr " + ptr);
-                    } else {
-                        let nr = ir_tmp(&c.ir);
-                        ir_emit(&c.ir, "  " + nr + " = trunc i64 " + raw + " to " + pay_ty);
-                        ir_emit(&c.ir, "  store " + pay_ty + " " + nr + ", ptr " + ptr);
-                    }
+                    let nr = ir_tmp(&c.ir);
+                    ir_emit(&c.ir, "  " + nr + " = trunc i64 " + raw + " to " + pay_ty);
+                    ir_emit(&c.ir, "  store " + pay_ty + " " + nr + ", ptr " + ptr);
                 }
             }
         }
@@ -694,49 +690,37 @@ fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
                                 let t = ir_tmp(&c.ir);
                                 ir_emit(&c.ir, "  " + t + " = ptrtoint ptr " + v + " to i64");
                                 v = t;
+                            } else if (from == "ptr" && to == "i32") {
+                                let t = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + t + " = ptrtoint ptr " + v + " to i64");
+                                let t2 = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + t2 + " = trunc i64 " + t + " to i32");
+                                v = t2;
+                            } else if (from == "i64" && to == "ptr") {
+                                let t = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + t + " = inttoptr i64 " + v + " to ptr");
+                                v = t;
+                            } else if (from == "i64" && to == "i32") {
+                                let t = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + t + " = trunc i64 " + v + " to i32");
+                                v = t;
+                            } else if (from == "i32" && to == "i64") {
+                                let t = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + t + " = sext i32 " + v + " to i64");
+                                v = t;
+                            } else if (from == "i1" && to == "i64") {
+                                let t = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + t + " = zext i1 " + v + " to i64");
+                                v = t;
+                            } else if (from == "i1" && to == "i32") {
+                                let t = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + t + " = zext i1 " + v + " to i32");
+                                v = t;
                             } else {
-                                if (from == "ptr" && to == "i32") {
-                                    let t = ir_tmp(&c.ir);
-                                    ir_emit(&c.ir, "  " + t + " = ptrtoint ptr " + v + " to i64");
-                                    let t2 = ir_tmp(&c.ir);
-                                    ir_emit(&c.ir, "  " + t2 + " = trunc i64 " + t + " to i32");
-                                    v = t2;
-                                } else {
-                                    if (from == "i64" && to == "ptr") {
-                                        let t = ir_tmp(&c.ir);
-                                        ir_emit(&c.ir, "  " + t + " = inttoptr i64 " + v + " to ptr");
-                                        v = t;
-                                    } else {
-                                        if (from == "i64" && to == "i32") {
-                                            let t = ir_tmp(&c.ir);
-                                            ir_emit(&c.ir, "  " + t + " = trunc i64 " + v + " to i32");
-                                            v = t;
-                                        } else {
-                                            if (from == "i32" && to == "i64") {
-                                                let t = ir_tmp(&c.ir);
-                                                ir_emit(&c.ir, "  " + t + " = sext i32 " + v + " to i64");
-                                                v = t;
-                                            } else {
-                                                if (from == "i1" && to == "i64") {
-                                                    let t = ir_tmp(&c.ir);
-                                                    ir_emit(&c.ir, "  " + t + " = zext i1 " + v + " to i64");
-                                                    v = t;
-                                                } else {
-                                                    if (from == "i1" && to == "i32") {
-                                                        let t = ir_tmp(&c.ir);
-                                                        ir_emit(&c.ir, "  " + t + " = zext i1 " + v + " to i32");
-                                                        v = t;
-                                                    } else {
-                                                        # last resort: bitcast if same width-ish
-                                                        let t = ir_tmp(&c.ir);
-                                                        ir_emit(&c.ir, "  " + t + " = bitcast " + from + " " + v + " to " + to);
-                                                        v = t;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                # last resort: bitcast if same width-ish
+                                let t = ir_tmp(&c.ir);
+                                ir_emit(&c.ir, "  " + t + " = bitcast " + from + " " + v + " to " + to);
+                                v = t;
                             }
                         }
                         ir_emit(&c.ir, "  ret " + to + " " + v);
@@ -747,12 +731,10 @@ fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
                     llvm_emit_release_locals_from(&c, 0);
                     if (c.current_ret_ty == "void") {
                         ir_emit(&c.ir, "  ret void");
+                    } else if (c.current_ret_ty == "ptr") {
+                        ir_emit(&c.ir, "  ret ptr null");
                     } else {
-                        if (c.current_ret_ty == "ptr") {
-                            ir_emit(&c.ir, "  ret ptr null");
-                        } else {
-                            ir_emit(&c.ir, "  ret " + c.current_ret_ty + " 0");
-                        }
+                        ir_emit(&c.ir, "  ret " + c.current_ret_ty + " 0");
                     }
                 }
             }

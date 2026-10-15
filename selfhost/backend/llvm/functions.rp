@@ -80,20 +80,14 @@ fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void 
     if (!c.has_terminator) {
         if (ret == "void") {
             ir_emit(&c.ir, "  ret void");
+        } else if (ret == "i32") {
+            ir_emit(&c.ir, "  ret i32 0");
+        } else if (ret == "i64") {
+            ir_emit(&c.ir, "  ret i64 0");
+        } else if (ret == "ptr") {
+            ir_emit(&c.ir, "  ret ptr null");
         } else {
-            if (ret == "i32") {
-                ir_emit(&c.ir, "  ret i32 0");
-            } else {
-                if (ret == "i64") {
-                    ir_emit(&c.ir, "  ret i64 0");
-                } else {
-                    if (ret == "ptr") {
-                        ir_emit(&c.ir, "  ret ptr null");
-                    } else {
-                        ir_emit(&c.ir, "  ret " + ret + " 0");
-                    }
-                }
-            }
+            ir_emit(&c.ir, "  ret " + ret + " 0");
         }
     }
     llvm_end_body(&c);

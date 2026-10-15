@@ -424,16 +424,14 @@ fn semantic_checker_check_assignment(
                         if (stack_assign_variable(&sc.stack, assign.identifier.value, value_ty, span) matches ResultSem::Err(e)) {
                             semantic_checker_push_error(&sc, e);
                         }
-                    } else {
-                        if (!type_compatible(current, value_ty)) {
-                            semantic_checker_push_error(&sc, semantic_checker_error_expected_found(
-                                ErrorSeverity::HIGH,
-                                "Cannot assign incompatible type through accessors.",
-                                type_to_string(current),
-                                type_to_string(value_ty),
-                                span
-                            ));
-                        }
+                    } else if (!type_compatible(current, value_ty)) {
+                        semantic_checker_push_error(&sc, semantic_checker_error_expected_found(
+                            ErrorSeverity::HIGH,
+                            "Cannot assign incompatible type through accessors.",
+                            type_to_string(current),
+                            type_to_string(value_ty),
+                            span
+                        ));
                     }
                 }
             }
@@ -668,10 +666,8 @@ fn semantic_checker_check_match(
                                             "Unknown variant '" + arm.value.variant_name.value + "' on enum '" + enum_name + "'.",
                                             arm.value.variant_name.span
                                         ));
-                                    } else {
-                                        if (stack_declare_variable(&sc.stack, bind.value, payload_ty, bind.span) matches ResultSem::Err(e)) {
-                                            semantic_checker_push_error(&sc, e);
-                                        }
+                                    } else if (stack_declare_variable(&sc.stack, bind.value, payload_ty, bind.span) matches ResultSem::Err(e)) {
+                                        semantic_checker_push_error(&sc, e);
                                     }
                                 }
                                 semantic_checker_visit_block(&sc, &program, arm.value.block);

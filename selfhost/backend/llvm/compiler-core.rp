@@ -283,24 +283,18 @@ fn llvm_to_str_value(&LlvmCompiler c, str value, str ty): str {
     let v = value;
     if (ty == "i64") {
         v = value;
-    } else {
-        if (ty == "i1") {
-            let e = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + e + " = zext i1 " + value + " to i64");
-            v = e;
-        } else {
-            if (ty == "i8" || ty == "i16" || ty == "i32") {
-                let e = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + e + " = zext " + ty + " " + value + " to i64");
-                v = e;
-            } else {
-                if (ty == "double") {
-                    let e = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + e + " = fptosi double " + value + " to i64");
-                    v = e;
-                }
-            }
-        }
+    } else if (ty == "i1") {
+        let e = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + e + " = zext i1 " + value + " to i64");
+        v = e;
+    } else if (ty == "i8" || ty == "i16" || ty == "i32") {
+        let e = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + e + " = zext " + ty + " " + value + " to i64");
+        v = e;
+    } else if (ty == "double") {
+        let e = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + e + " = fptosi double " + value + " to i64");
+        v = e;
     }
 
     ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 64, ptr " + fp + ", i64 " + v + ")");
@@ -529,12 +523,10 @@ fn llvm_resize_int(&LlvmCompiler c, str v, str from, str to, bool from_signed): 
     let r = ir_tmp(&c.ir);
     if (llvm_ty_bits(src_ty) > llvm_ty_bits(to)) {
         ir_emit(&c.ir, "  " + r + " = trunc " + src_ty + " " + src + " to " + to);
+    } else if (from_signed) {
+        ir_emit(&c.ir, "  " + r + " = sext " + src_ty + " " + src + " to " + to);
     } else {
-        if (from_signed) {
-            ir_emit(&c.ir, "  " + r + " = sext " + src_ty + " " + src + " to " + to);
-        } else {
-            ir_emit(&c.ir, "  " + r + " = zext " + src_ty + " " + src + " to " + to);
-        }
+        ir_emit(&c.ir, "  " + r + " = zext " + src_ty + " " + src + " to " + to);
     }
     return r;
 }

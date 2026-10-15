@@ -105,16 +105,12 @@ fn print_duration(str phase, f64 ms): void {
     if (ms >= 3600000.0) {
         value = ms / 3600000.0;
         unit = "h";
-    } else {
-        if (ms >= 60000.0) {
-            value = ms / 60000.0;
-            unit = "min";
-        } else {
-            if (ms >= 1000.0) {
-                value = ms / 1000.0;
-                unit = "s";
-            }
-        }
+    } else if (ms >= 60000.0) {
+        value = ms / 60000.0;
+        unit = "min";
+    } else if (ms >= 1000.0) {
+        value = ms / 1000.0;
+        unit = "s";
     }
     let bar = ((226 as u8) as char) + ((148 as u8) as char) + ((130 as u8) as char);
     println(

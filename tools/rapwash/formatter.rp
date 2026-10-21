@@ -17,9 +17,12 @@ fn formatter_format(&Formatter formatter): void {
     formatter_format_imports(&formatter);
     formatter_format_type_declarations(&formatter);
     formatter_format_function_declarations(&formatter);
+    formatter.output = str_trim_right(formatter.output);
+    formatter.output += "\n\n\n";
 
     for (let i = 0; i < vector_size(&formatter.program.statements); i += 1) {
         let stmt = formatter.program.statements[i].value;
+        if (stmt matches Statement::Import) continue;
         formatter_format_statement(&formatter, &stmt);
         formatter.output += "\n";
     }
@@ -31,6 +34,8 @@ fn formatter_format(&Formatter formatter): void {
 
 fn formatter_format_type_declarations(&Formatter formatter): void {
     let declared_types_count = vector_size(&formatter.program.declared_types);
+    if (declared_types_count == 0) return;
+
     for (let i = 0; i < declared_types_count; i += 1) {
         let type_decl = formatter.program.declared_types[i].value;
         match (type_decl) {

@@ -1,0 +1,60 @@
+import "../../selfhost/frontend/lexer/lexer.rp";
+import "../../selfhost/frontend/parser/parser-mod.rp";
+import "formatter.rp";
+
+fn usage(str program): void {
+    println("Usage: " + program + " <filename>");
+}
+
+fn main(): void {
+    let args = cli_args();
+    let program = args[0];
+    if (vector_size(&args) < 2) {
+        usage(program);
+        return;
+    }
+    let filename = args[1];
+    if (!exists_file(filename)) {
+        println("File '" + filename + "' not found.");
+        return;
+    }
+
+    let content = read_file(filename);
+
+    let lexer_options = LexerOptions {
+        max_comment_length: 500,
+        max_identifier_length: 100
+    };
+
+    let src = lazy_stream_reader_new(content, OptionStr::Some(filename));
+    let lexer = lexer_new(src, lexer_options);
+    match (parser_new(lexer)) {
+        ResultParser::Err(err) {
+            println(parser_error_get_stderr_message(&err));
+            return;
+        },
+        ResultParser::Ok(parser) {
+            match (parser_parse(&parser)) {
+                ResultProgram::Ok(ast) {
+                    let formatter = Formatter {
+                        indent_level: 0,
+                        program: ast,
+                        output: "",
+                        options: FormatterOptions {
+                            ident: "    ",
+                            max_line_size: 100
+                        }
+                    };
+                    formatter_format(&formatter);
+                    println(formatter.output);
+                },
+                ResultProgram::Err(err) {
+                    println(parser_error_get_stderr_message(&err));
+                    return;
+                }
+            }
+        }
+    }
+}
+
+main();

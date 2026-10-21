@@ -153,6 +153,12 @@ fn formatter_format_str_with_escaping(&str text): str {
     return result;
 }
 
+fn formatter_format_binary_expr(&Formatter formatter, &BinaryExpression binary_op, str concatenator): void {
+    formatter_format_expression(&formatter, &binary_op.left.value);
+    formatter.output += concatenator;
+    formatter_format_expression(&formatter, &binary_op.right.value);
+}
+
 fn formatter_format_expression(&Formatter formatter, &Expression expr): void {
     match (expr) {
         Expression::Variable(variable) {
@@ -190,69 +196,43 @@ fn formatter_format_expression(&Formatter formatter, &Expression expr): void {
             formatter_format_function_call_without_semi(&formatter, &func_call.identifier.value, &func_call.arguments);
         },
         Expression::Alternative(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " || ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " || ");
         },
         Expression::Concatenation(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " && ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " && ");
         },
         Expression::Less(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " < ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " < ");
         },
         Expression::LessEqual(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " <= ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " <= ");
         },
         Expression::Greater(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " > ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " > ");
         },
         Expression::GreaterEqual(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " >= ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " >= ");
         },
         Expression::Equal(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " == ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " == ");
         },
         Expression::NotEqual(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " != ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " != ");
         },
         Expression::Addition(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " + ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " + ");
         },
         Expression::Subtraction(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " - ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " - ");
         },
         Expression::Multiplication(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " * ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " * ");
         },
         Expression::Division(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " / ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " / ");
         },
         Expression::Modulo(binary_op) {
-            formatter_format_expression(&formatter, &binary_op.left.value);
-            formatter.output += " % ";
-            formatter_format_expression(&formatter, &binary_op.right.value);
+            formatter_format_binary_expr(&formatter, &binary_op, " % ");
         },
         Expression::BooleanNegation(expr_node) {
             formatter.output += "!";

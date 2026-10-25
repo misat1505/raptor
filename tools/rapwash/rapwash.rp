@@ -1,60 +1,156 @@
 import "../../selfhost/frontend/lexer/lexer.rp";
 import "../../selfhost/frontend/parser/parser-mod.rp";
-import "formatter.rp";
+import "doc-builder.rp";
+
+
+extern fn write(i32 fd, str buf, i64 n): i64 as c_write;
+extern fn quick_exit(i32 code): void;
+
 
 fn usage(str program): void {
-    println("Usage: " + program + " <filename>");
+    println("Raptor source code formatter.");
+    println("");
+    println("Usage:");
+    println("  " + program + " [options] <file>");
+    println("");
+    println("Arguments:");
+    println("  <file>                      Path to a .rp source file (required)");
+    println("");
+    println("Options:");
+    println("  -h, --help                  Show this help message and exit");
+    println("  --max-line-size <n>         Wrap lines longer than <n> columns (default: 100)");
+    println("  --indent-width <n>          Spaces per indentation level (default: 4)");
+    println(
+        "  --max-comment-length <n>    Max comment length accepted by the lexer (default: 500)"
+    );
+    println(
+        "  --max-identifier-length <n> Max identifier length accepted by the lexer (default: 100)"
+    );
+    println("");
+    println("Examples:");
+    println("  " + program + " main.rp");
+    println("  " + program + " --indent-width 2 --max-line-size 80 src/app.rp");
+}
+
+fn exit_with(i64 code): void {
+    quick_exit(code as i32);
+}
+
+fn eprintln(str text): void {
+    text += "\n";
+    c_write(2 as i32, text, str_len(text));
+}
+
+fn parse_i64_arg(str flag, str value): i64 {
+    if (str_len(value) == 0) {
+        eprintln("error: " + flag + " requires a positive integer argument");
+        exit_with(1);
+    }
+    let n = value as i64;
+    if (n <= 0) {
+        eprintln("error: " + flag + " must be a positive integer, got '" + value + "'");
+        exit_with(1);
+    }
+    return n;
 }
 
 fn main(): void {
     let args = cli_args();
     let program = args[0];
-    if (vector_size(&args) < 2) {
-        usage(program);
-        return;
+
+    let max_line_size = 100;
+    let indent_width = 4;
+    let max_comment_length = 500;
+    let max_identifier_length = 100;
+    let filename = "";
+
+    let i = 1;
+    while (i < vector_size(&args)) {
+        let a = args[i];
+        if (a == "-h" || a == "--help") {
+            usage(program);
+            return;
+        } else if (a == "--max-line-size") {
+            i += 1;
+            if (i >= vector_size(&args)) {
+                eprintln("error: --max-line-size requires a value");
+                exit_with(1);
+            }
+            max_line_size = parse_i64_arg("--max-line-size", args[i]);
+        } else if (a == "--indent-width") {
+            i += 1;
+            if (i >= vector_size(&args)) {
+                eprintln("error: --indent-width requires a value");
+                exit_with(1);
+            }
+            indent_width = parse_i64_arg("--indent-width", args[i]);
+        } else if (a == "--max-comment-length") {
+            i += 1;
+            if (i >= vector_size(&args)) {
+                eprintln("error: --max-comment-length requires a value");
+                exit_with(1);
+            }
+            max_comment_length = parse_i64_arg("--max-comment-length", args[i]);
+        } else if (a == "--max-identifier-length") {
+            i += 1;
+            if (i >= vector_size(&args)) {
+                eprintln("error: --max-identifier-length requires a value");
+                exit_with(1);
+            }
+            max_identifier_length = parse_i64_arg("--max-identifier-length", args[i]);
+        } else if (str_starts_with(a, "-")) {
+            eprintln("error: unknown option '" + a + "'");
+            eprintln("Try '" + program + " --help' for more information.");
+            exit_with(1);
+        } else {
+            if (filename != "") {
+                eprintln("error: unexpected argument '" + a + "' (only one file is supported)");
+                exit_with(1);
+            }
+            filename = a;
+        }
+        i += 1;
     }
-    let filename = args[1];
+
+    if (filename == "") {
+        usage(program);
+        exit_with(1);
+    }
+
     if (!exists_file(filename)) {
-        println("File '" + filename + "' not found.");
-        return;
+        eprintln("error: file '" + filename + "' not found");
+        exit_with(1);
     }
 
     let content = read_file(filename);
-
     let lexer_options = LexerOptions {
-        max_comment_length: 500,
-        max_identifier_length: 100
+        max_comment_length: max_comment_length,
+        max_identifier_length: max_identifier_length
     };
 
     let src = lazy_stream_reader_new(content, OptionStr::Some(filename));
     let lexer = lexer_new(src, lexer_options);
     match (parser_new(lexer)) {
         ResultParser::Err(err) {
-            println(parser_error_get_stderr_message(&err));
-            return;
+            eprintln(parser_error_get_stderr_message(&err));
+            exit_with(1);
         },
         ResultParser::Ok(parser) {
             match (parser_parse(&parser)) {
                 ResultProgram::Ok(ast) {
-                    let formatter = Formatter {
-                        indent_level: 0,
-                        program: ast,
-                        output: "",
-                        options: FormatterOptions {
-                            ident: "    ",
-                            max_line_size: 100
-                        }
-                    };
-                    formatter_format(&formatter);
-                    println(formatter.output);
+                    let doc_builder = DocBuilder { ast: ast };
+                    let doc = doc_builder_build(&doc_builder);
+                    let output = doc_print(&doc, max_line_size, indent_width);
+                    write_file(filename, str_trim_right(output) + "\n");
                 },
                 ResultProgram::Err(err) {
-                    println(parser_error_get_stderr_message(&err));
-                    return;
+                    eprintln(parser_error_get_stderr_message(&err));
+                    exit_with(1);
                 }
             }
         }
     }
 }
+
 
 main();

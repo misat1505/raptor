@@ -1,0 +1,1036 @@
+import "../../selfhost/semantic-checker/semantic-helpers.rp";
+import "doc.rp";
+
+
+struct DocBuilder derives Debug {
+    Program ast
+};
+
+
+fn doc_builder_build(&DocBuilder builder): Doc {
+    let sections: Doc[] = [];
+
+    let hard = Doc::HardLine;
+    let blank_line = Doc::Concat([Doc::HardLine, Doc::HardLine]);
+    let blank_lines = Doc::Concat([Doc::HardLine, Doc::HardLine, Doc::HardLine]);
+
+    let imports = builder_build_imports(&builder);
+    builder_push_section(&sections, &imports, &hard);
+
+    let types = builder_build_type_declarations(&builder);
+    builder_push_section(&sections, &types, &blank_line);
+
+    let extern_functions = builder_build_extern_function_declarations(&builder);
+    builder_push_section(&sections, &extern_functions, &hard);
+
+    let functions = builder_build_function_declarations(&builder);
+    builder_push_section(&sections, &functions, &blank_line);
+
+    let statements = builder_build_statements(&builder);
+    builder_push_section(&sections, &statements, &hard);
+
+    return Doc::Concat([doc_join(&sections, &blank_lines), Doc::HardLine]);
+}
+
+fn builder_push_section(&Doc[] sections, &Doc[] items, &Doc separator): void {
+    if (vector_size(&items) == 0) {
+        return;
+    }
+    vector_push(&sections, doc_join(&items, &separator));
+}
+
+fn builder_build_imports(&DocBuilder builder): Doc[] {
+    let imports: Doc[] = [];
+
+    for (let i = 0; i < vector_size(&builder.ast.statements); i += 1) {
+        let stmt = builder.ast.statements[i].value;
+        if (stmt matches Statement::Import(path)) {
+            vector_push(
+                &imports,
+                Doc::Concat([Doc::Text("import \""), Doc::Text(path.value), Doc::Text("\";")])
+            );
+        }
+    }
+
+    return imports;
+}
+
+fn builder_build_statements(&DocBuilder builder): Doc[] {
+    let result: Doc[] = [];
+
+    let has_any = false;
+    for (let i = 0; i < vector_size(&builder.ast.statements); i += 1) {
+        let stmt = builder.ast.statements[i].value;
+        if (stmt not matches Statement::Import) {
+            has_any = true;
+        }
+    }
+
+    if (has_any) {
+        vector_push(&result, builder_statements(&builder, &builder.ast.statements));
+    }
+
+    return result;
+}
+
+fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
+    let declarations: Doc[] = [];
+
+    for (let i = 0; i < vector_size(&builder.ast.declared_types); i += 1) {
+        let type_decl = builder.ast.declared_types[i].value;
+
+        match (type_decl) {
+            DeclaredType::Struct(struct_decl) {
+                let type_derives: Doc[] = [];
+                for (let j = 0; j < vector_size(&struct_decl.struct_derives); j += 1) {
+                    vector_push(&type_derives, Doc::Text(struct_decl.struct_derives[j].value));
+                }
+
+                let members: Doc[] = [];
+                for (let j = 0; j < vector_size(&struct_decl.members); j += 1) {
+                    let member = struct_decl.members[j].value;
+                    vector_push(
+                        &members,
+                        Doc::Concat([
+                            Doc::Text(type_to_string(member.member_type.value)),
+                            Doc::Text(" "),
+                            Doc::Text(member.identifier.value)
+                        ])
+                    );
+                }
+
+                vector_push(
+                    &declarations,
+                    builder_type_decl_doc(
+                        "struct",
+                        struct_decl.identifier.value,
+                        &type_derives,
+                        &members
+                    )
+                );
+            },
+            DeclaredType::Enum(enum_decl) {
+                let type_derives: Doc[] = [];
+                for (let j = 0; j < vector_size(&enum_decl.enum_derives); j += 1) {
+                    vector_push(&type_derives, Doc::Text(enum_decl.enum_derives[j].value));
+                }
+
+                let members: Doc[] = [];
+                for (let j = 0; j < vector_size(&enum_decl.members); j += 1) {
+                    let member = enum_decl.members[j].value;
+                    let variant = Doc::Text(member.identifier.value);
+                    if (member.member_type matches OptionTypeNode::Some(t)) {
+                        variant = Doc::Concat([
+                            variant,
+                            Doc::Text("(" + type_to_string(t.value) + ")")
+                        ]);
+                    }
+                    vector_push(&members, variant);
+                }
+
+                vector_push(
+                    &declarations,
+                    builder_type_decl_doc(
+                        "enum",
+                        enum_decl.identifier.value,
+                        &type_derives,
+                        &members
+                    )
+                );
+            }
+        }
+    }
+
+    return declarations;
+}
+
+fn builder_type_decl_doc(str keyword, str name, &Doc[] type_derives, &Doc[] members): Doc {
+    let parts: Doc[] = [Doc::Text(keyword + " " + name)];
+
+    if (vector_size(&type_derives) > 0) {
+        let comma = Doc::Text(", ");
+        vector_push(&parts, Doc::Text(" derives "));
+        vector_push(&parts, doc_join(&type_derives, &comma));
+    }
+
+    if (vector_size(&members) == 0) {
+        vector_push(&parts, Doc::Text(" {}"));
+    } else {
+        let separator = Doc::Concat([Doc::Text(","), Doc::HardLine]);
+        vector_push(&parts, Doc::Text(" {"));
+        vector_push(&parts, Doc::Indent([Doc::HardLine, doc_join(&members, &separator)]));
+        vector_push(&parts, Doc::HardLine);
+        vector_push(&parts, Doc::Text("}"));
+    }
+
+    vector_push(&parts, Doc::Text(";"));
+    return Doc::Concat(parts);
+}
+
+fn builder_build_function_declarations(&DocBuilder builder): Doc[] {
+    let function_declarations: Doc[] = [];
+
+    for (let i = 0; i < vector_size(&builder.ast.functions); i += 1) {
+        let function = builder.ast.functions[i].value;
+
+        let parameters: Doc[] = [];
+        for (let j = 0; j < vector_size(&function.parameters); j += 1) {
+            let parameter = function.parameters[j].value;
+
+            let parameter_decl = "";
+            if (parameter.passed_by matches PassedBy::Reference) {
+                parameter_decl += "&";
+            }
+            parameter_decl += type_to_string(parameter.parameter_type.value);
+            parameter_decl += " ";
+            parameter_decl += parameter.identifier.value;
+
+            vector_push(&parameters, Doc::Text(parameter_decl));
+        }
+
+        let signature = builder_list(
+            "fn " + function.identifier.value + "(",
+            ")",
+            &parameters,
+            false
+        );
+        let return_type = Doc::Text(": " + type_to_string(function.return_type.value) + " ");
+        let block = builder_build_block(&builder, &function.block.value);
+
+        vector_push(&function_declarations, Doc::Concat([signature, return_type, block]));
+    }
+
+    return function_declarations;
+}
+
+fn builder_build_extern_function_declarations(&DocBuilder builder): Doc[] {
+    let function_declarations: Doc[] = [];
+
+    for (let i = 0; i < vector_size(&builder.ast.extern_functions); i += 1) {
+        let function = builder.ast.extern_functions[i].value;
+
+        let parameters: Doc[] = [];
+        for (let j = 0; j < vector_size(&function.parameters); j += 1) {
+            let parameter = function.parameters[j].value;
+
+            let parameter_decl = "";
+            if (parameter.passed_by matches PassedBy::Reference) {
+                parameter_decl += "&";
+            }
+            parameter_decl += type_to_string(parameter.parameter_type.value);
+            parameter_decl += " ";
+            parameter_decl += parameter.identifier.value;
+
+            vector_push(&parameters, Doc::Text(parameter_decl));
+        }
+
+        let signature = builder_list(
+            "extern fn " + function.identifier.value + "(",
+            ")",
+            &parameters,
+            false
+        );
+        let return_type = Doc::Text(": " + type_to_string(function.return_type.value));
+
+        let segments = [signature, return_type];
+        if (function.alias matches OptionIdentifierNode::Some(ident)) {
+            let alias_text = Doc::Text(" as " + ident.value);
+            vector_push(&segments, alias_text);
+        }
+        vector_push(&segments, Doc::Text(";"));
+        vector_push(&function_declarations, Doc::Concat(segments));
+    }
+
+    return function_declarations;
+}
+
+fn builder_build_block(&DocBuilder builder, &Block block): Doc {
+    if (vector_size(&block.statements) == 0) {
+        return Doc::Text("{}");
+    }
+
+    return Doc::Concat([
+        Doc::Text("{"),
+        Doc::Indent([Doc::HardLine, builder_statements(&builder, &block.statements)]),
+        Doc::HardLine,
+        Doc::Text("}")
+    ]);
+}
+
+fn builder_statements(&DocBuilder builder, &StatementNode[] nodes): Doc {
+    let parts: Doc[] = [];
+    let has_previous = false;
+    let previous_end_line = 0;
+
+    for (let i = 0; i < vector_size(&nodes); i += 1) {
+        let node = nodes[i];
+        if (node.value matches Statement::Import) {
+            continue;
+        }
+
+        if (has_previous) {
+            vector_push(&parts, Doc::HardLine);
+            if (node.span.start.line - previous_end_line > 1) {
+                vector_push(&parts, Doc::HardLine);
+            }
+        }
+
+        vector_push(&parts, doc_builder_stmt(&builder, &node.value));
+        previous_end_line = node.span.end.line;
+        has_previous = true;
+    }
+
+    return Doc::Concat(parts);
+}
+
+fn doc_builder_stmt(&DocBuilder builder, &Statement stmt): Doc {
+    let result = Doc::Text("");
+
+    match (stmt) {
+        Statement::FunctionCall(func_call) {
+            result = Doc::Concat([
+                builder_call_doc(&builder, &func_call.identifier.value, &func_call.arguments),
+                Doc::Text(";")
+            ]);
+        },
+        Statement::Declaration {
+            result = Doc::Concat([builder_decl_doc(&builder, &stmt), Doc::Text(";")]);
+        },
+        Statement::ForLoop(for_loop_stmt) {
+            let declaration = Doc::Text("");
+            if (for_loop_stmt.declaration matches OptionStatementNode::Some(stmt_node)) {
+                declaration = builder_decl_doc(&builder, &stmt_node.value);
+            }
+
+            let assignment = Doc::Text("");
+            if (for_loop_stmt.assignment matches OptionStatementNode::Some(stmt_node)) {
+                if (stmt_node.value matches Statement::Assignment(assignment_stmt)) {
+                    assignment = builder_assignment_doc(&builder, &assignment_stmt);
+                }
+            }
+
+            let header = Doc::Group([
+                Doc::Text("for ("),
+                Doc::Indent([
+                    Doc::SoftLine,
+                    declaration,
+                    Doc::Text(";"),
+                    Doc::Line,
+                    doc_builder_expr(&builder, &for_loop_stmt.condition.value),
+                    Doc::Text(";"),
+                    Doc::Line,
+                    assignment
+                ]),
+                Doc::SoftLine,
+                Doc::Text(")")
+            ]);
+
+            result = Doc::Concat([
+                header,
+                Doc::Text(" "),
+                builder_build_block(&builder, &for_loop_stmt.block.value)
+            ]);
+        },
+        Statement::Conditional(if_stmt) {
+            result = builder_conditional_doc(&builder, &if_stmt);
+        },
+        Statement::Assignment(assignment_stmt) {
+            result = Doc::Concat([
+                builder_assignment_doc(&builder, &assignment_stmt),
+                Doc::Text(";")
+            ]);
+        },
+        Statement::Return(return_expr) {
+            if (return_expr matches OptionExpressionNode::Some(expr_node)) {
+                result = Doc::Concat([
+                    builder_assign_like(&builder, Doc::Text("return"), &expr_node.value),
+                    Doc::Text(";")
+                ]);
+            } else {
+                result = Doc::Text("return;");
+            }
+        },
+        Statement::WhileLoop(while_loop) {
+            result = Doc::Concat([
+                builder_header("while", doc_builder_expr(&builder, &while_loop.condition.value)),
+                Doc::Text(" "),
+                builder_build_block(&builder, &while_loop.block.value)
+            ]);
+        },
+        Statement::Match(match_stmt) {
+            result = builder_match_doc(&builder, &match_stmt);
+        },
+        Statement::Break {
+            result = Doc::Text("break;");
+        },
+        Statement::Continue {
+            result = Doc::Text("continue;");
+        },
+        Statement::Import {},
+        Statement::Switch(switch_stmt) {
+            let expressions: Doc[] = [];
+            for (let i = 0; i < vector_size(&switch_stmt.expressions); i += 1) {
+                let switch_expr = switch_stmt.expressions[i].value;
+                let item = doc_builder_expr(&builder, &switch_expr.expression.value);
+                if (switch_expr.alias matches OptionIdentifierNode::Some(ident)) {
+                    item = Doc::Concat([item, Doc::Text(": " + ident.value)]);
+                }
+                vector_push(&expressions, item);
+            }
+            let header = builder_list("switch (", ")", &expressions, false);
+
+            let cases: Doc[] = [];
+            for (let i = 0; i < vector_size(&switch_stmt.cases); i += 1) {
+                let case = switch_stmt.cases[i].value;
+                vector_push(
+                    &cases,
+                    Doc::Concat([
+                        Doc::Text("("),
+                        doc_builder_expr(&builder, &case.condition.value),
+                        Doc::Text(") -> "),
+                        builder_build_block(&builder, &case.block.value)
+                    ])
+                );
+            }
+
+            if (vector_size(&cases) == 0) {
+                result = Doc::Concat([header, Doc::Text(" {}")]);
+            } else {
+                let hard = Doc::HardLine;
+                result = Doc::Concat([
+                    header,
+                    Doc::Text(" {"),
+                    Doc::Indent([Doc::HardLine, doc_join(&cases, &hard)]),
+                    Doc::HardLine,
+                    Doc::Text("}")
+                ]);
+            }
+        }
+    }
+
+    return result;
+}
+
+fn builder_header(str keyword, Doc inner): Doc {
+    return Doc::Group([
+        Doc::Text(keyword + " ("),
+        Doc::Indent([Doc::SoftLine, inner]),
+        Doc::SoftLine,
+        Doc::Text(")")
+    ]);
+}
+
+fn builder_decl_doc(&DocBuilder builder, &Statement stmt): Doc {
+    let result = Doc::Text("");
+
+    if (stmt matches Statement::Declaration(declaration)) {
+        let var_name = declaration.identifier.value;
+        match (declaration.kind) {
+            VariableDeclarationKind::LET(let_decl) {
+                let head = "let " + var_name;
+                if (let_decl.var_type matches OptionTypeNode::Some(type_node)) {
+                    head += ": " + type_to_string(type_node.value);
+                }
+                result = builder_assign_like(
+                    &builder,
+                    Doc::Text(head + " ="),
+                    &let_decl.value.value
+                );
+            },
+            VariableDeclarationKind::TYPE(type_decl) {
+                let head = type_to_string(type_decl.var_type.value) + " " + var_name;
+                if (type_decl.value matches OptionExpressionNode::Some(expr_node)) {
+                    result = builder_assign_like(
+                        &builder,
+                        Doc::Text(head + " ="),
+                        &expr_node.value
+                    );
+                } else {
+                    result = Doc::Text(head);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+fn builder_assignment_doc(&DocBuilder builder, &AssignmentStatement assignment): Doc {
+    let lhs_parts: Doc[] = [Doc::Text(assignment.identifier.value)];
+    for (let i = 0; i < vector_size(&assignment.accessors); i += 1) {
+        let accessor = assignment.accessors[i].value;
+        match (accessor) {
+            Accessor::Index(index) {
+                vector_push(
+                    &lhs_parts,
+                    Doc::Concat([
+                        Doc::Text("["),
+                        doc_builder_expr(&builder, &index.value),
+                        Doc::Text("]")
+                    ])
+                );
+            },
+            Accessor::Field(ident) {
+                vector_push(&lhs_parts, Doc::Text("." + ident.value));
+            }
+        }
+    }
+    let lhs = Doc::Concat(lhs_parts);
+
+    let is_compound = assignment.value.span.start.offset == assignment.identifier.span.start.offset;
+    if (is_compound) {
+        match (assignment.value.value) {
+            Expression::Addition(operands) {
+                return builder_assign_like(
+                    &builder,
+                    Doc::Concat([lhs, Doc::Text(" +=")]),
+                    &operands.right.value
+                );
+            },
+            Expression::Subtraction(operands) {
+                return builder_assign_like(
+                    &builder,
+                    Doc::Concat([lhs, Doc::Text(" -=")]),
+                    &operands.right.value
+                );
+            },
+            Expression::Multiplication(operands) {
+                return builder_assign_like(
+                    &builder,
+                    Doc::Concat([lhs, Doc::Text(" *=")]),
+                    &operands.right.value
+                );
+            },
+            Expression::Division(operands) {
+                return builder_assign_like(
+                    &builder,
+                    Doc::Concat([lhs, Doc::Text(" /=")]),
+                    &operands.right.value
+                );
+            },
+            Expression::Modulo(operands) {
+                return builder_assign_like(
+                    &builder,
+                    Doc::Concat([lhs, Doc::Text(" %=")]),
+                    &operands.right.value
+                );
+            },
+            rest {}
+        }
+    }
+
+    return builder_assign_like(
+        &builder,
+        Doc::Concat([lhs, Doc::Text(" =")]),
+        &assignment.value.value
+    );
+}
+
+fn builder_assign_like(&DocBuilder builder, Doc head, &Expression rhs): Doc {
+    let rhs_doc = doc_builder_expr(&builder, &rhs);
+
+    if (builder_is_self_bracketed(&rhs)) {
+        return Doc::Concat([head, Doc::Text(" "), rhs_doc]);
+    }
+
+    return Doc::Group([head, Doc::Indent([Doc::Line, rhs_doc])]);
+}
+
+fn builder_is_self_bracketed(&Expression expr): bool {
+    let result = false;
+
+    match (expr) {
+        Expression::FunctionCall {
+            result = true;
+        },
+        Expression::Vector {
+            result = true;
+        },
+        Expression::StructLiteral {
+            result = true;
+        },
+        Expression::EnumLiteral {
+            result = true;
+        },
+        rest {}
+    }
+
+    return result;
+}
+
+fn builder_conditional_doc(&DocBuilder builder, &ConditionalStatement if_stmt): Doc {
+    let parts: Doc[] = [
+        builder_header("if", doc_builder_expr(&builder, &if_stmt.condition.value)),
+        Doc::Text(" "),
+        builder_build_block(&builder, &if_stmt.if_block.value)
+    ];
+
+    if (if_stmt.else_block matches OptionBlockNode::Some(else_block)) {
+        vector_push(&parts, Doc::Text(" else "));
+        vector_push(&parts, builder_else_branch(&builder, &else_block.value));
+    }
+
+    return Doc::Concat(parts);
+}
+
+fn builder_else_branch(&DocBuilder builder, &Block block): Doc {
+    if (vector_size(&block.statements) == 1) {
+        let inner = block.statements[0].value;
+
+        if (inner matches Statement::Conditional(inner_if)) {
+            return builder_conditional_doc(&builder, &inner_if);
+        }
+
+        if (inner matches Statement::Match(inner_match)) {
+            if (builder_is_if_matches(&inner_match)) {
+                return builder_if_matches_doc(&builder, &inner_match);
+            }
+        }
+    }
+
+    return builder_build_block(&builder, &block);
+}
+
+fn builder_is_if_matches(&MatchStatement match_stmt): bool {
+    if (vector_size(&match_stmt.match_arms) != 1) {
+        return false;
+    }
+    if (match_stmt.rest_arm matches OptionBlockNode::Some) {
+        return true;
+    }
+    return false;
+}
+
+fn builder_is_synthetic_empty(&BlockNode block): bool {
+    if (vector_size(&block.value.statements) != 0) {
+        return false;
+    }
+    return block.span.start.offset == block.span.end.offset;
+}
+
+fn builder_if_matches_doc(&DocBuilder builder, &MatchStatement match_stmt): Doc {
+    let result = Doc::Text("");
+
+    if (match_stmt.rest_arm matches OptionBlockNode::Some(rest_block)) {
+        let arm = match_stmt.match_arms[0].value;
+
+        let pattern = arm.enum_name.value + "::" + arm.variant_name.value;
+        if (arm.variant_value matches OptionIdentifierNode::Some(ident)) {
+            pattern += "(" + ident.value + ")";
+        }
+
+        let subject = doc_builder_expr(&builder, &match_stmt.expression.value);
+
+        if (builder_is_synthetic_empty(&arm.block)) {
+            let header = builder_header(
+                "if",
+                Doc::Concat([subject, Doc::Text(" not matches " + pattern)])
+            );
+            result = Doc::Concat([
+                header,
+                Doc::Text(" "),
+                builder_build_block(&builder, &rest_block.value)
+            ]);
+        } else {
+            let header = builder_header(
+                "if",
+                Doc::Concat([subject, Doc::Text(" matches " + pattern)])
+            );
+            let parts: Doc[] = [
+                header,
+                Doc::Text(" "),
+                builder_build_block(&builder, &arm.block.value)
+            ];
+            if (vector_size(&rest_block.value.statements) > 0) {
+                vector_push(&parts, Doc::Text(" else "));
+                vector_push(&parts, builder_else_branch(&builder, &rest_block.value));
+            }
+            result = Doc::Concat(parts);
+        }
+    }
+
+    return result;
+}
+
+fn builder_match_doc(&DocBuilder builder, &MatchStatement match_stmt): Doc {
+    if (builder_is_if_matches(&match_stmt)) {
+        return builder_if_matches_doc(&builder, &match_stmt);
+    }
+
+    let arms: Doc[] = [];
+    for (let i = 0; i < vector_size(&match_stmt.match_arms); i += 1) {
+        let arm = match_stmt.match_arms[i].value;
+
+        let head = arm.enum_name.value + "::" + arm.variant_name.value;
+        if (arm.variant_value matches OptionIdentifierNode::Some(ident)) {
+            head += "(" + ident.value + ")";
+        }
+
+        vector_push(
+            &arms,
+            Doc::Concat([Doc::Text(head + " "), builder_build_block(&builder, &arm.block.value)])
+        );
+    }
+
+    if (match_stmt.rest_arm matches OptionBlockNode::Some(rest_block)) {
+        vector_push(
+            &arms,
+            Doc::Concat([Doc::Text("rest "), builder_build_block(&builder, &rest_block.value)])
+        );
+    }
+
+    let header = builder_header("match", doc_builder_expr(&builder, &match_stmt.expression.value));
+    if (vector_size(&arms) == 0) {
+        return Doc::Concat([header, Doc::Text(" {}")]);
+    }
+
+    let separator = Doc::Concat([Doc::Text(","), Doc::HardLine]);
+    return Doc::Concat([
+        header,
+        Doc::Text(" {"),
+        Doc::Indent([Doc::HardLine, doc_join(&arms, &separator)]),
+        Doc::HardLine,
+        Doc::Text("}")
+    ]);
+}
+
+fn builder_list(str open, str close, &Doc[] items, bool padded): Doc {
+    if (vector_size(&items) == 0) {
+        return Doc::Text(open + close);
+    }
+
+    let edge = Doc::SoftLine;
+    if (padded) {
+        edge = Doc::Line;
+    }
+
+    let separator = Doc::Concat([Doc::Text(","), Doc::Line]);
+
+    return Doc::Group([
+        Doc::Text(open),
+        Doc::Indent([edge, doc_join(&items, &separator)]),
+        edge,
+        Doc::Text(close)
+    ]);
+}
+
+fn builder_call_doc(&DocBuilder builder, &str identifier, &ArgumentNode[] args): Doc {
+    let items: Doc[] = [];
+
+    for (let i = 0; i < vector_size(&args); i += 1) {
+        let argument = args[i].value;
+        let item = doc_builder_expr(&builder, &argument.value.value);
+        if (argument.passed_by matches PassedBy::Reference) {
+            item = Doc::Concat([Doc::Text("&"), item]);
+        }
+        vector_push(&items, item);
+    }
+
+    return builder_list(identifier + "(", ")", &items, false);
+}
+
+fn builder_precedence(&Expression expr): i64 {
+    let prec = 8;
+
+    match (expr) {
+        Expression::Alternative {
+            prec = 1;
+        },
+        Expression::Concatenation {
+            prec = 2;
+        },
+        Expression::Equal {
+            prec = 3;
+        },
+        Expression::NotEqual {
+            prec = 3;
+        },
+        Expression::Less {
+            prec = 3;
+        },
+        Expression::LessEqual {
+            prec = 3;
+        },
+        Expression::Greater {
+            prec = 3;
+        },
+        Expression::GreaterEqual {
+            prec = 3;
+        },
+        Expression::Addition {
+            prec = 4;
+        },
+        Expression::Subtraction {
+            prec = 4;
+        },
+        Expression::Multiplication {
+            prec = 5;
+        },
+        Expression::Division {
+            prec = 5;
+        },
+        Expression::Modulo {
+            prec = 5;
+        },
+        Expression::Casting {
+            prec = 6;
+        },
+        Expression::BooleanNegation {
+            prec = 7;
+        },
+        Expression::ArithmeticNegation {
+            prec = 7;
+        },
+        rest {}
+    }
+
+    return prec;
+}
+
+fn builder_parens(Doc doc): Doc {
+    return Doc::Concat([Doc::Text("("), doc, Doc::Text(")")]);
+}
+
+fn builder_expr_min_prec(&DocBuilder builder, &Expression expr, i64 min_prec): Doc {
+    let doc = doc_builder_expr(&builder, &expr);
+    if (builder_precedence(&expr) < min_prec) {
+        return builder_parens(doc);
+    }
+    return doc;
+}
+
+fn builder_operand(&DocBuilder builder, &Expression child, i64 parent_prec, bool is_right): Doc {
+    let doc = doc_builder_expr(&builder, &child);
+    let child_prec = builder_precedence(&child);
+
+    let needs_parens = child_prec < parent_prec;
+    if (child_prec == parent_prec) {
+        if (is_right || parent_prec == 3) {
+            needs_parens = true;
+        }
+    }
+
+    if (needs_parens) {
+        return builder_parens(doc);
+    }
+    return doc;
+}
+
+fn builder_binary_doc(&DocBuilder builder, &Expression expr): Doc {
+    let operands: Doc[] = [];
+    let operators: str[] = [];
+    builder_collect_chain(&builder, &expr, &operands, &operators);
+
+    let tail: Doc[] = [];
+    for (let i = 0; i < vector_size(&operators); i += 1) {
+        vector_push(&tail, Doc::Line);
+        vector_push(&tail, Doc::Text(operators[i] + " "));
+        vector_push(&tail, operands[i + 1]);
+    }
+
+    return Doc::Group([operands[0], Doc::Indent(tail)]);
+}
+
+fn builder_chain_step(
+    &DocBuilder builder,
+    &BinaryExpression op,
+    str operator,
+    i64 prec,
+    &Doc[] operands,
+    &str[] operators
+): void {
+    if (prec != 3 && builder_precedence(&op.left.value) == prec) {
+        builder_collect_chain(&builder, &op.left.value, &operands, &operators);
+    } else {
+        vector_push(&operands, builder_operand(&builder, &op.left.value, prec, false));
+    }
+
+    vector_push(&operators, operator);
+    vector_push(&operands, builder_operand(&builder, &op.right.value, prec, true));
+}
+
+fn builder_collect_chain(
+    &DocBuilder builder,
+    &Expression expr,
+    &Doc[] operands,
+    &str[] operators
+): void {
+    match (expr) {
+        Expression::Alternative(op) {
+            builder_chain_step(&builder, &op, "||", 1, &operands, &operators);
+        },
+        Expression::Concatenation(op) {
+            builder_chain_step(&builder, &op, "&&", 2, &operands, &operators);
+        },
+        Expression::Equal(op) {
+            builder_chain_step(&builder, &op, "==", 3, &operands, &operators);
+        },
+        Expression::NotEqual(op) {
+            builder_chain_step(&builder, &op, "!=", 3, &operands, &operators);
+        },
+        Expression::Less(op) {
+            builder_chain_step(&builder, &op, "<", 3, &operands, &operators);
+        },
+        Expression::LessEqual(op) {
+            builder_chain_step(&builder, &op, "<=", 3, &operands, &operators);
+        },
+        Expression::Greater(op) {
+            builder_chain_step(&builder, &op, ">", 3, &operands, &operators);
+        },
+        Expression::GreaterEqual(op) {
+            builder_chain_step(&builder, &op, ">=", 3, &operands, &operators);
+        },
+        Expression::Addition(op) {
+            builder_chain_step(&builder, &op, "+", 4, &operands, &operators);
+        },
+        Expression::Subtraction(op) {
+            builder_chain_step(&builder, &op, "-", 4, &operands, &operators);
+        },
+        Expression::Multiplication(op) {
+            builder_chain_step(&builder, &op, "*", 5, &operands, &operators);
+        },
+        Expression::Division(op) {
+            builder_chain_step(&builder, &op, "/", 5, &operands, &operators);
+        },
+        Expression::Modulo(op) {
+            builder_chain_step(&builder, &op, "%", 5, &operands, &operators);
+        },
+        rest {}
+    }
+}
+
+fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
+    if (builder_precedence(&expr) <= 5) {
+        return builder_binary_doc(&builder, &expr);
+    }
+
+    let result = Doc::Text("");
+
+    match (expr) {
+        Expression::Variable(variable) {
+            result = Doc::Text(variable);
+        },
+        Expression::Literal(literal) {
+            match (literal) {
+                Literal::True {
+                    result = Doc::Text("true");
+                },
+                Literal::False {
+                    result = Doc::Text("false");
+                },
+                Literal::String(text) {
+                    result = Doc::Text("\"" + builder_escape(&text) + "\"");
+                },
+                Literal::Char(ch) {
+                    let text = ch as str;
+                    result = Doc::Text("'" + builder_escape(&text) + "'");
+                },
+                Literal::I64(num) {
+                    result = Doc::Text(num as str);
+                },
+                Literal::F64(num) {
+                    result = Doc::Text(num as str);
+                }
+            }
+        },
+        Expression::Casting(casting) {
+            result = Doc::Concat([
+                builder_expr_min_prec(&builder, &casting.value.value, 7),
+                Doc::Text(" as " + type_to_string(casting.to_type.value))
+            ]);
+        },
+        Expression::FieldAccess(field_access) {
+            result = Doc::Concat([
+                builder_expr_min_prec(&builder, &field_access.instance.value, 8),
+                Doc::Text("." + field_access.field.value)
+            ]);
+        },
+        Expression::Index(index_expr) {
+            result = Doc::Concat([
+                builder_expr_min_prec(&builder, &index_expr.collection.value, 8),
+                Doc::Text("["),
+                doc_builder_expr(&builder, &index_expr.index.value),
+                Doc::Text("]")
+            ]);
+        },
+        Expression::FunctionCall(func_call) {
+            result = builder_call_doc(&builder, &func_call.identifier.value, &func_call.arguments);
+        },
+        Expression::BooleanNegation(expr_node) {
+            result = Doc::Concat([
+                Doc::Text("!"),
+                builder_expr_min_prec(&builder, &expr_node.value, 8)
+            ]);
+        },
+        Expression::ArithmeticNegation(expr_node) {
+            result = Doc::Concat([
+                Doc::Text("-"),
+                builder_expr_min_prec(&builder, &expr_node.value, 8)
+            ]);
+        },
+        Expression::Vector(exprs) {
+            let items: Doc[] = [];
+            for (let i = 0; i < vector_size(&exprs); i += 1) {
+                vector_push(&items, doc_builder_expr(&builder, &exprs[i].value));
+            }
+            result = builder_list("[", "]", &items, false);
+        },
+        Expression::EnumLiteral(enum_literal) {
+            let name = enum_literal.enum_name.value + "::" + enum_literal.variant_name.value;
+            if (enum_literal.variant_value matches OptionExpressionNode::Some(enum_expr)) {
+                result = Doc::Concat([
+                    Doc::Text(name + "("),
+                    doc_builder_expr(&builder, &enum_expr.value),
+                    Doc::Text(")")
+                ]);
+            } else {
+                result = Doc::Text(name);
+            }
+        },
+        Expression::StructLiteral(struct_literal_node) {
+            let struct_literal = struct_literal_node.value;
+            let fields: Doc[] = [];
+            for (let i = 0; i < vector_size(&struct_literal.fields); i += 1) {
+                let field = struct_literal.fields[i].value;
+                vector_push(
+                    &fields,
+                    Doc::Concat([
+                        Doc::Text(field.identifier.value + ": "),
+                        doc_builder_expr(&builder, &field.value.value)
+                    ])
+                );
+            }
+            result = builder_list(struct_literal.identifier.value + " {", "}", &fields, true);
+        },
+        rest {}
+    }
+
+    return result;
+}
+
+fn builder_escape(&str text): str {
+    let bytes: u8[] = [];
+
+    for (let i = 0; i < str_len(text); i += 1) {
+        let byte = text[i] as u8;
+        if (byte == 10 as u8) {
+            vector_push(&bytes, 92 as u8);
+            vector_push(&bytes, 110 as u8);
+        } else if (byte == 92 as u8) {
+            vector_push(&bytes, 92 as u8);
+            vector_push(&bytes, 92 as u8);
+        } else if (byte == 34 as u8) {
+            vector_push(&bytes, 92 as u8);
+            vector_push(&bytes, 34 as u8);
+        } else {
+            vector_push(&bytes, text[i] as u8);
+        }
+    }
+
+    let result = "";
+    for (let i = 0; i < vector_size(&bytes); i += 1) {
+        result += bytes[i] as char;
+    }
+
+    return result;
+}

@@ -5,31 +5,30 @@ import "doc-builder.rp";
 
 extern fn write(i32 fd, str buf, i64 n): i64 as c_write;
 extern fn quick_exit(i32 code): void;
+extern fn system(str command): i32 as c_system;
 
 
 fn usage(str program): void {
     println("Raptor source code formatter.");
     println("");
     println("Usage:");
-    println("  " + program + " [options] <file>");
+    println("  " + program + " [options] <file|directory>");
     println("");
     println("Arguments:");
-    println("  <file>                      Path to a .rp source file (required)");
+    println("  <file>                      Path to a .rp source file");
+    println("  <directory>                 Recursively format all .rp files");
     println("");
     println("Options:");
     println("  -h, --help                  Show this help message and exit");
     println("  --max-line-size <n>         Wrap lines longer than <n> columns (default: 100)");
     println("  --indent-width <n>          Spaces per indentation level (default: 4)");
-    println(
-        "  --max-comment-length <n>    Max comment length accepted by the lexer (default: 500)"
-    );
-    println(
-        "  --max-identifier-length <n> Max identifier length accepted by the lexer (default: 100)"
-    );
+    println("  --max-comment-length <n>    Max comment length (default: 500)");
+    println("  --max-identifier-length <n> Max identifier length (default: 100)");
     println("");
     println("Examples:");
     println("  " + program + " main.rp");
-    println("  " + program + " --indent-width 2 --max-line-size 80 src/app.rp");
+    println("  " + program + " src");
+    println("  " + program + " --indent-width 2 --max-line-size 80 src");
 }
 
 fn exit_with(i64 code): void {
@@ -46,12 +45,116 @@ fn parse_i64_arg(str flag, str value): i64 {
         eprintln("error: " + flag + " requires a positive integer argument");
         exit_with(1);
     }
+
     let n = value as i64;
+
     if (n <= 0) {
         eprintln("error: " + flag + " must be a positive integer, got '" + value + "'");
         exit_with(1);
     }
+
     return n;
+}
+
+fn shell_quote(str value): str {
+    let result = "'";
+    let i = 0;
+
+    while (i < str_len(value)) {
+        let ch = value[i];
+
+        if (ch == (39 as u8) as char) {
+            result += "'\\''";
+        } else {
+            result += ch;
+        }
+
+        i += 1;
+    }
+
+    result += "'";
+    return result;
+}
+
+fn format_file(
+    str filename,
+    i64 max_line_size,
+    i64 indent_width,
+    i64 max_comment_length,
+    i64 max_identifier_length
+): bool {
+    if (!exists_file(filename)) {
+        eprintln("error: file '" + filename + "' not found");
+        return false;
+    }
+
+    let content = read_file(filename);
+
+    let lexer_options = LexerOptions {
+        max_comment_length: max_comment_length,
+        max_identifier_length: max_identifier_length
+    };
+
+    let src = lazy_stream_reader_new(content, OptionStr::Some(filename));
+    let lexer = lexer_new(src, lexer_options);
+
+    match (parser_new(lexer)) {
+        ResultParser::Err(err) {
+            eprintln(filename + ":");
+            eprintln(parser_error_get_stderr_message(&err));
+            return false;
+        },
+        ResultParser::Ok(parser) {
+            match (parser_parse(&parser)) {
+                ResultProgram::Ok(ast) {
+                    let doc_builder = DocBuilder { ast: ast };
+                    let doc = doc_builder_build(&doc_builder);
+                    let output = doc_print(&doc, max_line_size, indent_width);
+
+                    write_file(filename, str_trim_right(output) + "\n");
+                    return true;
+                },
+                ResultProgram::Err(err) {
+                    eprintln(filename + ":");
+                    eprintln(parser_error_get_stderr_message(&err));
+                    return false;
+                }
+            }
+        }
+    }
+}
+
+fn format_directory(
+    str program,
+    str directory,
+    i64 max_line_size,
+    i64 indent_width,
+    i64 max_comment_length,
+    i64 max_identifier_length
+): bool {
+    let command =
+        "find "
+            + shell_quote(directory)
+            + " -type f -name '*.rp' -exec "
+            + shell_quote(program)
+            + " --max-line-size "
+            + max_line_size as str
+            + " --indent-width "
+            + indent_width as str
+            + " --max-comment-length "
+            + max_comment_length as str
+            + " --max-identifier-length "
+            + max_identifier_length as str
+            + " '{}' \\;";
+
+    let status = c_system(command);
+
+    if (status as i64 != 0) {
+        eprintln("error: recursive formatting failed for directory '" + directory + "'");
+        return false;
+    }
+
+    return true;
 }
 
 fn main(): void {
@@ -65,38 +168,48 @@ fn main(): void {
     let filename = "";
 
     let i = 1;
+
     while (i < vector_size(&args)) {
         let a = args[i];
+
         if (a == "-h" || a == "--help") {
             usage(program);
             return;
         } else if (a == "--max-line-size") {
             i += 1;
+
             if (i >= vector_size(&args)) {
                 eprintln("error: --max-line-size requires a value");
                 exit_with(1);
             }
+
             max_line_size = parse_i64_arg("--max-line-size", args[i]);
         } else if (a == "--indent-width") {
             i += 1;
+
             if (i >= vector_size(&args)) {
                 eprintln("error: --indent-width requires a value");
                 exit_with(1);
             }
+
             indent_width = parse_i64_arg("--indent-width", args[i]);
         } else if (a == "--max-comment-length") {
             i += 1;
+
             if (i >= vector_size(&args)) {
                 eprintln("error: --max-comment-length requires a value");
                 exit_with(1);
             }
+
             max_comment_length = parse_i64_arg("--max-comment-length", args[i]);
         } else if (a == "--max-identifier-length") {
             i += 1;
+
             if (i >= vector_size(&args)) {
                 eprintln("error: --max-identifier-length requires a value");
                 exit_with(1);
             }
+
             max_identifier_length = parse_i64_arg("--max-identifier-length", args[i]);
         } else if (str_starts_with(a, "-")) {
             eprintln("error: unknown option '" + a + "'");
@@ -104,11 +217,17 @@ fn main(): void {
             exit_with(1);
         } else {
             if (filename != "") {
-                eprintln("error: unexpected argument '" + a + "' (only one file is supported)");
+                eprintln(
+                    "error: unexpected argument '"
+                        + a
+                        + "' (only one file or directory is supported)"
+                );
                 exit_with(1);
             }
+
             filename = a;
         }
+
         i += 1;
     }
 
@@ -117,38 +236,38 @@ fn main(): void {
         exit_with(1);
     }
 
-    if (!exists_file(filename)) {
-        eprintln("error: file '" + filename + "' not found");
+    if (c_system("test -d " + shell_quote(filename)) == 0 as i32) {
+        if (
+            !format_directory(
+                program,
+                filename,
+                max_line_size,
+                indent_width,
+                max_comment_length,
+                max_identifier_length
+            )
+        ) {
+            exit_with(1);
+        }
+
+        return;
+    }
+
+    if (!str_ends_with(filename, ".rp")) {
+        eprintln("error: expected a .rp file or a directory, got '" + filename + "'");
         exit_with(1);
     }
 
-    let content = read_file(filename);
-    let lexer_options = LexerOptions {
-        max_comment_length: max_comment_length,
-        max_identifier_length: max_identifier_length
-    };
-
-    let src = lazy_stream_reader_new(content, OptionStr::Some(filename));
-    let lexer = lexer_new(src, lexer_options);
-    match (parser_new(lexer)) {
-        ResultParser::Err(err) {
-            eprintln(parser_error_get_stderr_message(&err));
-            exit_with(1);
-        },
-        ResultParser::Ok(parser) {
-            match (parser_parse(&parser)) {
-                ResultProgram::Ok(ast) {
-                    let doc_builder = DocBuilder { ast: ast };
-                    let doc = doc_builder_build(&doc_builder);
-                    let output = doc_print(&doc, max_line_size, indent_width);
-                    write_file(filename, str_trim_right(output) + "\n");
-                },
-                ResultProgram::Err(err) {
-                    eprintln(parser_error_get_stderr_message(&err));
-                    exit_with(1);
-                }
-            }
-        }
+    if (
+        !format_file(
+            filename,
+            max_line_size,
+            indent_width,
+            max_comment_length,
+            max_identifier_length
+        )
+    ) {
+        exit_with(1);
     }
 }
 

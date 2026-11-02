@@ -903,19 +903,34 @@ fn doc_builder_f64_literal_text(f64 v): str {
     if (v < 0.0) {
         return "-" + doc_builder_f64_literal_text(0.0 - v);
     }
-    if (v >= 1000000000000000000.0) {
-        return v as str;
-    }
+
     let whole = v as i64;
-    let frac = v - (whole as f64);
-    let out = whole as str + ".";
+    let frac = v - whole as f64;
+
+    let frac_digits = "";
+    let last_nonzero = 0 as i64;
+
     for (let i = 0; i < 17; i += 1) {
         frac = frac * 10.0;
         let d = frac as i64;
-        out += d as str;
-        frac = frac - (d as f64);
+        if (d < 0) {
+            d = 0;
+        }
+        if (d > 9) {
+            d = 9;
+        }
+        frac_digits += d as str;
+        if (d != 0) {
+            last_nonzero = i + 1;
+        }
+        frac = frac - d as f64;
     }
-    return out;
+
+    if (last_nonzero == 0) {
+        return whole as str + ".0";
+    }
+
+    return whole as str + "." + str_substring(frac_digits, 0, last_nonzero);
 }
 
 fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
@@ -941,8 +956,7 @@ fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
                     result = Doc::Text("\"" + builder_escape(&text) + "\"");
                 },
                 Literal::Char(ch) {
-                    let text = ch as str;
-                    result = Doc::Text("'" + builder_escape(&text) + "'");
+                    result = Doc::Text("'" + builder_escape_char(ch) + "'");
                 },
                 Literal::I64(num) {
                     result = Doc::Text(num as str);
@@ -1025,6 +1039,28 @@ fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
     }
 
     return result;
+}
+
+fn builder_escape_char(char ch): str {
+    let byte = ch as u8;
+    if (byte == 0 as u8) {
+        return "\\0";
+    } else if (byte == 10 as u8) {
+        return "\\n";
+    } else if (byte == 13 as u8) {
+        return "\\r";
+    } else if (byte == 9 as u8) {
+        return "\\t";
+    } else if (byte == 27 as u8) {
+        return "\\e";
+    } else if (byte == 92 as u8) {
+        return "\\\\";
+    } else if (byte == 39 as u8) {
+        return "\\'";
+    } else if (byte == 34 as u8) {
+        return "\\\"";
+    }
+    return ch as str;
 }
 
 fn builder_escape(&str text): str {

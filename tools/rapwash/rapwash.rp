@@ -111,7 +111,12 @@ fn format_file(
                     let doc = doc_builder_build(&doc_builder);
                     let output = doc_print(&doc, max_line_size, indent_width);
 
-                    write_file(filename, str_trim_right(output) + "\n");
+                    if (str_len(output) > 1) {
+                        output = str_trim_right(output) + "\n";
+                    } else {
+                        output = "";
+                    }
+                    write_file(filename, output);
                     return true;
                 },
                 ResultProgram::Err(err) {

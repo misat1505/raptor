@@ -899,6 +899,25 @@ fn builder_collect_chain(
     }
 }
 
+fn doc_builder_f64_literal_text(f64 v): str {
+    if (v < 0.0) {
+        return "-" + doc_builder_f64_literal_text(0.0 - v);
+    }
+    if (v >= 1000000000000000000.0) {
+        return v as str;
+    }
+    let whole = v as i64;
+    let frac = v - (whole as f64);
+    let out = whole as str + ".";
+    for (let i = 0; i < 17; i += 1) {
+        frac = frac * 10.0;
+        let d = frac as i64;
+        out += d as str;
+        frac = frac - (d as f64);
+    }
+    return out;
+}
+
 fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
     if (builder_precedence(&expr) <= 5) {
         return builder_binary_doc(&builder, &expr);
@@ -929,7 +948,7 @@ fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
                     result = Doc::Text(num as str);
                 },
                 Literal::F64(num) {
-                    result = Doc::Text(num as str);
+                    result = Doc::Text(doc_builder_f64_literal_text(num));
                 }
             }
         },

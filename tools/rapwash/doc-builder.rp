@@ -312,7 +312,7 @@ fn builder_build_statements(&DocBuilder builder): Doc[] {
     }
 
     if (has_any) {
-        vector_push(&result, builder_statements(&builder, &builder.ast.statements));
+        vector_push(&result, builder_statements(&builder, &builder.ast.statements, 0));
     }
 
     return result;
@@ -451,19 +451,35 @@ fn builder_build_function_declarations(&DocBuilder builder): Doc[] {
             false
         );
         let return_type = Doc::Text(": " + type_to_string(function.return_type.value) + " ");
-        let block = builder_build_block(&builder, &function.block.value);
 
-        let item = Doc::Concat([signature, return_type, block]);
-        vector_push(
-            &function_declarations,
-            builder_with_comments(
-                &builder,
-                previous_end_line,
-                node.span.start.line,
-                node.span.end.line,
-                item
-            )
+        # Take leading comments above `fn` before formatting the body,
+        # so the first statement inside cannot claim them.
+        let leading = builder_take_leading_comments(
+            &builder,
+            previous_end_line,
+            node.span.start.line
         );
+        let trailing = builder_take_trailing_comment(&builder, node.span.end.line);
+
+        let block = builder_build_block(&builder, &function.block);
+        let item = Doc::Concat([signature, return_type, block]);
+
+        let has_leading = !doc_is_empty_text(leading);
+        let has_trailing = !doc_is_empty_text(trailing);
+        if (has_leading || has_trailing) {
+            let parts: Doc[] = [];
+            if (has_leading) {
+                vector_push(&parts, leading);
+                vector_push(&parts, Doc::HardLine);
+            }
+            vector_push(&parts, item);
+            if (has_trailing) {
+                vector_push(&parts, trailing);
+            }
+            item = Doc::Concat(parts);
+        }
+
+        vector_push(&function_declarations, item);
         previous_end_line = node.span.end.line;
     }
 
@@ -524,23 +540,29 @@ fn builder_build_extern_function_declarations(&DocBuilder builder): Doc[] {
     return function_declarations;
 }
 
-fn builder_build_block(&DocBuilder builder, &Block block): Doc {
+fn builder_build_block(&DocBuilder builder, &BlockNode block_node): Doc {
+    let block = block_node.value;
+
     if (vector_size(&block.statements) == 0) {
         return Doc::Text("{}");
     }
 
+    # Only attach comments that fall inside this block, so leading comments
+    # above `fn` / `if` / `while` stay on the declaration, not the first body stmt.
     return Doc::Concat([
         Doc::Text("{"),
-        Doc::Indent([Doc::HardLine, builder_statements(&builder, &block.statements)]),
+        Doc::Indent([
+            Doc::HardLine,
+            builder_statements(&builder, &block.statements, block_node.span.start.line)
+        ]),
         Doc::HardLine,
         Doc::Text("}")
     ]);
 }
 
-fn builder_statements(&DocBuilder builder, &StatementNode[] nodes): Doc {
+fn builder_statements(&DocBuilder builder, &StatementNode[] nodes, i64 previous_end_line): Doc {
     let parts: Doc[] = [];
     let has_previous = false;
-    let previous_end_line = 0;
 
     for (let i = 0; i < vector_size(&nodes); i += 1) {
         let node = nodes[i];
@@ -627,7 +649,7 @@ fn doc_builder_stmt(&DocBuilder builder, &Statement stmt): Doc {
             result = Doc::Concat([
                 header,
                 Doc::Text(" "),
-                builder_build_block(&builder, &for_loop_stmt.block.value)
+                builder_build_block(&builder, &for_loop_stmt.block)
             ]);
         },
         Statement::Conditional(if_stmt) {
@@ -653,7 +675,7 @@ fn doc_builder_stmt(&DocBuilder builder, &Statement stmt): Doc {
             result = Doc::Concat([
                 builder_header("while", doc_builder_expr(&builder, &while_loop.condition.value)),
                 Doc::Text(" "),
-                builder_build_block(&builder, &while_loop.block.value)
+                builder_build_block(&builder, &while_loop.block)
             ]);
         },
         Statement::Match(match_stmt) {
@@ -687,7 +709,7 @@ fn doc_builder_stmt(&DocBuilder builder, &Statement stmt): Doc {
                         Doc::Text("("),
                         doc_builder_expr(&builder, &case.condition.value),
                         Doc::Text(") -> "),
-                        builder_build_block(&builder, &case.block.value)
+                        builder_build_block(&builder, &case.block)
                     ])
                 );
             }
@@ -861,18 +883,20 @@ fn builder_conditional_doc(&DocBuilder builder, &ConditionalStatement if_stmt): 
     let parts: Doc[] = [
         builder_header("if", doc_builder_expr(&builder, &if_stmt.condition.value)),
         Doc::Text(" "),
-        builder_build_block(&builder, &if_stmt.if_block.value)
+        builder_build_block(&builder, &if_stmt.if_block)
     ];
 
     if (if_stmt.else_block matches OptionBlockNode::Some(else_block)) {
         vector_push(&parts, Doc::Text(" else "));
-        vector_push(&parts, builder_else_branch(&builder, &else_block.value));
+        vector_push(&parts, builder_else_branch(&builder, &else_block));
     }
 
     return Doc::Concat(parts);
 }
 
-fn builder_else_branch(&DocBuilder builder, &Block block): Doc {
+fn builder_else_branch(&DocBuilder builder, &BlockNode block_node): Doc {
+    let block = block_node.value;
+
     if (vector_size(&block.statements) == 1) {
         let inner = block.statements[0].value;
 
@@ -887,7 +911,7 @@ fn builder_else_branch(&DocBuilder builder, &Block block): Doc {
         }
     }
 
-    return builder_build_block(&builder, &block);
+    return builder_build_block(&builder, &block_node);
 }
 
 fn builder_is_if_matches(&MatchStatement match_stmt): bool {
@@ -928,21 +952,17 @@ fn builder_if_matches_doc(&DocBuilder builder, &MatchStatement match_stmt): Doc 
             result = Doc::Concat([
                 header,
                 Doc::Text(" "),
-                builder_build_block(&builder, &rest_block.value)
+                builder_build_block(&builder, &rest_block)
             ]);
         } else {
             let header = builder_header(
                 "if",
                 Doc::Concat([subject, Doc::Text(" matches " + pattern)])
             );
-            let parts: Doc[] = [
-                header,
-                Doc::Text(" "),
-                builder_build_block(&builder, &arm.block.value)
-            ];
+            let parts: Doc[] = [header, Doc::Text(" "), builder_build_block(&builder, &arm.block)];
             if (vector_size(&rest_block.value.statements) > 0) {
                 vector_push(&parts, Doc::Text(" else "));
-                vector_push(&parts, builder_else_branch(&builder, &rest_block.value));
+                vector_push(&parts, builder_else_branch(&builder, &rest_block));
             }
             result = Doc::Concat(parts);
         }
@@ -967,14 +987,14 @@ fn builder_match_doc(&DocBuilder builder, &MatchStatement match_stmt): Doc {
 
         vector_push(
             &arms,
-            Doc::Concat([Doc::Text(head + " "), builder_build_block(&builder, &arm.block.value)])
+            Doc::Concat([Doc::Text(head + " "), builder_build_block(&builder, &arm.block)])
         );
     }
 
     if (match_stmt.rest_arm matches OptionBlockNode::Some(rest_block)) {
         vector_push(
             &arms,
-            Doc::Concat([Doc::Text("rest "), builder_build_block(&builder, &rest_block.value)])
+            Doc::Concat([Doc::Text("rest "), builder_build_block(&builder, &rest_block)])
         );
     }
 

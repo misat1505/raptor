@@ -2,10 +2,226 @@ import "../../selfhost/semantic-checker/semantic-helpers.rp";
 import "doc.rp";
 
 
-struct DocBuilder derives Debug {
-    Program ast
+struct SourceComment derives Debug {
+    i64 line,
+    i64 column,
+    str text,
+    bool trailing,
+    bool used
 };
 
+struct DocBuilder derives Debug {
+    Program ast,
+    SourceComment[] comments
+};
+
+
+fn extract_source_comments(str src): SourceComment[] {
+    let comments: SourceComment[] = [];
+    let line = 1;
+    let column = 1;
+    let i = 0;
+    let line_has_code = false;
+    let in_string = false;
+    let in_char = false;
+    let escape = false;
+
+    while (i < str_len(src)) {
+        let ch = src[i];
+
+        if (in_string) {
+            if (escape) {
+                escape = false;
+            } else if (ch == '\\') {
+                escape = true;
+            } else if (ch == '\"') {
+                in_string = false;
+            }
+
+            if (ch == '\n') {
+                line += 1;
+                column = 1;
+                line_has_code = false;
+                escape = false;
+            } else {
+                column += 1;
+            }
+            i += 1;
+            continue;
+        }
+
+        if (in_char) {
+            if (escape) {
+                escape = false;
+            } else if (ch == '\\') {
+                escape = true;
+            } else if (ch == (39 as u8) as char) {
+                in_char = false;
+            }
+
+            if (ch == '\n') {
+                line += 1;
+                column = 1;
+                line_has_code = false;
+                escape = false;
+                in_char = false;
+            } else {
+                column += 1;
+            }
+            i += 1;
+            continue;
+        }
+
+        if (ch == '\"') {
+            in_string = true;
+            line_has_code = true;
+            column += 1;
+            i += 1;
+            continue;
+        }
+
+        if (ch == (39 as u8) as char) {
+            in_char = true;
+            line_has_code = true;
+            column += 1;
+            i += 1;
+            continue;
+        }
+
+        if (ch == '#') {
+            let text = "";
+            let comment_column = column;
+            i += 1;
+            while (i < str_len(src) && src[i] != '\n' && src[i] != '\r') {
+                text += src[i];
+                i += 1;
+            }
+            vector_push(
+                &comments,
+                SourceComment {
+                    line: line,
+                    column: comment_column,
+                    text: text,
+                    trailing: line_has_code,
+                    used: false
+                }
+            );
+            continue;
+        }
+
+        if (ch == '\n') {
+            line += 1;
+            column = 1;
+            line_has_code = false;
+            i += 1;
+            continue;
+        }
+
+        if (ch == '\r') {
+            i += 1;
+            continue;
+        }
+
+        if (ch != ' ' && ch != '\t') {
+            line_has_code = true;
+        }
+        column += 1;
+        i += 1;
+    }
+
+    return comments;
+}
+
+fn builder_comment_text(&SourceComment comment): str {
+    return "#" + comment.text;
+}
+
+fn builder_take_leading_comments(&DocBuilder builder, i64 after_line, i64 before_line): Doc {
+    let parts: Doc[] = [];
+    let first = true;
+
+    for (let i = 0; i < vector_size(&builder.comments); i += 1) {
+        let comment = builder.comments[i];
+        if (comment.used) {
+            continue;
+        }
+        if (comment.trailing) {
+            continue;
+        }
+        if (comment.line <= after_line) {
+            continue;
+        }
+        if (comment.line >= before_line) {
+            break;
+        }
+
+        if (!first) {
+            vector_push(&parts, Doc::HardLine);
+        }
+        vector_push(&parts, Doc::Text(builder_comment_text(&comment)));
+        builder.comments[i].used = true;
+        first = false;
+    }
+
+    if (first) {
+        return Doc::Text("");
+    }
+    return Doc::Concat(parts);
+}
+
+fn builder_take_trailing_comment(&DocBuilder builder, i64 line): Doc {
+    for (let i = 0; i < vector_size(&builder.comments); i += 1) {
+        let comment = builder.comments[i];
+        if (comment.used) {
+            continue;
+        }
+        if (!comment.trailing) {
+            continue;
+        }
+        if (comment.line != line) {
+            continue;
+        }
+        builder.comments[i].used = true;
+        return Doc::Text("  " + builder_comment_text(&comment));
+    }
+    return Doc::Text("");
+}
+
+fn doc_is_empty_text(Doc doc): bool {
+    if (doc matches Doc::Text(t)) {
+        return str_len(t) == 0;
+    }
+    return false;
+}
+
+fn builder_with_comments(
+    &DocBuilder builder,
+    i64 after_line,
+    i64 start_line,
+    i64 end_line,
+    Doc item
+): Doc {
+    let leading = builder_take_leading_comments(&builder, after_line, start_line);
+    let trailing = builder_take_trailing_comment(&builder, end_line);
+
+    let has_leading = !doc_is_empty_text(leading);
+    let has_trailing = !doc_is_empty_text(trailing);
+
+    if (!has_leading && !has_trailing) {
+        return item;
+    }
+
+    let parts: Doc[] = [];
+    if (has_leading) {
+        vector_push(&parts, leading);
+        vector_push(&parts, Doc::HardLine);
+    }
+    vector_push(&parts, item);
+    if (has_trailing) {
+        vector_push(&parts, trailing);
+    }
+    return Doc::Concat(parts);
+}
 
 fn doc_builder_build(&DocBuilder builder): Doc {
     let sections: Doc[] = [];
@@ -29,7 +245,24 @@ fn doc_builder_build(&DocBuilder builder): Doc {
     let statements = builder_build_statements(&builder);
     builder_push_section(&sections, &statements, &hard);
 
-    return Doc::Concat([doc_join(&sections, &blank_lines), Doc::HardLine]);
+    let body = Doc::Concat([doc_join(&sections, &blank_lines), Doc::HardLine]);
+
+    # Preserve any leftover full-line comments (e.g. at end of file).
+    let leftover_parts: Doc[] = [];
+    for (let i = 0; i < vector_size(&builder.comments); i += 1) {
+        let comment = builder.comments[i];
+        if (comment.used || comment.trailing) {
+            continue;
+        }
+        vector_push(&leftover_parts, Doc::HardLine);
+        vector_push(&leftover_parts, Doc::Text(builder_comment_text(&comment)));
+        builder.comments[i].used = true;
+    }
+
+    if (vector_size(&leftover_parts) == 0) {
+        return body;
+    }
+    return Doc::Concat([body, Doc::Concat(leftover_parts), Doc::HardLine]);
 }
 
 fn builder_push_section(&Doc[] sections, &Doc[] items, &Doc separator): void {
@@ -41,14 +274,26 @@ fn builder_push_section(&Doc[] sections, &Doc[] items, &Doc separator): void {
 
 fn builder_build_imports(&DocBuilder builder): Doc[] {
     let imports: Doc[] = [];
+    let previous_end_line = 0;
 
     for (let i = 0; i < vector_size(&builder.ast.statements); i += 1) {
-        let stmt = builder.ast.statements[i].value;
+        let node = builder.ast.statements[i];
+        let stmt = node.value;
         if (stmt matches Statement::Import(path)) {
-            vector_push(
-                &imports,
-                Doc::Concat([Doc::Text("import \""), Doc::Text(path.value), Doc::Text("\";")])
+            let item = Doc::Concat([
+                Doc::Text("import \""),
+                Doc::Text(path.value),
+                Doc::Text("\";")
+            ]);
+            item = builder_with_comments(
+                &builder,
+                previous_end_line,
+                node.span.start.line,
+                node.span.end.line,
+                item
             );
+            vector_push(&imports, item);
+            previous_end_line = node.span.end.line;
         }
     }
 
@@ -75,9 +320,12 @@ fn builder_build_statements(&DocBuilder builder): Doc[] {
 
 fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
     let declarations: Doc[] = [];
+    let previous_end_line = 0;
 
     for (let i = 0; i < vector_size(&builder.ast.declared_types); i += 1) {
-        let type_decl = builder.ast.declared_types[i].value;
+        let node = builder.ast.declared_types[i];
+        let type_decl = node.value;
+        let item = Doc::Text("");
 
         match (type_decl) {
             DeclaredType::Struct(struct_decl) {
@@ -99,14 +347,11 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
                     );
                 }
 
-                vector_push(
-                    &declarations,
-                    builder_type_decl_doc(
-                        "struct",
-                        struct_decl.identifier.value,
-                        &type_derives,
-                        &members
-                    )
+                item = builder_type_decl_doc(
+                    "struct",
+                    struct_decl.identifier.value,
+                    &type_derives,
+                    &members
                 );
             },
             DeclaredType::Enum(enum_decl) {
@@ -128,17 +373,26 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
                     vector_push(&members, variant);
                 }
 
-                vector_push(
-                    &declarations,
-                    builder_type_decl_doc(
-                        "enum",
-                        enum_decl.identifier.value,
-                        &type_derives,
-                        &members
-                    )
+                item = builder_type_decl_doc(
+                    "enum",
+                    enum_decl.identifier.value,
+                    &type_derives,
+                    &members
                 );
             }
         }
+
+        vector_push(
+            &declarations,
+            builder_with_comments(
+                &builder,
+                previous_end_line,
+                node.span.start.line,
+                node.span.end.line,
+                item
+            )
+        );
+        previous_end_line = node.span.end.line;
     }
 
     return declarations;
@@ -169,9 +423,11 @@ fn builder_type_decl_doc(str keyword, str name, &Doc[] type_derives, &Doc[] memb
 
 fn builder_build_function_declarations(&DocBuilder builder): Doc[] {
     let function_declarations: Doc[] = [];
+    let previous_end_line = 0;
 
     for (let i = 0; i < vector_size(&builder.ast.functions); i += 1) {
-        let function = builder.ast.functions[i].value;
+        let node = builder.ast.functions[i];
+        let function = node.value;
 
         let parameters: Doc[] = [];
         for (let j = 0; j < vector_size(&function.parameters); j += 1) {
@@ -197,7 +453,18 @@ fn builder_build_function_declarations(&DocBuilder builder): Doc[] {
         let return_type = Doc::Text(": " + type_to_string(function.return_type.value) + " ");
         let block = builder_build_block(&builder, &function.block.value);
 
-        vector_push(&function_declarations, Doc::Concat([signature, return_type, block]));
+        let item = Doc::Concat([signature, return_type, block]);
+        vector_push(
+            &function_declarations,
+            builder_with_comments(
+                &builder,
+                previous_end_line,
+                node.span.start.line,
+                node.span.end.line,
+                item
+            )
+        );
+        previous_end_line = node.span.end.line;
     }
 
     return function_declarations;
@@ -205,9 +472,11 @@ fn builder_build_function_declarations(&DocBuilder builder): Doc[] {
 
 fn builder_build_extern_function_declarations(&DocBuilder builder): Doc[] {
     let function_declarations: Doc[] = [];
+    let previous_end_line = 0;
 
     for (let i = 0; i < vector_size(&builder.ast.extern_functions); i += 1) {
-        let function = builder.ast.extern_functions[i].value;
+        let node = builder.ast.extern_functions[i];
+        let function = node.value;
 
         let parameters: Doc[] = [];
         for (let j = 0; j < vector_size(&function.parameters); j += 1) {
@@ -238,7 +507,18 @@ fn builder_build_extern_function_declarations(&DocBuilder builder): Doc[] {
             vector_push(&segments, alias_text);
         }
         vector_push(&segments, Doc::Text(";"));
-        vector_push(&function_declarations, Doc::Concat(segments));
+        let item = Doc::Concat(segments);
+        vector_push(
+            &function_declarations,
+            builder_with_comments(
+                &builder,
+                previous_end_line,
+                node.span.start.line,
+                node.span.end.line,
+                item
+            )
+        );
+        previous_end_line = node.span.end.line;
     }
 
     return function_declarations;
@@ -268,14 +548,33 @@ fn builder_statements(&DocBuilder builder, &StatementNode[] nodes): Doc {
             continue;
         }
 
+        let leading = builder_take_leading_comments(
+            &builder,
+            previous_end_line,
+            node.span.start.line
+        );
+        let has_leading = !doc_is_empty_text(leading);
+
         if (has_previous) {
             vector_push(&parts, Doc::HardLine);
-            if (node.span.start.line - previous_end_line > 1) {
+            if (node.span.start.line - previous_end_line > 1 || has_leading) {
                 vector_push(&parts, Doc::HardLine);
             }
         }
 
-        vector_push(&parts, doc_builder_stmt(&builder, &node.value));
+        if (has_leading) {
+            vector_push(&parts, leading);
+            vector_push(&parts, Doc::HardLine);
+        }
+
+        let stmt_doc = doc_builder_stmt(&builder, &node.value);
+        let trailing = builder_take_trailing_comment(&builder, node.span.end.line);
+        if (!doc_is_empty_text(trailing)) {
+            vector_push(&parts, Doc::Concat([stmt_doc, trailing]));
+        } else {
+            vector_push(&parts, stmt_doc);
+        }
+
         previous_end_line = node.span.end.line;
         has_previous = true;
     }
@@ -1043,6 +1342,7 @@ fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
 
 fn builder_escape_char(char ch): str {
     let byte = ch as u8;
+
     if (byte == 0 as u8) {
         return "\\0";
     } else if (byte == 10 as u8) {
@@ -1056,10 +1356,12 @@ fn builder_escape_char(char ch): str {
     } else if (byte == 92 as u8) {
         return "\\\\";
     } else if (byte == 39 as u8) {
+        # Lexer currently rejects \', but emit it so the literal is at least visible.
         return "\\'";
     } else if (byte == 34 as u8) {
         return "\\\"";
     }
+
     return ch as str;
 }
 
@@ -1068,9 +1370,21 @@ fn builder_escape(&str text): str {
 
     for (let i = 0; i < str_len(text); i += 1) {
         let byte = text[i] as u8;
-        if (byte == 10 as u8) {
+        if (byte == 0 as u8) {
+            vector_push(&bytes, 92 as u8);
+            vector_push(&bytes, 48 as u8);
+        } else if (byte == 10 as u8) {
             vector_push(&bytes, 92 as u8);
             vector_push(&bytes, 110 as u8);
+        } else if (byte == 13 as u8) {
+            vector_push(&bytes, 92 as u8);
+            vector_push(&bytes, 114 as u8);
+        } else if (byte == 9 as u8) {
+            vector_push(&bytes, 92 as u8);
+            vector_push(&bytes, 116 as u8);
+        } else if (byte == 27 as u8) {
+            vector_push(&bytes, 92 as u8);
+            vector_push(&bytes, 101 as u8);
         } else if (byte == 92 as u8) {
             vector_push(&bytes, 92 as u8);
             vector_push(&bytes, 92 as u8);
@@ -1078,7 +1392,7 @@ fn builder_escape(&str text): str {
             vector_push(&bytes, 92 as u8);
             vector_push(&bytes, 34 as u8);
         } else {
-            vector_push(&bytes, text[i] as u8);
+            vector_push(&bytes, byte);
         }
     }
 

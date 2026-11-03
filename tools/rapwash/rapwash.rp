@@ -107,7 +107,8 @@ fn format_file(
         ResultParser::Ok(parser) {
             match (parser_parse(&parser)) {
                 ResultProgram::Ok(ast) {
-                    let doc_builder = DocBuilder { ast: ast };
+                    let comments = extract_source_comments(content);
+                    let doc_builder = DocBuilder { ast: ast, comments: comments };
                     let doc = doc_builder_build(&doc_builder);
                     let output = doc_print(&doc, max_line_size, indent_width);
 

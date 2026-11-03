@@ -139,6 +139,7 @@ fn builder_comment_text(&SourceComment comment): str {
 fn builder_take_leading_comments(&DocBuilder builder, i64 after_line, i64 before_line): Doc {
     let parts: Doc[] = [];
     let first = true;
+    let prev_comment_line = after_line;
 
     for (let i = 0; i < vector_size(&builder.comments); i += 1) {
         let comment = builder.comments[i];
@@ -157,15 +158,29 @@ fn builder_take_leading_comments(&DocBuilder builder, i64 after_line, i64 before
 
         if (!first) {
             vector_push(&parts, Doc::HardLine);
+
+            # Preserve a single blank line between comment groups when the
+            # source had one or more empty lines between them.
+            if (comment.line - prev_comment_line > 1) {
+                vector_push(&parts, Doc::HardLine);
+            }
         }
         vector_push(&parts, Doc::Text(builder_comment_text(&comment)));
         builder.comments[i].used = true;
+        prev_comment_line = comment.line;
         first = false;
     }
 
     if (first) {
         return Doc::Text("");
     }
+
+    # If the source had a blank line (or more) between the last leading
+    # comment and the following item, keep exactly one blank line.
+    if (before_line - prev_comment_line > 1) {
+        vector_push(&parts, Doc::HardLine);
+    }
+
     return Doc::Concat(parts);
 }
 

@@ -1241,10 +1241,9 @@ fn doc_builder_f64_literal_text(f64 v): str {
     let whole = v as i64;
     let frac = v - whole as f64;
 
+    # 15 digits + 1 extra for rounding (f64 ~15 decimal digits).
     let frac_digits = "";
-    let last_nonzero = 0 as i64;
-
-    for (let i = 0; i < 17; i += 1) {
+    for (let i = 0; i < 16; i += 1) {
         frac = frac * 10.0;
         let d = frac as i64;
         if (d < 0) {
@@ -1254,17 +1253,51 @@ fn doc_builder_f64_literal_text(f64 v): str {
             d = 9;
         }
         frac_digits += d as str;
-        if (d != 0) {
+        frac = frac - d as f64;
+    }
+
+    # Round using the 16th digit, then keep at most 15.
+    let digits = frac_digits;
+    if (str_len(digits) == 16) {
+        let round_up = digits[15] as u8 >= '5' as u8;
+        digits = str_substring(digits, 0, 15);
+
+        if (round_up) {
+            let carried = true;
+            let out = "";
+            for (let i = 14; i >= 0; i -= 1) {
+                let d = (digits[i] as u8 - '0' as u8) as i64;
+                if (carried) {
+                    d += 1;
+                    if (d == 10) {
+                        d = 0;
+                    } else {
+                        carried = false;
+                    }
+                }
+                out = d as str + out;
+            }
+            if (carried) {
+                whole += 1;
+                digits = "0";
+            } else {
+                digits = out;
+            }
+        }
+    }
+
+    let last_nonzero = 0 as i64;
+    for (let i = 0; i < str_len(digits); i += 1) {
+        if (digits[i] != '0') {
             last_nonzero = i + 1;
         }
-        frac = frac - d as f64;
     }
 
     if (last_nonzero == 0) {
         return whole as str + ".0";
     }
 
-    return whole as str + "." + str_substring(frac_digits, 0, last_nonzero);
+    return whole as str + "." + str_substring(digits, 0, last_nonzero);
 }
 
 fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {

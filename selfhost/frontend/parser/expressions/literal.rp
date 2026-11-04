@@ -4,6 +4,7 @@ import "../ast.rp";
 import "../parser-results.rp";
 import "../core.rp";
 
+
 fn parser_parse_literal(&Parser parser): ResultOptionLiteralNode {
     let token = parser_current_token(&parser);
 
@@ -11,42 +12,86 @@ fn parser_parse_literal(&Parser parser): ResultOptionLiteralNode {
     let matched = true;
 
     match (token.category) {
-        TokenCategory::True literal = Literal::True;,
-        TokenCategory::False literal = Literal::False;,
+        TokenCategory::True {
+            literal = Literal::True;
+        },
+        TokenCategory::False {
+            literal = Literal::False;
+        },
         TokenCategory::I64Value {
             match (token.value) {
-                TokenValue::I64(value) literal = Literal::I64(value);,
-                TokenValue::F64 matched = false;,
-                TokenValue::String matched = false;,
-                TokenValue::Char matched = false;,
-                TokenValue::Null matched = false;
+                TokenValue::I64(value) {
+                    literal = Literal::I64(value);
+                },
+                TokenValue::F64 {
+                    matched = false;
+                },
+                TokenValue::String {
+                    matched = false;
+                },
+                TokenValue::Char {
+                    matched = false;
+                },
+                TokenValue::Null {
+                    matched = false;
+                }
             }
         },
         TokenCategory::F64Value {
             match (token.value) {
-                TokenValue::F64(value) literal = Literal::F64(value);,
-                TokenValue::I64 matched = false;,
-                TokenValue::String matched = false;,
-                TokenValue::Char matched = false;,
-                TokenValue::Null matched = false;
+                TokenValue::F64(value) {
+                    literal = Literal::F64(value);
+                },
+                TokenValue::I64 {
+                    matched = false;
+                },
+                TokenValue::String {
+                    matched = false;
+                },
+                TokenValue::Char {
+                    matched = false;
+                },
+                TokenValue::Null {
+                    matched = false;
+                }
             }
         },
         TokenCategory::StringValue {
             match (token.value) {
-                TokenValue::String(value) literal = Literal::String(value);,
-                TokenValue::F64 matched = false;,
-                TokenValue::I64 matched = false;,
-                TokenValue::Char matched = false;,
-                TokenValue::Null matched = false;
+                TokenValue::String(value) {
+                    literal = Literal::String(value);
+                },
+                TokenValue::F64 {
+                    matched = false;
+                },
+                TokenValue::I64 {
+                    matched = false;
+                },
+                TokenValue::Char {
+                    matched = false;
+                },
+                TokenValue::Null {
+                    matched = false;
+                }
             }
         },
         TokenCategory::CharValue {
             match (token.value) {
-                TokenValue::Char(value) literal = Literal::Char(value);,
-                TokenValue::F64 matched = false;,
-                TokenValue::I64 matched = false;,
-                TokenValue::String matched = false;,
-                TokenValue::Null matched = false;
+                TokenValue::Char(value) {
+                    literal = Literal::Char(value);
+                },
+                TokenValue::F64 {
+                    matched = false;
+                },
+                TokenValue::I64 {
+                    matched = false;
+                },
+                TokenValue::String {
+                    matched = false;
+                },
+                TokenValue::Null {
+                    matched = false;
+                }
             }
         },
         rest {
@@ -54,10 +99,14 @@ fn parser_parse_literal(&Parser parser): ResultOptionLiteralNode {
         }
     }
 
-    if (!matched) return ResultOptionLiteralNode::Ok(OptionLiteralNode::None);
+    if (!matched) {
+        return ResultOptionLiteralNode::Ok(OptionLiteralNode::None);
+    }
 
     let advance = parser_next_token(&parser);
-    if (advance matches ResultOptionToken::Err(err)) return ResultOptionLiteralNode::Err(parser_error_from_lexer_error(&err));
+    if (advance matches ResultOptionToken::Err(err)) {
+        return ResultOptionLiteralNode::Err(parser_error_from_lexer_error(&err));
+    }
 
     return ResultOptionLiteralNode::Ok(OptionLiteralNode::Some(LiteralNode {
         value: literal,

@@ -4,6 +4,7 @@
 
 import "./ir-builder.rp";
 
+
 fn ir_emit_libc_declarations(&IrBuilder b): void {
     ir_emit(&b, "; --- libc / runtime declarations (mirrors LibcFunctions) ---");
     ir_emit(&b, "declare i32 @printf(ptr, ...)");
@@ -44,12 +45,12 @@ fn ir_emit_libc_declarations(&IrBuilder b): void {
     ir_emit(&b, "@stdin = external global ptr");
     ir_emit(&b, "@stderr = external global ptr");
     ir_emit(&b, "");
+
     # CLI globals (mirrors declare_main_function raptor_argc/argv)
     ir_emit(&b, "@raptor_argc = internal global i32 0");
     ir_emit(&b, "@raptor_argv = internal global ptr null");
     ir_emit(&b, "");
 }
-
 
 # llvm.{s,u}{add,sub,mul}.with.overflow.iN - only needed when an overflow
 # policy other than `ignore` is active.
@@ -64,7 +65,21 @@ fn ir_emit_overflow_intrinsics(&IrBuilder b): void {
                     sign = "u";
                 }
                 let ty = widths[w];
-                ir_emit(&b, "declare { " + ty + ", i1 } @llvm." + sign + ops[o] + ".with.overflow." + ty + "(" + ty + ", " + ty + ")");
+                ir_emit(
+                    &b,
+                    "declare { "
+                        + ty
+                        + ", i1 } @llvm."
+                        + sign
+                        + ops[o]
+                        + ".with.overflow."
+                        + ty
+                        + "("
+                        + ty
+                        + ", "
+                        + ty
+                        + ")"
+                );
             }
         }
     }

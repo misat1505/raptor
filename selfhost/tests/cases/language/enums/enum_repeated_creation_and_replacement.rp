@@ -1,9 +1,9 @@
-
 enum State {
     Text(str),
     Number(i64),
     Empty
 };
+
 
 fn state_repr(&State state): str {
     match (state) {
@@ -19,6 +19,7 @@ fn state_repr(&State state): str {
     }
 }
 
+
 let state = State::Text("first");
 println(state_repr(&state));
 
@@ -33,4 +34,3 @@ println(state_repr(&state));
 
 state = State::Empty;
 println(state_repr(&state));
-    

@@ -1,4 +1,3 @@
-
 struct Data {
     str data
 };
@@ -7,6 +6,7 @@ enum MyEnum {
     Empty,
     Complex(Data[])
 };
+
 
 let value = MyEnum::Complex([]);
 
@@ -18,4 +18,3 @@ match (value) {
         println(vector_size(&data) as str);
     }
 }
-    

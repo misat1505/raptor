@@ -7,29 +7,44 @@ import "../misc/identifier.rp";
 import "../expressions/expression.rp";
 import "../expressions/arguments.rp";
 
-fn parser_identifier_or_call_or_struct_literal_or_enum_literal(&Parser parser): ResultOptionExpressionNode {
+
+fn parser_identifier_or_call_or_struct_literal_or_enum_literal(
+    &Parser parser
+): ResultOptionExpressionNode {
     # identifier_or_call_or_struct_literal_or_enum_literal = identifier, ( call_or_index_tail | struct_literal_tail | enum_literal_tail );
     let identifier_call = parser_parse_identifier(&parser);
 
     match (identifier_call) {
-        ResultOptionIdentifierNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionIdentifierNode::Err(err) {
+            return ResultOptionExpressionNode::Err(err);
+        },
         ResultOptionIdentifierNode::Ok(option_identifier) {
             match (option_identifier) {
-                OptionIdentifierNode::None return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);,
+                OptionIdentifierNode::None {
+                    return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+                },
                 OptionIdentifierNode::Some(identifier) {
                     if (parser_current_token(&parser).category matches TokenCategory::BraceOpen) {
                         let struct_result = parser_parse_struct_literal_tail(&parser, &identifier);
                         match (struct_result) {
-                            ResultExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
-                            ResultExpressionNode::Ok(node) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(node));
+                            ResultExpressionNode::Err(err) {
+                                return ResultOptionExpressionNode::Err(err);
+                            },
+                            ResultExpressionNode::Ok(node) {
+                                return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(node));
+                            }
                         }
                     }
 
                     if (parser_current_token(&parser).category matches TokenCategory::DoubleColon) {
                         let enum_result = parser_parse_enum_literal_tail(&parser, &identifier);
                         match (enum_result) {
-                            ResultExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
-                            ResultExpressionNode::Ok(node) return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(node));
+                            ResultExpressionNode::Err(err) {
+                                return ResultOptionExpressionNode::Err(err);
+                            },
+                            ResultExpressionNode::Ok(node) {
+                                return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(node));
+                            }
                         }
                     }
 
@@ -45,13 +60,17 @@ fn parser_parse_enum_literal_tail(&Parser parser, &IdentifierNode enum_name): Re
     let start_position = enum_name.span.start;
 
     let double_colon_consumed = parser_consume_must_be(&parser, TokenCategory::DoubleColon);
-    if (double_colon_consumed matches ResultToken::Err(err)) return ResultExpressionNode::Err(err);
+    if (double_colon_consumed matches ResultToken::Err(err)) {
+        return ResultExpressionNode::Err(err);
+    }
 
     let variant_name_call = parser_parse_identifier(&parser);
     let variant_name = IdentifierNode { value: "", span: parser_current_token(&parser).span };
     let found_variant_name = false;
     match (variant_name_call) {
-        ResultOptionIdentifierNode::Err(err) return ResultExpressionNode::Err(err);,
+        ResultOptionIdentifierNode::Err(err) {
+            return ResultExpressionNode::Err(err);
+        },
         ResultOptionIdentifierNode::Ok(option_variant_name) {
             if (option_variant_name matches OptionIdentifierNode::Some(name)) {
                 variant_name = name;
@@ -60,33 +79,50 @@ fn parser_parse_enum_literal_tail(&Parser parser, &IdentifierNode enum_name): Re
         }
     }
 
-    if (!found_variant_name) return ResultExpressionNode::Err(
-        parser_create_parser_error(&parser, "Expected an identifier after '::'.")
-    );
+    if (!found_variant_name) {
+        return ResultExpressionNode::Err(parser_create_parser_error(
+            &parser,
+            "Expected an identifier after '::'."
+        ));
+    }
 
     let variant_value = OptionExpressionNode::None;
     let end_position = variant_name.span.end;
 
     let paren_open_consumed = parser_consume_if_matches(&parser, TokenCategory::ParenOpen);
     match (paren_open_consumed) {
-        ResultOptionToken::Err(err) return ResultExpressionNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Err(err) {
+            return ResultExpressionNode::Err(parser_error_from_lexer_error(&err));
+        },
         ResultOptionToken::Ok(option_paren) {
             if (option_paren matches OptionToken::Some) {
                 let value_call = parser_parse_expression(&parser);
                 match (value_call) {
-                    ResultOptionExpressionNode::Err(err) return ResultExpressionNode::Err(err);,
+                    ResultOptionExpressionNode::Err(err) {
+                        return ResultExpressionNode::Err(err);
+                    },
                     ResultOptionExpressionNode::Ok(option_value) {
                         match (option_value) {
-                            OptionExpressionNode::None return ResultExpressionNode::Err(
-                                parser_create_parser_error(&parser, "Expected an expression in enum variant value.")
-                            );,
+                            OptionExpressionNode::None {
+                                return ResultExpressionNode::Err(parser_create_parser_error(
+                                    &parser,
+                                    "Expected an expression in enum variant value."
+                                ));
+                            },
                             OptionExpressionNode::Some(value) {
                                 variant_value = OptionExpressionNode::Some(value);
 
-                                let close_paren = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+                                let close_paren = parser_consume_must_be(
+                                    &parser,
+                                    TokenCategory::ParenClose
+                                );
                                 match (close_paren) {
-                                    ResultToken::Err(err) return ResultExpressionNode::Err(err);,
-                                    ResultToken::Ok(close_token) end_position = close_token.span.end;
+                                    ResultToken::Err(err) {
+                                        return ResultExpressionNode::Err(err);
+                                    },
+                                    ResultToken::Ok(close_token) {
+                                        end_position = close_token.span.end;
+                                    }
                                 }
                             }
                         }
@@ -106,7 +142,10 @@ fn parser_parse_enum_literal_tail(&Parser parser, &IdentifierNode enum_name): Re
     });
 }
 
-fn parser_parse_call_or_index_tail(&Parser parser, &IdentifierNode identifier): ResultOptionExpressionNode {
+fn parser_parse_call_or_index_tail(
+    &Parser parser,
+    &IdentifierNode identifier
+): ResultOptionExpressionNode {
     # call_or_index_tail = [ "(", arguments, ")" ], { access_tail };
     let start_position = identifier.span.start;
 
@@ -115,21 +154,32 @@ fn parser_parse_call_or_index_tail(&Parser parser, &IdentifierNode identifier): 
 
     let paren_open_consumed = parser_consume_if_matches(&parser, TokenCategory::ParenOpen);
     match (paren_open_consumed) {
-        ResultOptionToken::Err(err) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));,
+        ResultOptionToken::Err(err) {
+            return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+        },
         ResultOptionToken::Ok(option_paren) {
             if (option_paren matches OptionToken::Some) {
                 let arguments_call = parser_parse_arguments(&parser);
                 let arguments: ArgumentNode[] = [];
                 match (arguments_call) {
-                    ResultArgumentNodeVec::Err(err) return ResultOptionExpressionNode::Err(err);,
-                    ResultArgumentNodeVec::Ok(parsed_arguments) arguments = parsed_arguments;
+                    ResultArgumentNodeVec::Err(err) {
+                        return ResultOptionExpressionNode::Err(err);
+                    },
+                    ResultArgumentNodeVec::Ok(parsed_arguments) {
+                        arguments = parsed_arguments;
+                    }
                 }
 
                 let close_paren = parser_consume_must_be(&parser, TokenCategory::ParenClose);
                 match (close_paren) {
-                    ResultToken::Err(err) return ResultOptionExpressionNode::Err(err);,
+                    ResultToken::Err(err) {
+                        return ResultOptionExpressionNode::Err(err);
+                    },
                     ResultToken::Ok(close_token) {
-                        result = Expression::FunctionCall(FunctionCallExpression { identifier: identifier, arguments: arguments });
+                        result = Expression::FunctionCall(FunctionCallExpression {
+                            identifier: identifier,
+                            arguments: arguments
+                        });
                         end_position = close_token.span.end;
                     }
                 }
@@ -142,26 +192,41 @@ fn parser_parse_call_or_index_tail(&Parser parser, &IdentifierNode identifier): 
 
         if (current_category matches TokenCategory::BracketOpen) {
             let open_bracket = parser_consume_must_be(&parser, TokenCategory::BracketOpen);
-            if (open_bracket matches ResultToken::Err(err)) return ResultOptionExpressionNode::Err(err);
+            if (open_bracket matches ResultToken::Err(err)) {
+                return ResultOptionExpressionNode::Err(err);
+            }
 
             let index_call = parser_parse_expression(&parser);
             match (index_call) {
-                ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+                ResultOptionExpressionNode::Err(err) {
+                    return ResultOptionExpressionNode::Err(err);
+                },
                 ResultOptionExpressionNode::Ok(option_index) {
                     match (option_index) {
-                        OptionExpressionNode::None return ResultOptionExpressionNode::Err(
-                            parser_create_parser_error(&parser, "Expected an expression inside '[]' index.")
-                        );,
+                        OptionExpressionNode::None {
+                            return ResultOptionExpressionNode::Err(parser_create_parser_error(
+                                &parser,
+                                "Expected an expression inside '[]' index."
+                            ));
+                        },
                         OptionExpressionNode::Some(index_expression) {
-                            let close_bracket = parser_consume_must_be(&parser, TokenCategory::BracketClose);
+                            let close_bracket = parser_consume_must_be(
+                                &parser,
+                                TokenCategory::BracketClose
+                            );
                             match (close_bracket) {
-                                ResultToken::Err(err) return ResultOptionExpressionNode::Err(err);,
+                                ResultToken::Err(err) {
+                                    return ResultOptionExpressionNode::Err(err);
+                                },
                                 ResultToken::Ok(close_bracket_token) {
                                     let collection_node = ExpressionNode {
                                         value: result,
                                         span: span_new(start_position, index_expression.span.start)
                                     };
-                                    result = Expression::Index(IndexExpression { collection: collection_node, index: index_expression });
+                                    result = Expression::Index(IndexExpression {
+                                        collection: collection_node,
+                                        index: index_expression
+                                    });
                                     end_position = close_bracket_token.span.end;
                                 }
                             }
@@ -171,22 +236,32 @@ fn parser_parse_call_or_index_tail(&Parser parser, &IdentifierNode identifier): 
             }
         } else if (current_category matches TokenCategory::Dot) {
             let dot_consumed = parser_consume_must_be(&parser, TokenCategory::Dot);
-            if (dot_consumed matches ResultToken::Err(err)) return ResultOptionExpressionNode::Err(err);
+            if (dot_consumed matches ResultToken::Err(err)) {
+                return ResultOptionExpressionNode::Err(err);
+            }
 
             let field_call = parser_parse_identifier(&parser);
             match (field_call) {
-                ResultOptionIdentifierNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+                ResultOptionIdentifierNode::Err(err) {
+                    return ResultOptionExpressionNode::Err(err);
+                },
                 ResultOptionIdentifierNode::Ok(option_field) {
                     match (option_field) {
-                        OptionIdentifierNode::None return ResultOptionExpressionNode::Err(
-                            parser_create_parser_error(&parser, "Expected an identifier after '.'.")
-                        );,
+                        OptionIdentifierNode::None {
+                            return ResultOptionExpressionNode::Err(parser_create_parser_error(
+                                &parser,
+                                "Expected an identifier after '.'."
+                            ));
+                        },
                         OptionIdentifierNode::Some(field) {
                             let instance_node = ExpressionNode {
                                 value: result,
                                 span: span_new(start_position, field.span.start)
                             };
-                            result = Expression::FieldAccess(FieldAccessExpression { instance: instance_node, field: field });
+                            result = Expression::FieldAccess(FieldAccessExpression {
+                                instance: instance_node,
+                                field: field
+                            });
                             end_position = field.span.end;
                         }
                     }
@@ -203,23 +278,34 @@ fn parser_parse_call_or_index_tail(&Parser parser, &IdentifierNode identifier): 
     }));
 }
 
-fn parser_parse_struct_literal_tail(&Parser parser, &IdentifierNode identifier): ResultExpressionNode {
+fn parser_parse_struct_literal_tail(
+    &Parser parser,
+    &IdentifierNode identifier
+): ResultExpressionNode {
     # struct_literal_tail = "{", [ struct_literal_fields ], "}";
     let start_position = identifier.span.start;
 
     let open_brace = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
-    if (open_brace matches ResultToken::Err(err)) return ResultExpressionNode::Err(err);
+    if (open_brace matches ResultToken::Err(err)) {
+        return ResultExpressionNode::Err(err);
+    }
 
     let fields_call = parser_parse_struct_literal_fields(&parser);
     let fields: StructLiteralFieldNode[] = [];
     match (fields_call) {
-        ResultStructLiteralFieldNodeVec::Err(err) return ResultExpressionNode::Err(err);,
-        ResultStructLiteralFieldNodeVec::Ok(parsed_fields) fields = parsed_fields;
+        ResultStructLiteralFieldNodeVec::Err(err) {
+            return ResultExpressionNode::Err(err);
+        },
+        ResultStructLiteralFieldNodeVec::Ok(parsed_fields) {
+            fields = parsed_fields;
+        }
     }
 
     let close_brace = parser_consume_must_be(&parser, TokenCategory::BraceClose);
     match (close_brace) {
-        ResultToken::Err(err) return ResultExpressionNode::Err(err);,
+        ResultToken::Err(err) {
+            return ResultExpressionNode::Err(err);
+        },
         ResultToken::Ok(close_token) {
             let whole_span = span_new(start_position, close_token.span.end);
             return ResultExpressionNode::Ok(ExpressionNode {
@@ -239,11 +325,17 @@ fn parser_parse_struct_literal_fields(&Parser parser): ResultStructLiteralFieldN
     let fields: StructLiteralFieldNode[] = [];
 
     match (first_call) {
-        ResultOptionStructLiteralFieldNode::Err(err) return ResultStructLiteralFieldNodeVec::Err(err);,
+        ResultOptionStructLiteralFieldNode::Err(err) {
+            return ResultStructLiteralFieldNodeVec::Err(err);
+        },
         ResultOptionStructLiteralFieldNode::Ok(option_first) {
             match (option_first) {
-                OptionStructLiteralFieldNode::None return ResultStructLiteralFieldNodeVec::Ok(fields);,
-                OptionStructLiteralFieldNode::Some(first_field) vector_push(&fields, first_field);
+                OptionStructLiteralFieldNode::None {
+                    return ResultStructLiteralFieldNodeVec::Ok(fields);
+                },
+                OptionStructLiteralFieldNode::Some(first_field) {
+                    vector_push(&fields, first_field);
+                }
             }
         }
     }
@@ -252,23 +344,36 @@ fn parser_parse_struct_literal_fields(&Parser parser): ResultStructLiteralFieldN
         let comma_consumed = parser_consume_if_matches(&parser, TokenCategory::Comma);
         let has_comma = false;
         match (comma_consumed) {
-            ResultOptionToken::Err(err) return ResultStructLiteralFieldNodeVec::Err(parser_error_from_lexer_error(&err));,
+            ResultOptionToken::Err(err) {
+                return ResultStructLiteralFieldNodeVec::Err(parser_error_from_lexer_error(&err));
+            },
             ResultOptionToken::Ok(option_comma) {
-                if (option_comma matches OptionToken::Some) has_comma = true;
+                if (option_comma matches OptionToken::Some) {
+                    has_comma = true;
+                }
             }
         }
 
-        if (!has_comma) break;
+        if (!has_comma) {
+            break;
+        }
 
         let next_call = parser_parse_struct_literal_field(&parser);
         match (next_call) {
-            ResultOptionStructLiteralFieldNode::Err(err) return ResultStructLiteralFieldNodeVec::Err(err);,
+            ResultOptionStructLiteralFieldNode::Err(err) {
+                return ResultStructLiteralFieldNodeVec::Err(err);
+            },
             ResultOptionStructLiteralFieldNode::Ok(option_next) {
                 match (option_next) {
-                    OptionStructLiteralFieldNode::None return ResultStructLiteralFieldNodeVec::Err(
-                        parser_create_parser_error(&parser, "Expected struct literal field after comma.")
-                    );,
-                    OptionStructLiteralFieldNode::Some(next_field) vector_push(&fields, next_field);
+                    OptionStructLiteralFieldNode::None {
+                        return ResultStructLiteralFieldNodeVec::Err(parser_create_parser_error(
+                            &parser,
+                            "Expected struct literal field after comma."
+                        ));
+                    },
+                    OptionStructLiteralFieldNode::Some(next_field) {
+                        vector_push(&fields, next_field);
+                    }
                 }
             }
         }
@@ -282,28 +387,49 @@ fn parser_parse_struct_literal_field(&Parser parser): ResultOptionStructLiteralF
     let identifier_call = parser_parse_identifier(&parser);
 
     match (identifier_call) {
-        ResultOptionIdentifierNode::Err(err) return ResultOptionStructLiteralFieldNode::Err(err);,
+        ResultOptionIdentifierNode::Err(err) {
+            return ResultOptionStructLiteralFieldNode::Err(err);
+        },
         ResultOptionIdentifierNode::Ok(option_identifier) {
             match (option_identifier) {
-                OptionIdentifierNode::None return ResultOptionStructLiteralFieldNode::Ok(OptionStructLiteralFieldNode::None);,
+                OptionIdentifierNode::None {
+                    return ResultOptionStructLiteralFieldNode::Ok(OptionStructLiteralFieldNode::None);
+                },
                 OptionIdentifierNode::Some(identifier) {
                     let colon_consumed = parser_consume_if_matches(&parser, TokenCategory::Colon);
                     match (colon_consumed) {
-                        ResultOptionToken::Err(err) return ResultOptionStructLiteralFieldNode::Err(parser_error_from_lexer_error(&err));,
+                        ResultOptionToken::Err(err) {
+                            return ResultOptionStructLiteralFieldNode::Err(parser_error_from_lexer_error(
+                                &err
+                            ));
+                        },
                         ResultOptionToken::Ok(option_colon) {
                             if (option_colon matches OptionToken::Some) {
                                 let value_call = parser_parse_expression(&parser);
                                 match (value_call) {
-                                    ResultOptionExpressionNode::Err(err) return ResultOptionStructLiteralFieldNode::Err(err);,
+                                    ResultOptionExpressionNode::Err(err) {
+                                        return ResultOptionStructLiteralFieldNode::Err(err);
+                                    },
                                     ResultOptionExpressionNode::Ok(option_value) {
                                         match (option_value) {
-                                            OptionExpressionNode::None return ResultOptionStructLiteralFieldNode::Err(
-                                                parser_create_parser_error(&parser, "Expected expression after ':' in struct literal field.")
-                                            );,
-                                            OptionExpressionNode::Some(value) return ResultOptionStructLiteralFieldNode::Ok(OptionStructLiteralFieldNode::Some(StructLiteralFieldNode {
-                                                value: StructLiteralField { identifier: identifier, value: value },
-                                                span: span_new(identifier.span.start, value.span.end)
-                                            }));
+                                            OptionExpressionNode::None {
+                                                return ResultOptionStructLiteralFieldNode::Err(parser_create_parser_error(
+                                                    &parser,
+                                                    "Expected expression after ':' in struct literal field."
+                                                ));
+                                            },
+                                            OptionExpressionNode::Some(value) {
+                                                return ResultOptionStructLiteralFieldNode::Ok(OptionStructLiteralFieldNode::Some(StructLiteralFieldNode {
+                                                    value: StructLiteralField {
+                                                        identifier: identifier,
+                                                        value: value
+                                                    },
+                                                    span: span_new(
+                                                        identifier.span.start,
+                                                        value.span.end
+                                                    )
+                                                }));
+                                            }
                                         }
                                     }
                                 }
@@ -314,7 +440,10 @@ fn parser_parse_struct_literal_field(&Parser parser): ResultOptionStructLiteralF
                             return ResultOptionStructLiteralFieldNode::Ok(OptionStructLiteralFieldNode::Some(StructLiteralFieldNode {
                                 value: StructLiteralField {
                                     identifier: identifier,
-                                    value: ExpressionNode { value: Expression::Variable(identifier.value), span: shorthand_span }
+                                    value: ExpressionNode {
+                                        value: Expression::Variable(identifier.value),
+                                        span: shorthand_span
+                                    }
                                 },
                                 span: shorthand_span
                             }));

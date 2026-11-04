@@ -1,8 +1,8 @@
-
 enum Data {
     Numbers(i64[]),
     Text(str)
 };
+
 
 fn data_sum(&Data data): i64 {
     match (data) {
@@ -21,7 +21,7 @@ fn data_sum(&Data data): i64 {
     }
 }
 
+
 let data = Data::Numbers([10, 20, 30, 40]);
 
 println(data_sum(&data) as str);
-    

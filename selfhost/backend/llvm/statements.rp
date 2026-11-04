@@ -8,6 +8,7 @@ import "./expressions.rp";
 import "./ir-builder.rp";
 import "./types-ir.rp";
 
+
 fn llvm_compile_block(&LlvmCompiler c, BlockNode block): void {
     let marker = llvm_compiler_push_scope_marker(&c);
     for (let i = 0; i < vector_size(&block.value.statements); i += 1) {
@@ -26,7 +27,9 @@ fn llvm_compile_block(&LlvmCompiler c, BlockNode block): void {
 fn llvm_double_const(str int_or_float): str {
     let n = str_len(int_or_float);
     for (let i = 0; i < n; i += 1) {
-        if (int_or_float[i] == '.') return int_or_float;
+        if (int_or_float[i] == '.') {
+            return int_or_float;
+        }
     }
     for (let i = 0; i < n; i += 1) {
         let c = int_or_float[i];
@@ -135,7 +138,10 @@ fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
                     if (k.var_type.value matches Type::Str) {
                         ir_emit(&c.ir, "  store ptr " + llvm_str_literal(&c, "") + ", ptr " + ptr);
                     } else if (k.var_type.value matches Type::Vector) {
-                        ir_emit(&c.ir, "  store ptr " + llvm_vector_alloc_empty(&c) + ", ptr " + ptr);
+                        ir_emit(
+                            &c.ir,
+                            "  store ptr " + llvm_vector_alloc_empty(&c) + ", ptr " + ptr
+                        );
                     } else {
                         let def = type_default_llvm(k.var_type.value);
                         if (ty == "double") {
@@ -175,6 +181,7 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
     let base = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + base + " = load " + v.ty + ", ptr " + v.ptr);
     let cur = base;
+
     # Raptor type name of `cur` as we walk the accessor chain ("" = unknown).
     let cur_rty = v.rty;
 
@@ -192,6 +199,7 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                         }
                     }
                 }
+
                 # Prefer the real layout of the struct we are walking through
                 # when known (by-name lookup is ambiguous across structs).
                 let next_rty = "";
@@ -207,7 +215,10 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                 }
                 cur_rty = next_rty;
                 let gep = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + gep + " = getelementptr i8, ptr " + cur + ", i64 " + (fidx * 8) as str);
+                ir_emit(
+                    &c.ir,
+                    "  " + gep + " = getelementptr i8, ptr " + cur + ", i64 " + (fidx * 8) as str
+                );
                 if (is_last) {
                     if (rty == "ptr") {
                         if (c.arc) {
@@ -237,7 +248,10 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                     # s[i] = c: overwrite one byte of the (private) string in place.
                     llvm_emit_bounds_check(&c, cur, i_val, true, index_expr.span);
                     let byte_p = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + byte_p + " = getelementptr i8, ptr " + cur + ", i64 " + i_val);
+                    ir_emit(
+                        &c.ir,
+                        "  " + byte_p + " = getelementptr i8, ptr " + cur + ", i64 " + i_val
+                    );
                     let byte_v = llvm_resize_int(&c, rval, rty, "i8", false);
                     ir_emit(&c.ir, "  store i8 " + byte_v + ", ptr " + byte_p);
                     return;
@@ -248,14 +262,20 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
                 let data = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + data + " = load ptr, ptr " + data_p);
                 let slot = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + slot + " = getelementptr ptr, ptr " + data + ", i64 " + i_val);
+                ir_emit(
+                    &c.ir,
+                    "  " + slot + " = getelementptr ptr, ptr " + data + ", i64 " + i_val
+                );
                 if (is_last) {
                     if (rty == "ptr") {
                         if (c.arc) {
                             let old_e = ir_tmp(&c.ir);
                             ir_emit(&c.ir, "  " + old_e + " = load ptr, ptr " + slot);
                             ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + slot);
-                            ir_emit(&c.ir, "  store i64 1, ptr " + cur);   # elements are managed pointers
+                            ir_emit(
+                                &c.ir,
+                                "  store i64 1, ptr " + cur
+                            );  # elements are managed pointers
                             llvm_emit_release(&c, old_e);
                         } else {
                             ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + slot);
@@ -343,6 +363,7 @@ fn llvm_compile_while(&LlvmCompiler c, WhileLoopStatement stmt): void {
     vector_push(&c.cont_marks, vector_size(&c.locals));
     vector_push(&c.cont_temp_marks, vector_size(&c.temps));
     llvm_compile_block(&c, stmt.block);
+
     # pop stacks
     let nb: str[] = [];
     for (let i = 0; i < vector_size(&c.break_stack) - 1; i += 1) {
@@ -453,11 +474,11 @@ fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
     llvm_compiler_pop_scope(&c, marker);
 }
 
-
 fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
     let outer_marker = llvm_compiler_push_scope_marker(&c);
     llvm_compile_expression(&c, m.expression);
     let scrut = c.last_value;
+
     # A fresh subject (e.g. the result of a call) must outlive the arms, whose
     # bindings point into it: park it in a hidden owned local, released when the
     # match ends or on any return / break out of an arm.
@@ -466,6 +487,7 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
         ir_emit(&c.ir, "  store ptr " + scrut + ", ptr " + hidden);
         llvm_compiler_mark_last_owned(&c);
     }
+
     # load tag at offset 8
     let tag_p = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + tag_p + " = getelementptr i8, ptr " + scrut + ", i64 8");
@@ -484,16 +506,23 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
     # chain of icmp + br
     for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
         let arm = m.match_arms[i];
-        let expected = llvm_enum_variant_tag(&c, arm.value.enum_name.value, arm.value.variant_name.value);
+        let expected = llvm_enum_variant_tag(
+            &c,
+            arm.value.enum_name.value,
+            arm.value.variant_name.value
+        );
         let cmp = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + cmp + " = icmp eq i64 " + tag + ", " + expected as str);
         let next_check = ir_label(&c.ir, "match.chk");
         ir_emit(&c.ir, "  br i1 " + cmp + ", label %" + arm_labels[i] + ", label %" + next_check);
         ir_emit(&c.ir, next_check + ":");
     }
+
     # no arm matched -> rest or end
     match (m.rest_arm) {
-        OptionBlockNode::Some ir_emit(&c.ir, "  br label %" + rest_l);,
+        OptionBlockNode::Some {
+            ir_emit(&c.ir, "  br label %" + rest_l);
+        },
         OptionBlockNode::None {
             # The semantic checker should guarantee exhaustiveness; like the
             # Rust backend, fail loudly if it did not.
@@ -513,7 +542,12 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
             # so they must be loaded as i64 and narrowed, not loaded as `ptr`.
             let pay_ty = "ptr";
             let pay_rty = "";
-            if (llvm_lookup_enum(&c, arm.value.enum_name.value) matches OptionEnumDeclaration::Some(ed)) {
+            if (
+                llvm_lookup_enum(
+                    &c,
+                    arm.value.enum_name.value
+                ) matches OptionEnumDeclaration::Some(ed)
+            ) {
                 for (let mi = 0; mi < vector_size(&ed.members); mi += 1) {
                     if (ed.members[mi].value.identifier.value == arm.value.variant_name.value) {
                         if (ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)) {
@@ -528,6 +562,7 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
             if (pay_ty == "ptr") {
                 let pay = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + pay + " = load ptr, ptr " + pay_p);
+
                 # The binding owns a reference of its own: the arm may replace
                 # or mutate the matched value (e.g. `x.f = None;`), which would
                 # otherwise free the payload while the binding is still used.
@@ -667,11 +702,21 @@ fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
 
 fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
     match (node.value) {
-        Statement::Declaration(d) llvm_compile_declaration(&c, d);,
-        Statement::Assignment(a) llvm_compile_assignment(&c, a);,
-        Statement::Conditional(s) llvm_compile_if(&c, s);,
-        Statement::WhileLoop(s) llvm_compile_while(&c, s);,
-        Statement::ForLoop(s) llvm_compile_for(&c, s);,
+        Statement::Declaration(d) {
+            llvm_compile_declaration(&c, d);
+        },
+        Statement::Assignment(a) {
+            llvm_compile_assignment(&c, a);
+        },
+        Statement::Conditional(s) {
+            llvm_compile_if(&c, s);
+        },
+        Statement::WhileLoop(s) {
+            llvm_compile_while(&c, s);
+        },
+        Statement::ForLoop(s) {
+            llvm_compile_for(&c, s);
+        },
         Statement::Return(opt) {
             match (opt) {
                 OptionExpressionNode::Some(expr) {
@@ -719,7 +764,10 @@ fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
                             } else {
                                 # last resort: bitcast if same width-ish
                                 let t = ir_tmp(&c.ir);
-                                ir_emit(&c.ir, "  " + t + " = bitcast " + from + " " + v + " to " + to);
+                                ir_emit(
+                                    &c.ir,
+                                    "  " + t + " = bitcast " + from + " " + v + " to " + to
+                                );
                                 v = t;
                             }
                         }
@@ -765,6 +813,7 @@ fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
         Statement::FunctionCall(call) {
             # Statement form of call - wrap as expression
             llvm_compile_function_call(&c, call);
+
             # A discarded result still carries a +1 reference. User functions
             # always return one; builtins only when they return a string/vector.
             if (c.arc && c.last_type == "ptr") {
@@ -777,8 +826,8 @@ fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
         Statement::Switch(sw) {
             llvm_compile_switch(&c, sw);
         },
-        Statement::Import {
-            # imports already resolved before compile
-        }
+        Statement::Import {}
     }
 }
+
+# imports already resolved before compile

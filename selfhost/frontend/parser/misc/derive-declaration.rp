@@ -4,6 +4,7 @@ import "../ast.rp";
 import "../parser-results.rp";
 import "../core.rp";
 
+
 # Note: this file deliberately does not `import` `./identifier.rp`.
 # Every leaf parser file only imports the shared foundation (ast,
 # parser_results, core, tokens, common/*); cross-references between
@@ -24,8 +25,12 @@ fn parser_parse_derive_declaration(&Parser parser): ResultIdentifierNodeVec {
 
     let has_derives_keyword = OptionToken::None;
     match (consumed_derives_keyword) {
-        ResultOptionToken::Err(err) return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));,
-        ResultOptionToken::Ok(t) has_derives_keyword = t;
+        ResultOptionToken::Err(err) {
+            return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));
+        },
+        ResultOptionToken::Ok(t) {
+            has_derives_keyword = t;
+        }
     }
 
     if (has_derives_keyword matches OptionToken::None) {
@@ -37,13 +42,20 @@ fn parser_parse_derive_declaration(&Parser parser): ResultIdentifierNodeVec {
     let type_derives: IdentifierNode[] = [];
 
     match (first) {
-        ResultOptionIdentifierNode::Err(err) return ResultIdentifierNodeVec::Err(err);,
+        ResultOptionIdentifierNode::Err(err) {
+            return ResultIdentifierNodeVec::Err(err);
+        },
         ResultOptionIdentifierNode::Ok(option_identifier) {
             match (option_identifier) {
-                OptionIdentifierNode::Some(identifier) vector_push(&type_derives, identifier);,
-                OptionIdentifierNode::None return ResultIdentifierNodeVec::Err(
-                    parser_create_parser_error(&parser, "Couldn't create identifier while parsing derive declaration.")
-                );
+                OptionIdentifierNode::Some(identifier) {
+                    vector_push(&type_derives, identifier);
+                },
+                OptionIdentifierNode::None {
+                    return ResultIdentifierNodeVec::Err(parser_create_parser_error(
+                        &parser,
+                        "Couldn't create identifier while parsing derive declaration."
+                    ));
+                }
             }
         }
     }
@@ -52,21 +64,34 @@ fn parser_parse_derive_declaration(&Parser parser): ResultIdentifierNodeVec {
         let comma = parser_consume_if_matches(&parser, TokenCategory::Comma);
         let has_comma = OptionToken::None;
         match (comma) {
-            ResultOptionToken::Err(err) return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));,
-            ResultOptionToken::Ok(t) has_comma = t;
+            ResultOptionToken::Err(err) {
+                return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));
+            },
+            ResultOptionToken::Ok(t) {
+                has_comma = t;
+            }
         }
 
-        if (has_comma matches OptionToken::None) break;
+        if (has_comma matches OptionToken::None) {
+            break;
+        }
 
         let next = parser_parse_identifier(&parser);
         match (next) {
-            ResultOptionIdentifierNode::Err(err) return ResultIdentifierNodeVec::Err(err);,
+            ResultOptionIdentifierNode::Err(err) {
+                return ResultIdentifierNodeVec::Err(err);
+            },
             ResultOptionIdentifierNode::Ok(option_identifier) {
                 match (option_identifier) {
-                    OptionIdentifierNode::Some(identifier) vector_push(&type_derives, identifier);,
-                    OptionIdentifierNode::None return ResultIdentifierNodeVec::Err(
-                        parser_create_parser_error(&parser, "Couldn't create identifier while parsing derive declaration.")
-                    );
+                    OptionIdentifierNode::Some(identifier) {
+                        vector_push(&type_derives, identifier);
+                    },
+                    OptionIdentifierNode::None {
+                        return ResultIdentifierNodeVec::Err(parser_create_parser_error(
+                            &parser,
+                            "Couldn't create identifier while parsing derive declaration."
+                        ));
+                    }
                 }
             }
         }

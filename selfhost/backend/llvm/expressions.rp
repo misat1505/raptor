@@ -7,22 +7,35 @@ import "./compiler-core.rp";
 import "./ir-builder.rp";
 import "./types-ir.rp";
 
+
 fn llvm_compile_literal(&LlvmCompiler c, Literal lit): void {
     match (lit) {
-        Literal::True llvm_compiler_set_last(&c, "1", "i1");,
-        Literal::False llvm_compiler_set_last(&c, "0", "i1");,
-        Literal::I64(v) llvm_compiler_set_last(&c, v as str, "i64");,
-        Literal::F64(v) llvm_compiler_set_last(&c, llvm_double_const(llvm_f64_literal_text(v)), "double");,
+        Literal::True {
+            llvm_compiler_set_last(&c, "1", "i1");
+        },
+        Literal::False {
+            llvm_compiler_set_last(&c, "0", "i1");
+        },
+        Literal::I64(v) {
+            llvm_compiler_set_last(&c, v as str, "i64");
+        },
+        Literal::F64(v) {
+            llvm_compiler_set_last(&c, llvm_double_const(llvm_f64_literal_text(v)), "double");
+        },
         Literal::String(s) {
             llvm_compiler_set_last(&c, llvm_str_literal(&c, s), "ptr");
         },
-        Literal::Char(ch) llvm_compiler_set_last(&c, ((ch as u8) as i64) as str, "i32");
+        Literal::Char(ch) {
+            llvm_compiler_set_last(&c, ((ch as u8) as i64) as str, "i32");
+        }
     }
 }
 
 # Integer-ish value (any width, ptr, i1) or double -> double.
 fn llvm_as_double(&LlvmCompiler c, str value, str ty): str {
-    if (ty == "double") return value;
+    if (ty == "double") {
+        return value;
+    }
     let as64 = llvm_as_i64(&c, value, ty);
     let t = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + t + " = sitofp i64 " + as64 + " to double");
@@ -31,16 +44,26 @@ fn llvm_as_double(&LlvmCompiler c, str value, str ty): str {
 
 # integer opcode -> floating point opcode
 fn llvm_float_op(str op): str {
-    if (op == "add") return "fadd";
-    if (op == "sub") return "fsub";
-    if (op == "mul") return "fmul";
-    if (op == "sdiv") return "fdiv";
+    if (op == "add") {
+        return "fadd";
+    }
+    if (op == "sub") {
+        return "fsub";
+    }
+    if (op == "mul") {
+        return "fmul";
+    }
+    if (op == "sdiv") {
+        return "fdiv";
+    }
     return "frem";
 }
 
 fn llvm_expr_is_int_literal(ExpressionNode e): bool {
     if (e.value matches Expression::Literal(lit)) {
-        if (lit matches Literal::I64) return true;
+        if (lit matches Literal::I64) {
+            return true;
+        }
     }
     if (e.value matches Expression::ArithmeticNegation(inner)) {
         return llvm_expr_is_int_literal(inner);
@@ -53,19 +76,31 @@ fn llvm_expr_is_int_literal(ExpressionNode e): bool {
 fn llvm_arith_rty(&LlvmCompiler c, ExpressionNode left, ExpressionNode right): str {
     let l = llvm_expr_rtype(&c, left);
     let r = llvm_expr_rtype(&c, right);
-    if (llvm_expr_is_int_literal(left) && r != "") return r;
-    if (llvm_expr_is_int_literal(right) && l != "") return l;
-    if (l != "") return l;
+    if (llvm_expr_is_int_literal(left) && r != "") {
+        return r;
+    }
+    if (llvm_expr_is_int_literal(right) && l != "") {
+        return l;
+    }
+    if (l != "") {
+        return l;
+    }
     return r;
 }
 
 # Final Raptor type of a numeric operation. `hint` comes from the AST; when it is
 # missing the operands' LLVM types decide (widest integer, or f64).
 fn llvm_resolve_num_rty(str hint, str lt, str rt): str {
-    if (lt == "double" || rt == "double") return "f64";
-    if (hint == "f64") return "f64";
+    if (lt == "double" || rt == "double") {
+        return "f64";
+    }
+    if (hint == "f64") {
+        return "f64";
+    }
     if (hint != "") {
-        if (llvm_rname_prim_ty(hint) != "") return hint;
+        if (llvm_rname_prim_ty(hint) != "") {
+            return hint;
+        }
     }
     let best = "";
     if (lt != "ptr") {
@@ -79,14 +114,25 @@ fn llvm_resolve_num_rty(str hint, str lt, str rt): str {
         }
     }
     let d = llvm_ty_default_rty(best);
-    if (d == "") return "i64";
+    if (d == "") {
+        return "i64";
+    }
     return d;
 }
 
 # Arithmetic on already-compiled operands, done at the operands' real width and
 # signedness (like the Rust ALU). With an overflow policy other than `ignore`,
 # + - * and signed / % are checked and report through llvm_emit_overflow_diag.
-fn llvm_emit_arith(&LlvmCompiler c, str lv, str lt, str rv, str rt, str op, str hint, Span span): void {
+fn llvm_emit_arith(
+    &LlvmCompiler c,
+    str lv,
+    str lt,
+    str rv,
+    str rt,
+    str op,
+    str hint,
+    Span span
+): void {
     let rty = llvm_resolve_num_rty(hint, lt, rt);
     let result = ir_tmp(&c.ir);
     if (rty == "f64") {
@@ -110,7 +156,27 @@ fn llvm_emit_arith(&LlvmCompiler c, str lv, str lt, str rv, str rt, str op, str 
                 sign = "u";
             }
             let pair = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + pair + " = call { " + ity + ", i1 } @llvm." + sign + op + ".with.overflow." + ity + "(" + ity + " " + a + ", " + ity + " " + b + ")");
+            ir_emit(
+                &c.ir,
+                "  "
+                    + pair
+                    + " = call { "
+                    + ity
+                    + ", i1 } @llvm."
+                    + sign
+                    + op
+                    + ".with.overflow."
+                    + ity
+                    + "("
+                    + ity
+                    + " "
+                    + a
+                    + ", "
+                    + ity
+                    + " "
+                    + b
+                    + ")"
+            );
             ir_emit(&c.ir, "  " + result + " = extractvalue { " + ity + ", i1 } " + pair + ", 0");
             let flag = ir_tmp(&c.ir);
             ir_emit(&c.ir, "  " + flag + " = extractvalue { " + ity + ", i1 } " + pair + ", 1");
@@ -132,13 +198,20 @@ fn llvm_emit_arith(&LlvmCompiler c, str lv, str lt, str rv, str rt, str op, str 
                 opcode = "urem";
             }
         }
+
         # Like the Rust backend there is no check for MIN / -1 (it traps).
         ir_emit(&c.ir, "  " + result + " = " + opcode + " " + ity + " " + a + ", " + b);
     }
     llvm_compiler_set_last(&c, result, ity);
 }
 
-fn llvm_compile_binary_i64(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, str op, Span span): void {
+fn llvm_compile_binary_i64(
+    &LlvmCompiler c,
+    ExpressionNode left,
+    ExpressionNode right,
+    str op,
+    Span span
+): void {
     llvm_compile_expression(&c, left);
     let lv = c.last_value;
     let lt = c.last_type;
@@ -230,24 +303,38 @@ fn llvm_compile_owned(&LlvmCompiler c, ExpressionNode e): void {
 
 fn llvm_expr_is_str_literal(ExpressionNode e): bool {
     if (e.value matches Expression::Literal(lit)) {
-        if (lit matches Literal::String) return true;
+        if (lit matches Literal::String) {
+            return true;
+        }
     }
     return false;
 }
 
 fn llvm_user_function_index(&LlvmCompiler c, str name): i64 {
     for (let i = 0; i < vector_size(&c.program.functions); i += 1) {
-        if (c.program.functions[i].value.identifier.value == name) return i;
+        if (c.program.functions[i].value.identifier.value == name) {
+            return i;
+        }
     }
     return 0 - 1;
 }
 
 # By-value argument of a user function: the callee gets its own copy (see
 # llvm_emit_copy_functions). Returns "" when no copy is needed.
-fn llvm_copy_for_param(&LlvmCompiler c, str fname, i64 arg_index, ExpressionNode arg, str value): str {
+fn llvm_copy_for_param(
+    &LlvmCompiler c,
+    str fname,
+    i64 arg_index,
+    ExpressionNode arg,
+    str value
+): str {
     let fi = llvm_user_function_index(&c, fname);
-    if (fi < 0) return "";
-    if (arg_index >= vector_size(&c.program.functions[fi].value.parameters)) return "";
+    if (fi < 0) {
+        return "";
+    }
+    if (arg_index >= vector_size(&c.program.functions[fi].value.parameters)) {
+        return "";
+    }
     let pty = c.program.functions[fi].value.parameters[arg_index].value.parameter_type.value;
     let copy = ir_tmp(&c.ir);
     if (pty matches Type::Str) {
@@ -257,14 +344,19 @@ fn llvm_copy_for_param(&LlvmCompiler c, str fname, i64 arg_index, ExpressionNode
         }
         return "";
     }
-    if (!llvm_expr_is_borrowed(arg)) return "";
+    if (!llvm_expr_is_borrowed(arg)) {
+        return "";
+    }
     if (pty matches Type::Vector) {
         ir_emit(&c.ir, "  " + copy + " = call ptr @rt_vec_copy(ptr " + value + ")");
         return copy;
     }
     if (pty matches Type::Unresolved(sname)) {
         if (llvm_lookup_struct(&c, sname) matches OptionStructDeclaration::Some) {
-            ir_emit(&c.ir, "  " + copy + " = call ptr @copy.struct." + sname + "(ptr " + value + ")");
+            ir_emit(
+                &c.ir,
+                "  " + copy + " = call ptr @copy.struct." + sname + "(ptr " + value + ")"
+            );
             return copy;
         }
     }
@@ -281,13 +373,13 @@ fn llvm_f64_literal_text(f64 v): str {
         return v as str;
     }
     let whole = v as i64;
-    let frac = v - (whole as f64);
+    let frac = v - whole as f64;
     let out = whole as str + ".";
     for (let i = 0; i < 17; i += 1) {
         frac = frac * 10.0;
         let d = frac as i64;
         out += d as str;
-        frac = frac - (d as f64);
+        frac = frac - d as f64;
     }
     return out;
 }
@@ -305,7 +397,18 @@ fn llvm_int_to_str(&LlvmCompiler c, str v64, bool signed): str {
     let fg = ir_cstr_global(&c.ir, fmt);
     let fp = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + fp + " = getelementptr inbounds [5 x i8], ptr " + fg + ", i64 0, i64 0");
-    ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 32, ptr " + fp + ", i64 " + v64 + ")");
+    ir_emit(
+        &c.ir,
+        "  "
+            + ir_tmp(&c.ir)
+            + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr "
+            + buf
+            + ", i64 32, ptr "
+            + fp
+            + ", i64 "
+            + v64
+            + ")"
+    );
     return buf;
 }
 
@@ -314,7 +417,18 @@ fn llvm_f64_to_str(&LlvmCompiler c, str v): str {
     let fg = ir_cstr_global(&c.ir, "%g");
     let fp = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + fp + " = getelementptr inbounds [3 x i8], ptr " + fg + ", i64 0, i64 0");
-    ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr " + buf + ", i64 32, ptr " + fp + ", double " + v + ")");
+    ir_emit(
+        &c.ir,
+        "  "
+            + ir_tmp(&c.ir)
+            + " = call i32 (ptr, i64, ptr, ...) @snprintf(ptr "
+            + buf
+            + ", i64 32, ptr "
+            + fp
+            + ", double "
+            + v
+            + ")"
+    );
     return buf;
 }
 
@@ -328,11 +442,22 @@ fn llvm_bool_to_str(&LlvmCompiler c, str v): str {
 
 # Can every value of the source type be represented by the target type?
 fn llvm_int_range_is_subset(i64 sb, bool ssigned, i64 tb, bool tsigned): bool {
-    if (ssigned == tsigned) return sb <= tb;
+    if (ssigned == tsigned) {
+        return sb <= tb;
+    }
     return sb < tb;
 }
 
-fn llvm_emit_cast_range_check(&LlvmCompiler c, str val, str sty, i64 sb, bool ssigned, i64 tb, bool tsigned, Span span): void {
+fn llvm_emit_cast_range_check(
+    &LlvmCompiler c,
+    str val,
+    str sty,
+    i64 sb,
+    bool ssigned,
+    i64 tb,
+    bool tsigned,
+    Span span
+): void {
     let below = "";
     if (ssigned) {
         let min_c = "0";
@@ -370,12 +495,19 @@ fn llvm_emit_cast_range_check(&LlvmCompiler c, str val, str sty, i64 sb, bool ss
     if (str_len(below) == 0) {
         cond = above;
     }
-    if (str_len(cond) == 0) return;
+    if (str_len(cond) == 0) {
+        return;
+    }
     let sign = "unsigned";
     if (tsigned) {
         sign = "signed";
     }
-    llvm_emit_overflow_diag(&c, cond, "Integer overflow in cast (" + sb as str + " -> " + tb as str + ":" + sign + ")", span);
+    llvm_emit_overflow_diag(
+        &c,
+        cond,
+        "Integer overflow in cast (" + sb as str + " -> " + tb as str + ":" + sign + ")",
+        span
+    );
 }
 
 fn llvm_cast_int_int(&LlvmCompiler c, str val, str frty, str trty, Span span): void {
@@ -523,6 +655,7 @@ fn llvm_compile_cast(&LlvmCompiler c, CastingExpression cast, Span span): void {
         llvm_compiler_set_last(&c, r, "double");
         return;
     }
+
     # Unknown combination (the semantic checker rejects these): keep the value.
     llvm_compiler_set_last(&c, val, from);
 }
@@ -533,14 +666,23 @@ fn llvm_compile_cast(&LlvmCompiler c, CastingExpression cast, Span span): void {
 
 fn llvm_vstr_supported(str elem): bool {
     let inner = llvm_rty_element(elem);
-    if (inner != "") return llvm_vstr_supported(inner);
+    if (inner != "") {
+        return llvm_vstr_supported(inner);
+    }
     return llvm_rname_is_int(elem) || elem == "f64" || elem == "bool" || elem == "str";
 }
 
 # GEP to a plain C string constant.
 fn llvm_vstr_cstr(&LlvmCompiler c, str text, str reg): str {
     let g = ir_cstr_global(&c.ir, text);
-    return "  " + reg + " = getelementptr inbounds [" + (str_len(text) + 1) as str + " x i8], ptr " + g + ", i64 0, i64 0";
+    return
+        "  "
+            + reg
+            + " = getelementptr inbounds ["
+            + (str_len(text) + 1) as str
+            + " x i8], ptr "
+            + g
+            + ", i64 0, i64 0";
 }
 
 # Returns the name of the function formatting a vector with this element type,
@@ -562,7 +704,9 @@ fn llvm_vstr_sanitize(str rty): str {
 fn llvm_vstr_fn(&LlvmCompiler c, str elem): str {
     let name = "@rt_vstr." + llvm_vstr_sanitize(elem);
     for (let i = 0; i < vector_size(&c.extra_fn_names); i += 1) {
-        if (c.extra_fn_names[i] == name) return name;
+        if (c.extra_fn_names[i] == name) {
+            return name;
+        }
     }
     vector_push(&c.extra_fn_names, name);
 
@@ -651,7 +795,10 @@ fn llvm_vstr_fn(&LlvmCompiler c, str elem): str {
         vector_push(&L, "  %vp = load ptr, ptr %slot");
         vector_push(&L, "  %vs = call ptr " + inner_fn + "(ptr %vp)");
         vector_push(&L, llvm_vstr_cstr(&c, "%s", "%fmt"));
-        vector_push(&L, "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %vs)");
+        vector_push(
+            &L,
+            "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %vs)"
+        );
         if (c.arc) {
             vector_push(&L, "  call void @rt_release(ptr %vs)");
         }
@@ -659,20 +806,23 @@ fn llvm_vstr_fn(&LlvmCompiler c, str elem): str {
     } else if (is_str) {
         vector_push(&L, "  %ep = load ptr, ptr %slot");
         vector_push(&L, llvm_vstr_cstr(&c, "\"%s\"", "%fmt"));
-        call = "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %ep)";
+        call =
+            "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %ep)";
     } else {
         vector_push(&L, "  %raw = load i64, ptr %slot");
         if (elem == "f64") {
             vector_push(&L, "  %dv = bitcast i64 %raw to double");
             vector_push(&L, llvm_vstr_cstr(&c, "%g", "%fmt"));
-            call = "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, double %dv)";
+            call =
+                "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, double %dv)";
         } else if (elem == "bool") {
             vector_push(&L, "  %bv = trunc i64 %raw to i1");
             vector_push(&L, llvm_vstr_cstr(&c, "true", "%tt"));
             vector_push(&L, llvm_vstr_cstr(&c, "false", "%ff"));
             vector_push(&L, "  %bs = select i1 %bv, ptr %tt, ptr %ff");
             vector_push(&L, llvm_vstr_cstr(&c, "%s", "%fmt"));
-            call = "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %bs)";
+            call =
+                "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %bs)";
         } else {
             let ity = llvm_rname_prim_ty(elem);
             let uns = llvm_rname_is_unsigned(elem);
@@ -691,7 +841,10 @@ fn llvm_vstr_fn(&LlvmCompiler c, str elem): str {
                 fmt = "%llu";
             }
             vector_push(&L, llvm_vstr_cstr(&c, fmt, "%fmt"));
-            call = "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, i64 " + wide + ")";
+            call =
+                "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, i64 "
+                    + wide
+                    + ")";
         }
     }
     if (str_len(call) > 0) {
@@ -732,7 +885,10 @@ fn llvm_compile_cmp(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, 
     if (lt == "ptr" && rt == "ptr") {
         # `str == str` must compare contents, not addresses. The type checker
         # guarantees both sides are `str` when one of them is.
-        if ((pred == "eq" || pred == "ne") && (llvm_expr_is_str(&c, left) || llvm_expr_is_str(&c, right))) {
+        if (
+            (pred == "eq" || pred == "ne")
+                && (llvm_expr_is_str(&c, left) || llvm_expr_is_str(&c, right))
+        ) {
             let cmp = ir_tmp(&c.ir);
             ir_emit(&c.ir, "  " + cmp + " = call i32 @strcmp(ptr " + lv + ", ptr " + rv + ")");
             ir_emit(&c.ir, "  " + result + " = icmp " + pred + " i32 " + cmp + ", 0");
@@ -751,11 +907,21 @@ fn llvm_compile_cmp(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, 
             let ld = llvm_as_double(&c, lv, lt);
             let rd = llvm_as_double(&c, rv, rt);
             let fpred = "oeq";
-            if (pred == "ne") fpred = "une";
-            if (pred == "slt") fpred = "olt";
-            if (pred == "sle") fpred = "ole";
-            if (pred == "sgt") fpred = "ogt";
-            if (pred == "sge") fpred = "oge";
+            if (pred == "ne") {
+                fpred = "une";
+            }
+            if (pred == "slt") {
+                fpred = "olt";
+            }
+            if (pred == "sle") {
+                fpred = "ole";
+            }
+            if (pred == "sgt") {
+                fpred = "ogt";
+            }
+            if (pred == "sge") {
+                fpred = "oge";
+            }
             ir_emit(&c.ir, "  " + result + " = fcmp " + fpred + " double " + ld + ", " + rd);
         } else {
             # Compare at the operands' real width; unsigned types use u* predicates.
@@ -765,10 +931,18 @@ fn llvm_compile_cmp(&LlvmCompiler c, ExpressionNode left, ExpressionNode right, 
             let ri = llvm_resize_int(&c, rv, rt, cty, !cuns);
             let ipred = pred;
             if (cuns) {
-                if (pred == "slt") ipred = "ult";
-                if (pred == "sle") ipred = "ule";
-                if (pred == "sgt") ipred = "ugt";
-                if (pred == "sge") ipred = "uge";
+                if (pred == "slt") {
+                    ipred = "ult";
+                }
+                if (pred == "sle") {
+                    ipred = "ule";
+                }
+                if (pred == "sgt") {
+                    ipred = "ugt";
+                }
+                if (pred == "sge") {
+                    ipred = "uge";
+                }
             }
             ir_emit(&c.ir, "  " + result + " = icmp " + ipred + " " + cty + " " + li + ", " + ri);
         }
@@ -781,7 +955,7 @@ fn llvm_vector_alloc_empty(&LlvmCompiler c): str {
     let p = llvm_alloc_bytes(&c, "32", "@rt_drop_vec");
     let rc_gep = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + rc_gep + " = getelementptr i8, ptr " + p + ", i64 0");
-    ir_emit(&c.ir, "  store i64 0, ptr " + rc_gep);   # slot 0: "elements are managed" flag
+    ir_emit(&c.ir, "  store i64 0, ptr " + rc_gep);  # slot 0: "elements are managed" flag
     let d_gep = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + d_gep + " = getelementptr i8, ptr " + p + ", i64 8");
     ir_emit(&c.ir, "  store ptr null, ptr " + d_gep);
@@ -837,7 +1011,7 @@ fn llvm_vector_push_ptr(&LlvmCompiler c, str vec, str elem): void {
     let slot = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + slot + " = getelementptr ptr, ptr " + data2 + ", i64 " + len2);
     ir_emit(&c.ir, "  store ptr " + elem + ", ptr " + slot);
-    ir_emit(&c.ir, "  store i64 1, ptr " + vec);   # elements are managed pointers
+    ir_emit(&c.ir, "  store i64 1, ptr " + vec);  # elements are managed pointers
     let nlen = ir_tmp(&c.ir);
     ir_emit(&c.ir, "  " + nlen + " = add i64 " + len2 + ", 1");
     ir_emit(&c.ir, "  store i64 " + nlen + ", ptr " + len_p);
@@ -921,7 +1095,10 @@ fn llvm_compile_struct_literal(&LlvmCompiler c, StructLiteralNode node): void {
         ir_emit(&c.ir, "  store i64 0, ptr " + gep);
     }
     let rc_gep = ir_tmp(&c.ir);
-    ir_emit(&c.ir, "  " + rc_gep + " = getelementptr i8, ptr " + p + ", i64 " + (nfields * 8) as str);
+    ir_emit(
+        &c.ir,
+        "  " + rc_gep + " = getelementptr i8, ptr " + p + ", i64 " + (nfields * 8) as str
+    );
     ir_emit(&c.ir, "  store i64 1, ptr " + rc_gep);
 
     for (let i = 0; i < vector_size(&node.value.fields); i += 1) {
@@ -1039,49 +1216,101 @@ fn llvm_compile_field_access(&LlvmCompiler c, FieldAccessExpression fa): void {
 fn llvm_expr_rtype(&LlvmCompiler c, ExpressionNode e): str {
     match (e.value) {
         Expression::Literal(lit) {
-            if (lit matches Literal::String) return "str";
-            if (lit matches Literal::Char) return "char";
-            if (lit matches Literal::I64) return "i64";
-            if (lit matches Literal::F64) return "f64";
-            if (lit matches Literal::True) return "bool";
-            if (lit matches Literal::False) return "bool";
+            if (lit matches Literal::String) {
+                return "str";
+            }
+            if (lit matches Literal::Char) {
+                return "char";
+            }
+            if (lit matches Literal::I64) {
+                return "i64";
+            }
+            if (lit matches Literal::F64) {
+                return "f64";
+            }
+            if (lit matches Literal::True) {
+                return "bool";
+            }
+            if (lit matches Literal::False) {
+                return "bool";
+            }
             return "";
         },
-        # NB: in Raptor `Concatenation` is the boolean AND, not string concat.
-        # String concatenation is `Addition` with a `str` operand.
         Expression::Addition(bin) {
-            if (llvm_expr_rtype(&c, bin.left) == "str") return "str";
-            if (llvm_expr_rtype(&c, bin.right) == "str") return "str";
+            if (llvm_expr_rtype(&c, bin.left) == "str") {
+                return "str";
+            }
+            if (llvm_expr_rtype(&c, bin.right) == "str") {
+                return "str";
+            }
             return llvm_arith_rty(&c, bin.left, bin.right);
         },
-        Expression::Subtraction(bin) return llvm_arith_rty(&c, bin.left, bin.right);,
-        Expression::Multiplication(bin) return llvm_arith_rty(&c, bin.left, bin.right);,
-        Expression::Division(bin) return llvm_arith_rty(&c, bin.left, bin.right);,
-        Expression::Modulo(bin) return llvm_arith_rty(&c, bin.left, bin.right);,
-        Expression::ArithmeticNegation(inner) return llvm_expr_rtype(&c, inner);,
-        Expression::BooleanNegation return "bool";,
-        Expression::Alternative return "bool";,
-        Expression::Concatenation return "bool";,
-        Expression::Equal return "bool";,
-        Expression::NotEqual return "bool";,
-        Expression::Less return "bool";,
-        Expression::LessEqual return "bool";,
-        Expression::Greater return "bool";,
-        Expression::GreaterEqual return "bool";,
+        Expression::Subtraction(bin) {
+            return llvm_arith_rty(&c, bin.left, bin.right);
+        },
+        Expression::Multiplication(bin) {
+            return llvm_arith_rty(&c, bin.left, bin.right);
+        },
+        Expression::Division(bin) {
+            return llvm_arith_rty(&c, bin.left, bin.right);
+        },
+        Expression::Modulo(bin) {
+            return llvm_arith_rty(&c, bin.left, bin.right);
+        },
+        Expression::ArithmeticNegation(inner) {
+            return llvm_expr_rtype(&c, inner);
+        },
+        Expression::BooleanNegation {
+            return "bool";
+        },
+        Expression::Alternative {
+            return "bool";
+        },
+        Expression::Concatenation {
+            return "bool";
+        },
+        Expression::Equal {
+            return "bool";
+        },
+        Expression::NotEqual {
+            return "bool";
+        },
+        Expression::Less {
+            return "bool";
+        },
+        Expression::LessEqual {
+            return "bool";
+        },
+        Expression::Greater {
+            return "bool";
+        },
+        Expression::GreaterEqual {
+            return "bool";
+        },
         Expression::Index(ix) {
             let col_rty = llvm_expr_rtype(&c, ix.collection);
-            if (col_rty == "str") return "char";
+            if (col_rty == "str") {
+                return "char";
+            }
             return llvm_rty_element(col_rty);
         },
         Expression::Vector(elems) {
-            if (vector_size(&elems) == 0) return "";
+            if (vector_size(&elems) == 0) {
+                return "";
+            }
             return llvm_expr_rtype(&c, elems[0]) + "[]";
         },
-        Expression::Casting(cs) return llvm_type_rname(cs.to_type.value);,
-        Expression::StructLiteral(sl) return sl.value.identifier.value;,
+        Expression::Casting(cs) {
+            return llvm_type_rname(cs.to_type.value);
+        },
+        Expression::StructLiteral(sl) {
+            return sl.value.identifier.value;
+        },
         Expression::Variable(name) {
             let li = llvm_compiler_find_local(&c, name);
-            if (li < 0) return "";
+            if (li < 0) {
+                return "";
+            }
             return c.locals[li].rty;
         },
         Expression::FieldAccess(fa) {
@@ -1096,6 +1325,7 @@ fn llvm_expr_rtype(&LlvmCompiler c, ExpressionNode e): str {
                     return "";
                 }
             }
+
             # Instance type unknown: accept the field only if every struct that
             # declares it agrees on its type.
             let found = false;
@@ -1105,7 +1335,9 @@ fn llvm_expr_rtype(&LlvmCompiler c, ExpressionNode e): str {
                     for (let m = 0; m < vector_size(&s.members); m += 1) {
                         if (s.members[m].value.identifier.value == fa.field.value) {
                             let name = llvm_type_rname(s.members[m].value.member_type.value);
-                            if (found && name != result) return "";
+                            if (found && name != result) {
+                                return "";
+                            }
                             found = true;
                             result = name;
                         }
@@ -1120,12 +1352,20 @@ fn llvm_expr_rtype(&LlvmCompiler c, ExpressionNode e): str {
                     return llvm_type_rname(c.program.functions[i].value.return_type.value);
                 }
             }
-            if (call.identifier.value == "cli_args") return "str[]";
-            if (call.identifier.value == "read_file") return "str";
-            if (call.identifier.value == "input") return "str";
+            if (call.identifier.value == "cli_args") {
+                return "str[]";
+            }
+            if (call.identifier.value == "read_file") {
+                return "str";
+            }
+            if (call.identifier.value == "input") {
+                return "str";
+            }
             return "";
         },
-        rest return "";
+        rest {
+            return "";
+        }
     }
 }
 
@@ -1158,8 +1398,15 @@ fn llvm_compile_index(&LlvmCompiler c, IndexExpression ix): void {
     let col = c.last_value;
     llvm_note_temp_base(&c, ix.collection, col, c.last_type);
     llvm_compile_expression(&c, ix.index);
-    let idx = llvm_resize_int(&c, c.last_value, c.last_type, "i64", !llvm_rname_is_unsigned(llvm_expr_rtype(&c, ix.index)));
+    let idx = llvm_resize_int(
+        &c,
+        c.last_value,
+        c.last_type,
+        "i64",
+        !llvm_rname_is_unsigned(llvm_expr_rtype(&c, ix.index))
+    );
     let is_string = llvm_expr_is_str(&c, ix.collection);
+
     # Like Rust, the diagnostic points at the index expression, not at `v[i]`.
     llvm_emit_bounds_check(&c, col, idx, is_string, ix.index.span);
 
@@ -1209,6 +1456,7 @@ fn llvm_compile_index(&LlvmCompiler c, IndexExpression ix): void {
 fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): void {
     let arg_vals: str[] = [];
     let arg_tys: str[] = [];
+
     # "1" when the argument is a fresh (+1) temporary the caller must release.
     let arg_fresh: str[] = [];
     for (let i = 0; i < vector_size(&call.arguments); i += 1) {
@@ -1216,6 +1464,7 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         if (call.arguments[i].value.passed_by matches PassedBy::Reference) {
             arg_ref = true;
         }
+
         # `&x` where x is a primitive local: pass the address of x so the
         # callee can write through it (see llvm_param_is_prim_ref).
         let addr = "";
@@ -1238,7 +1487,13 @@ fn llvm_compile_function_call(&LlvmCompiler c, FunctionCallExpression call): voi
         llvm_compile_expression(&c, call.arguments[i].value.value);
         let arg_copy = "";
         if (!arg_ref && c.last_type == "ptr") {
-            arg_copy = llvm_copy_for_param(&c, call.identifier.value, i, call.arguments[i].value.value, c.last_value);
+            arg_copy = llvm_copy_for_param(
+                &c,
+                call.identifier.value,
+                i,
+                call.arguments[i].value.value,
+                c.last_value
+            );
         }
         if (str_len(arg_copy) > 0) {
             vector_push(&arg_vals, arg_copy);
@@ -1293,13 +1548,15 @@ fn llvm_compile_call_dispatch(
 ): void {
     let name = call.identifier.value;
 
-
     # ========== IO ==========
     if (name == "println") {
         if (vector_size(&arg_vals) == 0) {
             let g = ir_cstr_global(&c.ir, "\n");
             let p = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + p + " = getelementptr inbounds [2 x i8], ptr " + g + ", i64 0, i64 0");
+            ir_emit(
+                &c.ir,
+                "  " + p + " = getelementptr inbounds [2 x i8], ptr " + g + ", i64 0, i64 0"
+            );
             ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, ...) @printf(ptr " + p + ")");
             ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @fflush(ptr null)");
             llvm_compiler_set_last(&c, "0", "i64");
@@ -1312,8 +1569,14 @@ fn llvm_compile_call_dispatch(
         }
         let fmt = ir_cstr_global(&c.ir, "%s\n");
         let fp = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + fp + " = getelementptr inbounds [4 x i8], ptr " + fmt + ", i64 0, i64 0");
-        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, ...) @printf(ptr " + fp + ", ptr " + a + ")");
+        ir_emit(
+            &c.ir,
+            "  " + fp + " = getelementptr inbounds [4 x i8], ptr " + fmt + ", i64 0, i64 0"
+        );
+        ir_emit(
+            &c.ir,
+            "  " + ir_tmp(&c.ir) + " = call i32 (ptr, ...) @printf(ptr " + fp + ", ptr " + a + ")"
+        );
         ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @fflush(ptr null)");
         llvm_compiler_set_last(&c, "0", "i64");
         return;
@@ -1328,8 +1591,20 @@ fn llvm_compile_call_dispatch(
             }
             let fmt = ir_cstr_global(&c.ir, "%s");
             let fp = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + fp + " = getelementptr inbounds [3 x i8], ptr " + fmt + ", i64 0, i64 0");
-            ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 (ptr, ...) @printf(ptr " + fp + ", ptr " + a + ")");
+            ir_emit(
+                &c.ir,
+                "  " + fp + " = getelementptr inbounds [3 x i8], ptr " + fmt + ", i64 0, i64 0"
+            );
+            ir_emit(
+                &c.ir,
+                "  "
+                    + ir_tmp(&c.ir)
+                    + " = call i32 (ptr, ...) @printf(ptr "
+                    + fp
+                    + ", ptr "
+                    + a
+                    + ")"
+            );
             ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @fflush(ptr null)");
         }
         llvm_compiler_set_last(&c, "0", "i64");
@@ -1341,7 +1616,17 @@ fn llvm_compile_call_dispatch(
         let buf = llvm_alloc_bytes(&c, "4096", "null");
         let stdin_p = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + stdin_p + " = load ptr, ptr @stdin");
-        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call ptr @fgets(ptr " + buf + ", i32 4096, ptr " + stdin_p + ")");
+        ir_emit(
+            &c.ir,
+            "  "
+                + ir_tmp(&c.ir)
+                + " = call ptr @fgets(ptr "
+                + buf
+                + ", i32 4096, ptr "
+                + stdin_p
+                + ")"
+        );
+
         # strip trailing newline if present
         let ln = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + ln + " = call i64 @strlen(ptr " + buf + ")");
@@ -1400,7 +1685,18 @@ fn llvm_compile_call_dispatch(
         let sz = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + sz + " = add i64 " + ln + ", 1");
         let buf = llvm_alloc_bytes(&c, sz, "null");
-        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call ptr @memcpy(ptr " + buf + ", ptr " + cstr + ", i64 " + sz + ")");
+        ir_emit(
+            &c.ir,
+            "  "
+                + ir_tmp(&c.ir)
+                + " = call ptr @memcpy(ptr "
+                + buf
+                + ", ptr "
+                + cstr
+                + ", i64 "
+                + sz
+                + ")"
+        );
         llvm_vector_push_ptr(&c, vec, buf);
         let inext = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + inext + " = add i64 " + i_val + ", 1");
@@ -1430,9 +1726,15 @@ fn llvm_compile_call_dispatch(
     if (name == "read_file") {
         let mode = ir_cstr_global(&c.ir, "rb");
         let mode_p = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + mode_p + " = getelementptr inbounds [3 x i8], ptr " + mode + ", i64 0, i64 0");
+        ir_emit(
+            &c.ir,
+            "  " + mode_p + " = getelementptr inbounds [3 x i8], ptr " + mode + ", i64 0, i64 0"
+        );
         let fp = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + fp + " = call ptr @fopen(ptr " + arg_vals[0] + ", ptr " + mode_p + ")");
+        ir_emit(
+            &c.ir,
+            "  " + fp + " = call ptr @fopen(ptr " + arg_vals[0] + ", ptr " + mode_p + ")"
+        );
         let is_null = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + is_null + " = icmp eq ptr " + fp + ", null");
         let err_l = ir_label(&c.ir, "rf.err");
@@ -1453,7 +1755,18 @@ fn llvm_compile_call_dispatch(
         let bufsz = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + bufsz + " = add i64 " + sz + ", 1");
         let buf = llvm_alloc_bytes(&c, bufsz, "null");
-        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i64 @fread(ptr " + buf + ", i64 1, i64 " + sz + ", ptr " + fp + ")");
+        ir_emit(
+            &c.ir,
+            "  "
+                + ir_tmp(&c.ir)
+                + " = call i64 @fread(ptr "
+                + buf
+                + ", i64 1, i64 "
+                + sz
+                + ", ptr "
+                + fp
+                + ")"
+        );
         let nul_p = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + nul_p + " = getelementptr i8, ptr " + buf + ", i64 " + sz);
         ir_emit(&c.ir, "  store i8 0, ptr " + nul_p);
@@ -1475,9 +1788,21 @@ fn llvm_compile_call_dispatch(
         let mode = ir_cstr_global(&c.ir, mode_s);
         let mode_n = 3;
         let mode_p = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + mode_p + " = getelementptr inbounds [" + mode_n as str + " x i8], ptr " + mode + ", i64 0, i64 0");
+        ir_emit(
+            &c.ir,
+            "  "
+                + mode_p
+                + " = getelementptr inbounds ["
+                + mode_n as str
+                + " x i8], ptr "
+                + mode
+                + ", i64 0, i64 0"
+        );
         let fp = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + fp + " = call ptr @fopen(ptr " + arg_vals[0] + ", ptr " + mode_p + ")");
+        ir_emit(
+            &c.ir,
+            "  " + fp + " = call ptr @fopen(ptr " + arg_vals[0] + ", ptr " + mode_p + ")"
+        );
         let is_null = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + is_null + " = icmp eq ptr " + fp + ", null");
         let skip_l = ir_label(&c.ir, "wf.skip");
@@ -1487,7 +1812,18 @@ fn llvm_compile_call_dispatch(
         ir_emit(&c.ir, do_l + ":");
         let ln = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + ln + " = call i64 @strlen(ptr " + arg_vals[1] + ")");
-        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i64 @fwrite(ptr " + arg_vals[1] + ", i64 1, i64 " + ln + ", ptr " + fp + ")");
+        ir_emit(
+            &c.ir,
+            "  "
+                + ir_tmp(&c.ir)
+                + " = call i64 @fwrite(ptr "
+                + arg_vals[1]
+                + ", i64 1, i64 "
+                + ln
+                + ", ptr "
+                + fp
+                + ")"
+        );
         ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @fclose(ptr " + fp + ")");
         ir_emit(&c.ir, "  br label %" + end_l);
         ir_emit(&c.ir, skip_l + ":");
@@ -1511,10 +1847,16 @@ fn llvm_compile_call_dispatch(
         if (arg_tys[1] == "ptr") {
             let elem_val = arg_vals[1];
             let elem_expr = call.arguments[1].value.value;
-            if (llvm_expr_rtype(&c, elem_expr) == "str" && (arg_fresh[1] != "1" || llvm_expr_is_str_literal(elem_expr))) {
+            if (
+                llvm_expr_rtype(&c, elem_expr) == "str"
+                    && (arg_fresh[1] != "1" || llvm_expr_is_str_literal(elem_expr))
+            ) {
                 # str elements are values too
                 elem_val = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + elem_val + " = call ptr @rt_str_copy(ptr " + arg_vals[1] + ")");
+                ir_emit(
+                    &c.ir,
+                    "  " + elem_val + " = call ptr @rt_str_copy(ptr " + arg_vals[1] + ")"
+                );
             } else if (arg_fresh[1] != "1") {
                 llvm_emit_retain(&c, arg_vals[1]);
             }
@@ -1535,6 +1877,7 @@ fn llvm_compile_call_dispatch(
             llvm_compiler_set_last(&c, r, "ptr");
             return;
         }
+
         # Elements we cannot format (structs, enums, nested vectors, chars).
         let p = llvm_str_literal(&c, "[vector]");
         llvm_compiler_set_last(&c, p, "ptr");
@@ -1569,7 +1912,13 @@ fn llvm_compile_call_dispatch(
         return;
     }
 
-    if (name == "tcp_listen" || name == "tcp_accept" || name == "tcp_connect" || name == "tcp_read" || name == "tcp_write") {
+    if (
+        name == "tcp_listen"
+            || name == "tcp_accept"
+            || name == "tcp_connect"
+            || name == "tcp_read"
+            || name == "tcp_write"
+    ) {
         # TODO: full sockaddr setup; return -1 / empty for now so IR links
         if (name == "tcp_read") {
             llvm_compiler_set_last(&c, llvm_str_literal(&c, ""), "ptr");
@@ -1636,7 +1985,9 @@ fn llvm_compile_call_dispatch(
 
 fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
     match (node.value) {
-        Expression::Literal(lit) llvm_compile_literal(&c, lit);,
+        Expression::Literal(lit) {
+            llvm_compile_literal(&c, lit);
+        },
         Expression::Variable(name) {
             let idx = llvm_compiler_find_local(&c, name);
             if (idx < 0) {
@@ -1660,8 +2011,9 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
             let r_is_char = rt != "ptr" && llvm_expr_rtype(&c, bin.right) == "char";
             let l_is_strish = lt == "ptr";
             let r_is_strish = rt == "ptr";
+
             # `str + char` / `char + str` append the character itself.
-            if ((l_is_strish && r_is_char) || (l_is_char && r_is_strish) || (l_is_char && r_is_char)) {
+            if (l_is_strish && r_is_char || l_is_char && r_is_strish || l_is_char && r_is_char) {
                 l_is_strish = true;
                 r_is_strish = true;
             }
@@ -1687,8 +2039,15 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
                 let size = ir_tmp(&c.ir);
                 ir_emit(&c.ir, "  " + size + " = add i64 " + sum + ", 1");
                 let buf = llvm_alloc_bytes(&c, size, "null");
-                ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call ptr @strcpy(ptr " + buf + ", ptr " + lptr + ")");
-                ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call ptr @strcat(ptr " + buf + ", ptr " + rptr + ")");
+                ir_emit(
+                    &c.ir,
+                    "  " + ir_tmp(&c.ir) + " = call ptr @strcpy(ptr " + buf + ", ptr " + lptr + ")"
+                );
+                ir_emit(
+                    &c.ir,
+                    "  " + ir_tmp(&c.ir) + " = call ptr @strcat(ptr " + buf + ", ptr " + rptr + ")"
+                );
+
                 # The operands were only read: drop the temporaries (converted
                 # numbers / chars, or fresh strings such as nested concatenations).
                 if (lt != "ptr" || !llvm_expr_is_borrowed(bin.left)) {
@@ -1699,19 +2058,48 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
                 }
                 llvm_compiler_set_last(&c, buf, "ptr");
             } else {
-                llvm_emit_arith(&c, lv, lt, rv, rt, "add", llvm_arith_rty(&c, bin.left, bin.right), node.span);
+                llvm_emit_arith(
+                    &c,
+                    lv,
+                    lt,
+                    rv,
+                    rt,
+                    "add",
+                    llvm_arith_rty(&c, bin.left, bin.right),
+                    node.span
+                );
             }
         },
-        Expression::Subtraction(bin) llvm_compile_binary_i64(&c, bin.left, bin.right, "sub", node.span);,
-        Expression::Multiplication(bin) llvm_compile_binary_i64(&c, bin.left, bin.right, "mul", node.span);,
-        Expression::Division(bin) llvm_compile_binary_i64(&c, bin.left, bin.right, "sdiv", node.span);,
-        Expression::Modulo(bin) llvm_compile_binary_i64(&c, bin.left, bin.right, "srem", node.span);,
-        Expression::Equal(bin) llvm_compile_cmp(&c, bin.left, bin.right, "eq");,
-        Expression::NotEqual(bin) llvm_compile_cmp(&c, bin.left, bin.right, "ne");,
-        Expression::Less(bin) llvm_compile_cmp(&c, bin.left, bin.right, "slt");,
-        Expression::LessEqual(bin) llvm_compile_cmp(&c, bin.left, bin.right, "sle");,
-        Expression::Greater(bin) llvm_compile_cmp(&c, bin.left, bin.right, "sgt");,
-        Expression::GreaterEqual(bin) llvm_compile_cmp(&c, bin.left, bin.right, "sge");,
+        Expression::Subtraction(bin) {
+            llvm_compile_binary_i64(&c, bin.left, bin.right, "sub", node.span);
+        },
+        Expression::Multiplication(bin) {
+            llvm_compile_binary_i64(&c, bin.left, bin.right, "mul", node.span);
+        },
+        Expression::Division(bin) {
+            llvm_compile_binary_i64(&c, bin.left, bin.right, "sdiv", node.span);
+        },
+        Expression::Modulo(bin) {
+            llvm_compile_binary_i64(&c, bin.left, bin.right, "srem", node.span);
+        },
+        Expression::Equal(bin) {
+            llvm_compile_cmp(&c, bin.left, bin.right, "eq");
+        },
+        Expression::NotEqual(bin) {
+            llvm_compile_cmp(&c, bin.left, bin.right, "ne");
+        },
+        Expression::Less(bin) {
+            llvm_compile_cmp(&c, bin.left, bin.right, "slt");
+        },
+        Expression::LessEqual(bin) {
+            llvm_compile_cmp(&c, bin.left, bin.right, "sle");
+        },
+        Expression::Greater(bin) {
+            llvm_compile_cmp(&c, bin.left, bin.right, "sgt");
+        },
+        Expression::GreaterEqual(bin) {
+            llvm_compile_cmp(&c, bin.left, bin.right, "sge");
+        },
         Expression::BooleanNegation(inner) {
             llvm_compile_expression(&c, inner);
             let v = c.last_value;
@@ -1750,14 +2138,33 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
             if (c.overflow != "ignore" && !nuns) {
                 # -MIN cannot be represented.
                 let is_min = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + is_min + " = icmp eq " + nity + " " + na + ", " + llvm_int_min_signed(llvm_ty_bits(nity)));
-                llvm_emit_overflow_diag(&c, is_min, "Arithmetic negation overflow: minimum signed integer cannot be negated", node.span);
+                ir_emit(
+                    &c.ir,
+                    "  "
+                        + is_min
+                        + " = icmp eq "
+                        + nity
+                        + " "
+                        + na
+                        + ", "
+                        + llvm_int_min_signed(llvm_ty_bits(nity))
+                );
+                llvm_emit_overflow_diag(
+                    &c,
+                    is_min,
+                    "Arithmetic negation overflow: minimum signed integer cannot be negated",
+                    node.span
+                );
             }
             ir_emit(&c.ir, "  " + r + " = sub " + nity + " 0, " + na);
             llvm_compiler_set_last(&c, r, nity);
         },
-        Expression::FunctionCall(call) llvm_compile_function_call(&c, call);,
-        Expression::Casting(cast) llvm_compile_cast(&c, cast, node.span);,
+        Expression::FunctionCall(call) {
+            llvm_compile_function_call(&c, call);
+        },
+        Expression::Casting(cast) {
+            llvm_compile_cast(&c, cast, node.span);
+        },
         Expression::Alternative(bin) {
             llvm_compile_expression(&c, bin.left);
             let lv = c.last_value;
@@ -1774,10 +2181,23 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
             ir_emit(&c.ir, "  " + r + " = and i1 " + lv + ", " + c.last_value);
             llvm_compiler_set_last(&c, r, "i1");
         },
-        Expression::Vector(elems) llvm_compile_vector_literal(&c, elems);,
-        Expression::Index(ix) llvm_compile_index(&c, ix);,
-        Expression::FieldAccess(fa) llvm_compile_field_access(&c, fa);,
-        Expression::StructLiteral(sl) llvm_compile_struct_literal(&c, sl);,
-        Expression::EnumLiteral(el) llvm_compile_enum_literal(&c, el);
+        Expression::Vector(elems) {
+            llvm_compile_vector_literal(&c, elems);
+        },
+        Expression::Index(ix) {
+            llvm_compile_index(&c, ix);
+        },
+        Expression::FieldAccess(fa) {
+            llvm_compile_field_access(&c, fa);
+        },
+        Expression::StructLiteral(sl) {
+            llvm_compile_struct_literal(&c, sl);
+        },
+        Expression::EnumLiteral(el) {
+            llvm_compile_enum_literal(&c, el);
+        }
     }
 }
+
+# NB: in Raptor `Concatenation` is the boolean AND, not string concat.
+# String concatenation is `Addition` with a `str` operand.

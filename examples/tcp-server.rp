@@ -4,6 +4,46 @@
 #          curl -X PUT -d "name=Anna K." http://localhost:8080/users/1
 #          curl -X DELETE http://localhost:8080/users/2
 
+# -------------------
+# User
+# -------------------
+struct User {
+    i64 id,
+    str name
+};
+
+struct FindResult {
+    bool found,
+    User user
+};
+
+# -------------------
+# UserRepository
+# -------------------
+struct UserRepository {
+    User[] users,
+    i64 next_id
+};
+
+# -------------------
+# json utils
+# -------------------
+
+# -------------------
+# http request / response
+# -------------------
+struct HttpRequest {
+    str method,
+    str path,
+    str body
+};
+
+struct HttpResponse {
+    i64 status,
+    str body
+};
+
+
 fn str_substring(&str s, i64 start, i64 end): str {
     let result = "";
     for (let i = start; i < end; i += 1) {
@@ -22,7 +62,9 @@ fn str_index_of_str(&str s, str target): i64 {
                 matched = false;
             }
         }
-        if (matched) return i;
+        if (matched) {
+            return i;
+        }
     }
     return -1;
 }
@@ -48,16 +90,36 @@ fn str_starts_with(&str s, str prefix): bool {
 }
 
 fn char_to_digit(char c): i64 {
-    if (c == '0') return 0;
-    if (c == '1') return 1;
-    if (c == '2') return 2;
-    if (c == '3') return 3;
-    if (c == '4') return 4;
-    if (c == '5') return 5;
-    if (c == '6') return 6;
-    if (c == '7') return 7;
-    if (c == '8') return 8;
-    if (c == '9') return 9;
+    if (c == '0') {
+        return 0;
+    }
+    if (c == '1') {
+        return 1;
+    }
+    if (c == '2') {
+        return 2;
+    }
+    if (c == '3') {
+        return 3;
+    }
+    if (c == '4') {
+        return 4;
+    }
+    if (c == '5') {
+        return 5;
+    }
+    if (c == '6') {
+        return 6;
+    }
+    if (c == '7') {
+        return 7;
+    }
+    if (c == '8') {
+        return 8;
+    }
+    if (c == '9') {
+        return 9;
+    }
     return -1;
 }
 
@@ -79,14 +141,6 @@ fn vector_remove_at(&User[] users, i64 index): User[] {
     return result;
 }
 
-# -------------------
-# User
-# -------------------
-struct User {
-    i64 id,
-    str name
-};
-
 fn user_json(&User user): str {
     return "{ \"id\": " + user.id as str + ", \"name\": \"" + user.name + "\" }";
 }
@@ -94,19 +148,6 @@ fn user_json(&User user): str {
 fn empty_user(): User {
     return User { id: 0, name: "" };
 }
-
-struct FindResult {
-    bool found,
-    User user
-};
-
-# -------------------
-# UserRepository
-# -------------------
-struct UserRepository {
-    User[] users,
-    i64 next_id
-};
 
 fn user_repository_get_all(&UserRepository repo): User[] {
     return repo.users;
@@ -148,38 +189,31 @@ fn user_repository_delete(&UserRepository repo, i64 id): bool {
     return false;
 }
 
-# -------------------
-# json utils
-# -------------------
 fn user_list_json(&User[] users): str {
     let text = "[";
     for (let i = 0; i < vector_size(&users); i += 1) {
-        if (i != 0) text += ", ";
+        if (i != 0) {
+            text += ", ";
+        }
         text += user_json(&users[i]);
     }
     text += ']';
     return text;
 }
 
-# -------------------
-# http request / response
-# -------------------
-struct HttpRequest {
-    str method,
-    str path,
-    str body
-};
-
-struct HttpResponse {
-    i64 status,
-    str body
-};
-
 fn status_text(i64 status): str {
-    if (status == 200) return "OK";
-    if (status == 201) return "Created";
-    if (status == 400) return "Bad Request";
-    if (status == 404) return "Not Found";
+    if (status == 200) {
+        return "OK";
+    }
+    if (status == 201) {
+        return "Created";
+    }
+    if (status == 400) {
+        return "Bad Request";
+    }
+    if (status == 404) {
+        return "Not Found";
+    }
     return "Internal Server Error";
 }
 
@@ -204,7 +238,10 @@ fn parse_http_request(&str raw): HttpRequest {
 
 fn build_http_response(&HttpResponse res): str {
     let status_line = "HTTP/1.1 " + res.status as str + " " + status_text(res.status) + "\r\n";
-    let headers = "Content-Type: application/json\r\nContent-Length: " + str_len(res.body) as str + "\r\n\r\n";
+    let headers =
+        "Content-Type: application/json\r\nContent-Length: "
+            + str_len(res.body) as str
+            + "\r\n\r\n";
     return status_line + headers + res.body;
 }
 
@@ -216,12 +253,16 @@ fn extract_id_from_path(&str path): i64 {
 fn parse_field(&str body, str key): str {
     let search_key = key + "=";
     let idx = str_index_of_str(&body, search_key);
-    if (idx < 0) return "";
+    if (idx < 0) {
+        return "";
+    }
 
     let start = idx + str_len(search_key);
     let remaining = str_substring(&body, start, str_len(body));
     let end = str_index_of_str(&remaining, "&");
-    if (end < 0) return remaining;
+    if (end < 0) {
+        return remaining;
+    }
     return str_substring(&remaining, 0, end);
 }
 
@@ -274,16 +315,26 @@ fn handle_delete(&UserRepository repo, i64 id): HttpResponse {
 # -------------------
 fn route_request(&UserRepository repo, &HttpRequest req): HttpResponse {
     if (req.path == "/users") {
-        if (req.method == "GET") return handle_get_all(&repo);
-        if (req.method == "POST") return handle_create(&repo, &req.body);
+        if (req.method == "GET") {
+            return handle_get_all(&repo);
+        }
+        if (req.method == "POST") {
+            return handle_create(&repo, &req.body);
+        }
         return HttpResponse { status: 400, body: "{ \"error\": \"Unsupported method\" }" };
     }
 
     if (str_starts_with(&req.path, "/users/")) {
         let id = extract_id_from_path(&req.path);
-        if (req.method == "GET") return handle_get_one(&repo, id);
-        if (req.method == "PUT") return handle_update(&repo, id, &req.body);
-        if (req.method == "DELETE") return handle_delete(&repo, id);
+        if (req.method == "GET") {
+            return handle_get_one(&repo, id);
+        }
+        if (req.method == "PUT") {
+            return handle_update(&repo, id, &req.body);
+        }
+        if (req.method == "DELETE") {
+            return handle_delete(&repo, id);
+        }
         return HttpResponse { status: 400, body: "{ \"error\": \"Unsupported method\" }" };
     }
 
@@ -320,5 +371,6 @@ fn main(): void {
         tcp_close(client);
     }
 }
+
 
 main();

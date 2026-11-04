@@ -1,13 +1,11 @@
+i64 x = 2;
+i64 y = 2;
+str text;
 
-        i64 x = 2;
-        i64 y = 2;
-        str text;
+if (x == y) {
+    text = "equal";
+} else {
+    text = "not equal";
+}
 
-        if (x == y) {
-            text = "equal";
-        } else {
-            text = "not equal";
-        }
-
-        println(text);
-        
+println(text);

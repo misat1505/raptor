@@ -1,7 +1,7 @@
-
 enum Data {
     Numbers(i64[])
 };
+
 
 fn modify(&Data data): void {
     match (data) {
@@ -19,6 +19,7 @@ fn first(&Data data): i64 {
     }
 }
 
+
 let numbers = [10, 20, 30];
 let data = Data::Numbers(numbers);
 
@@ -27,4 +28,3 @@ println(first(&data) as str);
 modify(&data);
 
 println(first(&data) as str);
-    

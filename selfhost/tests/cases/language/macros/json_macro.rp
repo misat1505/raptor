@@ -1,4 +1,3 @@
-
 enum AccountStatus derives Json {
     Active,
     Suspended(str),
@@ -28,13 +27,9 @@ struct UserRepository derives Json {
     User[] users
 };
 
+
 let users = [
-    User {
-        name: "Alice",
-        status: AccountStatus::Active,
-        role: Role::Admin,
-        scores: [10, 20, 30]
-    },
+    User { name: "Alice", status: AccountStatus::Active, role: Role::Admin, scores: [10, 20, 30] },
     User {
         name: "Bob",
         status: AccountStatus::Suspended("too many failed logins"),
@@ -43,17 +38,12 @@ let users = [
     },
     User {
         name: "Charlie",
-        status: AccountStatus::Deleted(Timestamp {
-            day: 17,
-            month: 9,
-            year: 2026
-        }),
+        status: AccountStatus::Deleted(Timestamp { day: 17, month: 9, year: 2026 }),
         role: Role::Moderator,
         scores: [60, 70, 80, 90]
     }
 ];
 
-let user_repository = UserRepository { users };
+let user_repository = UserRepository { users: users };
 
 println(user_repository_json_encode(&user_repository));
-        

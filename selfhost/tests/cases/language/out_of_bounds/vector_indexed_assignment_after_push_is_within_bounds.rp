@@ -1,4 +1,3 @@
-
 let numbers: i64[] = [420];
 
 println(numbers[0] as str);

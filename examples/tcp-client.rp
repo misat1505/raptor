@@ -20,7 +20,7 @@ fn main(): void {
         println("Failed to connect to " + host + ":" + port as str);
         return;
     }
-    
+
     str request = "GET / HTTP/1.1\r\nHost: " + host + "\r\nConnection: close\r\n\r\n";
     tcp_write(sock, request);
 
@@ -30,5 +30,6 @@ fn main(): void {
     println("Server response:");
     println(response);
 }
+
 
 main();

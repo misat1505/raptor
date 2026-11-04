@@ -8,8 +8,11 @@ import "./statements.rp";
 import "./ir-builder.rp";
 import "./types-ir.rp";
 
+
 fn llvm_mangle_fn_name(str name): str {
-    if (name == "main") return "@raptor_main";
+    if (name == "main") {
+        return "@raptor_main";
+    }
 
     return "@" + name;
 }
@@ -20,13 +23,17 @@ fn llvm_mangle_fn_name(str name): str {
 fn llvm_param_is_prim_ref(ParameterNode p): bool {
     if (p.value.passed_by matches PassedBy::Reference) {
         let ty = type_to_llvm(p.value.parameter_type.value);
-        if (ty != "ptr" && ty != "void") return true;
+        if (ty != "ptr" && ty != "void") {
+            return true;
+        }
     }
     return false;
 }
 
 fn llvm_param_llvm_type(ParameterNode p): str {
-    if (llvm_param_is_prim_ref(p)) return "ptr";
+    if (llvm_param_is_prim_ref(p)) {
+        return "ptr";
+    }
     return type_to_llvm(p.value.parameter_type.value);
 }
 
@@ -40,7 +47,14 @@ fn llvm_emit_function_signature(FunctionDeclarationNode f): str {
         let p = f.value.parameters[i];
         params_ir += llvm_param_llvm_type(p) + " %" + p.value.identifier.value + ".arg";
     }
-    return "define " + ret + " " + llvm_mangle_fn_name(f.value.identifier.value) + "(" + params_ir + ")";
+    return
+        "define "
+            + ret
+            + " "
+            + llvm_mangle_fn_name(f.value.identifier.value)
+            + "("
+            + params_ir
+            + ")";
 }
 
 fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void {
@@ -61,13 +75,16 @@ fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void 
         let ty = type_to_llvm(p.value.parameter_type.value);
         if (llvm_param_is_prim_ref(p)) {
             # The incoming pointer IS the variable's storage: no alloca/copy.
-            vector_push(&c.locals, CompilerVar {
-                name: p.value.identifier.value,
-                ptr: "%" + p.value.identifier.value + ".arg",
-                ty: ty,
-                rty: llvm_type_rname(p.value.parameter_type.value),
-                owned: false
-            });
+            vector_push(
+                &c.locals,
+                CompilerVar {
+                    name: p.value.identifier.value,
+                    ptr: "%" + p.value.identifier.value + ".arg",
+                    ty: ty,
+                    rty: llvm_type_rname(p.value.parameter_type.value),
+                    owned: false
+                }
+            );
             continue;
         }
         let ptr = llvm_compiler_declare_local(&c, p.value.identifier.value, ty);
@@ -98,13 +115,46 @@ fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void 
 # Functions libc-decls.rp already declares: declaring them again is an LLVM error.
 fn llvm_libc_declares(str name): bool {
     let known: str[] = [
-        "printf", "fflush", "snprintf", "fprintf", "strcmp", "strlen", "strcpy", "strcat",
-        "malloc", "free", "atoll", "atof", "realloc", "memcpy", "usleep", "exit", "fopen",
-        "fclose", "fread", "fwrite", "fseek", "ftell", "remove", "access", "read", "socket",
-        "bind", "listen", "accept", "recv", "send", "close", "connect", "inet_addr", "fgets"
+        "printf",
+        "fflush",
+        "snprintf",
+        "fprintf",
+        "strcmp",
+        "strlen",
+        "strcpy",
+        "strcat",
+        "malloc",
+        "free",
+        "atoll",
+        "atof",
+        "realloc",
+        "memcpy",
+        "usleep",
+        "exit",
+        "fopen",
+        "fclose",
+        "fread",
+        "fwrite",
+        "fseek",
+        "ftell",
+        "remove",
+        "access",
+        "read",
+        "socket",
+        "bind",
+        "listen",
+        "accept",
+        "recv",
+        "send",
+        "close",
+        "connect",
+        "inet_addr",
+        "fgets"
     ];
     for (let i = 0; i < vector_size(&known); i += 1) {
-        if (known[i] == name) return true;
+        if (known[i] == name) {
+            return true;
+        }
     }
     return false;
 }
@@ -118,9 +168,12 @@ fn llvm_compile_extern(&LlvmCompiler c, ExternFunctionDeclarationNode e): void {
         }
         params_ir += type_to_llvm(e.value.parameters[i].value.parameter_type.value);
     }
+
     # `extern fn InitWindow(...) as init_window;` links against the C symbol
     # `InitWindow`; the alias is only the name used from Raptor code.
     let link_name = e.value.identifier.value;
-    if (llvm_libc_declares(link_name)) return;
+    if (llvm_libc_declares(link_name)) {
+        return;
+    }
     ir_emit(&c.ir, "declare " + ret + " @" + link_name + "(" + params_ir + ")");
 }

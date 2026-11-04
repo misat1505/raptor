@@ -1,7 +1,7 @@
-
 struct Person {
     str name
 };
+
 
 let c = "A";
 let vec = ["X"];
@@ -14,4 +14,3 @@ c[0] = 'B';
 println(c);
 println(vec[0]);
 println(person.name);
-        

@@ -16,11 +16,9 @@
 import "./ast.rp";
 import "./parser-results.rp";
 import "./core.rp";
-
 import "./misc/identifier.rp";
 import "./misc/types.rp";
 import "./misc/derive-declaration.rp";
-
 import "./expressions/literal.rp";
 import "./expressions/vector-literal.rp";
 import "./expressions/arguments.rp";
@@ -33,7 +31,6 @@ import "./expressions/additive-term.rp";
 import "./expressions/relation-term.rp";
 import "./expressions/concatenation-term.rp";
 import "./expressions/expression.rp";
-
 import "./statements/block.rp";
 import "./statements/assign-or-call.rp";
 import "./statements/declaration.rp";
@@ -46,13 +43,9 @@ import "./statements/switch-statement.rp";
 import "./statements/for-statement.rp";
 import "./statements/while-statement.rp";
 import "./statements/if-statement.rp";
-
 import "./functions/parameters.rp";
 import "./functions/function-declaration.rp";
 import "./functions/extern-function-declaration.rp";
-
 import "./structs/struct-declaration.rp";
-
 import "./enums/enum-declaration.rp";
-
 import "./program.rp";

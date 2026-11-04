@@ -15,28 +15,16 @@ extern fn DrawText(str text, i64 x, i64 y, i64 font_size, i64 color): void as dr
 extern fn IsKeyPressed(i64 key): bool as is_key_pressed;
 extern fn GetRandomValue(i64 min, i64 max): i64 as get_random_value;
 
+
 fn make_color(i64 r, i64 g, i64 b, i64 a): i64 {
     return a * 256 * 256 * 256 + b * 256 * 256 + g * 256 + r;
 }
 
-let CELL_SIZE = 20;
-let GRID_W = 30;
-let GRID_H = 20;
-
-let KEY_RIGHT = 262;
-let KEY_LEFT = 263;
-let KEY_DOWN = 264;
-let KEY_UP = 265;
-let KEY_ENTER = 257;
-
-let COLOR_BG = make_color(24, 24, 24, 255);
-let COLOR_SNAKE = make_color(0, 200, 60, 255);
-let COLOR_APPLE = make_color(220, 30, 30, 255);
-let COLOR_TEXT = make_color(255, 255, 255, 255);
-
 fn is_on_snake(&i64[][] snake, i64 x, i64 y): bool {
     for (let i = 0; i < vector_size(&snake); i += 1) {
-        if (snake[i][0] == x && snake[i][1] == y) return true;
+        if (snake[i][0] == x && snake[i][1] == y) {
+            return true;
+        }
     }
     return false;
 }
@@ -63,6 +51,22 @@ fn new_snake_start(): i64[][] {
     return [[5, 10], [4, 10], [3, 10]];
 }
 
+
+let CELL_SIZE = 20;
+let GRID_W = 30;
+let GRID_H = 20;
+
+let KEY_RIGHT = 262;
+let KEY_LEFT = 263;
+let KEY_DOWN = 264;
+let KEY_UP = 265;
+let KEY_ENTER = 257;
+
+let COLOR_BG = make_color(24, 24, 24, 255);
+let COLOR_SNAKE = make_color(0, 200, 60, 255);
+let COLOR_APPLE = make_color(220, 30, 30, 255);
+let COLOR_TEXT = make_color(255, 255, 255, 255);
+
 init_window(GRID_W * CELL_SIZE, GRID_H * CELL_SIZE, "Snake - Raptor + raylib");
 set_target_fps(60);
 
@@ -75,7 +79,6 @@ let tick_speed = 8;
 let game_over = false;
 
 while (!window_should_close()) {
-
     if (game_over) {
         if (is_key_pressed(KEY_ENTER)) {
             snake = new_snake_start();
@@ -86,10 +89,22 @@ while (!window_should_close()) {
             game_over = false;
         }
     } else {
-        if (is_key_pressed(KEY_RIGHT) && dx != -1) { dx = 1; dy = 0; }
-        if (is_key_pressed(KEY_LEFT) && dx != 1) { dx = -1; dy = 0; }
-        if (is_key_pressed(KEY_UP) && dy != 1) { dx = 0; dy = -1; }
-        if (is_key_pressed(KEY_DOWN) && dy != -1) { dx = 0; dy = 1; }
+        if (is_key_pressed(KEY_RIGHT) && dx != -1) {
+            dx = 1;
+            dy = 0;
+        }
+        if (is_key_pressed(KEY_LEFT) && dx != 1) {
+            dx = -1;
+            dy = 0;
+        }
+        if (is_key_pressed(KEY_UP) && dy != 1) {
+            dx = 0;
+            dy = -1;
+        }
+        if (is_key_pressed(KEY_DOWN) && dy != -1) {
+            dx = 0;
+            dy = 1;
+        }
 
         tick += 1;
         if (tick >= tick_speed) {
@@ -102,17 +117,21 @@ while (!window_should_close()) {
 
             let hit_self = false;
             for (let i = 0; i < vector_size(&snake) - 1; i += 1) {
-                if (snake[i][0] == head_x && snake[i][1] == head_y) hit_self = true;
+                if (snake[i][0] == head_x && snake[i][1] == head_y) {
+                    hit_self = true;
+                }
             }
 
             if (hit_wall || hit_self) {
                 game_over = true;
             } else {
-                let ate = (head_x == apple[0] && head_y == apple[1]);
+                let ate = head_x == apple[0] && head_y == apple[1];
 
                 let new_snake = [[head_x, head_y]];
                 let copy_len = vector_size(&snake);
-                if (!ate) copy_len = copy_len - 1;
+                if (!ate) {
+                    copy_len = copy_len - 1;
+                }
 
                 for (let i = 0; i < copy_len; i += 1) {
                     vector_push(&new_snake, snake[i]);

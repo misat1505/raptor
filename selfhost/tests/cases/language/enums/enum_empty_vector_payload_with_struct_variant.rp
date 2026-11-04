@@ -1,4 +1,3 @@
-
 struct Data {
     str data
 };
@@ -8,6 +7,7 @@ enum MyEnum {
     Numbers(i64[]),
     Complex(Data[])
 };
+
 
 fn enum_repr(&MyEnum value): str {
     match (value) {
@@ -23,9 +23,9 @@ fn enum_repr(&MyEnum value): str {
     }
 }
 
+
 let a = MyEnum::Numbers([]);
 let b = MyEnum::Complex([]);
 
 println(enum_repr(&a));
 println(enum_repr(&b));
-    

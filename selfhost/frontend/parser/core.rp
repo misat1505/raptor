@@ -7,6 +7,7 @@ import "../tokens.rp";
 import "./ast.rp";
 import "./parser-results.rp";
 
+
 # ============================================================
 # Mirrors `src/frontend/parser/mod.rs` (the `Parser<L: ILexer>` struct)
 # and `src/frontend/parser/core.rs` (`next_token`, `current_token`,
@@ -33,7 +34,6 @@ import "./parser-results.rp";
 #        `None`, or unwrap the value if it returned `Some`.
 # ============================================================
 
-
 struct Parser derives Debug {
     Lexer lexer
 };
@@ -43,17 +43,14 @@ enum ResultParser derives Debug {
     Err(ParserError)
 };
 
+
 # The lexer only ever produces `LexerError`, while every parser
 # production below produces `ParserError`. Rust papers over this with
 # `Box<dyn IError>`; Raptor has no trait objects, so any `LexerError`
 # that bubbles up out of the lexer while the parser is driving it is
 # converted into an equivalent `ParserError` by hand instead.
 fn lexer_error_to_parser_error(&LexerError error): ParserError {
-    return ParserError {
-        message: error.message,
-        level: error.level,
-        span: error.span
-    };
+    return ParserError { message: error.message, level: error.level, span: error.span };
 }
 
 fn parser_new(Lexer lexer): ResultParser {
@@ -66,10 +63,14 @@ fn parser_new(Lexer lexer): ResultParser {
     # real token, so that `parser_current_token` already has something
     # meaningful to return as soon as the parser exists.
     let first_result = lexer_next(&primed);
-    if (first_result matches ResultOptionToken::Err(err)) return ResultParser::Err(lexer_error_to_parser_error(&err));
+    if (first_result matches ResultOptionToken::Err(err)) {
+        return ResultParser::Err(lexer_error_to_parser_error(&err));
+    }
 
     let second_result = lexer_next(&primed);
-    if (second_result matches ResultOptionToken::Err(err)) return ResultParser::Err(lexer_error_to_parser_error(&err));
+    if (second_result matches ResultOptionToken::Err(err)) {
+        return ResultParser::Err(lexer_error_to_parser_error(&err));
+    }
 
     return ResultParser::Ok(Parser { lexer: primed });
 }
@@ -82,8 +83,12 @@ fn parser_next_token(&Parser parser): ResultOptionToken {
     let result = lexer_next(&parser.lexer);
 
     match (result) {
-        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
-        ResultOptionToken::Ok(option_token) return ResultOptionToken::Ok(option_token);
+        ResultOptionToken::Err(err) {
+            return ResultOptionToken::Err(err);
+        },
+        ResultOptionToken::Ok(option_token) {
+            return ResultOptionToken::Ok(option_token);
+        }
     }
 }
 
@@ -91,7 +96,9 @@ fn parser_current_token(&Parser parser): Token {
     let current = lexer_current(&parser.lexer);
 
     match (current) {
-        OptionToken::Some(token) return token;,
+        OptionToken::Some(token) {
+            return token;
+        },
         OptionToken::None {
             # Unreachable in practice: `parser_new` always primes the
             # lexer before a `Parser` is handed out.
@@ -113,7 +120,9 @@ fn parser_consume_must_be(&Parser parser, TokenCategory category): ResultToken {
     # TODO: temporary workaround with debug
     if (token_category_debug(&current_token.category) == token_category_debug(&category)) {
         let advance = parser_next_token(&parser);
-        if (advance matches ResultOptionToken::Err(err)) return ResultToken::Err(lexer_error_to_parser_error(&err));
+        if (advance matches ResultOptionToken::Err(err)) {
+            return ResultToken::Err(lexer_error_to_parser_error(&err));
+        }
 
         return ResultToken::Ok(current_token);
     }
@@ -133,7 +142,9 @@ fn parser_consume_if_matches(&Parser parser, TokenCategory category): ResultOpti
     # TODO: temporary workaround with debug
     if (token_category_debug(&current_token.category) == token_category_debug(&category)) {
         let advance = parser_next_token(&parser);
-        if (advance matches ResultOptionToken::Err(err)) return ResultOptionToken::Err(err);
+        if (advance matches ResultOptionToken::Err(err)) {
+            return ResultOptionToken::Err(err);
+        }
 
         return ResultOptionToken::Ok(OptionToken::Some(current_token));
     }
@@ -147,10 +158,20 @@ fn parser_create_parser_error(&Parser parser, str text): ParserError {
 
 fn parser_token_text(&Token token): str {
     match (token.value) {
-        TokenValue::F64(value) return value as str;,
-        TokenValue::I64(value) return value as str;,
-        TokenValue::String(value) return value;,
-        TokenValue::Char(value) return value as str;,
-        TokenValue::Null return token_category_to_string(token.category);
+        TokenValue::F64(value) {
+            return value as str;
+        },
+        TokenValue::I64(value) {
+            return value as str;
+        },
+        TokenValue::String(value) {
+            return value;
+        },
+        TokenValue::Char(value) {
+            return value as str;
+        },
+        TokenValue::Null {
+            return token_category_to_string(token.category);
+        }
     }
 }

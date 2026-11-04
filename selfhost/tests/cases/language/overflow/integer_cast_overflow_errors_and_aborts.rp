@@ -1,4 +1,3 @@
-
 let value = 256;
 let result = value as i8;
 

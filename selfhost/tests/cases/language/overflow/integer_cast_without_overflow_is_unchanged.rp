@@ -1,4 +1,3 @@
-
 let value = 42;
 let result = value as i8;
 

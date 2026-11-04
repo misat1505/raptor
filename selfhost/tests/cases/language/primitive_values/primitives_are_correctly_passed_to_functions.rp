@@ -1,4 +1,3 @@
-
 fn i64_by_value(i64 x): void {
     x = 99 as i64;
 }
@@ -31,6 +30,7 @@ fn char_by_ref(&char x): void {
     x = 'Z';
 }
 
+
 let a = 1 as i64;
 i64_by_value(a);
 println(a as str);
@@ -54,4 +54,3 @@ char_by_value(c);
 println(c as str);
 char_by_ref(&c);
 println(c as str);
-        

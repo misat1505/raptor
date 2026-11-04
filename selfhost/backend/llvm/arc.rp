@@ -17,6 +17,7 @@ import "./ir-builder.rp";
 import "./compiler-core.rp";
 import "../../frontend/parser/ast.rp";
 
+
 fn ir_emit_arc_runtime(&IrBuilder b): void {
     let rt: str[] = [
         "; --- ARC runtime ---",
@@ -132,7 +133,9 @@ fn ir_emit_arc_runtime(&IrBuilder b): void {
 
 # One `void(ptr)` per struct / enum that owns managed fields / payloads.
 fn llvm_emit_drop_functions(&LlvmCompiler c): void {
-    if (!c.arc) return;
+    if (!c.arc) {
+        return;
+    }
     for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
         if (c.program.declared_types[t].value matches DeclaredType::Struct(sd)) {
             let name = sd.identifier.value;
@@ -141,7 +144,13 @@ fn llvm_emit_drop_functions(&LlvmCompiler c): void {
                 ir_emit(&c.ir, "entry:");
                 for (let m = 0; m < vector_size(&sd.members); m += 1) {
                     if (llvm_type_is_managed(&c, sd.members[m].value.member_type.value)) {
-                        ir_emit(&c.ir, "  %f" + m as str + ".p = getelementptr i8, ptr %p, i64 " + (m * 8) as str);
+                        ir_emit(
+                            &c.ir,
+                            "  %f"
+                                + m as str
+                                + ".p = getelementptr i8, ptr %p, i64 "
+                                + (m * 8) as str
+                        );
                         ir_emit(&c.ir, "  %f" + m as str + " = load ptr, ptr %f" + m as str + ".p");
                         ir_emit(&c.ir, "  call void @rt_release(ptr %f" + m as str + ")");
                     }
@@ -187,7 +196,6 @@ fn llvm_emit_drop_functions(&LlvmCompiler c): void {
     }
 }
 
-
 # ============================================================
 # Value semantics (same as the Rust backend):
 #   * str            full copy whenever it is stored or passed by value
@@ -197,12 +205,15 @@ fn llvm_emit_drop_functions(&LlvmCompiler c): void {
 
 # Emits the allocation of `size` bytes in the mode the program is compiled in.
 fn llvm_copy_alloc(&LlvmCompiler c, str size, str drop): str {
-    if (c.arc) return "call ptr @rt_alloc(i64 " + size + ", ptr " + drop + ")";
+    if (c.arc) {
+        return "call ptr @rt_alloc(i64 " + size + ", ptr " + drop + ")";
+    }
     return "call ptr @malloc(i64 " + size + ")";
 }
 
 fn llvm_emit_copy_functions(&LlvmCompiler c): void {
     let L: str[] = [];
+
     # ---- str ----
     vector_push(&L, "define ptr @rt_str_copy(ptr %s) {");
     vector_push(&L, "entry:");
@@ -218,6 +229,7 @@ fn llvm_emit_copy_functions(&LlvmCompiler c): void {
     vector_push(&L, "  ret ptr %buf");
     vector_push(&L, "}");
     vector_push(&L, "");
+
     # ---- vector: { elements_are_managed, data, len, cap } ----
     vector_push(&L, "define ptr @rt_vec_copy(ptr %v) {");
     vector_push(&L, "entry:");
@@ -278,7 +290,11 @@ fn llvm_emit_copy_functions(&LlvmCompiler c): void {
             let nf = vector_size(&sd.members);
             ir_emit(&c.ir, "define ptr @copy.struct." + name + "(ptr %p) {");
             ir_emit(&c.ir, "entry:");
-            ir_emit(&c.ir, "  %new = " + llvm_copy_alloc(&c, ((nf + 1) * 8) as str, llvm_struct_drop_ref(&c, name)));
+            ir_emit(
+                &c.ir,
+                "  %new = "
+                    + llvm_copy_alloc(&c, ((nf + 1) * 8) as str, llvm_struct_drop_ref(&c, name))
+            );
             for (let m = 0; m < nf; m += 1) {
                 let off = (m * 8) as str;
                 ir_emit(&c.ir, "  %s" + m as str + " = getelementptr i8, ptr %p, i64 " + off);

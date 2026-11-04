@@ -12,6 +12,7 @@ import "../common/errors.rp";
 import "../common/span.rp";
 import "../semantic-checker/semantic-helpers.rp";
 
+
 # Which custom type_check to run (host uses Option<fn(&[Type]) -> ...>).
 enum StdTypeCheckKind {
     None,
@@ -33,6 +34,7 @@ enum OptionStdFunction {
     None
 };
 
+
 fn std_function_new(
     str name,
     Type[] params,
@@ -52,7 +54,9 @@ fn std_function_new(
 fn std_function_lookup(str name): OptionStdFunction {
     let all = get_std_functions();
     for (let i = 0; i < vector_size(&all); i += 1) {
-        if (all[i].name == name) return OptionStdFunction::Some(all[i]);
+        if (all[i].name == name) {
+            return OptionStdFunction::Some(all[i]);
+        }
     }
     return OptionStdFunction::None;
 }

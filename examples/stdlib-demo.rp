@@ -1,6 +1,7 @@
 import "../stdlib/string.rp";
 import "../stdlib/vector.rp";
 
+
 let name = "   Hello World   ";
 
 println(str_trim(name));

@@ -1,4 +1,3 @@
-
 struct Student {
     str first_name,
     str last_name,
@@ -6,8 +5,18 @@ struct Student {
     f64 average
 };
 
+
 fn student_repr(&Student student): str {
-    let text = "Student { first_name: \"" + student.first_name + "\", last_name: \"" + student.last_name + "\", age: " + student.age as str + ", average: " + student.average as str + " }";
+    let text =
+        "Student { first_name: \""
+            + student.first_name
+            + "\", last_name: \""
+            + student.last_name
+            + "\", age: "
+            + student.age as str
+            + ", average: "
+            + student.average as str
+            + " }";
     return text;
 }
 
@@ -19,9 +28,12 @@ fn students_repr(&Student[] students): str {
     return text;
 }
 
+
 let students: Student[] = [];
 
 println(students_repr(&students));
-vector_push(&students, Student { first_name: "Bob", last_name: "Bobson", age: 12 as u8, average: 1.0 });
+vector_push(
+    &students,
+    Student { first_name: "Bob", last_name: "Bobson", age: 12 as u8, average: 1.0 }
+);
 println(students_repr(&students));
-    

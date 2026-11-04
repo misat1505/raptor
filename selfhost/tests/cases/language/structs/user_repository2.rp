@@ -1,21 +1,21 @@
-
 struct User {
     u64 id,
     str name
 };
 
+struct UserRepository {
+    User[] users
+};
+
+
 fn user_init(u64 id, str name): User {
-    return User { id, name };
+    return User { id: id, name: name };
 }
 
 fn user_repr(&User user): str {
     let text = "User { id: " + user.id as str + ", name: \"" + user.name + "\" }";
     return text;
 }
-
-struct UserRepository {
-    User[] users
-};
 
 fn user_repository_init(): UserRepository {
     return UserRepository { users: [] };
@@ -28,18 +28,25 @@ fn user_repository_add_user(&UserRepository repo, User user): void {
 fn user_repository_repr(&UserRepository repo): str {
     let is_empty = vector_size(&repo.users) == 0;
     let text = "UserRepository { users: [";
-    if (!is_empty) text += " ";
+    if (!is_empty) {
+        text += " ";
+    }
 
     for (let i = 0; i < vector_size(&repo.users); i += 1) {
-        if (i != 0) text += ", ";
+        if (i != 0) {
+            text += ", ";
+        }
         text += user_repr(&repo.users[i]);
     }
 
-    if (!is_empty) text += " ";
+    if (!is_empty) {
+        text += " ";
+    }
     text += "] }";
 
     return text;
 }
+
 
 let repo = UserRepository { users: [] };
 println(user_repository_repr(&repo));
@@ -55,4 +62,3 @@ println(user_repository_repr(&repo));
 
 vector_push(&users_reference, User { id: 2 as u64, name: "Fred" });
 println(user_repository_repr(&repo));
-    

@@ -22,18 +22,16 @@ import "../frontend/parser/parser-results.rp";
 import "../frontend/parser/core.rp";
 import "../frontend/parser/program.rp";
 
+
 struct ImportResolver {
     str[] stack,
     str[] visited,
     LexerOptions lexer_options
 };
 
+
 fn import_resolver_new(LexerOptions lexer_options): ImportResolver {
-    return ImportResolver {
-        stack: [],
-        visited: [],
-        lexer_options: lexer_options
-    };
+    return ImportResolver { stack: [], visited: [], lexer_options: lexer_options };
 }
 
 # Public entry: merge `entry_program` (already parsed from `entry_path`)
@@ -88,7 +86,9 @@ fn import_resolver_merge_program(
         let function = program.functions[i];
         let name = function.value.identifier.value;
         let collision = import_resolver_check_collision(name, function.span, &merged);
-        if (collision matches ResultUnit::Err(err)) return ResultUnit::Err(err);
+        if (collision matches ResultUnit::Err(err)) {
+            return ResultUnit::Err(err);
+        }
         vector_push(&merged.functions, function);
     }
 
@@ -99,7 +99,9 @@ fn import_resolver_merge_program(
             name = alias.value;
         }
         let collision = import_resolver_check_collision(name, extern_function.span, &merged);
-        if (collision matches ResultUnit::Err(err)) return ResultUnit::Err(err);
+        if (collision matches ResultUnit::Err(err)) {
+            return ResultUnit::Err(err);
+        }
         vector_push(&merged.extern_functions, extern_function);
     }
 
@@ -107,30 +109,35 @@ fn import_resolver_merge_program(
         let declared_type = program.declared_types[i];
         let name = "";
         match (declared_type.value) {
-            DeclaredType::Struct(struct_declaration) name = struct_declaration.identifier.value;,
-            DeclaredType::Enum(enum_declaration) name = enum_declaration.identifier.value;
+            DeclaredType::Struct(struct_declaration) {
+                name = struct_declaration.identifier.value;
+            },
+            DeclaredType::Enum(enum_declaration) {
+                name = enum_declaration.identifier.value;
+            }
         }
         let collision = import_resolver_check_collision(name, declared_type.span, &merged);
-        if (collision matches ResultUnit::Err(err)) return ResultUnit::Err(err);
+        if (collision matches ResultUnit::Err(err)) {
+            return ResultUnit::Err(err);
+        }
         vector_push(&merged.declared_types, declared_type);
     }
 
     for (let i = 0; i < vector_size(&program.statements); i += 1) {
         let statement = program.statements[i];
-        match (statement.value) {
-            Statement::Import(path_node) {
-                let import_result = import_resolver_handle_import(
-                    &resolver,
-                    current_path,
-                    path_node.value,
-                    statement.span,
-                    &merged
-                );
-                if (import_result matches ResultUnit::Err(err)) return ResultUnit::Err(err);
-            },
-            rest {
-                vector_push(&merged.statements, statement);
+        if (statement.value matches Statement::Import(path_node)) {
+            let import_result = import_resolver_handle_import(
+                &resolver,
+                current_path,
+                path_node.value,
+                statement.span,
+                &merged
+            );
+            if (import_result matches ResultUnit::Err(err)) {
+                return ResultUnit::Err(err);
             }
+        } else {
+            vector_push(&merged.statements, statement);
         }
     }
 
@@ -172,7 +179,9 @@ fn import_resolver_handle_import(
 
     let sub_result = import_resolver_parse_file(&resolver, resolved, span);
     match (sub_result) {
-        ResultProgram::Err(err) return ResultUnit::Err(err);,
+        ResultProgram::Err(err) {
+            return ResultUnit::Err(err);
+        },
         ResultProgram::Ok(sub_program) {
             vector_push(&resolver.stack, resolved);
             vector_push(&resolver.visited, resolved);
@@ -183,7 +192,9 @@ fn import_resolver_handle_import(
                 &sub_program,
                 &merged
             );
-            if (merge_result matches ResultUnit::Err(err)) return ResultUnit::Err(err);
+            if (merge_result matches ResultUnit::Err(err)) {
+                return ResultUnit::Err(err);
+            }
 
             if (vector_size(&resolver.stack) > 0) {
                 let new_stack: str[] = [];
@@ -198,11 +209,7 @@ fn import_resolver_handle_import(
     return ResultUnit::Ok;
 }
 
-fn import_resolver_parse_file(
-    &ImportResolver resolver,
-    str path,
-    Span import_span
-): ResultProgram {
+fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_span): ResultProgram {
     if (!exists_file(path)) {
         return ResultProgram::Err(parser_error_new(
             ErrorSeverity::HIGH,
@@ -223,18 +230,16 @@ fn import_resolver_parse_file(
     let parser_result = parser_new(lexer);
 
     match (parser_result) {
-        ResultParser::Err(err) return ResultProgram::Err(err);,
+        ResultParser::Err(err) {
+            return ResultProgram::Err(err);
+        },
         ResultParser::Ok(parser) {
             return parser_parse(&parser);
         }
     }
 }
 
-fn import_resolver_check_collision(
-    str name,
-    Span span,
-    &Program merged
-): ResultUnit {
+fn import_resolver_check_collision(str name, Span span, &Program merged): ResultUnit {
     for (let i = 0; i < vector_size(&merged.functions); i += 1) {
         if (merged.functions[i].value.identifier.value == name) {
             return ResultUnit::Err(parser_error_new(
@@ -263,8 +268,12 @@ fn import_resolver_check_collision(
     for (let i = 0; i < vector_size(&merged.declared_types); i += 1) {
         let declared_name = "";
         match (merged.declared_types[i].value) {
-            DeclaredType::Struct(struct_declaration) declared_name = struct_declaration.identifier.value;,
-            DeclaredType::Enum(enum_declaration) declared_name = enum_declaration.identifier.value;
+            DeclaredType::Struct(struct_declaration) {
+                declared_name = struct_declaration.identifier.value;
+            },
+            DeclaredType::Enum(enum_declaration) {
+                declared_name = enum_declaration.identifier.value;
+            }
         }
         if (declared_name == name) {
             return ResultUnit::Err(parser_error_new(
@@ -281,7 +290,9 @@ fn import_resolver_check_collision(
 # ---------- path helpers (string-only mirror of Rust normalize_path) ----------
 
 fn import_resolver_normalize_path(str path): str {
-    if (str_len(path) == 0) return path;
+    if (str_len(path) == 0) {
+        return path;
+    }
 
     let is_absolute = str_starts_with(path, "/");
     let parts = str_split(path, "/");
@@ -289,11 +300,7 @@ fn import_resolver_normalize_path(str path): str {
 
     for (let i = 0; i < vector_size(&parts); i += 1) {
         let part = parts[i];
-        if (str_len(part) == 0) {
-            # empty segment from leading / trailing / double slash
-        } else if (part == ".") {
-            # CurDir — skip
-        } else if (part == "..") {
+        if (str_len(part) == 0) {} else if (part == ".") {} else if (part == "..") {
             if (vector_size(&stack) > 0) {
                 let new_stack: str[] = [];
                 for (let j = 0; j < vector_size(&stack) - 1; j += 1) {
@@ -307,7 +314,9 @@ fn import_resolver_normalize_path(str path): str {
     }
 
     if (vector_size(&stack) == 0) {
-        if (is_absolute) return "/";
+        if (is_absolute) {
+            return "/";
+        }
         return ".";
     }
 
@@ -339,23 +348,38 @@ fn import_resolver_path_parent(str path): str {
 }
 
 fn import_resolver_path_join(str base_dir, str relative): str {
-    if (str_len(relative) == 0) return base_dir;
-    if (str_starts_with(relative, "/")) return relative;
-    if (str_len(base_dir) == 0 || base_dir == ".") return relative;
-    if (str_ends_with(base_dir, "/")) return base_dir + relative;
+    if (str_len(relative) == 0) {
+        return base_dir;
+    }
+    if (str_starts_with(relative, "/")) {
+        return relative;
+    }
+    if (str_len(base_dir) == 0 || base_dir == ".") {
+        return relative;
+    }
+    if (str_ends_with(base_dir, "/")) {
+        return base_dir + relative;
+    }
     return base_dir + "/" + relative;
 }
 
 fn import_resolver_visited_contains(&ImportResolver resolver, str path): bool {
     for (let i = 0; i < vector_size(&resolver.visited); i += 1) {
-        if (resolver.visited[i] == path) return true;
+        if (resolver.visited[i] == path) {
+            return true;
+        }
     }
     return false;
 }
 
 fn import_resolver_stack_index(&ImportResolver resolver, str path): i64 {
     for (let i = 0; i < vector_size(&resolver.stack); i += 1) {
-        if (resolver.stack[i] == path) return i;
+        if (resolver.stack[i] == path) {
+            return i;
+        }
     }
     return -1;
 }
+
+# empty segment from leading / trailing / double slash
+# CurDir — skip

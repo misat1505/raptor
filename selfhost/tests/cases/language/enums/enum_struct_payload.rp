@@ -1,4 +1,3 @@
-
 struct User {
     str name,
     i64 age
@@ -9,6 +8,7 @@ enum Response {
     NotFound,
     Error(str)
 };
+
 
 fn response_repr(&Response response): str {
     match (response) {
@@ -24,10 +24,8 @@ fn response_repr(&Response response): str {
     }
 }
 
-let res1 = Response::Ok(User {
-    name: "Alice",
-    age: 30
-});
+
+let res1 = Response::Ok(User { name: "Alice", age: 30 });
 println(response_repr(&res1));
 
 let res2 = Response::NotFound;
@@ -35,4 +33,3 @@ println(response_repr(&res2));
 
 let res3 = Response::Error("database failure");
 println(response_repr(&res3));
-    

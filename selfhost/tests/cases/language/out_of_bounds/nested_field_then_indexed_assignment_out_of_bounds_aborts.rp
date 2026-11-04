@@ -1,7 +1,7 @@
-
 struct Container {
     i64[] items
 };
+
 
 let container = Container { items: [1, 2] };
 

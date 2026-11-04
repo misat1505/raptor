@@ -1,4 +1,3 @@
-
 enum AccountStatus {
     Active,
     Suspended(str),
@@ -16,6 +15,7 @@ struct Account {
     AccountStatus status
 };
 
+
 let accounts = [
     Account { name: "Alice", status: AccountStatus::Active },
     Account { name: "Bob", status: AccountStatus::Suspended("too many failed logins") }
@@ -23,13 +23,16 @@ let accounts = [
 
 let idx = 0;
 
-while (accounts[idx].status not matches AccountStatus::Deleted) {
-    idx += 1;
-    if (idx >= vector_size(&accounts)) {
-        println("There is no deleted user.");
+while (true) {
+    if (accounts[idx].status matches AccountStatus::Deleted) {
         break;
+    } else {
+        idx += 1;
+        if (idx >= vector_size(&accounts)) {
+            println("There is no deleted user.");
+            break;
+        }
     }
 }
 
 println(idx as str);
-        

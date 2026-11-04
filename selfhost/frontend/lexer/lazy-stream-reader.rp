@@ -11,23 +11,20 @@ enum OptionChar derives Debug {
     None
 };
 
-
 struct LazyStreamReader derives Debug {
     str src,
     i64 src_len,
-
-    # Cursor used for reading bytes from src.
-    # This is separate from current_position.offset.
     i64 read_offset,
-
     str current_line,
     char current_char,
-
     OptionU8Vec newline,
-
     Position current_position,
     OptionStr filename
 };
+
+
+# Cursor used for reading bytes from src.
+# This is separate from current_position.offset.
 
 fn lazy_stream_reader_current(&LazyStreamReader lsr): char {
     return lsr.current_char;
@@ -44,33 +41,25 @@ fn lazy_stream_reader_position(&LazyStreamReader lsr): Position {
     return lsr.current_position;
 }
 
-fn lazy_stream_reader_new(
-    str src,
-    OptionStr filename
-): LazyStreamReader {
+fn lazy_stream_reader_new(str src, OptionStr filename): LazyStreamReader {
     return LazyStreamReader {
-        src,
+        src: src,
         src_len: str_len(src),
         read_offset: 0,
         current_line: "",
-        current_char: (2 as u8) as char, # STX
+        current_char: (2 as u8) as char,
         newline: OptionU8Vec::None,
-        current_position: Position {
-            line: 0,
-            column: 0,
-            offset: 0,
-            filename
-        },
-        filename
+        current_position: Position { line: 0, column: 0, offset: 0, filename: filename },
+        filename: filename
     };
 }
 
-fn lazy_stream_reader_read_char(
-    &LazyStreamReader lsr
-): char {
+fn lazy_stream_reader_read_char(&LazyStreamReader lsr): char {
     let new_char = '\0';
     match (lazy_stream_reader_try_handle_newline(&lsr)) {
-        OptionChar::Some(ch) new_char = ch;,
+        OptionChar::Some(ch) {
+            new_char = ch;
+        },
         OptionChar::None {
             new_char = lazy_stream_reader_process_char(&lsr);
         }
@@ -78,10 +67,10 @@ fn lazy_stream_reader_read_char(
     return new_char;
 }
 
-fn lazy_stream_reader_try_handle_newline(
-    &LazyStreamReader lsr
-): OptionChar {
-    if (lsr.read_offset >= lsr.src_len) return OptionChar::None;
+fn lazy_stream_reader_try_handle_newline(&LazyStreamReader lsr): OptionChar {
+    if (lsr.read_offset >= lsr.src_len) {
+        return OptionChar::None;
+    }
 
     let first_char = lsr.src[lsr.read_offset];
     if (first_char == '\r') {
@@ -100,40 +89,31 @@ fn lazy_stream_reader_try_handle_newline(
 
     if (first_char == '\n') {
         lsr.read_offset += 1;
-        lsr.newline = OptionU8Vec::Some([
-            first_char as u8
-        ]);
+        lsr.newline = OptionU8Vec::Some([first_char as u8]);
         return OptionChar::Some('\n');
     }
 
     return OptionChar::None;
 }
 
-fn lazy_stream_reader_process_char(
-    &LazyStreamReader lsr
-): char {
-    if (lsr.read_offset >= lsr.src_len) return (3 as u8) as char; # ETX
+fn lazy_stream_reader_process_char(&LazyStreamReader lsr): char {
+    if (lsr.read_offset >= lsr.src_len) {
+        return (3 as u8) as char;  # ETX
+    }
 
     let first_byte = lsr.src[lsr.read_offset];
     lsr.read_offset += 1;
     return first_byte;
 }
 
-
-fn lazy_stream_reader_update_position(
-    &LazyStreamReader lsr,
-    char read_character
-): void {
+fn lazy_stream_reader_update_position(&LazyStreamReader lsr, char read_character): void {
     if (read_character == (2 as u8) as char) {
-        lsr.current_position = Position {
-            line: 1,
-            column: 1,
-            offset: 0,
-            filename: lsr.filename
-        };
+        lsr.current_position = Position { line: 1, column: 1, offset: 0, filename: lsr.filename };
         return;
     }
-    if (read_character == (3 as u8) as char) return;
+    if (read_character == (3 as u8) as char) {
+        return;
+    }
     if (read_character == '\n') {
         match (lsr.newline) {
             OptionU8Vec::Some(seq) {

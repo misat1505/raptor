@@ -1,4 +1,3 @@
-
 let a = 1 as i64;
 let vec_i = [a];
 a = 2 as i64;
@@ -22,4 +21,3 @@ let vec_c = [c];
 c = 'B';
 println(c as str);
 println(vec_c[0] as str);
-        

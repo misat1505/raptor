@@ -1,4 +1,3 @@
-
 let text = "hello";
 
 println(text[0] as str);

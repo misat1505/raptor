@@ -1,6 +1,7 @@
 import "../../common/span.rp";
 import "../../common/position.rp";
 
+
 # ============================================================
 # This file mirrors `src/frontend/ast.rs` and `src/common/types.rs`
 # from the Rust bootstrap compiler.
@@ -29,7 +30,6 @@ import "../../common/position.rp";
 # fine without any indirection wrapper.
 # ============================================================
 
-
 # ==================== Types (common/types.rs) ====================
 
 enum Type derives Debug, Clone {
@@ -46,15 +46,7 @@ enum Type derives Debug, Clone {
     U64,
     F64,
     Void,
-
-    # Vector(Box<Type>) in Rust.
     Vector(Type),
-
-    # Placeholder for an identifier found in type position (e.g. `Hobby[]
-    # hobbies`) before it's known whether it names a struct or an enum.
-    # Resolving it is a semantic-checker concern and out of scope for this
-    # parser; it is kept around unresolved, exactly like the Rust parser
-    # produces it.
     Unresolved(str)
 };
 
@@ -68,7 +60,6 @@ enum OptionTypeNode derives Debug, Clone {
     None
 };
 
-
 # ==================== Identifiers (Node<String>) ====================
 
 struct IdentifierNode derives Debug, Clone {
@@ -80,7 +71,6 @@ enum OptionIdentifierNode derives Debug, Clone {
     Some(IdentifierNode),
     None
 };
-
 
 # ==================== Literals ====================
 
@@ -103,14 +93,12 @@ enum OptionLiteralNode derives Debug, Clone {
     None
 };
 
-
 # ==================== Passed by ====================
 
 enum PassedBy derives Debug, Clone {
     Reference,
     Value
 };
-
 
 # ==================== Expressions ====================
 
@@ -185,33 +173,22 @@ struct EnumLiteralExpression derives Debug, Clone {
 };
 
 enum Expression derives Debug, Clone {
-    # Boolean operations
     Alternative(BinaryExpression),
     Concatenation(BinaryExpression),
-
-    # Relations
     Greater(BinaryExpression),
     GreaterEqual(BinaryExpression),
     Less(BinaryExpression),
     LessEqual(BinaryExpression),
     Equal(BinaryExpression),
     NotEqual(BinaryExpression),
-
-    # Arithmetic operations
     Addition(BinaryExpression),
     Subtraction(BinaryExpression),
     Multiplication(BinaryExpression),
     Division(BinaryExpression),
     Modulo(BinaryExpression),
-
-    # Unary operations
     BooleanNegation(ExpressionNode),
     ArithmeticNegation(ExpressionNode),
-
-    # Casting
     Casting(CastingExpression),
-
-    # Values
     Literal(Literal),
     Vector(ExpressionNode[]),
     Index(IndexExpression),
@@ -232,7 +209,6 @@ enum OptionExpressionNode derives Debug, Clone {
     None
 };
 
-
 # ==================== Variable declarations ====================
 
 struct LetDeclarationKind derives Debug, Clone {
@@ -250,7 +226,6 @@ enum VariableDeclarationKind derives Debug, Clone {
     TYPE(TypeDeclarationKind)
 };
 
-
 # ==================== Accessors (x[0].field) ====================
 
 enum Accessor derives Debug, Clone {
@@ -262,7 +237,6 @@ struct AccessorNode derives Debug, Clone {
     Accessor value,
     Span span
 };
-
 
 # ==================== Blocks ====================
 
@@ -279,7 +253,6 @@ enum OptionBlockNode derives Debug, Clone {
     Some(BlockNode),
     None
 };
-
 
 # ==================== Statements ====================
 
@@ -380,7 +353,6 @@ enum OptionStatementNode derives Debug, Clone {
     None
 };
 
-
 # ==================== Functions ====================
 
 struct Parameter derives Debug, Clone {
@@ -417,7 +389,6 @@ struct ExternFunctionDeclarationNode derives Debug, Clone {
     ExternFunctionDeclaration value,
     Span span
 };
-
 
 # ==================== Structs & Enums (user-declared types) ====================
 
@@ -473,7 +444,6 @@ struct DeclaredTypeNode derives Debug, Clone {
     Span span
 };
 
-
 # ==================== Program ====================
 
 # The Rust `Program` keys functions/extern_functions/declared_types by
@@ -490,3 +460,16 @@ struct Program derives Debug {
     ExternFunctionDeclarationNode[] extern_functions,
     DeclaredTypeNode[] declared_types
 };
+
+# Vector(Box<Type>) in Rust.
+# Placeholder for an identifier found in type position (e.g. `Hobby[]
+# hobbies`) before it's known whether it names a struct or an enum.
+# Resolving it is a semantic-checker concern and out of scope for this
+# parser; it is kept around unresolved, exactly like the Rust parser
+# produces it.
+# Boolean operations
+# Relations
+# Arithmetic operations
+# Unary operations
+# Casting
+# Values

@@ -11,18 +11,15 @@ enum ResultOptionToken derives Debug {
     Err(LexerError)
 };
 
-
 enum OptionToken derives Debug {
     Some(Token),
     None
 };
 
-
 struct LexerOptions derives Debug {
     i64 max_comment_length,
     i64 max_identifier_length
 };
-
 
 struct Lexer derives Debug {
     LazyStreamReader src,
@@ -31,27 +28,29 @@ struct Lexer derives Debug {
     LexerOptions options
 };
 
+enum ResultI64Array derives Debug {
+    Ok(i64[]),
+    Err(LexerError)
+};
 
-fn lexer_new(
-    LazyStreamReader src,
-    LexerOptions options
-): Lexer {
+# TODO: it has to i64 not let - there is some bug in the compiler
+
+enum OptionTokenCategory derives Debug {
+    Some(TokenCategory),
+    None
+};
+
+
+fn lexer_new(LazyStreamReader src, LexerOptions options): Lexer {
     let binding = lazy_stream_reader_position(&src);
     let position = position_clone(&binding);
 
-    return Lexer {
-        src,
-        current: OptionToken::None,
-        position,
-        options
-    };
+    return Lexer { src: src, current: OptionToken::None, position: position, options: options };
 }
-
 
 fn lexer_current(&Lexer lexer): OptionToken {
     return lexer.current;
 }
-
 
 fn lexer_current_span(&Lexer lexer): Span {
     let start = position_clone(&lexer.position);
@@ -59,23 +58,28 @@ fn lexer_current_span(&Lexer lexer): Span {
     let binding = lazy_stream_reader_position(&lexer.src);
     let end = position_clone(&binding);
 
-    return Span {
-        start,
-        end
-    };
+    return Span { start: start, end: end };
 }
-
 
 fn lexer_token_text(Token token): str {
     match (token.value) {
-        TokenValue::F64(value) return value as str;,
-        TokenValue::I64(value) return value as str;,
-        TokenValue::String(value) return value;,
-        TokenValue::Char(value) return value as str;,
-        TokenValue::Null return token_category_to_string(token.category);
+        TokenValue::F64(value) {
+            return value as str;
+        },
+        TokenValue::I64(value) {
+            return value as str;
+        },
+        TokenValue::String(value) {
+            return value;
+        },
+        TokenValue::Char(value) {
+            return value as str;
+        },
+        TokenValue::Null {
+            return token_category_to_string(token.category);
+        }
     }
 }
-
 
 fn lexer_create_error(&Lexer lexer, str message): LexerError {
     let start = position_clone(&lexer.position);
@@ -83,23 +87,14 @@ fn lexer_create_error(&Lexer lexer, str message): LexerError {
     let binding = lazy_stream_reader_position(&lexer.src);
     let end = position_clone(&binding);
 
-    let span = Span {
-        start,
-        end
-    };
+    let span = Span { start: start, end: end };
 
-    return lexer_error_at(
-        ErrorSeverity::HIGH,
-        message,
-        span
-    );
+    return lexer_error_at(ErrorSeverity::HIGH, message, span);
 }
-
 
 fn lexer_next(&Lexer lexer): ResultOptionToken {
     return lexer_generate_token(&lexer);
 }
-
 
 fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
     lexer_skip_whitespaces(&lexer);
@@ -110,13 +105,19 @@ fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
     let token = lexer_try_generating_sign(&lexer);
 
     match (token) {
-        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Err(err) {
+            return ResultOptionToken::Err(err);
+        },
         ResultOptionToken::Ok(option_token) {
             if (option_token matches OptionToken::Some(value)) {
                 lexer.current = OptionToken::Some(value);
 
-                if (value.category matches TokenCategory::ETX) return ResultOptionToken::Ok(lexer.current);
-                if (value.category matches TokenCategory::Comment) return lexer_generate_token(&lexer);
+                if (value.category matches TokenCategory::ETX) {
+                    return ResultOptionToken::Ok(lexer.current);
+                }
+                if (value.category matches TokenCategory::Comment) {
+                    return lexer_generate_token(&lexer);
+                }
 
                 return ResultOptionToken::Ok(lexer.current);
             }
@@ -126,7 +127,9 @@ fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
     token = lexer_try_generating_operator(&lexer);
 
     match (token) {
-        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Err(err) {
+            return ResultOptionToken::Err(err);
+        },
         ResultOptionToken::Ok(option_token) {
             if (option_token matches OptionToken::Some(value)) {
                 lexer.current = OptionToken::Some(value);
@@ -138,10 +141,14 @@ fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
     token = lexer_try_generating_comment(&lexer);
 
     match (token) {
-        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Err(err) {
+            return ResultOptionToken::Err(err);
+        },
         ResultOptionToken::Ok(option_token) {
             if (option_token matches OptionToken::Some(value)) {
-                if (value.category matches TokenCategory::Comment) return lexer_generate_token(&lexer);
+                if (value.category matches TokenCategory::Comment) {
+                    return lexer_generate_token(&lexer);
+                }
                 lexer.current = OptionToken::Some(value);
                 return ResultOptionToken::Ok(lexer.current);
             }
@@ -151,7 +158,9 @@ fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
     token = lexer_try_generating_string(&lexer);
 
     match (token) {
-        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Err(err) {
+            return ResultOptionToken::Err(err);
+        },
         ResultOptionToken::Ok(option_token) {
             if (option_token matches OptionToken::Some(value)) {
                 lexer.current = OptionToken::Some(value);
@@ -163,7 +172,9 @@ fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
     token = lexer_try_generating_char(&lexer);
 
     match (token) {
-        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Err(err) {
+            return ResultOptionToken::Err(err);
+        },
         ResultOptionToken::Ok(option_token) {
             if (option_token matches OptionToken::Some(value)) {
                 lexer.current = OptionToken::Some(value);
@@ -175,7 +186,9 @@ fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
     token = lexer_try_generating_number(&lexer);
 
     match (token) {
-        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Err(err) {
+            return ResultOptionToken::Err(err);
+        },
         ResultOptionToken::Ok(option_token) {
             if (option_token matches OptionToken::Some(value)) {
                 lexer.current = OptionToken::Some(value);
@@ -187,7 +200,9 @@ fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
     token = lexer_try_creating_identifier_or_keyword(&lexer);
 
     match (token) {
-        ResultOptionToken::Err(err) return ResultOptionToken::Err(err);,
+        ResultOptionToken::Err(err) {
+            return ResultOptionToken::Err(err);
+        },
         ResultOptionToken::Ok(option_token) {
             if (option_token matches OptionToken::Some(value)) {
                 lexer.current = OptionToken::Some(value);
@@ -196,9 +211,7 @@ fn lexer_generate_token(&Lexer lexer): ResultOptionToken {
         }
     }
 
-    return ResultOptionToken::Err(
-        lexer_create_error(&lexer, "Unexpected token")
-    );
+    return ResultOptionToken::Err(lexer_create_error(&lexer, "Unexpected token"));
 }
 
 fn lexer_skip_whitespaces(&Lexer lexer): void {
@@ -207,55 +220,63 @@ fn lexer_skip_whitespaces(&Lexer lexer): void {
     }
 }
 
-
 fn lexer_try_generating_sign(&Lexer lexer): ResultOptionToken {
     let current_char = lazy_stream_reader_current(&lexer.src);
 
     if (current_char == '(') {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::ParenOpen)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::ParenOpen
+        )));
     } else if (current_char == ')') {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::ParenClose)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::ParenClose
+        )));
     } else if (current_char == '[') {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::BracketOpen)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::BracketOpen
+        )));
     } else if (current_char == ']') {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::BracketClose)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::BracketClose
+        )));
     } else if (current_char == '{') {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::BraceOpen)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::BraceOpen
+        )));
     } else if (current_char == '}') {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::BraceClose)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::BraceClose
+        )));
     } else if (current_char == ';') {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::Semicolon)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::Semicolon
+        )));
     } else if (current_char == ',') {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::Comma)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::Comma
+        )));
     } else if (current_char == (2 as u8) as char) {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::STX)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::STX
+        )));
     } else if (current_char == (3 as u8) as char) {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::ETX)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::ETX
+        )));
     }
 
     return ResultOptionToken::Ok(OptionToken::None);
 }
-
 
 fn lexer_try_generating_operator(&Lexer lexer): ResultOptionToken {
     let current_char = lazy_stream_reader_current(&lexer.src);
@@ -339,19 +360,16 @@ fn lexer_try_generating_operator(&Lexer lexer): ResultOptionToken {
             TokenCategory::Or
         )));
     } else if (current_char == '.') {
-        return ResultOptionToken::Ok(OptionToken::Some(
-            lexer_single_char(&lexer, TokenCategory::Dot)
-        ));
+        return ResultOptionToken::Ok(OptionToken::Some(lexer_single_char(
+            &lexer,
+            TokenCategory::Dot
+        )));
     }
 
     return ResultOptionToken::Ok(OptionToken::None);
 }
 
-
-fn lexer_single_char(
-    &Lexer lexer,
-    TokenCategory category
-): Token {
+fn lexer_single_char(&Lexer lexer, TokenCategory category): Token {
     let start = position_clone(&lexer.position);
 
     lazy_stream_reader_next(&lexer.src);
@@ -360,15 +378,11 @@ fn lexer_single_char(
     let end = position_clone(&binding);
 
     return Token {
-        category,
+        category: category,
         value: TokenValue::Null,
-        span: Span {
-            start,
-            end
-        }
+        span: Span { start: start, end: end }
     };
 }
-
 
 fn lexer_extend_to_next(
     &Lexer lexer,
@@ -389,10 +403,7 @@ fn lexer_extend_to_next(
         return Token {
             category: found,
             value: TokenValue::Null,
-            span: Span {
-                start,
-                end
-            }
+            span: Span { start: start, end: end }
         };
     }
 
@@ -402,19 +413,11 @@ fn lexer_extend_to_next(
     return Token {
         category: not_found,
         value: TokenValue::Null,
-        span: Span {
-            start,
-            end
-        }
+        span: Span { start: start, end: end }
     };
 }
 
-
-fn lexer_extend_to_next_or_warning(
-    &Lexer lexer,
-    char char_to_search,
-    TokenCategory found
-): Token {
+fn lexer_extend_to_next_or_warning(&Lexer lexer, char char_to_search, TokenCategory found): Token {
     let start = position_clone(&lexer.position);
 
     let next_char = lazy_stream_reader_next(&lexer.src);
@@ -425,16 +428,9 @@ fn lexer_extend_to_next_or_warning(
         let binding = lazy_stream_reader_position(&lexer.src);
         let end = position_clone(&binding);
 
-        let span = Span {
-            start,
-            end
-        };
+        let span = Span { start: start, end: end };
 
-        let warning = lexer_error_at(
-            ErrorSeverity::LOW,
-            "Expected '|'",
-            span
-        );
+        let warning = lexer_error_at(ErrorSeverity::LOW, "Expected '|'", span);
 
         println(warning.message);
     }
@@ -445,13 +441,9 @@ fn lexer_extend_to_next_or_warning(
     return Token {
         category: found,
         value: TokenValue::Null,
-        span: Span {
-            start,
-            end
-        }
+        span: Span { start: start, end: end }
     };
 }
-
 
 fn lexer_extend_minus(&Lexer lexer): Token {
     let start = position_clone(&lexer.position);
@@ -467,10 +459,7 @@ fn lexer_extend_minus(&Lexer lexer): Token {
         return Token {
             category: TokenCategory::Arrow,
             value: TokenValue::Null,
-            span: Span {
-                start,
-                end
-            }
+            span: Span { start: start, end: end }
         };
     }
 
@@ -483,10 +472,7 @@ fn lexer_extend_minus(&Lexer lexer): Token {
         return Token {
             category: TokenCategory::MinusEquals,
             value: TokenValue::Null,
-            span: Span {
-                start,
-                end
-            }
+            span: Span { start: start, end: end }
         };
     }
 
@@ -496,13 +482,9 @@ fn lexer_extend_minus(&Lexer lexer): Token {
     return Token {
         category: TokenCategory::Minus,
         value: TokenValue::Null,
-        span: Span {
-            start,
-            end
-        }
+        span: Span { start: start, end: end }
     };
 }
-
 
 fn lexer_try_generating_comment(&Lexer lexer): ResultOptionToken {
     let current_char = lazy_stream_reader_current(&lexer.src);
@@ -521,12 +503,10 @@ fn lexer_try_generating_comment(&Lexer lexer): ResultOptionToken {
         }
 
         if (str_len(comment) >= lexer.options.max_comment_length) {
-            return ResultOptionToken::Err(
-                lexer_create_error(
-                    &lexer,
-                    "Comment too long. Max comment length: " + lexer.options.max_comment_length as str
-                )
-            );
+            return ResultOptionToken::Err(lexer_create_error(
+                &lexer,
+                "Comment too long. Max comment length: " + lexer.options.max_comment_length as str
+            ));
         }
 
         comment += current;
@@ -538,7 +518,6 @@ fn lexer_try_generating_comment(&Lexer lexer): ResultOptionToken {
         span: lexer_current_span(&lexer)
     }));
 }
-
 
 fn lexer_try_generating_char(&Lexer lexer): ResultOptionToken {
     let start = position_clone(&lexer.position);
@@ -552,21 +531,21 @@ fn lexer_try_generating_char(&Lexer lexer): ResultOptionToken {
     let next_char = lazy_stream_reader_next(&lexer.src);
 
     if (next_char == (39 as u8) as char) {
-        return ResultOptionToken::Err(
-            lexer_create_error(&lexer, "Empty char literal")
-        );
+        return ResultOptionToken::Err(lexer_create_error(&lexer, "Empty char literal"));
     }
 
     if (next_char == '\n') {
-        return ResultOptionToken::Err(
-            lexer_create_error(&lexer, "Unexpected newline in char literal")
-        );
+        return ResultOptionToken::Err(lexer_create_error(
+            &lexer,
+            "Unexpected newline in char literal"
+        ));
     }
 
     if (next_char == (3 as u8) as char) {
-        return ResultOptionToken::Err(
-            lexer_create_error(&lexer, "Unexpected end of file in char literal")
-        );
+        return ResultOptionToken::Err(lexer_create_error(
+            &lexer,
+            "Unexpected end of file in char literal"
+        ));
     }
 
     let value = next_char;
@@ -576,12 +555,10 @@ fn lexer_try_generating_char(&Lexer lexer): ResultOptionToken {
         let escaped = lexer_escape_char_or_invalid(escaped_char);
 
         if (escaped == '\0' && escaped_char != '0') {
-            return ResultOptionToken::Err(
-                lexer_create_error(
-                    &lexer,
-                    "Invalid escape symbol detected '\\" + escaped_char + "'"
-                )
-            );
+            return ResultOptionToken::Err(lexer_create_error(
+                &lexer,
+                "Invalid escape symbol detected '\\" + escaped_char + "'"
+            ));
         }
 
         value = escaped;
@@ -590,12 +567,10 @@ fn lexer_try_generating_char(&Lexer lexer): ResultOptionToken {
     let closing_char = lazy_stream_reader_next(&lexer.src);
 
     if (closing_char != (39 as u8) as char) {
-        return ResultOptionToken::Err(
-            lexer_create_error(
-                &lexer,
-                "Char literal must contain exactly one character"
-            )
-        );
+        return ResultOptionToken::Err(lexer_create_error(
+            &lexer,
+            "Char literal must contain exactly one character"
+        ));
     }
 
     lazy_stream_reader_next(&lexer.src);
@@ -606,10 +581,7 @@ fn lexer_try_generating_char(&Lexer lexer): ResultOptionToken {
     return ResultOptionToken::Ok(OptionToken::Some(Token {
         category: TokenCategory::CharValue,
         value: TokenValue::Char(value),
-        span: Span {
-            start,
-            end
-        }
+        span: Span { start: start, end: end }
     }));
 }
 
@@ -620,8 +592,8 @@ fn lexer_escape_char(char value): char {
         return '\r';
     } else if (value == 't') {
         return '\t';
-    } else if (value == '"') {
-        return '"';
+    } else if (value == '\"') {
+        return '\"';
     } else if (value == '\\') {
         return '\\';
     } else if (value == 'e') {
@@ -633,13 +605,12 @@ fn lexer_escape_char(char value): char {
     return value;
 }
 
-
 fn lexer_try_generating_string(&Lexer lexer): ResultOptionToken {
     let start = position_clone(&lexer.position);
 
     let current_char = lazy_stream_reader_current(&lexer.src);
 
-    if (current_char != '"') {
+    if (current_char != '\"') {
         return ResultOptionToken::Ok(OptionToken::None);
     }
 
@@ -647,7 +618,7 @@ fn lexer_try_generating_string(&Lexer lexer): ResultOptionToken {
 
     let current = lazy_stream_reader_next(&lexer.src);
 
-    while (current != '"') {
+    while (current != '\"') {
         if (current == '\\') {
             let next_char = lazy_stream_reader_next(&lexer.src);
 
@@ -668,30 +639,24 @@ fn lexer_try_generating_string(&Lexer lexer): ResultOptionToken {
                 created_string += next_char;
             }
         } else if (current == '\n') {
-            return ResultOptionToken::Err(
-                lexer_create_error(&lexer, "Unexpected newline in string")
-            );
+            return ResultOptionToken::Err(lexer_create_error(
+                &lexer,
+                "Unexpected newline in string"
+            ));
         } else if (current == (3 as u8) as char) {
             let binding = lazy_stream_reader_position(&lexer.src);
             let end = position_clone(&binding);
 
-            let span = Span {
-                start,
-                end
-            };
+            let span = Span { start: start, end: end };
 
-            let warning = lexer_error_at(
-                ErrorSeverity::LOW,
-                "String not closed",
-                span
-            );
+            let warning = lexer_error_at(ErrorSeverity::LOW, "String not closed", span);
 
             println(warning.message);
 
             return ResultOptionToken::Ok(OptionToken::Some(Token {
                 category: TokenCategory::StringValue,
                 value: TokenValue::String(created_string),
-                span
+                span: span
             }));
         } else {
             created_string += current;
@@ -708,10 +673,7 @@ fn lexer_try_generating_string(&Lexer lexer): ResultOptionToken {
     return ResultOptionToken::Ok(OptionToken::Some(Token {
         category: TokenCategory::StringValue,
         value: TokenValue::String(created_string),
-        span: Span {
-            start,
-            end
-        }
+        span: Span { start: start, end: end }
     }));
 }
 
@@ -722,8 +684,8 @@ fn lexer_escape_char_or_invalid(char value): char {
         return '\r';
     } else if (value == 't') {
         return '\t';
-    } else if (value == '"') {
-        return '"';
+    } else if (value == '\"') {
+        return '\"';
     } else if (value == '\\') {
         return '\\';
     } else if (value == 'e') {
@@ -734,7 +696,6 @@ fn lexer_escape_char_or_invalid(char value): char {
 
     return '\0';
 }
-
 
 fn lexer_try_generating_number(&Lexer lexer): ResultOptionToken {
     let start = position_clone(&lexer.position);
@@ -751,16 +712,21 @@ fn lexer_try_generating_number(&Lexer lexer): ResultOptionToken {
         let parsed = lexer_parse_integer(&lexer);
 
         match (parsed) {
-            ResultI64Array::Err(err) return ResultOptionToken::Err(err);,
-            ResultI64Array::Ok(values) decimal = values[0];
+            ResultI64Array::Err(err) {
+                return ResultOptionToken::Err(err);
+            },
+            ResultI64Array::Ok(values) {
+                decimal = values[0];
+            }
         }
     } else {
         let next_char = lazy_stream_reader_next(&lexer.src);
 
         if (char_is_digit(next_char)) {
-            return ResultOptionToken::Err(
-                lexer_create_error(&lexer, "Cannot prefix number with 0's.")
-            );
+            return ResultOptionToken::Err(lexer_create_error(
+                &lexer,
+                "Cannot prefix number with 0's."
+            ));
         }
     }
 
@@ -773,10 +739,7 @@ fn lexer_try_generating_number(&Lexer lexer): ResultOptionToken {
         return ResultOptionToken::Ok(OptionToken::Some(Token {
             category: TokenCategory::I64Value,
             value: TokenValue::I64(decimal),
-            span: Span {
-                start,
-                end
-            }
+            span: Span { start: start, end: end }
         }));
     }
 
@@ -790,14 +753,12 @@ fn lexer_try_generating_number(&Lexer lexer): ResultOptionToken {
         ResultI64Array::Err(err) {
             return ResultOptionToken::Err(err);
         },
-        ResultI64Array::Ok(values) fraction_values = values;
+        ResultI64Array::Ok(values) {
+            fraction_values = values;
+        }
     }
 
-    let float_value = lexer_merge_to_float(
-        decimal,
-        fraction_values[0],
-        fraction_values[1]
-    );
+    let float_value = lexer_merge_to_float(decimal, fraction_values[0], fraction_values[1]);
 
     let binding = lazy_stream_reader_position(&lexer.src);
     let end = position_clone(&binding);
@@ -805,18 +766,9 @@ fn lexer_try_generating_number(&Lexer lexer): ResultOptionToken {
     return ResultOptionToken::Ok(OptionToken::Some(Token {
         category: TokenCategory::F64Value,
         value: TokenValue::F64(float_value),
-        span: Span {
-            start,
-            end
-        }
+        span: Span { start: start, end: end }
     }));
 }
-
-enum ResultI64Array derives Debug {
-    Ok(i64[]),
-    Err(LexerError)
-};
-
 
 fn lexer_parse_integer(&Lexer lexer): ResultI64Array {
     let current_char = lazy_stream_reader_current(&lexer.src);
@@ -826,25 +778,20 @@ fn lexer_parse_integer(&Lexer lexer): ResultI64Array {
 
     while (true) {
         if (char_is_digit(current_char)) {
-            # TODO: it has to i64 not let - there is some bug in the compiler
-            i64 digit = ((current_char as u8) as i64) - (('0' as u8) as i64);
+            i64 digit = (current_char as u8) as i64 - ('0' as u8) as i64;
 
             if (total > 922337203685477580) {
-                return ResultI64Array::Err(
-                    lexer_create_error(
-                        &lexer,
-                        "Overflow occurred while parsing integer"
-                    )
-                );
+                return ResultI64Array::Err(lexer_create_error(
+                    &lexer,
+                    "Overflow occurred while parsing integer"
+                ));
             }
 
             if (total == 922337203685477580 && digit > 7) {
-                return ResultI64Array::Err(
-                    lexer_create_error(
-                        &lexer,
-                        "Overflow occurred while parsing integer"
-                    )
-                );
+                return ResultI64Array::Err(lexer_create_error(
+                    &lexer,
+                    "Overflow occurred while parsing integer"
+                ));
             }
 
             total = total * 10;
@@ -857,12 +804,10 @@ fn lexer_parse_integer(&Lexer lexer): ResultI64Array {
             let next_char = lazy_stream_reader_next(&lexer.src);
 
             if (!char_is_digit(next_char)) {
-                return ResultI64Array::Err(
-                    lexer_create_error(
-                        &lexer,
-                        "Digit separator ' must be placed between two digits"
-                    )
-                );
+                return ResultI64Array::Err(lexer_create_error(
+                    &lexer,
+                    "Digit separator ' must be placed between two digits"
+                ));
             }
 
             current_char = next_char;
@@ -887,13 +832,9 @@ fn lexer_merge_to_float(i64 decimal, i64 fraction, i64 fraction_length): f64 {
     return decimal as f64 + fraction as f64 / power;
 }
 
-
 fn lexer_char_is_still_identifier(char current_char): bool {
-    return char_is_digit(current_char)
-        || char_is_letter(current_char)
-        || current_char == '_';
+    return char_is_digit(current_char) || char_is_letter(current_char) || current_char == '_';
 }
-
 
 fn lexer_try_creating_identifier_or_keyword(&Lexer lexer): ResultOptionToken {
     let start = position_clone(&lexer.position);
@@ -908,12 +849,11 @@ fn lexer_try_creating_identifier_or_keyword(&Lexer lexer): ResultOptionToken {
 
     while (lexer_char_is_still_identifier(current_char)) {
         if (str_len(created_string) >= lexer.options.max_identifier_length) {
-            return ResultOptionToken::Err(
-                lexer_create_error(
-                    &lexer,
-                    "Identifier name too long. Max identifier length: " + lexer.options.max_identifier_length as str
-                )
-            );
+            return ResultOptionToken::Err(lexer_create_error(
+                &lexer,
+                "Identifier name too long. Max identifier length: "
+                    + lexer.options.max_identifier_length as str
+            ));
         }
 
         created_string += current_char;
@@ -924,34 +864,27 @@ fn lexer_try_creating_identifier_or_keyword(&Lexer lexer): ResultOptionToken {
     let binding = lazy_stream_reader_position(&lexer.src);
     let end = position_clone(&binding);
 
-    let span = Span {
-        start,
-        end
-    };
+    let span = Span { start: start, end: end };
 
     let category = lexer_keyword_category(created_string);
 
     match (category) {
-        OptionTokenCategory::Some(value) return ResultOptionToken::Ok(OptionToken::Some(Token {
-            category: value,
-            value: TokenValue::Null,
-            span
-        }));,
-
-        OptionTokenCategory::None return ResultOptionToken::Ok(OptionToken::Some(Token {
-            category: TokenCategory::Identifier,
-            value: TokenValue::String(created_string),
-            span
-        }));
+        OptionTokenCategory::Some(value) {
+            return ResultOptionToken::Ok(OptionToken::Some(Token {
+                category: value,
+                value: TokenValue::Null,
+                span: span
+            }));
+        },
+        OptionTokenCategory::None {
+            return ResultOptionToken::Ok(OptionToken::Some(Token {
+                category: TokenCategory::Identifier,
+                value: TokenValue::String(created_string),
+                span: span
+            }));
+        }
     }
 }
-
-
-enum OptionTokenCategory derives Debug {
-    Some(TokenCategory),
-    None
-};
-
 
 fn lexer_keyword_category(str value): OptionTokenCategory {
     if (value == "fn") {

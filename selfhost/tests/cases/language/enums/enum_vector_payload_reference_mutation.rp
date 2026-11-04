@@ -1,7 +1,7 @@
-
 enum Data {
     Numbers(i64[])
 };
+
 
 fn add_number(&Data data, i64 value): void {
     match (data) {
@@ -21,10 +21,10 @@ fn print_numbers(&Data data): void {
     }
 }
 
+
 let numbers = [10, 20];
 
 let data = Data::Numbers(numbers);
 
 add_number(&data, 30);
 print_numbers(&data);
-    

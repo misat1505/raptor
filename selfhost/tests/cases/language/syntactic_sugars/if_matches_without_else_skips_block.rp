@@ -1,4 +1,3 @@
-
 enum AccountStatus {
     Active,
     Suspended(str),
@@ -11,6 +10,7 @@ struct Timestamp {
     i64 year
 };
 
+
 let status = AccountStatus::Active;
 
 if (status matches AccountStatus::Suspended(reason)) {
@@ -18,4 +18,3 @@ if (status matches AccountStatus::Suspended(reason)) {
 }
 
 println("done");
-        

@@ -1,4 +1,3 @@
-
 fn split_by_delim(str text, char delim): str[] {
     let segments: str[] = [];
     let word = "";
@@ -18,6 +17,6 @@ fn split_by_delim(str text, char delim): str[] {
     return segments;
 }
 
+
 let segments = split_by_delim("Users/user1/Desktop/foo/bar/baz", '/');
 println(vector_stringify(segments));
-    

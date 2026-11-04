@@ -1,4 +1,3 @@
-
 let a = 1 as i64;
 let b = a;
 a = 2 as i64;
@@ -64,4 +63,3 @@ let v = u;
 u = 'B';
 println(u as str);
 println(v as str);
-        

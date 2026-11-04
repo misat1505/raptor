@@ -1,9 +1,9 @@
-
 enum Token {
     Number(i64),
     Word(str),
     End
 };
+
 
 fn token_repr(&Token token): str {
     match (token) {
@@ -19,6 +19,7 @@ fn token_repr(&Token token): str {
     }
 }
 
+
 let tokens: Token[] = [
     Token::Number(10),
     Token::Word("hello"),
@@ -30,4 +31,3 @@ let tokens: Token[] = [
 for (let i = 0; i < vector_size(&tokens); i += 1) {
     println(token_repr(&tokens[i]));
 }
-    

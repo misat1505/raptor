@@ -1,4 +1,3 @@
-
 struct Tag {
     str label
 };
@@ -12,6 +11,7 @@ struct Container {
     str name,
     Item[] items
 };
+
 
 let tag1 = Tag { label: "x" };
 let item1 = Item { value: 1 as i64, tags: [tag1] };
@@ -27,4 +27,3 @@ println(container.items[0].tags[0].label as str);
 # is visible from the originally referenced objects too
 println(item1.value as str);
 println(tag1.label as str);
-        

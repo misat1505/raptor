@@ -1,4 +1,3 @@
-
 struct Data {
     str value
 };
@@ -6,6 +5,7 @@ struct Data {
 enum Wrapper {
     Data(Data)
 };
+
 
 fn modify(&Wrapper wrapper): void {
     match (wrapper) {
@@ -15,9 +15,8 @@ fn modify(&Wrapper wrapper): void {
     }
 }
 
-let original = Data {
-    value: "original"
-};
+
+let original = Data { value: "original" };
 
 let wrapper = Wrapper::Data(original);
 
@@ -28,4 +27,3 @@ match (wrapper) {
         println(data.value);
     }
 }
-    

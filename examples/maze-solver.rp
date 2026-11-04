@@ -204,4 +204,5 @@ fn main(): void {
     print_maze(&maze);
 }
 
+
 main();

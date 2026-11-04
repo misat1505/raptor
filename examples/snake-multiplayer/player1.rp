@@ -9,6 +9,7 @@ extern fn DrawRectangle(i64 x, i64 y, i64 w, i64 h, i64 color): void as draw_rec
 extern fn DrawText(str text, i64 x, i64 y, i64 font_size, i64 color): void as draw_text;
 extern fn IsKeyPressed(i64 key): bool as is_key_pressed;
 
+
 fn make_color(i64 r, i64 g, i64 b, i64 a): i64 {
     return a * 256 * 256 * 256 + b * 256 * 256 + g * 256 + r;
 }
@@ -17,7 +18,9 @@ fn tcp_read_all(i64 socket): str {
     str result = "";
     while (true) {
         str chunk = tcp_read(socket);
-        if (str_len(chunk) == 0) break;
+        if (str_len(chunk) == 0) {
+            break;
+        }
         result += chunk;
     }
     return result;
@@ -45,7 +48,9 @@ fn split_by_delim(str text, char delim): str[] {
 fn fetch_world(str host, i64 port, i64 player_id, i64 dx, i64 dy): str {
     i64 sock = tcp_connect(host, port);
     println("DEBUG player " + player_id as str + " sock=" + sock as str);
-    if (sock == -1) return "";
+    if (sock == -1) {
+        return "";
+    }
     str msg = "INPUT " + player_id as str + " " + dx as str + " " + dy as str;
     tcp_write(sock, msg);
     str response = tcp_read_all(sock);
@@ -56,7 +61,9 @@ fn fetch_world(str host, i64 port, i64 player_id, i64 dx, i64 dy): str {
 
 fn send_reset(str host, i64 port): void {
     i64 sock = tcp_connect(host, port);
-    if (sock == -1) return;
+    if (sock == -1) {
+        return;
+    }
     tcp_write(sock, "RESET");
     tcp_read_all(sock);
     tcp_close(sock);
@@ -82,6 +89,7 @@ fn draw_cell(i64 x, i64 y, i64 color): void {
     draw_rectangle(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1, color);
 }
 
+
 i64 PLAYER_ID = 0;
 
 str SERVER_HOST = "localhost";
@@ -103,12 +111,19 @@ i64 COLOR_SNAKE_OTHER = make_color(60, 120, 220, 255);
 i64 COLOR_APPLE = make_color(220, 30, 30, 255);
 i64 COLOR_TEXT = make_color(255, 255, 255, 255);
 
-init_window(GRID_W * CELL_SIZE, GRID_H * CELL_SIZE, "Snake Online - Player " + (PLAYER_ID + 1) as str);
+init_window(
+    GRID_W * CELL_SIZE,
+    GRID_H * CELL_SIZE,
+    "Snake Online - Player " + (PLAYER_ID + 1) as str
+);
 set_target_fps(15);
 
 i64 dx = 1;
 i64 dy = 0;
-if (PLAYER_ID == 1) { dx = -1; dy = 0; }
+if (PLAYER_ID == 1) {
+    dx = -1;
+    dy = 0;
+}
 
 i64[][] snake0 = [];
 i64[][] snake1 = [];
@@ -118,12 +133,23 @@ i64 score1 = 0;
 bool game_over = false;
 
 while (!window_should_close()) {
-
     if (!game_over) {
-        if (is_key_pressed(KEY_RIGHT) && dx != -1) { dx = 1; dy = 0; }
-        if (is_key_pressed(KEY_LEFT) && dx != 1) { dx = -1; dy = 0; }
-        if (is_key_pressed(KEY_UP) && dy != 1) { dx = 0; dy = -1; }
-        if (is_key_pressed(KEY_DOWN) && dy != -1) { dx = 0; dy = 1; }
+        if (is_key_pressed(KEY_RIGHT) && dx != -1) {
+            dx = 1;
+            dy = 0;
+        }
+        if (is_key_pressed(KEY_LEFT) && dx != 1) {
+            dx = -1;
+            dy = 0;
+        }
+        if (is_key_pressed(KEY_UP) && dy != 1) {
+            dx = 0;
+            dy = -1;
+        }
+        if (is_key_pressed(KEY_DOWN) && dy != -1) {
+            dx = 0;
+            dy = 1;
+        }
     }
 
     if (game_over && is_key_pressed(KEY_ENTER)) {
@@ -136,7 +162,7 @@ while (!window_should_close()) {
         str[] fields = split_by_delim(world, '|');
 
         str[] go_kv = split_by_delim(fields[0], ':');
-        game_over = (go_kv[1] as i64) == 1;
+        game_over = go_kv[1] as i64 == 1;
 
         str[] s0_kv = split_by_delim(fields[1], ':');
         score0 = s0_kv[1] as i64;
@@ -156,12 +182,16 @@ while (!window_should_close()) {
 
     for (i64 i = 0; i < vector_size(&snake0); i += 1) {
         i64 c = COLOR_SNAKE_OTHER;
-        if (PLAYER_ID == 0) c = COLOR_SNAKE_ME;
+        if (PLAYER_ID == 0) {
+            c = COLOR_SNAKE_ME;
+        }
         draw_cell(snake0[i][0], snake0[i][1], c);
     }
     for (i64 i = 0; i < vector_size(&snake1); i += 1) {
         i64 c = COLOR_SNAKE_OTHER;
-        if (PLAYER_ID == 1) c = COLOR_SNAKE_ME;
+        if (PLAYER_ID == 1) {
+            c = COLOR_SNAKE_ME;
+        }
         draw_cell(snake1[i][0], snake1[i][1], c);
     }
     draw_cell(apple[0], apple[1], COLOR_APPLE);

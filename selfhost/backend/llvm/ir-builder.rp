@@ -3,23 +3,17 @@
 # ============================================================
 
 struct IrBuilder {
-    str[] header,   # target datalayout / triple / comments first
-    str[] lines,    # body: declares + defines
-    str[] globals,  # @.str.* etc. — emitted AFTER header, BEFORE body
+    str[] header,
+    str[] lines,
+    str[] globals,
     i64 tmp_id,
     i64 str_id,
     i64 label_id
 };
 
+
 fn ir_builder_new(): IrBuilder {
-    return IrBuilder {
-        header: [],
-        lines: [],
-        globals: [],
-        tmp_id: 0,
-        str_id: 0,
-        label_id: 0
-    };
+    return IrBuilder { header: [], lines: [], globals: [], tmp_id: 0, str_id: 0, label_id: 0 };
 }
 
 fn ir_emit_header(&IrBuilder b, str line): void {
@@ -53,7 +47,7 @@ fn ir_escape_cstr(str value): str {
         let c = value[i];
         if (c == '\\') {
             escaped += "\\\\";
-        } else if (c == '"') {
+        } else if (c == '\"') {
             escaped += "\\22";
         } else if (c == '\n') {
             escaped += "\\0A";
@@ -72,7 +66,15 @@ fn ir_cstr_global(&IrBuilder b, str value): str {
     let name = "@.str." + b.str_id as str;
     b.str_id += 1;
     let n = str_len(value) + 1;
-    ir_emit_global(&b, name + " = private unnamed_addr constant [" + n as str + " x i8] c\"" + ir_escape_cstr(value) + "\\00\"");
+    ir_emit_global(
+        &b,
+        name
+            + " = private unnamed_addr constant ["
+            + n as str
+            + " x i8] c\""
+            + ir_escape_cstr(value)
+            + "\\00\""
+    );
     return name;
 }
 
@@ -83,7 +85,17 @@ fn ir_managed_str_global(&IrBuilder b, str value): str {
     let name = "@.mstr." + b.str_id as str;
     b.str_id += 1;
     let n = str_len(value) + 1;
-    ir_emit_global(&b, name + " = private constant { i64, i64, [" + n as str + " x i8] } { i64 -1, i64 0, [" + n as str + " x i8] c\"" + ir_escape_cstr(value) + "\\00\" }");
+    ir_emit_global(
+        &b,
+        name
+            + " = private constant { i64, i64, ["
+            + n as str
+            + " x i8] } { i64 -1, i64 0, ["
+            + n as str
+            + " x i8] c\""
+            + ir_escape_cstr(value)
+            + "\\00\" }"
+    );
     return name;
 }
 
@@ -98,7 +110,9 @@ fn ir_join_lines(&str[] parts): str {
     for (let i = 0; i < vector_size(&parts); i += 1) {
         vector_push(&cur, parts[i] + "\n");
     }
-    if (vector_size(&cur) == 0) return "";
+    if (vector_size(&cur) == 0) {
+        return "";
+    }
     while (vector_size(&cur) > 1) {
         let next: str[] = [];
         let n = vector_size(&cur);

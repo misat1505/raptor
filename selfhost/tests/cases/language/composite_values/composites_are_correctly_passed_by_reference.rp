@@ -1,7 +1,7 @@
-
 struct Point {
     i64 x
 };
+
 
 fn vec_by_ref(&i64[] v): void {
     v[0] = 99 as i64;
@@ -11,6 +11,7 @@ fn struct_by_ref(&Point p): void {
     p.x = 99 as i64;
 }
 
+
 let vec = [1 as i64, 2 as i64];
 vec_by_ref(&vec);
 println(vec[0] as str);
@@ -18,4 +19,3 @@ println(vec[0] as str);
 let point = Point { x: 1 as i64 };
 struct_by_ref(&point);
 println(point.x as str);
-        

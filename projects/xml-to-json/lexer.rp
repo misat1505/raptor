@@ -2,12 +2,14 @@ import "./tokens.rp";
 import "./source.rp";
 import "../../stdlib/string.rp";
 
+
 struct Lexer {
     Source source,
     i64 offset,
     Token current_token,
     Token next_token
 };
+
 
 fn lexer_new(str source): Lexer {
     let src = source_new(source);
@@ -38,11 +40,15 @@ fn lexer_new(str source): Lexer {
 }
 
 fn lexer_advance_whitespace(&Lexer lexer): void {
-    while (source_get_current_char(&lexer.source) matches OptionChar::Some(ch)) {
-        if (ch == ' ' || ch == '\n' || ch == '\r') {
-            source_consume_char(&lexer.source);
+    while (true) {
+        if (source_get_current_char(&lexer.source) matches OptionChar::Some(ch)) {
+            if (ch == ' ' || ch == '\n' || ch == '\r') {
+                source_consume_char(&lexer.source);
+            } else {
+                return;
+            }
         } else {
-            return;
+            break;
         }
     }
 }
@@ -77,26 +83,35 @@ fn lexer_generate_next_token(&Lexer lexer): void {
 
 fn lexer_try_generating_number(&Lexer lexer): OptionToken {
     match (source_get_current_char(&lexer.source)) {
-        OptionChar::None return OptionToken::None;,
-
+        OptionChar::None {
+            return OptionToken::None;
+        },
         OptionChar::Some(ch) {
-            if (!char_is_digit(ch)) return OptionToken::None;
+            if (!char_is_digit(ch)) {
+                return OptionToken::None;
+            }
         }
     }
 
     let start_position = position_clone(&lexer.source.position);
     let number = 0;
 
-    while (source_get_current_char(&lexer.source) matches OptionChar::Some(ch)) {
-        if (!char_is_digit(ch)) break;
+    while (true) {
+        if (source_get_current_char(&lexer.source) matches OptionChar::Some(ch)) {
+            if (!char_is_digit(ch)) {
+                break;
+            }
 
-        if (number == 0) {
-            number = char_to_digit(ch);
+            if (number == 0) {
+                number = char_to_digit(ch);
+            } else {
+                number = number * 10 + char_to_digit(ch);
+            }
+
+            source_consume_char(&lexer.source);
         } else {
-            number = number * 10 + char_to_digit(ch);
+            break;
         }
-
-        source_consume_char(&lexer.source);
     }
 
     let token = Token {
@@ -110,10 +125,13 @@ fn lexer_try_generating_number(&Lexer lexer): OptionToken {
 
 fn lexer_try_generating_string(&Lexer lexer): OptionToken {
     match (source_get_current_char(&lexer.source)) {
-        OptionChar::None return OptionToken::None;,
-
+        OptionChar::None {
+            return OptionToken::None;
+        },
         OptionChar::Some(ch) {
-            if (!char_is_letter(ch)) return OptionToken::None;
+            if (!char_is_letter(ch)) {
+                return OptionToken::None;
+            }
         }
     }
 
@@ -121,26 +139,30 @@ fn lexer_try_generating_string(&Lexer lexer): OptionToken {
     let chars = ['<', '>', '/'];
     let text = "";
 
-    while (source_get_current_char(&lexer.source) matches OptionChar::Some(ch)) {
-        let break_at_the_end = false;
+    while (true) {
+        if (source_get_current_char(&lexer.source) matches OptionChar::Some(ch)) {
+            let break_at_the_end = false;
 
-        for (let i = 0; i < vector_size(&chars); i += 1) {
-            if (ch == chars[i]) {
-                break_at_the_end = true;
+            for (let i = 0; i < vector_size(&chars); i += 1) {
+                if (ch == chars[i]) {
+                    break_at_the_end = true;
+                }
             }
+
+            if (break_at_the_end) {
+                break;
+            }
+
+            source_consume_char(&lexer.source);
+            text += ch;
+        } else {
+            break;
         }
-
-        if (break_at_the_end) break;
-
-        source_consume_char(&lexer.source);
-        text += ch;
     }
 
     let token = Token {
         kind: TokenKind::Literal,
-        value: OptionTokenValue::Some(
-            TokenValue::Str(str_trim_right(text))
-        ),
+        value: OptionTokenValue::Some(TokenValue::Str(str_trim_right(text))),
         position: start_position
     };
 
@@ -149,32 +171,26 @@ fn lexer_try_generating_string(&Lexer lexer): OptionToken {
 
 fn lexer_try_generating_sign(&Lexer lexer): OptionToken {
     let chars = ['<', '>', '/'];
-    let token_kinds = [
-        TokenKind::Less,
-        TokenKind::Greater,
-        TokenKind::Slash
-    ];
+    let token_kinds = [TokenKind::Less, TokenKind::Greater, TokenKind::Slash];
 
     match (source_get_current_char(&lexer.source)) {
-        OptionChar::None return OptionToken::None;,
-
+        OptionChar::None {
+            return OptionToken::None;
+        },
         OptionChar::Some(ch) {
             for (let i = 0; i < vector_size(&chars); i += 1) {
                 if (ch == chars[i]) {
-                    let position =
-                        position_clone(&lexer.source.position);
+                    let position = position_clone(&lexer.source.position);
 
                     source_consume_char(&lexer.source);
 
                     let token_kind = token_kinds[i];
 
-                    return OptionToken::Some(
-                        Token {
-                            kind: token_kind,
-                            value: OptionTokenValue::None,
-                            position
-                        }
-                    );
+                    return OptionToken::Some(Token {
+                        kind: token_kind,
+                        value: OptionTokenValue::None,
+                        position: position
+                    });
                 }
             }
 

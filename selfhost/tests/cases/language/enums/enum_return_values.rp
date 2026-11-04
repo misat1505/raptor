@@ -1,8 +1,8 @@
-
 enum Result {
     Success(str),
     Failure(str)
 };
+
 
 fn get_result(bool success): Result {
     if (success) {
@@ -23,9 +23,9 @@ fn print_result(&Result result): void {
     }
 }
 
+
 let first = get_result(true);
 let second = get_result(false);
 
 print_result(&first);
 print_result(&second);
-    

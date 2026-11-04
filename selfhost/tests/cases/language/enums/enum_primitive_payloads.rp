@@ -1,9 +1,9 @@
-
 enum Value {
     Number(i64),
     Text(str),
     Flag(bool)
 };
+
 
 fn value_repr(&Value value): str {
     match (value) {
@@ -23,6 +23,7 @@ fn value_repr(&Value value): str {
     }
 }
 
+
 let val1 = Value::Number(42);
 println(value_repr(&val1));
 
@@ -34,4 +35,3 @@ println(value_repr(&val3));
 
 let val4 = Value::Flag(false);
 println(value_repr(&val4));
-    

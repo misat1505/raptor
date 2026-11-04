@@ -1,4 +1,3 @@
-
 struct Item {
     i64 value
 };
@@ -8,6 +7,7 @@ struct Bag {
     Item[] items
 };
 
+
 fn mutate(Bag bag): void {
     # primitive field: this mutation is local to the by-value copy
     bag.count = 999 as i64;
@@ -15,6 +15,7 @@ fn mutate(Bag bag): void {
     # composite field (vector): aliased, so this mutation is visible to the caller
     bag.items[0].value = 999 as i64;
 }
+
 
 let item = Item { value: 1 as i64 };
 let bag = Bag { count: 1 as i64, items: [item] };
@@ -24,4 +25,3 @@ mutate(bag);
 println(bag.count as str);
 println(bag.items[0].value as str);
 println(item.value as str);
-        

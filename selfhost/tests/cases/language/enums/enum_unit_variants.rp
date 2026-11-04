@@ -1,9 +1,9 @@
-
 enum Status {
     Pending,
     Running,
     Finished
 };
+
 
 fn status_repr(&Status status): str {
     match (status) {
@@ -19,6 +19,7 @@ fn status_repr(&Status status): str {
     }
 }
 
+
 let status1 = Status::Pending;
 println(status_repr(&status1));
 
@@ -27,4 +28,3 @@ println(status_repr(&status2));
 
 let status3 = Status::Finished;
 println(status_repr(&status3));
-    

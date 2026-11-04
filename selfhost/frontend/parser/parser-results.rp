@@ -1,6 +1,7 @@
 import "../../common/errors.rp";
 import "./ast.rp";
 
+
 # ============================================================
 # In the Rust parser almost every `parse_*` function returns
 #   Result<Option<Node<X>>, Box<dyn IError>>
@@ -21,7 +22,6 @@ import "./ast.rp";
 # `ParserError` everywhere in the Rust parser (the `dyn` is only ever
 # instantiated with `ParserError` there).
 # ============================================================
-
 
 # ---------- Option<Node<X>> that are parser-only (no AST field uses them) ----------
 
@@ -84,7 +84,6 @@ enum OptionStructLiteralFieldNode derives Debug {
     Some(StructLiteralFieldNode),
     None
 };
-
 
 # ---------- Result<Option<Node<X>>, ParserError> ----------
 
@@ -178,7 +177,6 @@ enum ResultOptionStructLiteralFieldNode derives Debug {
     Err(ParserError)
 };
 
-
 # ---------- Result<Node<X>, ParserError> (no Option layer: either it parses, or it's a hard error) ----------
 
 enum ResultTypeNode derives Debug {
@@ -194,7 +192,6 @@ enum ResultExpressionNode derives Debug {
     Ok(ExpressionNode),
     Err(ParserError)
 };
-
 
 # ---------- Result<Vec<Node<X>>, ParserError> (always succeeds with a - possibly empty - list, or hard errors) ----------
 
@@ -238,14 +235,12 @@ enum ResultStructLiteralFieldNodeVec derives Debug {
     Err(ParserError)
 };
 
-
 # ---------- Result<Token, ParserError> (`consume_must_be`: a required, specific token) ----------
 
 enum ResultToken derives Debug {
     Ok(Token),
     Err(ParserError)
 };
-
 
 # ---------- Misc ----------
 

@@ -1,4 +1,3 @@
-
 let value = -128;
 let result = value as i8;
 let negated = -result;

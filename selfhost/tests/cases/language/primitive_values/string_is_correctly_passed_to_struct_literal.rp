@@ -1,13 +1,12 @@
-
 struct Person {
     str name
 };
 
+
 let name = "A";
-let person = Person { name };
+let person = Person { name: name };
 
 person.name[0] = 'B';
 
 println(name);
 println(person.name);
-        

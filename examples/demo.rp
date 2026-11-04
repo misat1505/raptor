@@ -22,22 +22,24 @@ struct User derives Debug {
     Role role
 };
 
+
 fn pretty_timestamp(&Timestamp timestamp): str {
     let day = timestamp.day as str;
-    if (timestamp.day < 10) day = "0" + timestamp.day as str;
+    if (timestamp.day < 10) {
+        day = "0" + timestamp.day as str;
+    }
 
     let month = timestamp.month as str;
-    if (timestamp.month < 10) month = "0" + timestamp.month as str;
+    if (timestamp.month < 10) {
+        month = "0" + timestamp.month as str;
+    }
 
     return day as str + "-" + month as str + "-" + timestamp.year as str;
 }
 
+
 let users = [
-    User {
-        name: "Alice",
-        status: AccountStatus::Active,
-        role: Role::Admin
-    },
+    User { name: "Alice", status: AccountStatus::Active, role: Role::Admin },
     User {
         name: "Bob",
         status: AccountStatus::Suspended("too many failed logins"),
@@ -51,17 +53,12 @@ let users = [
 ];
 
 let idx = 2;
-match (users[idx].status) {
-    AccountStatus::Deleted(timestamp) { println(pretty_timestamp(&timestamp)); },
-    rest println(account_status_debug(&users[idx].status) + " doesn't contain data of type 'Timestamp'.");
-}
-
-# Equivalent to the `match` above: `if ... matches` desugars to a match with
-# one arm, and `else` becomes the `rest` arm.
 if (users[idx].status matches AccountStatus::Deleted(timestamp)) {
     println(pretty_timestamp(&timestamp));
 } else {
-    println(account_status_debug(&users[idx].status) + " doesn't contain data of type 'Timestamp'.");
+    println(
+        account_status_debug(&users[idx].status) + " doesn't contain data of type 'Timestamp'."
+    );
 }
 
 for (let i = 0; i < vector_size(&users); i += 1) {

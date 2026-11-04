@@ -1,12 +1,14 @@
 # Run this file both in interpreted and compiled mode and see the difference.
 # Enable -O3 flag in compilation mode to see rocket speed.
 
-i64 iters = 1'000'000'000;
+i64 iters = 1000000000;
 
 for (i64 i = 0; i < iters; i += 1) {}
 
 i64 x = 0;
-while (x < iters) x += 1;
+while (x < iters) {
+    x += 1;
+}
 
 str text = "Hello world";
 println(text);

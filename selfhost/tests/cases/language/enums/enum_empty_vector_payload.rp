@@ -1,8 +1,8 @@
-
 enum Data {
     Numbers(i64[]),
     Text(str)
 };
+
 
 fn numbers_size(&Data data): i64 {
     match (data) {
@@ -15,7 +15,7 @@ fn numbers_size(&Data data): i64 {
     }
 }
 
+
 let data = Data::Numbers([]);
 
 println(numbers_size(&data) as str);
-    

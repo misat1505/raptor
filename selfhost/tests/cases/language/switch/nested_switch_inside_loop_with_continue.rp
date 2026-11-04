@@ -1,13 +1,11 @@
-
-    i64 total = 0;
-    for (i64 i = 0; i < 5; i += 1) {
-      switch (i) {
+i64 total = 0;
+for (i64 i = 0; i < 5; i += 1) {
+    switch (i) {
         (i % 2 == 0) -> {
-          continue;
+            continue;
         }
-      }
-      total += i;
     }
+    total += i;
+}
 
-    println(total as str);
-    
+println(total as str);

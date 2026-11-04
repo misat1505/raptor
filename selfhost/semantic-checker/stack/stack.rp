@@ -7,6 +7,7 @@ import "../../common/span.rp";
 import "../../frontend/parser/ast.rp";
 import "../semantic-helpers.rp";
 
+
 struct VariableInfo {
     str name,
     Type ty,
@@ -28,6 +29,7 @@ struct StaticCheckerStack {
     StackFrame[] frames
 };
 
+
 fn stack_new(): StaticCheckerStack {
     let frames: StackFrame[] = [];
     let frame = stack_frame_new();
@@ -38,11 +40,7 @@ fn stack_new(): StaticCheckerStack {
 fn stack_frame_new(): StackFrame {
     let scopes: Scope[] = [];
     vector_push(&scopes, Scope { variables: [] });
-    return StackFrame {
-        scopes: scopes,
-        breakable_count: 0,
-        continuable_count: 0
-    };
+    return StackFrame { scopes: scopes, breakable_count: 0, continuable_count: 0 };
 }
 
 fn stack_push_frame(&StaticCheckerStack stack): void {
@@ -50,7 +48,9 @@ fn stack_push_frame(&StaticCheckerStack stack): void {
 }
 
 fn stack_pop_frame(&StaticCheckerStack stack): void {
-    if (vector_size(&stack.frames) == 0) return;
+    if (vector_size(&stack.frames) == 0) {
+        return;
+    }
     let new_frames: StackFrame[] = [];
     for (let i = 0; i < vector_size(&stack.frames) - 1; i += 1) {
         vector_push(&new_frames, stack.frames[i]);
@@ -96,7 +96,9 @@ fn stack_enter_breakable(&StaticCheckerStack stack): void {
 
 fn stack_leave_breakable(&StaticCheckerStack stack): void {
     let frame = stack_current_frame(&stack);
-    if (frame.breakable_count > 0) frame.breakable_count -= 1;
+    if (frame.breakable_count > 0) {
+        frame.breakable_count -= 1;
+    }
     stack_set_current_frame(&stack, frame);
 }
 
@@ -108,7 +110,9 @@ fn stack_enter_continuable(&StaticCheckerStack stack): void {
 
 fn stack_leave_continuable(&StaticCheckerStack stack): void {
     let frame = stack_current_frame(&stack);
-    if (frame.continuable_count > 0) frame.continuable_count -= 1;
+    if (frame.continuable_count > 0) {
+        frame.continuable_count -= 1;
+    }
     stack_set_current_frame(&stack, frame);
 }
 
@@ -120,12 +124,7 @@ fn stack_can_continue(&StaticCheckerStack stack): bool {
     return stack_current_frame(&stack).continuable_count > 0;
 }
 
-fn stack_declare_variable(
-    &StaticCheckerStack stack,
-    str name,
-    Type ty,
-    Span span
-): ResultSem {
+fn stack_declare_variable(&StaticCheckerStack stack, str name, Type ty, Span span): ResultSem {
     let frame = stack_current_frame(&stack);
     let scope_idx = vector_size(&frame.scopes) - 1;
     let scope = frame.scopes[scope_idx];
@@ -142,22 +141,15 @@ fn stack_declare_variable(
 
     # Also forbid shadowing within the same frame's outer scopes? Rust
     # only forbids redeclare in the *current* scope; outer shadowing OK.
-    vector_push(&scope.variables, VariableInfo {
-        name: name,
-        ty: ty,
-        span: span,
-        used: false
-    });
+    vector_push(&scope.variables, VariableInfo { name: name, ty: ty, span: span, used: false });
     frame.scopes[scope_idx] = scope;
     stack_set_current_frame(&stack, frame);
     return ResultSem::Ok;
 }
 
-fn stack_get_variable(
-    &StaticCheckerStack stack,
-    str name
-): OptionType {
+fn stack_get_variable(&StaticCheckerStack stack, str name): OptionType {
     let frame = stack_current_frame(&stack);
+
     # innermost scope first
     for (let s = vector_size(&frame.scopes); s > 0; s -= 1) {
         let scope = frame.scopes[s - 1];
@@ -185,12 +177,7 @@ fn stack_mark_used(&StaticCheckerStack stack, str name): void {
     }
 }
 
-fn stack_assign_variable(
-    &StaticCheckerStack stack,
-    str name,
-    Type value,
-    Span span
-): ResultSem {
+fn stack_assign_variable(&StaticCheckerStack stack, str name, Type value, Span span): ResultSem {
     let frame = stack_current_frame(&stack);
     for (let s = vector_size(&frame.scopes); s > 0; s -= 1) {
         let scope = frame.scopes[s - 1];
@@ -202,7 +189,13 @@ fn stack_assign_variable(
                 }
                 return ResultSem::Err(semantic_checker_error_new(
                     ErrorSeverity::HIGH,
-                    "Cannot assign '" + type_to_string(value) + "' to variable '" + name + "' which was previously declared as '" + type_to_string(prev) + "'.",
+                    "Cannot assign '"
+                        + type_to_string(value)
+                        + "' to variable '"
+                        + name
+                        + "' which was previously declared as '"
+                        + type_to_string(prev)
+                        + "'.",
                     span
                 ));
             }
@@ -218,7 +211,9 @@ fn stack_assign_variable(
 fn stack_unused_in_last_scope(&StaticCheckerStack stack): VariableInfo[] {
     let frame = stack_current_frame(&stack);
     let unused: VariableInfo[] = [];
-    if (vector_size(&frame.scopes) == 0) return unused;
+    if (vector_size(&frame.scopes) == 0) {
+        return unused;
+    }
     let scope = frame.scopes[vector_size(&frame.scopes) - 1];
     for (let i = 0; i < vector_size(&scope.variables); i += 1) {
         if (!scope.variables[i].used) {

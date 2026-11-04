@@ -1,4 +1,3 @@
-
 enum Result {
     Success(str),
     Failure(str)
@@ -8,6 +7,7 @@ enum Operation {
     Done(Result),
     Skipped
 };
+
 
 fn operation_repr(&Operation operation): str {
     match (operation) {
@@ -27,16 +27,12 @@ fn operation_repr(&Operation operation): str {
     }
 }
 
-let op1 = Operation::Done(
-    Result::Success("42")
-);
+
+let op1 = Operation::Done(Result::Success("42"));
 println(operation_repr(&op1));
 
-let op2 = Operation::Done(
-    Result::Failure("invalid input")
-);
+let op2 = Operation::Done(Result::Failure("invalid input"));
 println(operation_repr(&op2));
 
 let op3 = Operation::Skipped;
 println(operation_repr(&op3));
-    

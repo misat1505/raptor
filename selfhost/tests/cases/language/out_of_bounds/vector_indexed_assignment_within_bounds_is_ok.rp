@@ -1,4 +1,3 @@
-
 let numbers: i64[] = [420];
 
 numbers[0] = 123;

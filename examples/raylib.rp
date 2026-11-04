@@ -30,9 +30,9 @@ extern fn WindowShouldClose(): bool as window_should_close;
 extern fn BeginDrawing(): void as begin_drawing;
 extern fn ClearBackground(i64 color): void as clear_background;
 extern fn EndDrawing(): void as end_drawing;
-
 # aliases are optional - you can use original name
 extern fn CloseWindow(): void;
+
 
 init_window(800, 600, "Raylib from Raptor");
 

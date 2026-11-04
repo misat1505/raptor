@@ -5,15 +5,21 @@ import "../parser-results.rp";
 import "../core.rp";
 import "./casted-term.rp";
 
+
 fn parser_parse_multiplicative_term(&Parser parser): ResultOptionExpressionNode {
     # multiplicative_term = casted_term, { ("*" | "/" | "%"), casted_term };
     let left_call = parser_parse_casted_term(&parser);
 
-    let left_side = ExpressionNode { value: Expression::Literal(Literal::True), span: parser_current_token(&parser).span };
+    let left_side = ExpressionNode {
+        value: Expression::Literal(Literal::True),
+        span: parser_current_token(&parser).span
+    };
     let found_left = false;
 
     match (left_call) {
-        ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+        ResultOptionExpressionNode::Err(err) {
+            return ResultOptionExpressionNode::Err(err);
+        },
         ResultOptionExpressionNode::Ok(option_left) {
             if (option_left matches OptionExpressionNode::Some(value)) {
                 left_side = value;
@@ -22,7 +28,9 @@ fn parser_parse_multiplicative_term(&Parser parser): ResultOptionExpressionNode 
         }
     }
 
-    if (!found_left) return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+    if (!found_left) {
+        return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+    }
 
     while (true) {
         let current_token = parser_current_token(&parser);
@@ -36,22 +44,32 @@ fn parser_parse_multiplicative_term(&Parser parser): ResultOptionExpressionNode 
         let operator_category = parser_current_token(&parser).category;
 
         let advance = parser_next_token(&parser);
-        if (advance matches ResultOptionToken::Err(err)) return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+        if (advance matches ResultOptionToken::Err(err)) {
+            return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+        }
 
         let right_call = parser_parse_casted_term(&parser);
         let found_right = false;
 
         match (right_call) {
-            ResultOptionExpressionNode::Err(err) return ResultOptionExpressionNode::Err(err);,
+            ResultOptionExpressionNode::Err(err) {
+                return ResultOptionExpressionNode::Err(err);
+            },
             ResultOptionExpressionNode::Ok(option_right) {
                 if (option_right matches OptionExpressionNode::Some(right_side)) {
                     let operands = BinaryExpression { left: left_side, right: right_side };
 
                     let expression_value = Expression::Multiplication(operands);
                     match (operator_category) {
-                        TokenCategory::Multiply expression_value = Expression::Multiplication(operands);,
-                        TokenCategory::Divide expression_value = Expression::Division(operands);,
-                        TokenCategory::Modulo expression_value = Expression::Modulo(operands);,
+                        TokenCategory::Multiply {
+                            expression_value = Expression::Multiplication(operands);
+                        },
+                        TokenCategory::Divide {
+                            expression_value = Expression::Division(operands);
+                        },
+                        TokenCategory::Modulo {
+                            expression_value = Expression::Modulo(operands);
+                        },
                         rest {}
                     }
 
@@ -64,9 +82,12 @@ fn parser_parse_multiplicative_term(&Parser parser): ResultOptionExpressionNode 
             }
         }
 
-        if (!found_right) return ResultOptionExpressionNode::Err(
-            parser_create_parser_error(&parser, "Couldn't create casted term while parsing multiplicative term.")
-        );
+        if (!found_right) {
+            return ResultOptionExpressionNode::Err(parser_create_parser_error(
+                &parser,
+                "Couldn't create casted term while parsing multiplicative term."
+            ));
+        }
     }
 
     return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(left_side));

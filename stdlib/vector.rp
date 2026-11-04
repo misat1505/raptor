@@ -43,12 +43,16 @@ fn str_vector_last_index_of(&str[] values, str value): i64 {
 }
 
 fn str_vector_first(&str[] values): str {
-    if (vector_size(&values) == 0) return "";
+    if (vector_size(&values) == 0) {
+        return "";
+    }
     return values[0];
 }
 
 fn str_vector_last(&str[] values): str {
-    if (vector_size(&values) == 0) return "";
+    if (vector_size(&values) == 0) {
+        return "";
+    }
     return values[vector_size(&values) - 1];
 }
 
@@ -84,11 +88,7 @@ fn str_vector_remove_at(&str[] values, i64 index): str[] {
     return result;
 }
 
-fn str_vector_insert_at(
-    &str[] values,
-    i64 index,
-    str value
-): str[] {
+fn str_vector_insert_at(&str[] values, i64 index, str value): str[] {
     let result: str[] = [];
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -106,10 +106,7 @@ fn str_vector_insert_at(
     return result;
 }
 
-fn str_vector_concat(
-    &str[] a,
-    &str[] b
-): str[] {
+fn str_vector_concat(&str[] a, &str[] b): str[] {
     let result: str[] = [];
 
     for (let i = 0; i < vector_size(&a); i += 1) {
@@ -126,7 +123,9 @@ fn str_vector_concat(
 fn str_vector_take(&str[] values, i64 count): str[] {
     let result: str[] = [];
 
-    if (count <= 0) return result;
+    if (count <= 0) {
+        return result;
+    }
 
     if (count > vector_size(&values)) {
         count = vector_size(&values);
@@ -142,7 +141,9 @@ fn str_vector_take(&str[] values, i64 count): str[] {
 fn str_vector_skip(&str[] values, i64 count): str[] {
     let result: str[] = [];
 
-    if (count < 0) count = 0;
+    if (count < 0) {
+        count = 0;
+    }
     if (count > vector_size(&values)) {
         count = vector_size(&values);
     }
@@ -154,19 +155,19 @@ fn str_vector_skip(&str[] values, i64 count): str[] {
     return result;
 }
 
-fn str_vector_slice(
-    &str[] values,
-    i64 start,
-    i64 end
-): str[] {
+fn str_vector_slice(&str[] values, i64 start, i64 end): str[] {
     let result: str[] = [];
 
-    if (start < 0) start = 0;
+    if (start < 0) {
+        start = 0;
+    }
     if (end > vector_size(&values)) {
         end = vector_size(&values);
     }
 
-    if (start >= end) return result;
+    if (start >= end) {
+        return result;
+    }
 
     for (let i = start; i < end; i += 1) {
         vector_push(&result, values[i]);
@@ -175,10 +176,7 @@ fn str_vector_slice(
     return result;
 }
 
-fn str_vector_join(
-    &str[] values,
-    str separator
-): str {
+fn str_vector_join(&str[] values, str separator): str {
     let result = "";
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -192,10 +190,7 @@ fn str_vector_join(
     return result;
 }
 
-fn str_vector_count(
-    &str[] values,
-    str value
-): i64 {
+fn str_vector_count(&str[] values, str value): i64 {
     let count = 0;
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -207,10 +202,7 @@ fn str_vector_count(
     return count;
 }
 
-fn str_vector_remove_value(
-    &str[] values,
-    str value
-): str[] {
+fn str_vector_remove_value(&str[] values, str value): str[] {
     let result: str[] = [];
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -248,7 +240,9 @@ fn i64_vector_is_empty(&i64[] values): bool {
 
 fn i64_vector_contains(&i64[] values, i64 value): bool {
     for (let i = 0; i < vector_size(&values); i += 1) {
-        if (values[i] == value) return true;
+        if (values[i] == value) {
+            return true;
+        }
     }
 
     return false;
@@ -256,7 +250,9 @@ fn i64_vector_contains(&i64[] values, i64 value): bool {
 
 fn i64_vector_index_of(&i64[] values, i64 value): i64 {
     for (let i = 0; i < vector_size(&values); i += 1) {
-        if (values[i] == value) return i;
+        if (values[i] == value) {
+            return i;
+        }
     }
 
     return -1;
@@ -264,19 +260,25 @@ fn i64_vector_index_of(&i64[] values, i64 value): i64 {
 
 fn i64_vector_last_index_of(&i64[] values, i64 value): i64 {
     for (let i = vector_size(&values) - 1; i >= 0; i -= 1) {
-        if (values[i] == value) return i;
+        if (values[i] == value) {
+            return i;
+        }
     }
 
     return -1;
 }
 
 fn i64_vector_first(&i64[] values): i64 {
-    if (vector_size(&values) == 0) return 0;
+    if (vector_size(&values) == 0) {
+        return 0;
+    }
     return values[0];
 }
 
 fn i64_vector_last(&i64[] values): i64 {
-    if (vector_size(&values) == 0) return 0;
+    if (vector_size(&values) == 0) {
+        return 0;
+    }
     return values[vector_size(&values) - 1];
 }
 
@@ -291,7 +293,9 @@ fn i64_vector_sum(&i64[] values): i64 {
 }
 
 fn i64_vector_min(&i64[] values): i64 {
-    if (vector_size(&values) == 0) return 0;
+    if (vector_size(&values) == 0) {
+        return 0;
+    }
 
     let result = values[0];
 
@@ -305,7 +309,9 @@ fn i64_vector_min(&i64[] values): i64 {
 }
 
 fn i64_vector_max(&i64[] values): i64 {
-    if (vector_size(&values) == 0) return 0;
+    if (vector_size(&values) == 0) {
+        return 0;
+    }
 
     let result = values[0];
 
@@ -319,7 +325,9 @@ fn i64_vector_max(&i64[] values): i64 {
 }
 
 fn i64_vector_average(&i64[] values): f64 {
-    if (vector_size(&values) == 0) return 0.0;
+    if (vector_size(&values) == 0) {
+        return 0.0;
+    }
 
     return i64_vector_sum(&values) as f64 / vector_size(&values) as f64;
 }
@@ -344,10 +352,7 @@ fn i64_vector_copy(&i64[] values): i64[] {
     return result;
 }
 
-fn i64_vector_remove_at(
-    &i64[] values,
-    i64 index
-): i64[] {
+fn i64_vector_remove_at(&i64[] values, i64 index): i64[] {
     let result: i64[] = [];
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -359,10 +364,7 @@ fn i64_vector_remove_at(
     return result;
 }
 
-fn i64_vector_remove_value(
-    &i64[] values,
-    i64 value
-): i64[] {
+fn i64_vector_remove_value(&i64[] values, i64 value): i64[] {
     let result: i64[] = [];
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -374,10 +376,7 @@ fn i64_vector_remove_value(
     return result;
 }
 
-fn i64_vector_count(
-    &i64[] values,
-    i64 value
-): i64 {
+fn i64_vector_count(&i64[] values, i64 value): i64 {
     let count = 0;
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -389,9 +388,7 @@ fn i64_vector_count(
     return count;
 }
 
-fn i64_vector_distinct(
-    &i64[] values
-): i64[] {
+fn i64_vector_distinct(&i64[] values): i64[] {
     let result: i64[] = [];
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -403,10 +400,7 @@ fn i64_vector_distinct(
     return result;
 }
 
-fn i64_vector_concat(
-    &i64[] a,
-    &i64[] b
-): i64[] {
+fn i64_vector_concat(&i64[] a, &i64[] b): i64[] {
     let result: i64[] = [];
 
     for (let i = 0; i < vector_size(&a); i += 1) {
@@ -420,13 +414,12 @@ fn i64_vector_concat(
     return result;
 }
 
-fn i64_vector_take(
-    &i64[] values,
-    i64 count
-): i64[] {
+fn i64_vector_take(&i64[] values, i64 count): i64[] {
     let result: i64[] = [];
 
-    if (count <= 0) return result;
+    if (count <= 0) {
+        return result;
+    }
 
     if (count > vector_size(&values)) {
         count = vector_size(&values);
@@ -439,13 +432,12 @@ fn i64_vector_take(
     return result;
 }
 
-fn i64_vector_skip(
-    &i64[] values,
-    i64 count
-): i64[] {
+fn i64_vector_skip(&i64[] values, i64 count): i64[] {
     let result: i64[] = [];
 
-    if (count < 0) count = 0;
+    if (count < 0) {
+        count = 0;
+    }
 
     for (let i = count; i < vector_size(&values); i += 1) {
         vector_push(&result, values[i]);
@@ -454,19 +446,19 @@ fn i64_vector_skip(
     return result;
 }
 
-fn i64_vector_slice(
-    &i64[] values,
-    i64 start,
-    i64 end
-): i64[] {
+fn i64_vector_slice(&i64[] values, i64 start, i64 end): i64[] {
     let result: i64[] = [];
 
-    if (start < 0) start = 0;
+    if (start < 0) {
+        start = 0;
+    }
     if (end > vector_size(&values)) {
         end = vector_size(&values);
     }
 
-    if (start >= end) return result;
+    if (start >= end) {
+        return result;
+    }
 
     for (let i = start; i < end; i += 1) {
         vector_push(&result, values[i]);
@@ -515,13 +507,12 @@ fn i64_vector_sort_desc(&i64[] values): i64[] {
 # In-place-ish helpers
 # ------------------------------------------------------------
 
-fn i64_vector_fill(
-    i64 size,
-    i64 value
-): i64[] {
+fn i64_vector_fill(i64 size, i64 value): i64[] {
     let result: i64[] = [];
 
-    if (size <= 0) return result;
+    if (size <= 0) {
+        return result;
+    }
 
     for (let i = 0; i < size; i += 1) {
         vector_push(&result, value);
@@ -530,10 +521,7 @@ fn i64_vector_fill(
     return result;
 }
 
-fn i64_vector_range(
-    i64 start,
-    i64 end
-): i64[] {
+fn i64_vector_range(i64 start, i64 end): i64[] {
     let result: i64[] = [];
 
     for (let i = start; i < end; i += 1) {
@@ -543,14 +531,12 @@ fn i64_vector_range(
     return result;
 }
 
-fn i64_vector_range_step(
-    i64 start,
-    i64 end,
-    i64 step
-): i64[] {
+fn i64_vector_range_step(i64 start, i64 end, i64 step): i64[] {
     let result: i64[] = [];
 
-    if (step == 0) return result;
+    if (step == 0) {
+        return result;
+    }
 
     if (step > 0) {
         let value = start;
@@ -575,43 +561,37 @@ fn i64_vector_range_step(
 # bool[]
 # ============================================================
 
-fn bool_vector_contains(
-    &bool[] values,
-    bool value
-): bool {
+fn bool_vector_contains(&bool[] values, bool value): bool {
     for (let i = 0; i < vector_size(&values); i += 1) {
-        if (values[i] == value) return true;
+        if (values[i] == value) {
+            return true;
+        }
     }
 
     return false;
 }
 
-fn bool_vector_all(
-    &bool[] values,
-    bool expected
-): bool {
+fn bool_vector_all(&bool[] values, bool expected): bool {
     for (let i = 0; i < vector_size(&values); i += 1) {
-        if (values[i] != expected) return false;
+        if (values[i] != expected) {
+            return false;
+        }
     }
 
     return true;
 }
 
-fn bool_vector_any(
-    &bool[] values,
-    bool expected
-): bool {
+fn bool_vector_any(&bool[] values, bool expected): bool {
     for (let i = 0; i < vector_size(&values); i += 1) {
-        if (values[i] == expected) return true;
+        if (values[i] == expected) {
+            return true;
+        }
     }
 
     return false;
 }
 
-fn bool_vector_count(
-    &bool[] values,
-    bool value
-): i64 {
+fn bool_vector_count(&bool[] values, bool value): i64 {
     let count = 0;
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -623,9 +603,7 @@ fn bool_vector_count(
     return count;
 }
 
-fn bool_vector_negate(
-    &bool[] values
-): bool[] {
+fn bool_vector_negate(&bool[] values): bool[] {
     let result: bool[] = [];
 
     for (let i = 0; i < vector_size(&values); i += 1) {
@@ -639,9 +617,7 @@ fn bool_vector_negate(
 # Generic-style helpers for concrete vectors
 # ============================================================
 
-fn i64_vector_reverse_in_place(
-    &i64[] values
-): void {
+fn i64_vector_reverse_in_place(&i64[] values): void {
     let left = 0;
     let right = vector_size(&values) - 1;
 
@@ -655,14 +631,16 @@ fn i64_vector_reverse_in_place(
     }
 }
 
-fn i64_vector_swap(
-    &i64[] values,
-    i64 a,
-    i64 b
-): void {
-    if (a < 0 || b < 0) return;
-    if (a >= vector_size(&values)) return;
-    if (b >= vector_size(&values)) return;
+fn i64_vector_swap(&i64[] values, i64 a, i64 b): void {
+    if (a < 0 || b < 0) {
+        return;
+    }
+    if (a >= vector_size(&values)) {
+        return;
+    }
+    if (b >= vector_size(&values)) {
+        return;
+    }
 
     let temp = values[a];
     values[a] = values[b];

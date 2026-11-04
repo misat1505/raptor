@@ -1,10 +1,8 @@
+i64 a = 5;
+i64 b = -(-a);
+i64 c = -a - -a;
+bool d = !(!true);
 
-    i64 a = 5;
-    i64 b = -(-a);
-    i64 c = -a - -a;
-    bool d = !(!true);
-
-    println(b as str);
-    println(c as str);
-    println(d as str);
-    
+println(b as str);
+println(c as str);
+println(d as str);

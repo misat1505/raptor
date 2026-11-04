@@ -1,10 +1,10 @@
-
 struct Numbers {
     i64 value,
     f64 fvalue,
     bool bvalue,
     char cvalue
 };
+
 
 let a = 1 as i64;
 let f = 1.1;
@@ -29,4 +29,3 @@ println(n.bvalue as str);
 
 println(c as str);
 println(n.cvalue as str);
-        

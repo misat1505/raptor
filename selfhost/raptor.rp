@@ -6,21 +6,17 @@ import "./macro-expander/macro-expander-mod.rp";
 import "./semantic-checker/semantic-checker-mod.rp";
 import "./backend/llvm/llvm-mod.rp";
 
+
 # ============================================================
 # Command line interface. Mirrors src/main.rs: same flags, same phases, same
 # messages. The self-hosted compiler has no interpreter, so it always compiles;
 # in addition it takes `--memory <arc|leak>` (see bootstrap/README.md).
 # ============================================================
 
-extern fn system(str cmd): i32;
-extern fn write(i32 fd, str buf, i64 n): i64 as c_write;
-extern fn quick_exit(i32 code): void;
-
 struct Timeval {
     i64 sec,
     i64 usec
 };
-extern fn gettimeofday(Timeval tv, i64 tz): i32;
 
 struct CliOptions {
     str path,
@@ -35,6 +31,13 @@ struct CliOptions {
     str memory,
     bool dump
 };
+
+
+extern fn system(str cmd): i32;
+extern fn write(i32 fd, str buf, i64 n): i64 as c_write;
+extern fn quick_exit(i32 code): void;
+extern fn gettimeofday(Timeval tv, i64 tz): i32;
+
 
 # ---------- output helpers ----------
 
@@ -64,7 +67,7 @@ fn ansi(str code): str {
 fn now_ms(): f64 {
     let tv = Timeval { sec: 0, usec: 0 };
     gettimeofday(tv, 0);
-    return (tv.sec as f64) * 1000.0 + (tv.usec as f64) / 1000.0;
+    return tv.sec as f64 * 1000.0 + tv.usec as f64 / 1000.0;
 }
 
 fn pad_left(str s, i64 width): str {
@@ -112,11 +115,23 @@ fn print_duration(str phase, f64 ms): void {
         value = ms / 1000.0;
         unit = "s";
     }
-    let bar = ((226 as u8) as char) + ((148 as u8) as char) + ((130 as u8) as char);
+    let bar = (226 as u8) as char + (148 as u8) as char + (130 as u8) as char;
     println(
-        ansi("36") + "[time]" + ansi("0") + "  " + pad_right(phase, 22) + " "
-        + ansi("2") + bar + ansi("0") + " " + pad_left(format_fixed3(value), 9) + " "
-        + ansi("2") + unit + ansi("0")
+        ansi("36")
+            + "[time]"
+            + ansi("0")
+            + "  "
+            + pad_right(phase, 22)
+            + " "
+            + ansi("2")
+            + bar
+            + ansi("0")
+            + " "
+            + pad_left(format_fixed3(value), 9)
+            + " "
+            + ansi("2")
+            + unit
+            + ansi("0")
     );
 }
 
@@ -139,24 +154,24 @@ fn debug(&CliOptions opts, str message): void {
 fn usage(): void {
     println(
         "Usage:\n"
-        + "    program [OPTIONS] <FILE>\n\n"
-        + "Options:\n"
-        + "    -h, --help          Show this help message\n"
-        + "    -v, --verbose       Show execution time of each phase\n"
-        + "    --unsafe            Skip semantic checking\n"
-        + "    --compile           Compile the source file (the default: this compiler has no interpreter)\n"
-        + "    --run               After compiling, build and run the resulting executable\n"
-        + "                        (implies --compile)\n"
-        + "    -o <FILE>           Set output executable path\n"
-        + "    --link <FILE>       Link an additional object file (compilation mode only)\n"
-        + "    -O0                 No optimization (default)\n"
-        + "    -O1                 Basic optimization\n"
-        + "    -O2                 Default optimization\n"
-        + "    -O3                 Aggressive optimization\n"
-        + "    --overflow <POLICY> Integer overflow policy: ignore, warn, error\n"
-        + "    --memory <MODE>     Memory management of the compiled program: arc (default), leak\n"
-        + "\nArguments:\n"
-        + "    <FILE>              Path to the source file\n"
+            + "    program [OPTIONS] <FILE>\n\n"
+            + "Options:\n"
+            + "    -h, --help          Show this help message\n"
+            + "    -v, --verbose       Show execution time of each phase\n"
+            + "    --unsafe            Skip semantic checking\n"
+            + "    --compile           Compile the source file (the default: this compiler has no interpreter)\n"
+            + "    --run               After compiling, build and run the resulting executable\n"
+            + "                        (implies --compile)\n"
+            + "    -o <FILE>           Set output executable path\n"
+            + "    --link <FILE>       Link an additional object file (compilation mode only)\n"
+            + "    -O0                 No optimization (default)\n"
+            + "    -O1                 Basic optimization\n"
+            + "    -O2                 Default optimization\n"
+            + "    -O3                 Aggressive optimization\n"
+            + "    --overflow <POLICY> Integer overflow policy: ignore, warn, error\n"
+            + "    --memory <MODE>     Memory management of the compiled program: arc (default), leak\n"
+            + "\nArguments:\n"
+            + "    <FILE>              Path to the source file\n"
     );
 }
 
@@ -301,7 +316,9 @@ fn file_stem(str path): str {
 
 fn parent_dir(str path): str {
     let slash = str_last_index_of_char(path, '/');
-    if (slash < 0) return "";
+    if (slash < 0) {
+        return "";
+    }
     return str_substring(path, 0, slash);
 }
 
@@ -312,14 +329,20 @@ fn quoted(str s): str {
 # Runs a shell command. Returns "" on success, otherwise the message Rust prints.
 fn run_command(str command, str program, str step): str {
     let err_file = "build/.last-command.err";
+
     # A temporary passed straight to an extern function is never released, so the
     # command string is kept in a variable that owns it (and is released on return).
     let full_command = command + " 2> " + quoted(err_file);
     let status = system(full_command) as i64;
-    if (status == 0) return "";
+    if (status == 0) {
+        return "";
+    }
     let code = status / 256;
     if (code == 127) {
-        return "Failed to invoke '" + program + "': No such file or directory. Is it installed and on PATH?";
+        return
+            "Failed to invoke '"
+                + program
+                + "': No such file or directory. Is it installed and on PATH?";
     }
     let stderr_text = "";
     if (exists_file(err_file)) {
@@ -330,15 +353,22 @@ fn run_command(str command, str program, str step): str {
 
 fn run_executable(&CliOptions opts, str exe_path): i64 {
     let path = exe_path;
-    if (!(str_starts_with(exe_path, ".") || str_contains(exe_path, "/") || str_contains(exe_path, "\\"))) {
+    if (
+        !(str_starts_with(exe_path, ".")
+            || str_contains(exe_path, "/")
+            || str_contains(exe_path, "\\"))
+    ) {
         path = "./" + exe_path;
     }
     debug(&opts, "Running executable...");
     let status = system(path) as i64;
     debug(&opts, "Finished running executable.");
+
     # Like Rust's ExitStatus::code(): a signal-terminated child counts as 1.
-    if (status % 128 != 0) return 1;
-    return (status / 256) % 256;
+    if (status % 128 != 0) {
+        return 1;
+    }
+    return status / 256 % 256;
 }
 
 # ---------- the pipeline ----------
@@ -355,8 +385,12 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
     let obj_path = "build/" + stem + ".o";
     let exe_path = "build/" + stem;
     match (opts.output_path) {
-        OptionStr::Some(p) exe_path = p;,
-        OptionStr::None exe_path = "build/" + stem;
+        OptionStr::Some(p) {
+            exe_path = p;
+        },
+        OptionStr::None {
+            exe_path = "build/" + stem;
+        }
     }
 
     let mkdir_build = "mkdir -p build";
@@ -381,7 +415,16 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
         let raw_path = "build/" + stem + ".raw.ll";
         write_file(raw_path, ir);
         let passes = "default<" + opts.opt_level + ">";
-        let opt_error = run_command("opt-18 -passes=" + quoted(passes) + " -S " + quoted(raw_path) + " -o " + quoted(ir_path), "opt-18", "opt");
+        let opt_error = run_command(
+            "opt-18 -passes="
+                + quoted(passes)
+                + " -S "
+                + quoted(raw_path)
+                + " -o "
+                + quoted(ir_path),
+            "opt-18",
+            "opt"
+        );
         if (str_len(opt_error) > 0) {
             eprintln(opt_error);
             return 1;
@@ -397,7 +440,11 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
     debug(&opts, "Wrote LLVM IR to '" + ir_path + "'.");
 
     t = now_ms();
-    let llc_error = run_command("llc-18 " + quoted(ir_path) + " -filetype=obj -o " + quoted(obj_path), "llc-18", "llc");
+    let llc_error = run_command(
+        "llc-18 " + quoted(ir_path) + " -filetype=obj -o " + quoted(obj_path),
+        "llc-18",
+        "llc"
+    );
     if (str_len(llc_error) > 0) {
         eprintln(llc_error);
         return 1;
@@ -432,8 +479,12 @@ fn parse_source(str source, str path, LexerOptions lexer_options): ResultProgram
     let src = lazy_stream_reader_new(source, OptionStr::Some(path));
     let lexer = lexer_new(src, lexer_options);
     match (parser_new(lexer)) {
-        ResultParser::Err(err) return ResultProgram::Err(err);,
-        ResultParser::Ok(parser) return parser_parse(&parser);
+        ResultParser::Err(err) {
+            return ResultProgram::Err(err);
+        },
+        ResultParser::Ok(parser) {
+            return parser_parse(&parser);
+        }
     }
 }
 
@@ -441,8 +492,19 @@ fn parse_source(str source, str path, LexerOptions lexer_options): ResultProgram
 fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
     if (opts.is_unsafe) {
         if (opts.verbose) {
-            let bar = ((226 as u8) as char) + ((148 as u8) as char) + ((130 as u8) as char);
-            println(ansi("36") + "[time]" + ansi("0") + "  " + pad_right("semantic checker", 22) + " " + ansi("2") + bar + ansi("0") + " skipped (--unsafe)");
+            let bar = (226 as u8) as char + (148 as u8) as char + (130 as u8) as char;
+            println(
+                ansi("36")
+                    + "[time]"
+                    + ansi("0")
+                    + "  "
+                    + pad_right("semantic checker", 22)
+                    + " "
+                    + ansi("2")
+                    + bar
+                    + ansi("0")
+                    + " skipped (--unsafe)"
+            );
         }
     } else {
         let t = now_ms();
@@ -460,8 +522,16 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
                 }
                 eprintln(semantic_ckecker_error_get_stderr_message(&err) + "\n");
             }
-            eprintln("Static analysis finished with " + high as str + " errors, " + low as str + " warnings.");
-            if (high > 0) return 1;
+            eprintln(
+                "Static analysis finished with "
+                    + high as str
+                    + " errors, "
+                    + low as str
+                    + " warnings."
+            );
+            if (high > 0) {
+                return 1;
+            }
         }
         phase_done(&opts, "Semantic checker", t);
     }
@@ -472,7 +542,9 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
 
     # The self-hosted compiler has no interpreter, so everything compiles.
     if (!opts.is_compile) {
-        eprintln("note: the self-hosted compiler has no interpreter, compiling (add --run to also run the program).");
+        eprintln(
+            "note: the self-hosted compiler has no interpreter, compiling (add --run to also run the program)."
+        );
         opts.is_compile = true;
     }
     let code = compile_and_maybe_run(&opts, &program, total_started);
@@ -502,14 +574,25 @@ fn stage_macros(&CliOptions opts, &Program program, f64 total_started): i64 {
             }
             eprintln(generic_error_stderr_message(&err.message, &err.level, &err.span) + "\n");
         }
-        eprintln("Macro expander finished with " + macro_errors as str + " errors, " + macro_warnings as str + " warnings.");
+        eprintln(
+            "Macro expander finished with "
+                + macro_errors as str
+                + " errors, "
+                + macro_warnings as str
+                + " warnings."
+        );
         return 1;
     }
     phase_done(&opts, "Macro Expansion", t);
     return stage_semantic(&opts, &program, total_started);
 }
 
-fn stage_imports(&CliOptions opts, &Program program, LexerOptions lexer_options, f64 total_started): i64 {
+fn stage_imports(
+    &CliOptions opts,
+    &Program program,
+    LexerOptions lexer_options,
+    f64 total_started
+): i64 {
     let t = now_ms();
     let resolver = import_resolver_new(lexer_options);
     match (import_resolver_resolve(&resolver, opts.path, &program)) {
@@ -536,10 +619,7 @@ fn run(CliOptions opts): i64 {
     let source = read_file(opts.path);
     phase_done(&opts, "Source loading", t);
 
-    let lexer_options = LexerOptions {
-        max_comment_length: 500,
-        max_identifier_length: 100
-    };
+    let lexer_options = LexerOptions { max_comment_length: 500, max_identifier_length: 100 };
 
     t = now_ms();
     match (parse_source(source, opts.path, lexer_options)) {
@@ -561,5 +641,6 @@ fn main(): void {
         exit_with(code);
     }
 }
+
 
 main();

@@ -1,5 +1,6 @@
 import "./position.rp";
 
+
 enum NodeLiteral derives Debug {
     Str(str),
     Number(i64)

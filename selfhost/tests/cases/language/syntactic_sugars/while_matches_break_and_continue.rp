@@ -1,8 +1,8 @@
-
 enum Slot {
     Full(i64),
     Empty
 };
+
 
 let slots = [
     Slot::Full(1),
@@ -16,20 +16,23 @@ let slots = [
 let idx = 0;
 let sum = 0;
 
-while (slots[idx] matches Slot::Full(value)) {
-    idx += 1;
+while (true) {
+    if (slots[idx] matches Slot::Full(value)) {
+        idx += 1;
 
-    if (value == 2) {
-        continue;
-    }
+        if (value == 2) {
+            continue;
+        }
 
-    if (value == 4) {
+        if (value == 4) {
+            break;
+        }
+
+        sum += value;
+    } else {
         break;
     }
-
-    sum += value;
 }
 
 println(sum as str);
 println(idx as str);
-        

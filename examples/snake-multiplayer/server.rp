@@ -1,21 +1,27 @@
 fn rand_next(i64 state): i64 {
     i64 new_state = (state * 1103515245 + 12345) % 2147483648;
-    if (new_state < 0) new_state = -new_state;
+    if (new_state < 0) {
+        new_state = -new_state;
+    }
     return new_state;
 }
 
 fn rand_range(i64 state, i64 min, i64 max): i64[] {
     i64 new_state = rand_next(state);
-    i64 value = min + (new_state % (max - min + 1));
+    i64 value = min + new_state % (max - min + 1);
     return [value, new_state];
 }
 
 fn is_on_any_snake(&i64[][] snake0, &i64[][] snake1, i64 x, i64 y): bool {
     for (i64 i = 0; i < vector_size(&snake0); i += 1) {
-        if (snake0[i][0] == x && snake0[i][1] == y) return true;
+        if (snake0[i][0] == x && snake0[i][1] == y) {
+            return true;
+        }
     }
     for (i64 i = 0; i < vector_size(&snake1); i += 1) {
-        if (snake1[i][0] == x && snake1[i][1] == y) return true;
+        if (snake1[i][0] == x && snake1[i][1] == y) {
+            return true;
+        }
     }
     return false;
 }
@@ -43,22 +49,62 @@ fn spawn_apple(&i64[][] snake0, &i64[][] snake1, i64 rng_state, i64 grid_w, i64 
 fn serialize_snake(&i64[][] snake): str {
     str result = "";
     for (i64 i = 0; i < vector_size(&snake); i += 1) {
-        if (i > 0) result += ";";
+        if (i > 0) {
+            result += ";";
+        }
         result += snake[i][0] as str + "," + snake[i][1] as str;
     }
     return result;
 }
 
-fn serialize_world(bool game_over, i64 score0, i64 score1, &i64[] apple, &i64[][] snake0, &i64[][] snake1): str {
+fn serialize_world(
+    bool game_over,
+    i64 score0,
+    i64 score1,
+    &i64[] apple,
+    &i64[][] snake0,
+    &i64[][] snake1
+): str {
     str go = "0";
-    if (game_over) go = "1";
-    return "GAMEOVER:" + go
-        + "|SCORE0:" + score0 as str
-        + "|SCORE1:" + score1 as str
-        + "|APPLE:" + apple[0] as str + "," + apple[1] as str
-        + "|SNAKE0:" + serialize_snake(&snake0)
-        + "|SNAKE1:" + serialize_snake(&snake1);
+    if (game_over) {
+        go = "1";
+    }
+    return
+        "GAMEOVER:"
+            + go
+            + "|SCORE0:"
+            + score0 as str
+            + "|SCORE1:"
+            + score1 as str
+            + "|APPLE:"
+            + apple[0] as str
+            + ","
+            + apple[1] as str
+            + "|SNAKE0:"
+            + serialize_snake(&snake0)
+            + "|SNAKE1:"
+            + serialize_snake(&snake1);
 }
+
+fn split_by_delim(str text, char delim): str[] {
+    str[] segments = [];
+    str word = "";
+
+    for (i64 i = 0; i < str_len(text); i += 1) {
+        char c = text[i];
+        if (c == delim) {
+            vector_push(&segments, word);
+            word = "";
+        } else {
+            word += c;
+        }
+    }
+
+    vector_push(&segments, word);
+
+    return segments;
+}
+
 
 i64 GRID_W = 30;
 i64 GRID_H = 20;
@@ -84,25 +130,6 @@ i64 port = 8080;
 i64 listener = tcp_listen(port);
 println("Snake Online server on port " + port as str + "...");
 
-fn split_by_delim(str text, char delim): str[] {
-    str[] segments = [];
-    str word = "";
-
-    for (i64 i = 0; i < str_len(text); i += 1) {
-        char c = text[i];
-        if (c == delim) {
-            vector_push(&segments, word);
-            word = "";
-        } else {
-            word += c;
-        }
-    }
-
-    vector_push(&segments, word);
-
-    return segments;
-}
-
 while (true) {
     i64 client = tcp_accept(listener);
     str request = tcp_read(client);
@@ -118,8 +145,10 @@ while (true) {
     if (vector_size(&parts) >= 1 && parts[0] == "RESET") {
         snake0 = [[5, 10], [4, 10], [3, 10]];
         snake1 = [[24, 10], [25, 10], [26, 10]];
-        dx0 = 1; dy0 = 0;
-        dx1 = -1; dy1 = 0;
+        dx0 = 1;
+        dy0 = 0;
+        dx1 = -1;
+        dy1 = 0;
         score0 = 0;
         score1 = 0;
         game_over = false;
@@ -135,9 +164,13 @@ while (true) {
         i64 new_dy = parts[3] as i64;
 
         if (pid == 0) {
-            if (!(new_dx == -dx0 && new_dy == -dy0)) { dx0 = new_dx; dy0 = new_dy; }
-        } else {
-            if (!(new_dx == -dx1 && new_dy == -dy1)) { dx1 = new_dx; dy1 = new_dy; }
+            if (!(new_dx == -dx0 && new_dy == -dy0)) {
+                dx0 = new_dx;
+                dy0 = new_dy;
+            }
+        } else if (!(new_dx == -dx1 && new_dy == -dy1)) {
+            dx1 = new_dx;
+            dy1 = new_dy;
         }
 
         if (!game_over) {
@@ -155,20 +188,28 @@ while (true) {
 
                 bool self0 = false;
                 for (i64 i = 0; i < vector_size(&snake0) - 1; i += 1) {
-                    if (snake0[i][0] == head0_x && snake0[i][1] == head0_y) self0 = true;
+                    if (snake0[i][0] == head0_x && snake0[i][1] == head0_y) {
+                        self0 = true;
+                    }
                 }
                 bool self1 = false;
                 for (i64 i = 0; i < vector_size(&snake1) - 1; i += 1) {
-                    if (snake1[i][0] == head1_x && snake1[i][1] == head1_y) self1 = true;
+                    if (snake1[i][0] == head1_x && snake1[i][1] == head1_y) {
+                        self1 = true;
+                    }
                 }
 
                 bool hit_other0 = false;
                 for (i64 i = 0; i < vector_size(&snake1); i += 1) {
-                    if (snake1[i][0] == head0_x && snake1[i][1] == head0_y) hit_other0 = true;
+                    if (snake1[i][0] == head0_x && snake1[i][1] == head0_y) {
+                        hit_other0 = true;
+                    }
                 }
                 bool hit_other1 = false;
                 for (i64 i = 0; i < vector_size(&snake0); i += 1) {
-                    if (snake0[i][0] == head1_x && snake0[i][1] == head1_y) hit_other1 = true;
+                    if (snake0[i][0] == head1_x && snake0[i][1] == head1_y) {
+                        hit_other1 = true;
+                    }
                 }
 
                 bool dead0 = wall0 || self0 || hit_other0;
@@ -182,7 +223,9 @@ while (true) {
 
                     i64[][] new_snake0 = [[head0_x, head0_y]];
                     i64 copy_len0 = vector_size(&snake0);
-                    if (!ate0) copy_len0 = copy_len0 - 1;
+                    if (!ate0) {
+                        copy_len0 = copy_len0 - 1;
+                    }
                     for (i64 i = 0; i < copy_len0; i += 1) {
                         vector_push(&new_snake0, snake0[i]);
                     }
@@ -190,14 +233,20 @@ while (true) {
 
                     i64[][] new_snake1 = [[head1_x, head1_y]];
                     i64 copy_len1 = vector_size(&snake1);
-                    if (!ate1) copy_len1 = copy_len1 - 1;
+                    if (!ate1) {
+                        copy_len1 = copy_len1 - 1;
+                    }
                     for (i64 i = 0; i < copy_len1; i += 1) {
                         vector_push(&new_snake1, snake1[i]);
                     }
                     snake1 = new_snake1;
 
-                    if (ate0) score0 += 1;
-                    if (ate1) score1 += 1;
+                    if (ate0) {
+                        score0 += 1;
+                    }
+                    if (ate1) {
+                        score1 += 1;
+                    }
                     if (ate0 || ate1) {
                         i64[] r = spawn_apple(&snake0, &snake1, rng_state, GRID_W, GRID_H);
                         apple = [r[0], r[1]];

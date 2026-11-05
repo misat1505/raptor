@@ -180,7 +180,7 @@ def build_and_run(opts, rp_path, flags, use_valgrind, stdin_text=None):
     out.workdir = work
     try:
         shutil.copy(rp_path, os.path.join(work, "t.rp"))
-        cmd = [opts.compiler, "--compile", "-o", "./exe", "t.rp"] + list(flags)
+        cmd = [opts.compiler, "-o", "./exe", "t.rp"] + list(flags)
         if opts.memory and opts.has_memory_flag:
             cmd += ["--memory", opts.memory]
         c = subprocess.run(

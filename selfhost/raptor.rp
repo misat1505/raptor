@@ -22,7 +22,6 @@ struct CliOptions {
     str path,
     bool verbose,
     bool is_unsafe,
-    bool is_compile,
     bool should_run,
     OptionStr output_path,
     str[] link_objects,
@@ -159,11 +158,9 @@ fn usage(): void {
             + "    -h, --help          Show this help message\n"
             + "    -v, --verbose       Show execution time of each phase\n"
             + "    --unsafe            Skip semantic checking\n"
-            + "    --compile           Compile the source file (the default: this compiler has no interpreter)\n"
             + "    --run               After compiling, build and run the resulting executable\n"
-            + "                        (implies --compile)\n"
             + "    -o <FILE>           Set output executable path\n"
-            + "    --link <FILE>       Link an additional object file (compilation mode only)\n"
+            + "    --link <FILE>       Link an additional object file\n"
             + "    -O0                 No optimization (default)\n"
             + "    -O1                 Basic optimization\n"
             + "    -O2                 Default optimization\n"
@@ -183,7 +180,6 @@ fn parse_cli(): CliOptions {
         path: "",
         verbose: false,
         is_unsafe: false,
-        is_compile: false,
         should_run: false,
         output_path: OptionStr::None,
         link_objects: [],
@@ -212,12 +208,7 @@ fn parse_cli(): CliOptions {
             opts.is_unsafe = true;
             continue;
         }
-        if (a == "--compile") {
-            opts.is_compile = true;
-            continue;
-        }
         if (a == "--run") {
-            opts.is_compile = true;
             opts.should_run = true;
             continue;
         }
@@ -540,13 +531,6 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
         write_file("./selfhost/ast.rp", "let ast = " + program_debug(&program) + ";");
     }
 
-    # The self-hosted compiler has no interpreter, so everything compiles.
-    if (!opts.is_compile) {
-        eprintln(
-            "note: the self-hosted compiler has no interpreter, compiling (add --run to also run the program)."
-        );
-        opts.is_compile = true;
-    }
     let code = compile_and_maybe_run(&opts, &program, total_started);
     if (code == 0) {
         if (!opts.should_run) {

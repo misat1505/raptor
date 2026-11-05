@@ -30,6 +30,7 @@ match (task) {
 **rest_arm** = "rest", statement_block;
 
 **import_declaration** = "import", literal, ";";
+
 ```raptor
 import "../utils.rp";
 ```
@@ -41,6 +42,7 @@ derives Debug, Json
 ```
 
 **struct_declaration** = "struct", identifier, [ derives_declaration ], "{", [ struct_members ], "}", ";";
+
 ```raptor
 struct Hobby {
   u64 id,
@@ -58,6 +60,7 @@ struct Person {
 **struct_member** = type, identifier;
 
 **enum_declaration** = "enum", identifier, [ derives_declaration ], "{", [ enum_members ], "}", ";";
+
 ```raptor
 enum Task {
     InProgress(Deadline),
@@ -97,7 +100,7 @@ fn add(i64 a, i64 b): i64 {
 
 **statement** = assign_or_call | if_statement | for_statement | while_statement | switch_statement | (declaration, ";") | let_declaration | return_statement | break_statement | continue_statement | match_statement;
 
-**assign_or_call_without_semicolon** = identifier, ( { access_tail }, ("=" | "+=" | "-=" | "*=" | "/=" | "%="), expression | "(", arguments, ")");
+**assign_or_call_without_semicolon** = identifier, ( { access_tail }, ("=" | "+=" | "-=" | "\*=" | "/=" | "%="), expression | "(", arguments, ")");
 
 **assign_or_call** = assign_or_call_without_semicolon, ";";
 
@@ -245,7 +248,7 @@ x >= y
 x + 10 - y
 ```
 
-**multiplicative_term** = casted_term, { ("*" | "/" | "%"), casted_term };
+**multiplicative_term** = casted_term, { ("\*" | "/" | "%"), casted_term };
 
 ```raptor
 (1 + 2) / (2 + 3)
@@ -308,6 +311,7 @@ fun(5)
 ```
 
 **identifier_or_call_or_struct_literal_or_enum_literal** = identifier, ( call_or_index_tail | struct_literal_tail | enum_literal_tail );
+
 ```raptor
 x
 fun(5)
@@ -400,7 +404,7 @@ switch (x: temp1, y: temp2) {
 
 **boolean_literal** = "true" | "false";
 
-**character** = "a" - "z" | "A" - "Z" | "0" - "9" | "_";
+**character** = "a" - "z" | "A" - "Z" | "0" - "9" | "\_";
 
 **unicode_character** = (all unicode characters)
 

@@ -1,5 +1,7 @@
 # Interpreter
 
+> **Note:** The self-hosted compiler has **no interpreter**. It always lowers to LLVM IR and native code. The interpreter documented here lives in the **Rust reference implementation** (`src/`) and is useful for quick experiments and historical tests. Prefer `./bootstrap/raptor --run …` for normal execution.
+
 The interpreter executes the AST directly.
 
 It implements the visitor pattern and maintains the runtime state required for

@@ -1,12 +1,25 @@
 # Memory Management
 
-This document describes the memory management model used by the LLVM compiler backend: automatic reference counting (refcounting) for composite types and strings, ownership rules when passing values around, and known limitations.
+This document describes the memory management model used by the LLVM backends when compiling Raptor programs: automatic reference counting (refcounting) for composite types and strings, ownership rules when passing values around, and known limitations.
+
+## Modes
+
+The self-hosted compiler selects the strategy with `--memory`:
+
+| Mode     | CLI                      | Behaviour                                                                                                                           |
+| -------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **ARC**  | `--memory arc` (default) | Managed types use retain/release. Runtime helpers such as `rt_alloc`, `rt_retain`, and `rt_release` are emitted into the IR.        |
+| **Leak** | `--memory leak`          | Allocations use plain `malloc`; nothing is freed. Suitable for short-lived processes and for debugging lifetime issues by contrast. |
+
+CI runs the self-host test suite under **ARC**.
+
+The sections below describe the **ARC** model. Layout details differ slightly between the historical Rust backend (`StrHeader` with a separate data pointer) and the self-hosted backend (header before payload; user-facing `str` values are often `char*` into the character data). The ownership _rules_ are the same: every managed value has a balanced retain/release story.
 
 ## 1. Primitives vs. heap
 
-* **Primitives** (`i8`/`i16`/`i32`/`i64`, `u8`/`u16`/`u32`/`u64`, `f64`, `bool`, `char`) live entirely on the stack / in registers. Copying them is a plain `store`, with no bookkeeping at all.
+- **Primitives** (`i8`/`i16`/`i32`/`i64`, `u8`/`u16`/`u32`/`u64`, `f64`, `bool`, `char`) live entirely on the stack / in registers. Copying them is a plain `store`, with no bookkeeping at all.
 
-* **`str`, `T[]` (vector), struct, and enum** always live on the heap and are managed by the refcounting scheme described below.
+- **`str`, `T[]` (vector), struct, and enum** always live on the heap and are managed by the refcounting scheme described below when ARC is enabled.
 
 An enum is represented by a heap-allocated `EnumHeader` containing a reference count, a variant tag, and raw storage for the active variant's payload.
 
@@ -14,7 +27,7 @@ An enum is represented by a heap-allocated `EnumHeader` containing a reference c
 
 Every managed object has a header with a reference count `refcount: i64`.
 
-### `StrHeader`
+### `StrHeader` (Rust reference backend)
 
 ```text
 struct StrHeader {
@@ -23,7 +36,11 @@ struct StrHeader {
 }
 ```
 
-`LlvmValue::Str` **always** points at a `StrHeader`, never directly at the character buffer. Access to the characters always goes through the `data` field (see `Compiler::str_data_ptr`).
+In the Rust LLVM backend, `LlvmValue::Str` **always** points at a `StrHeader`, never directly at the character buffer. Access to the characters goes through the `data` field.
+
+### Strings in the self-hosted backend
+
+Under ARC, string _literals_ are emitted as immortal globals shaped like `{ i64 rc, i64 drop, [N x i8] chars }` with `rc = -1` (retain/release are no-ops). Dynamic strings are allocated through `rt_alloc` so a small header sits before the payload; language-level values are pointers suitable for C string APIs (`strlen`, `printf`, `send`, …).
 
 ### `VecHeader`
 
@@ -65,9 +82,9 @@ struct EnumHeader {
 
 The field order is fixed:
 
-* `ENUM_REFCOUNT = 0` — reference count;
-* `ENUM_TAG = 1` — zero-based index of the active variant;
-* `ENUM_PAYLOAD = 2` — raw storage for the active variant's payload.
+- `ENUM_REFCOUNT = 0` — reference count;
+- `ENUM_TAG = 1` — zero-based index of the active variant;
+- `ENUM_PAYLOAD = 2` — raw storage for the active variant's payload.
 
 `N` is large enough to hold the largest payload used by any variant of that enum. The payload is raw union-like storage: it is not interpreted as a complete `[N x i64]` value. The compiler GEPs into the payload and loads/stores it using the concrete type of the active variant.
 
@@ -103,9 +120,9 @@ An enum's payload may itself be a managed value such as `str`, `T[]`, a struct, 
 | --------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | primitive | bitwise copy                        | bitwise copy                                                                                                                        | pointer to the caller's variable     |
 | `str`     | **full, deep copy** of a new buffer | **full, deep copy**                                                                                                                 | pointer to the caller's `StrHeader`  |
-| `T[]`     | retain (shared reference)           | **shallow copy**: new `VecHeader` + new backing array; composite elements (`str`/`T[]`/struct/enum) are *retained*, not deep-copied | pointer to the caller's `VecHeader`  |
-| `struct`  | retain (shared reference)           | **shallow copy**: new struct, primitive fields copied bitwise, composite fields (`str`/vector/struct/enum) *retained*               | pointer to the caller's struct       |
-| `enum`    | retain (shared reference)           | **shallow copy** of the enum object; primitive payloads are copied directly, managed payloads are *retained*                        | pointer to the caller's `EnumHeader` |
+| `T[]`     | retain (shared reference)           | **shallow copy**: new `VecHeader` + new backing array; composite elements (`str`/`T[]`/struct/enum) are _retained_, not deep-copied | pointer to the caller's `VecHeader`  |
+| `struct`  | retain (shared reference)           | **shallow copy**: new struct, primitive fields copied bitwise, composite fields (`str`/vector/struct/enum) _retained_               | pointer to the caller's struct       |
+| `enum`    | retain (shared reference)           | **shallow copy** of the enum object; primitive payloads are copied directly, managed payloads are _retained_                        | pointer to the caller's `EnumHeader` |
 
 Strings **always** get full value semantics - never shared, even though they're refcounted under the hood. This is intentional: the refcount on a string exists mainly so releasing goes through one consistent mechanism (`release_value`), not so strings can be shared.
 
@@ -113,9 +130,9 @@ Enums, vectors, and structs use shared-reference semantics when assigned with `l
 
 When an enum is copied by value, the enum container itself is copied into a new enum object. The active variant's payload is copied according to its type:
 
-* primitive payloads are copied directly;
-* `str` payloads are deep-copied according to string value semantics;
-* vector, struct, and enum payloads are retained and therefore remain shared.
+- primitive payloads are copied directly;
+- `str` payloads are deep-copied according to string value semantics;
+- vector, struct, and enum payloads are retained and therefore remain shared.
 
 For example:
 
@@ -136,11 +153,11 @@ Copying a `Result::Data` value creates a new enum object, but both enum objects 
 
 Any expression whose result is **anything other than a bare variable read** (`Expression::Variable`) returns an owned (+1) reference by construction:
 
-* a fresh literal (`[1,2,3]`, `Struct { ... }`, `Enum::Variant(...)`);
-* a function call result;
-* a struct field read (`obj.field`) or vector element read (`arr[i]`) - these two specifically retain at the point of reading, precisely to satisfy this rule;
-* an enum payload/field read when it produces a managed value;
-* a cast, concatenation, vector stringify result, etc.
+- a fresh literal (`[1,2,3]`, `Struct { ... }`, `Enum::Variant(...)`);
+- a function call result;
+- a struct field read (`obj.field`) or vector element read (`arr[i]`) - these two specifically retain at the point of reading, precisely to satisfy this rule;
+- an enum payload/field read when it produces a managed value;
+- a cast, concatenation, vector stringify result, etc.
 
 Reading a bare variable (`x`) is **not** a "new reference" - it's a borrow of the variable's own reference.
 
@@ -179,10 +196,9 @@ Release every scope opened **since** entering the loop/switch (not counting the 
 1. Evaluate the argument.
 
 2. Build a copy:
-
-   * string: deep copy;
-   * vector/struct: shallow copy;
-   * enum: new enum object with its active payload copied according to the payload type.
+   - string: deep copy;
+   - vector/struct: shallow copy;
+   - enum: new enum object with its active payload copied according to the payload type.
 
 3. If the source expression was **not** a bare variable (i.e. it already carried its own +1 per the base rule), release the original - copying already consumed its contents and nothing else needs it anymore.
 

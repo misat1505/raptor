@@ -1912,21 +1912,265 @@ fn llvm_compile_call_dispatch(
         return;
     }
 
-    if (
-        name == "tcp_listen"
-            || name == "tcp_accept"
-            || name == "tcp_connect"
-            || name == "tcp_read"
-            || name == "tcp_write"
-    ) {
-        # TODO: full sockaddr setup; return -1 / empty for now so IR links
-        if (name == "tcp_read") {
-            llvm_compiler_set_last(&c, llvm_str_literal(&c, ""), "ptr");
-        } else if (name == "tcp_write") {
-            llvm_compiler_set_last(&c, "0", "i64");
-        } else {
-            llvm_compiler_set_last(&c, "-1", "i64");
-        }
+    if (name == "tcp_listen") {
+        # socket(AF_INET=2, SOCK_STREAM=1, 0) → bind → listen → return fd as i64
+        let sock = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + sock + " = call i32 @socket(i32 2, i32 1, i32 0)");
+
+        let sa = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + sa + " = alloca { i16, i16, i32, [8 x i8] }");
+
+        let fam_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + fam_p
+                + " = getelementptr { i16, i16, i32, [8 x i8] }, ptr "
+                + sa
+                + ", i32 0, i32 0"
+        );
+        ir_emit(&c.ir, "  store i16 2, ptr " + fam_p);  # AF_INET
+
+        let port_i32 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_i32 + " = trunc i64 " + arg_vals[0] + " to i32");
+        let port_lo = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_lo + " = and i32 " + port_i32 + ", 255");
+        let port_hi_m = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_hi_m + " = and i32 " + port_i32 + ", 65280");
+        let port_hi = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_hi + " = lshr i32 " + port_hi_m + ", 8");
+        let port_lo_s = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_lo_s + " = shl i32 " + port_lo + ", 8");
+        let port_be = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_be + " = or i32 " + port_lo_s + ", " + port_hi);
+        let port_be16 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_be16 + " = trunc i32 " + port_be + " to i16");
+
+        let port_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + port_p
+                + " = getelementptr { i16, i16, i32, [8 x i8] }, ptr "
+                + sa
+                + ", i32 0, i32 1"
+        );
+        ir_emit(&c.ir, "  store i16 " + port_be16 + ", ptr " + port_p);
+
+        let addr_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + addr_p
+                + " = getelementptr { i16, i16, i32, [8 x i8] }, ptr "
+                + sa
+                + ", i32 0, i32 2"
+        );
+        ir_emit(&c.ir, "  store i32 0, ptr " + addr_p);  # INADDR_ANY
+
+        let zero_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + zero_p
+                + " = getelementptr { i16, i16, i32, [8 x i8] }, ptr "
+                + sa
+                + ", i32 0, i32 3"
+        );
+        ir_emit(&c.ir, "  store [8 x i8] zeroinitializer, ptr " + zero_p);
+
+        ir_emit(
+            &c.ir,
+            "  " + ir_tmp(&c.ir) + " = call i32 @bind(i32 " + sock + ", ptr " + sa + ", i32 16)"
+        );
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @listen(i32 " + sock + ", i32 128)");
+
+        let fd64 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + fd64 + " = zext i32 " + sock + " to i64");
+        llvm_compiler_set_last(&c, fd64, "i64");
+        return;
+    }
+
+    if (name == "tcp_accept") {
+        let fd32 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + fd32 + " = trunc i64 " + arg_vals[0] + " to i32");
+        let client = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + client + " = call i32 @accept(i32 " + fd32 + ", ptr null, ptr null)");
+        let fd64 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + fd64 + " = zext i32 " + client + " to i64");
+        llvm_compiler_set_last(&c, fd64, "i64");
+        return;
+    }
+
+    if (name == "tcp_connect") {
+        # host = arg_vals[0] (ptr / char*), port = arg_vals[1] (i64)
+        let sock = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + sock + " = call i32 @socket(i32 2, i32 1, i32 0)");
+
+        let sa = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + sa + " = alloca { i16, i16, i32, [8 x i8] }");
+
+        let fam_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + fam_p
+                + " = getelementptr { i16, i16, i32, [8 x i8] }, ptr "
+                + sa
+                + ", i32 0, i32 0"
+        );
+        ir_emit(&c.ir, "  store i16 2, ptr " + fam_p);
+
+        let port_i32 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_i32 + " = trunc i64 " + arg_vals[1] + " to i32");
+        let port_lo = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_lo + " = and i32 " + port_i32 + ", 255");
+        let port_hi_m = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_hi_m + " = and i32 " + port_i32 + ", 65280");
+        let port_hi = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_hi + " = lshr i32 " + port_hi_m + ", 8");
+        let port_lo_s = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_lo_s + " = shl i32 " + port_lo + ", 8");
+        let port_be = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_be + " = or i32 " + port_lo_s + ", " + port_hi);
+        let port_be16 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + port_be16 + " = trunc i32 " + port_be + " to i16");
+
+        let port_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + port_p
+                + " = getelementptr { i16, i16, i32, [8 x i8] }, ptr "
+                + sa
+                + ", i32 0, i32 1"
+        );
+        ir_emit(&c.ir, "  store i16 " + port_be16 + ", ptr " + port_p);
+
+        # localhost → 127.0.0.1 (jak w Rust backendzie)
+        let localhost_g = ir_cstr_global(&c.ir, "localhost");
+        let loopback_g = ir_cstr_global(&c.ir, "127.0.0.1");
+        let lh_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + lh_p
+                + " = getelementptr inbounds [10 x i8], ptr "
+                + localhost_g
+                + ", i64 0, i64 0"
+        );
+        let lb_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + lb_p
+                + " = getelementptr inbounds [10 x i8], ptr "
+                + loopback_g
+                + ", i64 0, i64 0"
+        );
+        let cmp = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  " + cmp + " = call i32 @strcmp(ptr " + arg_vals[0] + ", ptr " + lh_p + ")"
+        );
+        let is_lh = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + is_lh + " = icmp eq i32 " + cmp + ", 0");
+        let resolved = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  " + resolved + " = select i1 " + is_lh + ", ptr " + lb_p + ", ptr " + arg_vals[0]
+        );
+
+        let addr_be = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + addr_be + " = call i32 @inet_addr(ptr " + resolved + ")");
+        let addr_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + addr_p
+                + " = getelementptr { i16, i16, i32, [8 x i8] }, ptr "
+                + sa
+                + ", i32 0, i32 2"
+        );
+        ir_emit(&c.ir, "  store i32 " + addr_be + ", ptr " + addr_p);
+
+        let zero_p = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  "
+                + zero_p
+                + " = getelementptr { i16, i16, i32, [8 x i8] }, ptr "
+                + sa
+                + ", i32 0, i32 3"
+        );
+        ir_emit(&c.ir, "  store [8 x i8] zeroinitializer, ptr " + zero_p);
+
+        let conn = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  " + conn + " = call i32 @connect(i32 " + sock + ", ptr " + sa + ", i32 16)"
+        );
+        let failed = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + failed + " = icmp slt i32 " + conn + ", 0");
+
+        let close_l = ir_label(&c.ir, "tcp_connect.close");
+        let cont_l = ir_label(&c.ir, "tcp_connect.cont");
+        ir_emit(&c.ir, "  br i1 " + failed + ", label %" + close_l + ", label %" + cont_l);
+        ir_emit(&c.ir, close_l + ":");
+        ir_emit(&c.ir, "  " + ir_tmp(&c.ir) + " = call i32 @close(i32 " + sock + ")");
+        ir_emit(&c.ir, "  br label %" + cont_l);
+        ir_emit(&c.ir, cont_l + ":");
+
+        let fd64 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + fd64 + " = zext i32 " + sock + " to i64");
+        let result = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + result + " = select i1 " + failed + ", i64 -1, i64 " + fd64);
+        llvm_compiler_set_last(&c, result, "i64");
+        return;
+    }
+
+    if (name == "tcp_read") {
+        # recv do bufora 4096, NUL-terminate, zwróć jako str (char*)
+        let fd32 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + fd32 + " = trunc i64 " + arg_vals[0] + " to i32");
+        let buf = llvm_alloc_bytes(&c, "4096", "null");
+        let n = ir_tmp(&c.ir);
+        ir_emit(
+            &c.ir,
+            "  " + n + " = call i64 @recv(i32 " + fd32 + ", ptr " + buf + ", i64 4095, i32 0)"
+        );
+
+        # jeśli n < 0 → traktuj jako 0 (pusty string)
+        let n_neg = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + n_neg + " = icmp slt i64 " + n + ", 0");
+        let n_ok = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + n_ok + " = select i1 " + n_neg + ", i64 0, i64 " + n);
+        let end_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + end_p + " = getelementptr i8, ptr " + buf + ", i64 " + n_ok);
+        ir_emit(&c.ir, "  store i8 0, ptr " + end_p);
+        llvm_compiler_set_last(&c, buf, "ptr");
+        return;
+    }
+
+    if (name == "tcp_write") {
+        # send(fd, data, strlen(data), 0)
+        let fd32 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + fd32 + " = trunc i64 " + arg_vals[0] + " to i32");
+        let len = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + len + " = call i64 @strlen(ptr " + arg_vals[1] + ")");
+        ir_emit(
+            &c.ir,
+            "  "
+                + ir_tmp(&c.ir)
+                + " = call i64 @send(i32 "
+                + fd32
+                + ", ptr "
+                + arg_vals[1]
+                + ", i64 "
+                + len
+                + ", i32 0)"
+        );
+        llvm_compiler_set_last(&c, "0", "i64");
         return;
     }
 

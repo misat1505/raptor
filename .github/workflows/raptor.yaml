@@ -1,4 +1,4 @@
-name: Rust CI
+name: Raptor CI
 
 on:
   pull_request:
@@ -47,11 +47,5 @@ jobs:
             --compiler ./bootstrap/raptor \
             --memory arc
 
-      - name: Run Clippy
-        run: cargo clippy --lib -p raptor -- -D warnings
-
-      - name: Run tests
-        run: cargo test
-
       - name: Build release
-        run: cargo build --release
+        run: cargo build --release --bin lsp

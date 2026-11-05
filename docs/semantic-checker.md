@@ -1,14 +1,16 @@
 # Semantic Checker
 
-The semantic checker validates the parsed AST before normal interpretation or compilation.
+The semantic checker validates the parsed AST before compilation (and, in the Rust reference implementation, before interpretation).
 
 Its most important responsibility is **type checking**.
+
+There is a self-hosted implementation under `selfhost/semantic-checker/` and a Rust implementation under `src/semantic/`. Both sit in the same place in the pipeline.
 
 ## Responsibilities
 
 The semantic checker:
 
-- traverses the AST using the visitor pattern;
+- traverses the AST (visitor-style in the Rust tree; equivalent passes in selfhost);
 - checks expressions and statements for static type correctness;
 - validates function calls;
 - checks argument counts and passing modes;
@@ -24,6 +26,9 @@ Lexer
 Parser
   │
   ▼
+Import resolver / macro expander
+  │
+  ▼
 AST
   │
   ▼
@@ -31,7 +36,8 @@ Semantic Checker
   │
   ├── errors → stop
   │
-  └── valid → Interpreter / Compiler
+  └── valid → Compiler (self-hosted default)
+              Interpreter (Rust reference only)
 ```
 
 The command-line driver runs the checker unless `--unsafe` is supplied.

@@ -3,6 +3,8 @@
 The lexer is the first stage of the Raptor compiler pipeline. It converts the source
 character stream into tokens consumed by the parser.
 
+Implementations: `selfhost/frontend/lexer/` (primary) and `src/frontend/` (Rust reference).
+
 ## Responsibilities
 
 The lexer:

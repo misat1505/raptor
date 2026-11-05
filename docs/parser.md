@@ -2,6 +2,8 @@
 
 The parser consumes lexer tokens and builds the Raptor abstract syntax tree (AST).
 
+Implementations: `selfhost/frontend/parser/` (primary) and `src/frontend/` (Rust reference).
+
 ## Responsibilities
 
 The parser:
@@ -84,15 +86,15 @@ switch (score: current) {
 
 The documented operator precedence, from highest to lowest, is:
 
-| Priority | Operators |
-| ---: | --- |
-| 7 | unary `-`, `!` |
-| 6 | `as` |
-| 5 | `*`, `/`, `%` |
-| 4 | `+`, `-` |
-| 3 | `>`, `>=`, `<`, `<=`, `==`, `!=` |
-| 2 | `&&` |
-| 1 | `||` |
+| Priority | Operators                        |
+| -------: | -------------------------------- |
+|        7 | unary `-`, `!`                   |
+|        6 | `as`                             |
+|        5 | `*`, `/`, `%`                    |
+|        4 | `+`, `-`                         |
+|        3 | `>`, `>=`, `<`, `<=`, `==`, `!=` |
+|        2 | `&&`                             |
+|        1 | `\|\|`                           |
 
 For example:
 

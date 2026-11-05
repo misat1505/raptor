@@ -1,156 +1,128 @@
 # Compiler
 
-The compiler translates the Raptor AST into LLVM IR and then uses LLVM 18 tools to
-produce a native executable.
+Raptor compiles programs to native code through **LLVM 18**.
+
+The **primary** implementation is the self-hosted compiler in `selfhost/` (bootstrapped from `bootstrap/raptor.ll`). A Rust LLVM backend remains under `src/backend/llvm/` as a reference; the language server still links against the Rust crates, but normal program builds use the self-hosted path.
 
 ## Responsibilities
 
 The compiler:
 
-1. traverses the AST;
-2. generates LLVM IR;
-3. optionally optimizes the generated IR;
-4. writes the IR to disk;
-5. invokes `llc-18` to create an object file;
-6. invokes `clang-18` to link the final executable.
+1. receives a checked (or `--unsafe`) AST after lexing, parsing, import resolution, and macro expansion;
+2. lowers the program to LLVM IR;
+3. optionally records optimization level for the link step;
+4. writes IR under `build/`;
+5. invokes `llc` (object file) and `clang` (link), optionally `opt` when `-O1`/`-O2`/`-O3` is set;
+6. optionally runs the resulting executable (`--run`).
 
 ## Pipeline
 
-```text
-Raptor source
-     │
-     ▼
-   Lexer
-     │
-     ▼
-   Parser
-     │
-     ▼
-Semantic Checker
-     │
-     ▼
- Compiler
-     │
-     ▼
- LLVM IR (.ll)
-     │
-     ▼
-  llc-18
-     │
-     ▼
- object (.o)
-     │
-     ▼
- clang-18
-     │
-     ▼
- executable
-```
+![](./diagram/compiler_pipeline.png)
 
-The semantic checker normally runs before compilation and performs type checking.
-`--unsafe` can bypass that stage.
+## Self-hosted backend
+
+Sources live under `selfhost/backend/llvm/`:
+
+- textual IR emission (no inkwell);
+- libc / runtime declarations (`libc-decls.rp`);
+- expression and statement lowering;
+- standard functions (I/O, vectors, files, **TCP**, …);
+- ARC runtime hooks when `--memory arc` is selected.
+
+Bootstrap entry: [bootstrap/README.md](../bootstrap/README.md).
 
 ## LLVM version
 
-The current driver targets LLVM 18:
+The driver targets LLVM 18 by default:
 
 ```text
 LLVM_VERSION = 18
 ```
 
-It invokes:
+Tools resolved as `tool-18` with fallback to unversioned `tool`:
 
 ```text
-llc-18
-clang-18
+llc-18 / llc
+clang-18 / clang
+opt-18 / opt   (only when an -O level is requested)
 ```
-
-Both tools need to be installed and available on `PATH`.
 
 ## Output files
 
-Compilation artifacts are placed in:
+Compilation artifacts are placed under:
 
 ```text
 build/
 ```
 
-For an input such as:
-
-```text
-basic.rp
-```
-
-the driver creates paths based on the file stem:
-
-```text
-build/basic.ll
-build/basic.o
-build/basic       # Unix-like systems
-build/basic.exe   # Windows
-```
+For an input such as `basic.rp`, the driver typically produces IR, an object file, and an executable named from the file stem (exact names depend on `-o` and the driver defaults).
 
 ## Optimization
 
-The CLI supports:
-
 ```text
--O0    No optimization
+-O0    No optimization (default; opt may be skipped)
 -O1    Basic optimization
 -O2    Default optimization
 -O3    Aggressive optimization
 ```
 
-These are mapped to LLVM optimization levels before the IR is written.
+Levels are applied with LLVM’s pass pipeline via `opt` before `llc`, when requested.
+
+## Memory mode
+
+```text
+--memory arc    Reference counting for managed types (default)
+--memory leak   malloc only; nothing freed
+```
+
+See [memory-management.md](memory-management.md).
+
+## Integer overflow
+
+```text
+--overflow ignore   (default)
+--overflow warn
+--overflow error
+```
+
+Non-`ignore` policies emit LLVM overflow intrinsics and diagnostics for checked arithmetic.
 
 ## Compile and run
 
-Compile only:
-
 ```bash
-cargo run -- --compile basic.rp
+./bootstrap/raptor examples/basic.rp
+./bootstrap/raptor --run examples/basic.rp
+./bootstrap/raptor -o ./build/basic -O2 --run examples/basic.rp
 ```
 
-Compile and run:
+`--run` implies a full compile + link, then executes the binary.
+
+Linking a pre-existing `.ll` file:
 
 ```bash
-cargo run -- --run basic.rp
+./selfhost/raptor.sh -o ./build/out ./build/out.ll
+./selfhost/raptor.sh --run -O2 -o ./build/out ./build/out.ll
 ```
 
-`--run` implies `--compile`.
+## Networking codegen
 
-The driver reports the generated IR and executable paths after successful stages.
+TCP builtins (`tcp_listen`, `tcp_accept`, `tcp_connect`, `tcp_read`, `tcp_write`, `tcp_close`) lower to libc socket calls (`socket`, `bind`, `listen`, `accept`, `connect`, `recv`, `send`, `close`, `inet_addr`, …) declared in the IR runtime section. Handles are plain file descriptors (`i64` in the language).
 
 ## Errors
 
-Compiler diagnostics use the same compiler-style format:
+Compiler diagnostics use:
 
 ```text
 error: <message>
   --> <file>:<line>:<column>
 ```
 
-For example:
-
-```text
-error: Undeclared variable 'doesnt_exists'.
-  --> basic.rp:7:9
-```
-
-This represents a compiler-stage diagnostic for a variable that cannot be resolved
-during code generation.
-
-The compiler can also report failures while invoking external LLVM tools. If `llc-18`
-or `clang-18` cannot be started, the driver reports that the tool is missing or not
-available on `PATH`. If a tool exits unsuccessfully, its diagnostic output is returned
-as part of the build error.
-
-A failure in one compilation stage stops subsequent stages.
+Failures while running `llc`, `clang`, or `opt` are reported as build errors; a failure in one stage stops the next.
 
 ## Error boundary
 
-The compiler is responsible for diagnostics that arise during code generation and the
-native build pipeline.
+- **Semantic checker** — static types and related rules.
+- **Compiler / link** — IR generation and native toolchain.
+- **Runtime** — behaviour of the generated executable (including ARC diagnostics if enabled).
 
-Static type checking belongs to the semantic checker. Runtime execution failures
-belong to the interpreter.
+The self-hosted compiler has **no interpreter**; runtime issues appear only after a successful native build.

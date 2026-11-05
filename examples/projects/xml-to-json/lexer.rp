@@ -1,6 +1,6 @@
 import "./tokens.rp";
 import "./source.rp";
-import "../../stdlib/string.rp";
+import "../../../stdlib/string.rp";
 
 
 struct Lexer {

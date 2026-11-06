@@ -167,8 +167,7 @@ fn semantic_checker_derive_hover(
     str identifier_name,
     IdentifierNode derive
 ): void {
-    # Snake-case is approximated by lowercasing for hover text only.
-    let snake = identifier_name;
+    let snake = to_snake_case(identifier_name);
     if (derive.value == "Debug") {
         let contents =
             "Creates a function to display `"

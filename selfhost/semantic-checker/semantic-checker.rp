@@ -16,11 +16,24 @@ import "./stack/stack.rp";
 import "./type-alu/type-alu.rp";
 
 
+# LSP / editor metadata collected while checking (mirrors Rust HoverInfo / DefinitionInfo).
+struct HoverInfo derives Json {
+    Span span,
+    str contents
+};
+
+struct DefinitionInfo derives Json {
+    Span use_span,
+    Span def_span
+};
+
 struct SemanticChecker {
     StaticCheckerStack stack,
     OptionType last_result,
     SemanticCheckerError[] errors,
-    OptionFunctionDeclaration current_function
+    OptionFunctionDeclaration current_function,
+    HoverInfo[] hovers,
+    DefinitionInfo[] definitions
 };
 
 # ---------- type resolution from declared_types ----------
@@ -45,7 +58,9 @@ fn semantic_checker_new(): SemanticChecker {
         stack: stack_new(),
         last_result: OptionType::None,
         errors: [],
-        current_function: OptionFunctionDeclaration::None
+        current_function: OptionFunctionDeclaration::None,
+        hovers: [],
+        definitions: []
     };
 }
 
@@ -78,6 +93,123 @@ fn semantic_checker_set_last(&SemanticChecker sc, Type t): void {
     sc.last_result = OptionType::Some(t);
 }
 
+# ---------- hover / go-to-definition helpers (mirrors Rust checker.rs) ----------
+
+fn semantic_type_prefix(Type data_type): str {
+    if (data_type matches Type::Unresolved) {
+        # User types are either struct or enum; callers often know which.
+        # Prefix is filled in by more specific hover helpers when needed.
+        return "";
+    }
+    return "";
+}
+
+fn semantic_checker_identifier_hover(
+    &SemanticChecker sc,
+    Type data_type,
+    IdentifierNode identifier
+): void {
+    let contents =
+        "```raptor\n"
+            + semantic_type_prefix(data_type)
+            + type_to_string(data_type)
+            + " "
+            + identifier.value
+            + "\n```";
+    vector_push(&sc.hovers, HoverInfo { span: identifier.span, contents: contents });
+}
+
+fn semantic_checker_type_hover(&SemanticChecker sc, Type data_type, Span span): void {
+    let contents =
+        "```raptor\n" + semantic_type_prefix(data_type) + type_to_string(data_type) + "\n```";
+    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+}
+
+fn semantic_checker_push_definition(&SemanticChecker sc, Span use_span, Span def_span): void {
+    vector_push(&sc.definitions, DefinitionInfo { use_span: use_span, def_span: def_span });
+}
+
+fn semantic_checker_struct_hover(&SemanticChecker sc, str name, Span span): void {
+    let contents = "```raptor\nstruct " + name + "\n```";
+    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+}
+
+fn semantic_checker_enum_hover(&SemanticChecker sc, str name, Span span): void {
+    let contents = "```raptor\nenum " + name + "\n```";
+    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+}
+
+fn semantic_checker_function_hover(
+    &SemanticChecker sc,
+    str name,
+    ParameterNode[] params,
+    Type ret,
+    Span span
+): void {
+    let sig = "fn " + name + "(";
+    for (let i = 0; i < vector_size(&params); i += 1) {
+        if (i > 0) {
+            sig = sig + ", ";
+        }
+        let p = params[i].value;
+        if (p.passed_by matches PassedBy::Reference) {
+            sig = sig + "&";
+        }
+        sig = sig + type_to_string(p.parameter_type.value) + " " + p.identifier.value;
+    }
+    sig = sig + "): " + type_to_string(ret);
+    let contents = "```raptor\n" + sig + "\n```";
+    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+}
+
+fn semantic_checker_derive_hover(
+    &SemanticChecker sc,
+    str identifier_name,
+    IdentifierNode derive
+): void {
+    # Snake-case is approximated by lowercasing for hover text only.
+    let snake = identifier_name;
+    if (derive.value == "Debug") {
+        let contents =
+            "Creates a function to display `"
+                + identifier_name
+                + "`.\n\n```raptor\nfn "
+                + snake
+                + "_debug(&"
+                + identifier_name
+                + " "
+                + snake
+                + "): str\n```";
+        vector_push(&sc.hovers, HoverInfo { span: derive.span, contents: contents });
+    } else if (derive.value == "Json") {
+        let contents =
+            "Creates a function to encode `"
+                + identifier_name
+                + "` as JSON.\n\n```raptor\nfn "
+                + snake
+                + "_json_encode(&"
+                + identifier_name
+                + " "
+                + snake
+                + "): str\n```";
+        vector_push(&sc.hovers, HoverInfo { span: derive.span, contents: contents });
+    } else if (derive.value == "Clone") {
+        let contents =
+            "Creates a function to recursively clone `"
+                + identifier_name
+                + "`.\n\n```raptor\nfn "
+                + snake
+                + "_clone(&"
+                + identifier_name
+                + " "
+                + snake
+                + "): "
+                + identifier_name
+                + "\n```";
+        vector_push(&sc.hovers, HoverInfo { span: derive.span, contents: contents });
+    }
+}
+
 fn semantic_checker_resolve_type(
     &SemanticChecker sc,
     &Program program,
@@ -98,6 +230,15 @@ fn semantic_checker_resolve_type(
                     }
                 }
                 if (n == name) {
+                    semantic_checker_push_definition(&sc, span, program.declared_types[i].span);
+                    match (dt) {
+                        DeclaredType::Struct {
+                            semantic_checker_struct_hover(&sc, name, span);
+                        },
+                        DeclaredType::Enum {
+                            semantic_checker_enum_hover(&sc, name, span);
+                        }
+                    }
                     return ResultType::Ok(Type::Unresolved(name));
                 }
             }
@@ -151,6 +292,21 @@ fn semantic_checker_lookup_enum(&Program program, str name): OptionEnumDeclarati
 # ---------- program ----------
 
 fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
+    for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+        match (program.declared_types[i].value) {
+            DeclaredType::Struct(s) {
+                for (let d = 0; d < vector_size(&s.struct_derives); d += 1) {
+                    semantic_checker_derive_hover(&sc, s.identifier.value, s.struct_derives[d]);
+                }
+            },
+            DeclaredType::Enum(e) {
+                for (let d = 0; d < vector_size(&e.enum_derives); d += 1) {
+                    semantic_checker_derive_hover(&sc, e.identifier.value, e.enum_derives[d]);
+                }
+            }
+        }
+    }
+
     for (let i = 0; i < vector_size(&program.statements); i += 1) {
         semantic_checker_visit_statement(&sc, &program, program.statements[i]);
     }
@@ -193,6 +349,8 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
                     ) matches ResultSem::Err(err)
                 ) {
                     semantic_checker_push_error(&sc, err);
+                } else {
+                    semantic_checker_identifier_hover(&sc, t, param.value.identifier);
                 }
             }
         }
@@ -359,6 +517,8 @@ fn semantic_checker_check_declaration(
                         ) matches ResultSem::Err(e)
                     ) {
                         semantic_checker_push_error(&sc, e);
+                    } else {
+                        semantic_checker_identifier_hover(&sc, final_ty, decl.identifier);
                     }
                 }
             }
@@ -414,6 +574,8 @@ fn semantic_checker_check_declaration(
                         ) matches ResultSem::Err(e)
                     ) {
                         semantic_checker_push_error(&sc, e);
+                    } else {
+                        semantic_checker_identifier_hover(&sc, value_ty, decl.identifier);
                     }
                 }
             }
@@ -821,6 +983,57 @@ fn semantic_checker_check_match(&SemanticChecker sc, &Program program, MatchStat
                             }
                             stack_push_scope(&sc.stack);
 
+                            for (let di = 0; di < vector_size(&program.declared_types); di += 1) {
+                                if (
+                                    program.declared_types[di].value matches DeclaredType::Enum(ee)
+                                ) {
+                                    if (ee.identifier.value == arm.value.enum_name.value) {
+                                        semantic_checker_push_definition(
+                                            &sc,
+                                            arm.value.enum_name.span,
+                                            program.declared_types[di].span
+                                        );
+                                        semantic_checker_enum_hover(
+                                            &sc,
+                                            arm.value.enum_name.value,
+                                            arm.value.enum_name.span
+                                        );
+                                    }
+                                }
+                            }
+                            for (let vv = 0; vv < vector_size(&ed.members); vv += 1) {
+                                if (
+                                    ed.members[vv].value.identifier.value
+                                        == arm.value.variant_name.value
+                                ) {
+                                    semantic_checker_push_definition(
+                                        &sc,
+                                        arm.value.variant_name.span,
+                                        ed.members[vv].span
+                                    );
+                                    let payload_txt = "";
+                                    if (
+                                        ed.members[vv].value.member_type matches OptionTypeNode::Some(ptn)
+                                    ) {
+                                        payload_txt = "(" + type_to_string(ptn.value) + ")";
+                                    }
+                                    let contents =
+                                        "```raptor\nenum "
+                                            + arm.value.enum_name.value
+                                            + "::"
+                                            + arm.value.variant_name.value
+                                            + payload_txt
+                                            + "\n```";
+                                    vector_push(
+                                        &sc.hovers,
+                                        HoverInfo {
+                                            span: arm.value.variant_name.span,
+                                            contents: contents
+                                        }
+                                    );
+                                }
+                            }
+
                             # bind payload if present
                             if (arm.value.variant_value matches OptionIdentifierNode::Some(bind)) {
                                 let payload_ty = Type::Void;
@@ -1078,6 +1291,15 @@ fn semantic_checker_visit_variable(&SemanticChecker sc, str name, Span span): vo
         },
         OptionType::Some(t) {
             stack_mark_used(&sc.stack, name);
+            semantic_checker_identifier_hover(&sc, t, IdentifierNode { value: name, span: span });
+            if (
+                stack_get_variable_declaration_span(
+                    &sc.stack,
+                    name
+                ) matches OptionSpan::Some(def_span)
+            ) {
+                semantic_checker_push_definition(&sc, span, def_span);
+            }
             semantic_checker_set_last(&sc, t);
         }
     }
@@ -1180,6 +1402,12 @@ fn semantic_checker_check_field_access(
                                         semantic_checker_push_error(&sc, e);
                                     },
                                     ResultType::Ok(ft) {
+                                        semantic_checker_identifier_hover(&sc, ft, fa.field);
+                                        semantic_checker_push_definition(
+                                            &sc,
+                                            fa.field.span,
+                                            s.members[m].value.identifier.span
+                                        );
                                         semantic_checker_set_last(&sc, ft);
                                     }
                                 }
@@ -1327,6 +1555,18 @@ fn semantic_checker_check_struct_literal(
             );
         },
         OptionStructDeclaration::Some(s) {
+            for (let di = 0; di < vector_size(&program.declared_types); di += 1) {
+                if (program.declared_types[di].value matches DeclaredType::Struct(ss)) {
+                    if (ss.identifier.value == struct_name) {
+                        semantic_checker_push_definition(
+                            &sc,
+                            node.value.identifier.span,
+                            program.declared_types[di].span
+                        );
+                        semantic_checker_struct_hover(&sc, struct_name, node.value.identifier.span);
+                    }
+                }
+            }
             let seen: str[] = [];
             for (let i = 0; i < vector_size(&node.value.fields); i += 1) {
                 let field = node.value.fields[i];
@@ -1471,6 +1711,43 @@ fn semantic_checker_check_enum_literal(
                 return;
             }
 
+            for (let di = 0; di < vector_size(&program.declared_types); di += 1) {
+                if (program.declared_types[di].value matches DeclaredType::Enum(ee)) {
+                    if (ee.identifier.value == enum_name) {
+                        semantic_checker_push_definition(
+                            &sc,
+                            el.enum_name.span,
+                            program.declared_types[di].span
+                        );
+                        semantic_checker_enum_hover(&sc, enum_name, el.enum_name.span);
+                    }
+                }
+            }
+            for (let mi = 0; mi < vector_size(&ed.members); mi += 1) {
+                if (ed.members[mi].value.identifier.value == el.variant_name.value) {
+                    semantic_checker_push_definition(
+                        &sc,
+                        el.variant_name.span,
+                        ed.members[mi].span
+                    );
+                    let payload_txt = "";
+                    if (ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)) {
+                        payload_txt = "(" + type_to_string(ptn.value) + ")";
+                    }
+                    let contents =
+                        "```raptor\nenum "
+                            + enum_name
+                            + "::"
+                            + el.variant_name.value
+                            + payload_txt
+                            + "\n```";
+                    vector_push(
+                        &sc.hovers,
+                        HoverInfo { span: el.variant_name.span, contents: contents }
+                    );
+                }
+            }
+
             match (expected_payload) {
                 OptionTypeNode::Some(tn) {
                     match (el.variant_value) {
@@ -1598,6 +1875,22 @@ fn semantic_checker_check_function_call(
     }
 
     if (found_fn matches OptionFunctionDeclaration::Some(fd)) {
+        semantic_checker_function_hover(
+            &sc,
+            name,
+            fd.parameters,
+            fd.return_type.value,
+            call.identifier.span
+        );
+        for (let fi = 0; fi < vector_size(&program.functions); fi += 1) {
+            if (program.functions[fi].value.identifier.value == name) {
+                semantic_checker_push_definition(
+                    &sc,
+                    call.identifier.span,
+                    program.functions[fi].value.identifier.span
+                );
+            }
+        }
         if (vector_size(&call.arguments) != vector_size(&fd.parameters)) {
             semantic_checker_push_error(
                 &sc,
@@ -1668,6 +1961,23 @@ fn semantic_checker_check_function_call(
     }
 
     if (found_extern) {
+        for (let ei = 0; ei < vector_size(&program.extern_functions); ei += 1) {
+            let ef = program.extern_functions[ei].value;
+            let effective = ef.identifier.value;
+            if (ef.alias matches OptionIdentifierNode::Some(a)) {
+                effective = a.value;
+            }
+            if (effective == name) {
+                semantic_checker_function_hover(
+                    &sc,
+                    name,
+                    ef.parameters,
+                    ef.return_type.value,
+                    call.identifier.span
+                );
+                semantic_checker_push_definition(&sc, call.identifier.span, ef.identifier.span);
+            }
+        }
         for (let i = 0; i < vector_size(&call.arguments); i += 1) {
             semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
             if (

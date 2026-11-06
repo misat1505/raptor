@@ -29,6 +29,14 @@ struct StaticCheckerStack {
     StackFrame[] frames
 };
 
+# Also forbid shadowing within the same frame's outer scopes? Rust
+# only forbids redeclare in the *current* scope; outer shadowing OK.
+
+enum OptionSpan {
+    Some(Span),
+    None
+};
+
 
 fn stack_new(): StaticCheckerStack {
     let frames: StackFrame[] = [];
@@ -139,12 +147,23 @@ fn stack_declare_variable(&StaticCheckerStack stack, str name, Type ty, Span spa
         }
     }
 
-    # Also forbid shadowing within the same frame's outer scopes? Rust
-    # only forbids redeclare in the *current* scope; outer shadowing OK.
     vector_push(&scope.variables, VariableInfo { name: name, ty: ty, span: span, used: false });
     frame.scopes[scope_idx] = scope;
     stack_set_current_frame(&stack, frame);
     return ResultSem::Ok;
+}
+
+fn stack_get_variable_declaration_span(&StaticCheckerStack stack, str name): OptionSpan {
+    let frame = stack_current_frame(&stack);
+    for (let s = vector_size(&frame.scopes); s > 0; s -= 1) {
+        let scope = frame.scopes[s - 1];
+        for (let i = 0; i < vector_size(&scope.variables); i += 1) {
+            if (scope.variables[i].name == name) {
+                return OptionSpan::Some(scope.variables[i].span);
+            }
+        }
+    }
+    return OptionSpan::None;
 }
 
 fn stack_get_variable(&StaticCheckerStack stack, str name): OptionType {

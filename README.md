@@ -276,12 +276,12 @@ CI builds the self-hosted compiler and runs the self-host test suite under ARC:
 
 ```bash
 ./bootstrap/bootstrap.sh
-python3 ./selfhost/tests/selfhost_test_runner.py run \
+python3 ./selfhost/tests/test_runner.py run \
   --compiler ./bootstrap/raptor \
   --memory arc
 ```
 
-The same runner can target either compiler implementation and supports filters, valgrind, and IR diffs. See the header comment in `selfhost/tests/selfhost_test_runner.py`.
+The same runner can target either compiler implementation and supports filters, valgrind, and IR diffs. See the header comment in `selfhost/tests/test_runner.py`.
 
 ## LSP
 
@@ -321,3 +321,8 @@ error: <message>
 ```
 
 Stages that report errors: lexer, parser, semantic checker, and the LLVM / link pipeline.
+
+## License
+
+Raptor is licensed under the Apache License 2.0.
+See [LICENSE](LICENSE) for details.

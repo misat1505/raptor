@@ -1,0 +1,363 @@
+import "../../../src/frontend/lexer/lazy-stream-reader.rp";
+import "../../../src/frontend/lexer/lexer.rp";
+import "../../../src/frontend/parser/parser-mod.rp";
+import "../../../src/import-resolver/import-resolver.rp";
+import "../../../src/macro-expander/macro-expander-mod.rp";
+import "../../../src/semantic-checker/semantic-checker-mod.rp";
+import "../../../stdlib/string.rp";
+
+
+struct LspCli {
+    str path,
+    str out_path,
+    bool to_stdout,
+    bool is_unsafe
+};
+
+struct LspDiagnostic {
+    str severity,
+    str message,
+    str phase,
+    Span span
+};
+
+struct Timeval {
+    i64 sec,
+    i64 usec
+};
+
+
+extern fn write(i32 fd, str buf, i64 n): i64 as c_write;
+extern fn quick_exit(i32 code): void;
+
+
+fn eprint(str s): void {
+    c_write(2 as i32, s, str_len(s));
+}
+
+fn eprintln(str s): void {
+    eprint(s + "\n");
+}
+
+fn exit_with(i64 code): void {
+    quick_exit(code as i32);
+}
+
+fn fatal(str message): void {
+    eprintln("lsp-backend: " + message);
+    exit_with(1);
+}
+
+fn usage(): void {
+    println(
+        "Usage:\n"
+            + "    lsp-backend [OPTIONS] <FILE>\n\n"
+            + "Run Raptor analysis up to the semantic checker and emit LSP JSON.\n\n"
+            + "Options:\n"
+            + "    -h, --help          Show this help\n"
+            + "    -o, --out <FILE>    Write JSON to FILE (in addition to stdout unless --no-stdout)\n"
+            + "    --no-stdout         Do not print JSON on stdout (requires --out)\n"
+            + "    --unsafe            Skip the semantic checker (still parse / expand)\n\n"
+            + "Exit 0 always means a JSON payload was produced.\n"
+    );
+}
+
+fn parse_cli(): LspCli {
+    let args = cli_args();
+    let opts = LspCli { path: "", out_path: "", to_stdout: true, is_unsafe: false };
+
+    let n = vector_size(&args);
+    let i = 1;
+    while (i < n) {
+        let a = args[i];
+        i += 1;
+
+        if (a == "-h" || a == "--help") {
+            usage();
+            exit_with(0);
+            return opts;
+        }
+        if (a == "--unsafe") {
+            opts.is_unsafe = true;
+            continue;
+        }
+        if (a == "--no-stdout") {
+            opts.to_stdout = false;
+            continue;
+        }
+        if (a == "-o" || a == "--out") {
+            if (i >= n) {
+                fatal(a + " requires a path.");
+                return opts;
+            }
+            opts.out_path = args[i];
+            i += 1;
+            continue;
+        }
+        if (str_starts_with(a, "-")) {
+            eprintln("lsp-backend: unknown option '" + a + "'.\n");
+            usage();
+            exit_with(1);
+            return opts;
+        }
+        if (str_len(opts.path) > 0) {
+            fatal("multiple input files given.");
+            return opts;
+        }
+        opts.path = a;
+    }
+
+    if (str_len(opts.path) == 0) {
+        eprintln("lsp-backend: path to file not given.\n");
+        usage();
+        exit_with(1);
+        return opts;
+    }
+    if (!opts.to_stdout && str_len(opts.out_path) == 0) {
+        fatal("--no-stdout requires --out <FILE>.");
+        return opts;
+    }
+    return opts;
+}
+
+fn json_escape(str s): str {
+    let out = "";
+    for (let i = 0; i < str_len(s); i += 1) {
+        let c = s[i];
+        if (c == '\\') {
+            out += "\\\\";
+        } else if (c == '\"') {
+            out += "\\\"";
+        } else if (c == '\n') {
+            out += "\\n";
+        } else if (c == '\r') {
+            out += "\\r";
+        } else if (c == '\t') {
+            out += "\\t";
+        } else {
+            out += c;
+        }
+    }
+    return out;
+}
+
+fn json_str(str s): str {
+    return "\"" + json_escape(s) + "\"";
+}
+
+fn span_file(Span span): str {
+    if (span.start.filename matches OptionStr::Some(path)) {
+        return path;
+    }
+    return "";
+}
+
+fn span_json(Span span): str {
+    return
+        "{"
+            + "\"file\":"
+            + json_str(span_file(span))
+            + ",\"start_line\":"
+            + span.start.line as str
+            + ",\"start_column\":"
+            + span.start.column as str
+            + ",\"end_line\":"
+            + span.end.line as str
+            + ",\"end_column\":"
+            + span.end.column as str
+            + ",\"start_offset\":"
+            + span.start.offset as str
+            + ",\"end_offset\":"
+            + span.end.offset as str
+            + "}";
+}
+
+fn severity_json(ErrorSeverity level): str {
+    if (level matches ErrorSeverity::HIGH) {
+        return "error";
+    }
+    return "warning";
+}
+
+fn diagnostic_json(LspDiagnostic d): str {
+    return
+        "{"
+            + "\"severity\":"
+            + json_str(d.severity)
+            + ",\"message\":"
+            + json_str(d.message)
+            + ",\"phase\":"
+            + json_str(d.phase)
+            + ",\"span\":"
+            + span_json(d.span)
+            + "}";
+}
+
+fn lsp_hover_info_json_encode(&HoverInfo h): str {
+    return "{" + "\"span\":" + span_json(h.span) + ",\"contents\":" + json_str(h.contents) + "}";
+}
+
+fn lsp_definition_info_json_encode(&DefinitionInfo d): str {
+    return "{" + "\"use\":" + span_json(d.use_span) + ",\"def\":" + span_json(d.def_span) + "}";
+}
+
+fn push_diag(&LspDiagnostic[] out, ErrorSeverity level, str message, str phase, Span span): void {
+    vector_push(
+        &out,
+        LspDiagnostic { severity: severity_json(level), message: message, phase: phase, span: span }
+    );
+}
+
+fn build_payload(
+    bool ok,
+    &LspDiagnostic[] diagnostics,
+    &HoverInfo[] hovers,
+    &DefinitionInfo[] definitions
+): str {
+    let json = "{\"ok\":";
+    if (ok) {
+        json += "true";
+    } else {
+        json += "false";
+    }
+
+    json += ",\"diagnostics\":[";
+    for (let i = 0; i < vector_size(&diagnostics); i += 1) {
+        if (i != 0) {
+            json += ",";
+        }
+        json += diagnostic_json(diagnostics[i]);
+    }
+
+    json += "],\"definitions\":[";
+    for (let i = 0; i < vector_size(&definitions); i += 1) {
+        if (i != 0) {
+            json += ",";
+        }
+        json += lsp_definition_info_json_encode(&definitions[i]);
+    }
+
+    json += "],\"hovers\":[";
+    for (let i = 0; i < vector_size(&hovers); i += 1) {
+        if (i != 0) {
+            json += ",";
+        }
+        json += lsp_hover_info_json_encode(&hovers[i]);
+    }
+    json += "]}";
+    return json;
+}
+
+fn emit_json(&LspCli opts, str json): void {
+    if (opts.to_stdout) {
+        println(json);
+    }
+    if (str_len(opts.out_path) > 0) {
+        write_file(opts.out_path, json);
+    }
+}
+
+fn default_lexer_options(): LexerOptions {
+    return LexerOptions { max_comment_length: 500, max_identifier_length: 100 };
+}
+
+fn parse_source(str source, str path, LexerOptions lexer_options): ResultProgram {
+    let src = lazy_stream_reader_new(source, OptionStr::Some(path));
+    let lexer = lexer_new(src, lexer_options);
+    match (parser_new(lexer)) {
+        ResultParser::Err(err) {
+            return ResultProgram::Err(err);
+        },
+        ResultParser::Ok(parser) {
+            return parser_parse(&parser);
+        }
+    }
+}
+
+fn empty_span_at_file(str path): Span {
+    let pos = position_new(1, 1, 0, OptionStr::Some(path));
+    return span_new(pos, pos);
+}
+
+fn analyze_and_emit(&LspCli opts): void {
+    let diagnostics: LspDiagnostic[] = [];
+    let hovers: HoverInfo[] = [];
+    let definitions: DefinitionInfo[] = [];
+    let ok = true;
+
+    if (!exists_file(opts.path)) {
+        push_diag(
+            &diagnostics,
+            ErrorSeverity::HIGH,
+            "File not found: " + opts.path,
+            "io",
+            empty_span_at_file(opts.path)
+        );
+        emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));
+        return;
+    }
+
+    let source = read_file(opts.path);
+    let lexer_options = default_lexer_options();
+
+    match (parse_source(source, opts.path, lexer_options)) {
+        ResultProgram::Err(err) {
+            push_diag(&diagnostics, err.level, err.message, "parser", err.span);
+            emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));
+            return;
+        },
+        ResultProgram::Ok(parsed) {
+            let resolver = import_resolver_new(lexer_options);
+            match (import_resolver_resolve(&resolver, opts.path, &parsed)) {
+                ResultProgram::Err(err) {
+                    push_diag(&diagnostics, err.level, err.message, "import", err.span);
+                    emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));
+                    return;
+                },
+                ResultProgram::Ok(program) {
+                    let expander = macro_expander_new();
+                    macro_expander_run(&expander, &program);
+                    for (let i = 0; i < vector_size(&expander.errors); i += 1) {
+                        let err = expander.errors[i];
+                        push_diag(&diagnostics, err.level, err.message, "macro", err.span);
+                        if (err.level matches ErrorSeverity::HIGH) {
+                            ok = false;
+                        }
+                    }
+                    if (!ok) {
+                        emit_json(&opts, build_payload(ok, &diagnostics, &hovers, &definitions));
+                        return;
+                    }
+
+                    if (!opts.is_unsafe) {
+                        let checker = semantic_checker_new();
+                        semantic_checker_check(&checker, &program);
+
+                        for (let i = 0; i < vector_size(&checker.errors); i += 1) {
+                            let err = checker.errors[i];
+                            push_diag(&diagnostics, err.level, err.message, "semantic", err.span);
+                            if (err.level matches ErrorSeverity::HIGH) {
+                                ok = false;
+                            }
+                        }
+
+                        hovers = checker.hovers;
+                        definitions = checker.definitions;
+                    }
+
+                    emit_json(&opts, build_payload(ok, &diagnostics, &hovers, &definitions));
+                    return;
+                }
+            }
+        }
+    }
+}
+
+fn main(): void {
+    let opts = parse_cli();
+    analyze_and_emit(&opts);
+    exit_with(0);
+}
+
+
+main();

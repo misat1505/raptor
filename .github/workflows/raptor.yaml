@@ -40,6 +40,6 @@ jobs:
 
       - name: Run self-hosted tests (ARC)
         run: |
-          python3 ./src/tests/selfhost_test_runner.py run \
+          python3 ./tests/test_runner.py run \
             --compiler ./bootstrap/raptor \
             --memory arc

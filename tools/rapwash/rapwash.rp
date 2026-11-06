@@ -1,5 +1,5 @@
-import "../../selfhost/frontend/lexer/lexer.rp";
-import "../../selfhost/frontend/parser/parser-mod.rp";
+import "../../src/frontend/lexer/lexer.rp";
+import "../../src/frontend/parser/parser-mod.rp";
 import "doc-builder.rp";
 
 

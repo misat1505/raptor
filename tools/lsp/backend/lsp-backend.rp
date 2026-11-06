@@ -1,9 +1,9 @@
-import "../../../selfhost/frontend/lexer/lazy-stream-reader.rp";
-import "../../../selfhost/frontend/lexer/lexer.rp";
-import "../../../selfhost/frontend/parser/parser-mod.rp";
-import "../../../selfhost/import-resolver/import-resolver.rp";
-import "../../../selfhost/macro-expander/macro-expander-mod.rp";
-import "../../../selfhost/semantic-checker/semantic-checker-mod.rp";
+import "../../../src/frontend/lexer/lazy-stream-reader.rp";
+import "../../../src/frontend/lexer/lexer.rp";
+import "../../../src/frontend/parser/parser-mod.rp";
+import "../../../src/import-resolver/import-resolver.rp";
+import "../../../src/macro-expander/macro-expander-mod.rp";
+import "../../../src/semantic-checker/semantic-checker-mod.rp";
 import "../../../stdlib/string.rp";
 
 

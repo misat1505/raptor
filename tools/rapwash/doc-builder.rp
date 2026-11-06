@@ -1,4 +1,4 @@
-import "../../selfhost/semantic-checker/semantic-helpers.rp";
+import "../../src/semantic-checker/semantic-helpers.rp";
 import "doc.rp";
 
 

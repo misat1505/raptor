@@ -16,9 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
       - name: Install LLVM 18 + Clang + Polly
         run: |
           wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
@@ -43,9 +40,6 @@ jobs:
 
       - name: Run self-hosted tests (ARC)
         run: |
-          python3 ./selfhost/tests/selfhost_test_runner.py run \
+          python3 ./src/tests/selfhost_test_runner.py run \
             --compiler ./bootstrap/raptor \
             --memory arc
-
-      - name: Build release
-        run: cargo build --release --bin lsp

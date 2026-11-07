@@ -50,12 +50,17 @@
         "raptor.serverPath": {
           "type": "string",
           "default": "",
-          "description": "Ścieżka do binarki lsp. W trybie WSL (raptor.useWsl=true) podaj ścieżkę linuksową, np. /mnt/c/.../target/release/lsp."
+          "description": "Absolute path to the raptor-lsp binary. When empty, the extension searches workspace folders and the repo layout (tools/lsp/target/release/raptor-lsp). With raptor.useWsl, a Linux path is fine (e.g. /mnt/c/.../raptor-lsp)."
         },
         "raptor.useWsl": {
           "type": "boolean",
           "default": true,
-          "description": "Odpalaj serwer LSP przez 'wsl.exe -e' (binarka zbudowana natywnie w WSL, bez cross-kompilacji)."
+          "description": "Launch the LSP server via wsl.exe -e (Linux binary inside WSL)."
+        },
+        "raptor.backendPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the lsp-backend binary (Raptor analysis helper). Passed as RAPTOR_LSP_BACKEND. When empty, searches <workspace>/build/lsp-backend and parent folders."
         }
       }
     }

@@ -1,6 +1,7 @@
+#!/usr/bin/env bash
 clear
 
-cargo run --bin raptor -- --compile -O3 --link examples/libs/libraylib.a --link -lm --link -lX11 examples/snake-multiplayer/player1.rp & cargo run --bin raptor -- --compile -O3 --link examples/libs/libraylib.a --link -lm --link -lX11 examples/snake-multiplayer/player2.rp
+./bootstrap/raptor -O3 --link examples/libs/libraylib.a --link -lX11 examples/snake-multiplayer/player1.rp & ./bootstrap/raptor -O3 --link examples/libs/libraylib.a --link -lX11 examples/snake-multiplayer/player2.rp
 
 ./build/player1 &
 sleep 0.5

@@ -1,3 +1,14 @@
+# Grammar
+
+This document describes the concrete syntax of Raptor as accepted by the
+self-hosted parser under `src/frontend/parser/`.
+
+The grammar is language-level documentation; the executable specification is
+the parser sources themselves. Runtime of compiled programs and of the compiler
+binary depends only on **libc** (see the root [README](../README.md)).
+
+---
+
 ## Grammar
 
 ### Syntax Part

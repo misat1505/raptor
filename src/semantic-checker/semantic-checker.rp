@@ -1090,6 +1090,45 @@ fn semantic_checker_check_match(&SemanticChecker sc, &Program program, MatchStat
                             semantic_checker_unused_warn(&sc);
                             stack_pop_scope(&sc.stack);
                         }
+
+                        let has_rest = false;
+                        if (m.rest_arm matches OptionBlockNode::Some) {
+                            has_rest = true;
+                        }
+                        if (!has_rest) {
+                            let missing = "";
+                            let missing_count = 0;
+                            for (let v = 0; v < vector_size(&ed.members); v += 1) {
+                                let variant_name = ed.members[v].value.identifier.value;
+                                let covered = false;
+                                for (let a = 0; a < vector_size(&m.match_arms); a += 1) {
+                                    let arm = m.match_arms[a];
+                                    if (
+                                        arm.value.enum_name.value == enum_name
+                                            && arm.value.variant_name.value == variant_name
+                                    ) {
+                                        covered = true;
+                                    }
+                                }
+                                if (!covered) {
+                                    if (missing_count > 0) {
+                                        missing = missing + ", ";
+                                    }
+                                    missing = missing + enum_name + "::" + variant_name;
+                                    missing_count += 1;
+                                }
+                            }
+                            if (missing_count > 0) {
+                                semantic_checker_push_error(
+                                    &sc,
+                                    semantic_checker_error_at(
+                                        ErrorSeverity::HIGH,
+                                        "Match is non-exhaustive: missing " + missing + ".",
+                                        m.expression.span
+                                    )
+                                );
+                            }
+                        }
                     }
                 }
             } else {

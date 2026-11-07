@@ -1,8 +1,20 @@
+//! Raptor Language Server (tower-lsp).
+//!
+//! Analysis is delegated to the self-hosted `lsp-backend` binary, which runs the
+//! Raptor frontend up to the semantic checker and prints a JSON document on
+//! stdout (see `tools/lsp-backend.rp`).
+//!
+//! Configure the backend path with `RAPTOR_LSP_BACKEND`. If unset, the server
+//! looks for `lsp-backend` on `PATH`, then `./build/lsp-backend`.
+
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::OnceLock;
+
+/// Optional absolute path from `--backend` (set once in main before the server starts).
+static BACKEND_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 use serde::Deserialize;
 use tempfile::NamedTempFile;
@@ -10,6 +22,10 @@ use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result as LspResult;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
+
+// ---------------------------------------------------------------------------
+// JSON payload from tools/lsp-backend.rp
+// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Deserialize)]
 struct BackendSpan {
@@ -72,7 +88,6 @@ struct DefinitionInfo {
 
 struct DocumentState {
     text: String,
-    /// Absolute path of the temp (or real) file last analyzed for this buffer.
     analyzed_path: String,
     hovers: Vec<HoverInfo>,
     definitions: Vec<DefinitionInfo>,
@@ -81,21 +96,18 @@ struct DocumentState {
 struct Backend {
     client: Client,
     documents: Mutex<HashMap<Url, DocumentState>>,
-    /// Files that received diagnostics for a given entry URI (so we can clear
-    /// stale ones on the next validation).
     published_files: Mutex<HashMap<Url, HashSet<String>>>,
 }
-
-// ---------------------------------------------------------------------------
-// Path helpers
-// ---------------------------------------------------------------------------
 
 fn fix_wsl_drive_prefix(path: String) -> String {
     #[cfg(not(windows))]
     {
         let bytes = path.as_bytes();
-        let looks_like_drive_letter =
-            bytes.len() >= 4 && bytes[0] == b'/' && bytes[1].is_ascii_alphabetic() && bytes[2] == b':' && (bytes[3] == b'/' || bytes[3] == b'\\');
+        let looks_like_drive_letter = bytes.len() >= 4
+            && bytes[0] == b'/'
+            && bytes[1].is_ascii_alphabetic()
+            && bytes[2] == b':'
+            && (bytes[3] == b'/' || bytes[3] == b'\\');
         if looks_like_drive_letter {
             let drive = (bytes[1] as char).to_ascii_lowercase();
             return format!("/mnt/{}{}", drive, &path[3..]);
@@ -117,21 +129,45 @@ fn uri_for_path(path: &str) -> Option<Url> {
 }
 
 fn backend_binary() -> PathBuf {
-    static CACHED: OnceLock<PathBuf> = OnceLock::new();
-    CACHED
-        .get_or_init(|| {
-            if let Ok(p) = std::env::var("RAPTOR_LSP_BACKEND") {
-                return PathBuf::from(p);
+    // 1) Explicit path from CLI (--backend), stored at startup
+    if let Some(p) = BACKEND_PATH.get() {
+        return p.clone();
+    }
+    // 2) Environment (works when not going through broken WSL env forwarding)
+    if let Ok(p) = std::env::var("RAPTOR_LSP_BACKEND") {
+        return PathBuf::from(p);
+    }
+    if let Ok(path) = which("lsp-backend") {
+        return path;
+    }
+    // 3) Search near the server binary and parent build/ dirs
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join("lsp-backend"));
+            candidates.push(dir.join("../../../build/lsp-backend"));
+            candidates.push(dir.join("../../../../build/lsp-backend"));
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("build/lsp-backend"));
+        candidates.push(cwd.join("lsp-backend"));
+        let mut parent = cwd;
+        for _ in 0..8 {
+            candidates.push(parent.join("build/lsp-backend"));
+            if !parent.pop() {
+                break;
             }
-            if let Ok(path) = which("lsp-backend") {
-                return path;
-            }
-            PathBuf::from("./build/lsp-backend")
-        })
-        .clone()
+        }
+    }
+    for c in &candidates {
+        if c.exists() {
+            return c.clone();
+        }
+    }
+    PathBuf::from("./build/lsp-backend")
 }
 
-/// Minimal `which` without an extra crate.
 fn which(name: &str) -> Result<PathBuf, ()> {
     let path_var = std::env::var_os("PATH").ok_or(())?;
     for dir in std::env::split_paths(&path_var) {
@@ -150,21 +186,25 @@ fn which(name: &str) -> Result<PathBuf, ()> {
     Err(())
 }
 
-// ---------------------------------------------------------------------------
-// Span ↔ LSP
-// ---------------------------------------------------------------------------
-
 fn span_to_range(span: &BackendSpan) -> Range {
     Range::new(
-        Position::new(span.start_line.saturating_sub(1) as u32, span.start_column.saturating_sub(1) as u32),
-        Position::new(span.end_line.saturating_sub(1) as u32, span.end_column.saturating_sub(1) as u32),
+        Position::new(
+            span.start_line.saturating_sub(1) as u32,
+            span.start_column.saturating_sub(1) as u32,
+        ),
+        Position::new(
+            span.end_line.saturating_sub(1) as u32,
+            span.end_column.saturating_sub(1) as u32,
+        ),
     )
 }
 
 fn span_contains_position(span: &BackendSpan, pos: Position) -> bool {
     let range = span_to_range(span);
-    (pos.line > range.start.line || (pos.line == range.start.line && pos.character >= range.start.character))
-        && (pos.line < range.end.line || (pos.line == range.end.line && pos.character <= range.end.character))
+    (pos.line > range.start.line
+        || (pos.line == range.start.line && pos.character >= range.start.character))
+        && (pos.line < range.end.line
+            || (pos.line == range.end.line && pos.character <= range.end.character))
 }
 
 fn span_len(span: &BackendSpan) -> (u32, u32) {
@@ -182,19 +222,19 @@ fn severity_from_str(s: &str) -> DiagnosticSeverity {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Invoke lsp-backend
-// ---------------------------------------------------------------------------
-
 fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, String> {
     let mut tmp = NamedTempFile::with_suffix(".rp").map_err(|e| e.to_string())?;
-    tmp.write_all(source.as_bytes()).map_err(|e| e.to_string())?;
+    tmp.write_all(source.as_bytes())
+        .map_err(|e| e.to_string())?;
     tmp.flush().map_err(|e| e.to_string())?;
     let tmp_path = tmp.path().to_path_buf();
 
     let bin = backend_binary();
     if !bin.exists() {
-        return Err(format!("lsp-backend not found at '{}' (set RAPTOR_LSP_BACKEND)", bin.display()));
+        return Err(format!(
+            "lsp-backend not found at '{}' (set RAPTOR_LSP_BACKEND)",
+            bin.display()
+        ));
     }
 
     let output = Command::new(&bin)
@@ -205,8 +245,6 @@ fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, Strin
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    // Backend prints one JSON object (possibly among other lines). Take the
-    // last line that looks like a JSON object.
     let json_line = stdout
         .lines()
         .rev()
@@ -224,10 +262,9 @@ fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, Strin
         ));
     }
 
-    let mut payload: BackendPayload = serde_json::from_str(json_line).map_err(|e| format!("invalid backend JSON: {e}\n{json_line}"))?;
+    let mut payload: BackendPayload =
+        serde_json::from_str(json_line).map_err(|e| format!("invalid backend JSON: {e}\n{json_line}"))?;
 
-    // Remap temp-file paths in spans back to the editor's path so diagnostics
-    // and go-to-def land on the open document.
     let tmp_str = tmp_path.to_string_lossy().to_string();
     let remap = |span: &mut BackendSpan| {
         if span.file.is_empty() || span.file == tmp_str || paths_equal(&span.file, &tmp_str) {
@@ -245,7 +282,6 @@ fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, Strin
         remap(&mut d.def);
     }
 
-    // Keep tempfile alive until here (dropped at end of scope).
     drop(tmp);
     Ok(payload)
 }
@@ -257,7 +293,11 @@ fn paths_equal(a: &str, b: &str) -> bool {
 fn payload_to_diagnostics(payload: &BackendPayload) -> HashMap<String, Vec<Diagnostic>> {
     let mut map: HashMap<String, Vec<Diagnostic>> = HashMap::new();
     for d in &payload.diagnostics {
-        let file = if d.span.file.is_empty() { String::new() } else { d.span.file.clone() };
+        let file = if d.span.file.is_empty() {
+            String::new()
+        } else {
+            d.span.file.clone()
+        };
         let mut diagnostic = Diagnostic {
             range: span_to_range(&d.span),
             severity: Some(severity_from_str(&d.severity)),
@@ -273,14 +313,12 @@ fn payload_to_diagnostics(payload: &BackendPayload) -> HashMap<String, Vec<Diagn
     map
 }
 
-// ---------------------------------------------------------------------------
-// Completions (local — no backend round-trip)
-// ---------------------------------------------------------------------------
-
 fn keyword_completions() -> Vec<CompletionItem> {
     const KEYWORDS: &[&str] = &[
-        "fn", "let", "if", "else", "for", "while", "return", "break", "continue", "match", "rest", "struct", "enum", "import", "extern", "as",
-        "true", "false", "void", "bool", "str", "char", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f64", "derives", "switch",
+        "fn", "let", "if", "else", "for", "while", "return", "break", "continue",
+        "match", "rest", "struct", "enum", "import", "extern", "as", "true", "false",
+        "void", "bool", "str", "char", "i8", "i16", "i32", "i64", "u8", "u16", "u32",
+        "u64", "f64", "derives", "switch",
     ];
     KEYWORDS
         .iter()
@@ -332,7 +370,13 @@ fn identifier_completions(source: &str) -> Vec<CompletionItem> {
         if ch.is_ascii_alphanumeric() || ch == '_' {
             current.push(ch);
         } else {
-            if current.len() > 1 && current.chars().next().map(|c| c.is_ascii_alphabetic() || c == '_').unwrap_or(false) {
+            if current.len() > 1
+                && current
+                    .chars()
+                    .next()
+                    .map(|c| c.is_ascii_alphabetic() || c == '_')
+                    .unwrap_or(false)
+            {
                 names.insert(std::mem::take(&mut current));
             } else {
                 current.clear();
@@ -352,16 +396,14 @@ fn identifier_completions(source: &str) -> Vec<CompletionItem> {
         .collect()
 }
 
-// ---------------------------------------------------------------------------
-// LanguageServer
-// ---------------------------------------------------------------------------
-
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> LspResult<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL,
+                )),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions::default()),
                 definition_provider: Some(OneOf::Left(true)),
@@ -378,7 +420,10 @@ impl LanguageServer for Backend {
     async fn initialized(&self, _: InitializedParams) {
         let bin = backend_binary();
         self.client
-            .log_message(MessageType::INFO, format!("raptor-lsp initialized (backend: {})", bin.display()))
+            .log_message(
+                MessageType::INFO,
+                format!("raptor-lsp initialized (backend: {})", bin.display()),
+            )
             .await;
     }
 
@@ -387,7 +432,8 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.validate(params.text_document.uri, params.text_document.text).await;
+        self.validate(params.text_document.uri, params.text_document.text)
+            .await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -402,9 +448,18 @@ impl LanguageServer for Backend {
         }
     }
 
-    async fn completion(&self, params: CompletionParams) -> LspResult<Option<CompletionResponse>> {
+    async fn completion(
+        &self,
+        params: CompletionParams,
+    ) -> LspResult<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
-        let source = self.documents.lock().await.get(&uri).map(|doc| doc.text.clone()).unwrap_or_default();
+        let source = self
+            .documents
+            .lock()
+            .await
+            .get(&uri)
+            .map(|doc| doc.text.clone())
+            .unwrap_or_default();
         let mut items = keyword_completions();
         items.extend(std_function_completions());
         items.extend(identifier_completions(&source));
@@ -429,7 +484,10 @@ impl LanguageServer for Backend {
         }))
     }
 
-    async fn goto_definition(&self, params: GotoDefinitionParams) -> LspResult<Option<GotoDefinitionResponse>> {
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> LspResult<Option<GotoDefinitionResponse>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
         let documents = self.documents.lock().await;
@@ -471,7 +529,9 @@ impl Backend {
         let payload = match result {
             Ok(Ok(p)) => p,
             Ok(Err(e)) => {
-                self.client.log_message(MessageType::ERROR, format!("analysis failed: {e}")).await;
+                self.client
+                    .log_message(MessageType::ERROR, format!("analysis failed: {e}"))
+                    .await;
                 let diag = Diagnostic {
                     range: Range::new(Position::new(0, 0), Position::new(0, 1)),
                     severity: Some(DiagnosticSeverity::ERROR),
@@ -479,11 +539,15 @@ impl Backend {
                     message: e,
                     ..Default::default()
                 };
-                self.client.publish_diagnostics(uri, vec![diag], None).await;
+                self.client
+                    .publish_diagnostics(uri, vec![diag], None)
+                    .await;
                 return;
             }
             Err(e) => {
-                self.client.log_message(MessageType::ERROR, format!("analysis task panicked: {e}")).await;
+                self.client
+                    .log_message(MessageType::ERROR, format!("analysis task panicked: {e}"))
+                    .await;
                 return;
             }
         };
@@ -518,13 +582,14 @@ impl Backend {
 
         let mut current_files: HashSet<String> = HashSet::new();
 
-        // Entry document — always publish (clears previous diagnostics).
         let own = diagnostics_by_file
             .get(&display_path)
             .cloned()
             .or_else(|| diagnostics_by_file.get("").cloned())
             .unwrap_or_default();
-        self.client.publish_diagnostics(uri.clone(), own, None).await;
+        self.client
+            .publish_diagnostics(uri.clone(), own, None)
+            .await;
         current_files.insert(display_path.clone());
 
         for (file, diags) in &diagnostics_by_file {
@@ -532,18 +597,21 @@ impl Backend {
                 continue;
             }
             if let Some(other_uri) = uri_for_path(file) {
-                self.client.publish_diagnostics(other_uri, diags.clone(), None).await;
+                self.client
+                    .publish_diagnostics(other_uri, diags.clone(), None)
+                    .await;
                 current_files.insert(file.clone());
             }
         }
 
-        // Clear diagnostics on files that no longer report any.
         let mut published = self.published_files.lock().await;
         if let Some(previous) = published.get(&uri) {
             for stale in previous {
                 if !current_files.contains(stale) {
                     if let Some(stale_uri) = uri_for_path(stale) {
-                        self.client.publish_diagnostics(stale_uri, vec![], None).await;
+                        self.client
+                            .publish_diagnostics(stale_uri, vec![], None)
+                            .await;
                     }
                 }
             }
@@ -552,8 +620,23 @@ impl Backend {
     }
 }
 
+fn parse_backend_arg() {
+    let mut args = std::env::args().skip(1);
+    while let Some(a) = args.next() {
+        if a == "--backend" {
+            if let Some(path) = args.next() {
+                let _ = BACKEND_PATH.set(PathBuf::from(path));
+            }
+        } else if let Some(path) = a.strip_prefix("--backend=") {
+            let _ = BACKEND_PATH.set(PathBuf::from(path));
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
+    parse_backend_arg();
+
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
     let (service, socket) = LspService::new(|client| Backend {

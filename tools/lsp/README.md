@@ -1,60 +1,93 @@
 # raptor-lsp
 
-Language Server Protocol server for Raptor, built with [`tower-lsp`](https://crates.io/crates/tower-lsp).
+Language Server Protocol host for Raptor.
 
-Semantic analysis, hovers, definitions and diagnostics come from the **self-hosted**
-`lsp-backend` (`tools/lsp-backend.rp`), not from the historical Rust checker in `src/`.
+## Architecture
 
-## Build
+```text
+Editor ──LSP──► raptor-lsp (Rust, tower-lsp)
+                    │
+                    │  subprocess + JSON on stdout
+                    ▼
+              lsp-backend (Raptor, tools/lsp/backend)
+                    │
+                    └── lex → parse → import → macro → semantic
+                        → { ok, diagnostics, hovers, definitions }
+```
+
+- **`raptor-lsp`**: speaks LSP; owns document buffers; publishes diagnostics; answers hover / definition / completion.
+- **`lsp-backend`**: self-hosted analysis binary; **libc-only** at runtime, same as other Raptor programs.
+
+There is **no FFI** into the compiler: communication is a subprocess and one JSON object per analysis.
+
+## Build the LSP host
 
 ```bash
 cd tools/lsp
 cargo build --release
-# binary: target/release/raptor-lsp
+# → target/release/raptor-lsp
 ```
 
-## Backend binary
+## Build the backend
 
-Build the analysis helper once (self-hosted compiler):
+Using the bootstrapped compiler:
 
 ```bash
-# from the repository root, after bootstrap
-./bootstrap/raptor tools/lsp-backend.rp -o ./build/lsp-backend
-# or, if your driver uses --run / link scripts, produce an executable named lsp-backend
+./bootstrap/raptor tools/lsp/backend/lsp-backend.rp -o ./build/lsp-backend
 ```
 
-Point the server at it:
+## Configuration
 
 ```bash
 export RAPTOR_LSP_BACKEND=/absolute/path/to/build/lsp-backend
 ```
 
-If `RAPTOR_LSP_BACKEND` is unset, the server tries, in order:
+If unset, `raptor-lsp` tries `lsp-backend` on `PATH`, then `./build/lsp-backend`.
 
-1. `lsp-backend` on `PATH`
-2. `./build/lsp-backend` (relative to the server’s working directory)
+### VS Code
 
-## Protocol between Rust and Raptor
+Extension settings (`plugins/vscode`):
 
-On each `textDocument/didOpen` / `didChange` / `didSave`:
+```json
+{
+  "raptor.serverPath": "/path/to/tools/lsp/target/release/raptor-lsp",
+  "raptor.useWsl": true
+}
+```
 
-1. The server writes the buffer to a temporary `.rp` file.
-2. It runs: `lsp-backend <temp.rp>` and reads **stdout**.
-3. The backend prints one JSON object (see `tools/lsp-backend.rp` header).
-4. Temp-file paths inside spans are rewritten to the document’s real path.
+Set `RAPTOR_LSP_BACKEND` in the environment inherited by the server process.
 
-There is **no FFI** — only a subprocess and JSON.
+## JSON payload (backend → host)
+
+```json
+{
+  "ok": true,
+  "diagnostics": [
+    {
+      "severity": "error",
+      "message": "…",
+      "phase": "semantic",
+      "span": {
+        "file": "…",
+        "start_line": 1,
+        "start_column": 1,
+        "end_line": 1,
+        "end_column": 5,
+        "start_offset": 0,
+        "end_offset": 4
+      }
+    }
+  ],
+  "definitions": [{ "use": { "…": "…" }, "def": { "…": "…" } }],
+  "hovers": [{ "span": { "…": "…" }, "contents": "```raptor\n…" }]
+}
+```
 
 ## Capabilities
 
-| LSP feature              | Source                                      |
-| ------------------------ | ------------------------------------------- |
-| Diagnostics              | backend `diagnostics[]`                     |
-| Hover                    | backend `hovers[]`                          |
-| Go to definition         | backend `definitions[]`                     |
-| Completion (keywords / std / identifiers) | local, no backend round-trip |
-
-## VS Code / client
-
-Point the client at `raptor-lsp` and set `RAPTOR_LSP_BACKEND` in the environment
-inherited by the server process.
+| LSP feature | Source |
+| ----------- | ------ |
+| Diagnostics | backend `diagnostics` |
+| Hover | backend `hovers` |
+| Go to definition | backend `definitions` |
+| Completion | local (keywords, std names, identifiers in buffer) |

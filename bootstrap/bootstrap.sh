@@ -19,7 +19,7 @@ CLANG="$(tool clang)"
 
 mkdir -p "$(dirname "$OUT")"
 "$LLC" "$LL" -filetype=obj -o "$OUT.o"
-"$CLANG" "$OUT.o" -o "$OUT" -no-pie -lm
+"$CLANG" "$OUT.o" -o "$OUT" -no-pie
 rm -f "$OUT.o"
 
 echo "Built: $OUT"

@@ -1,7 +1,7 @@
 # Snake written in Raptor, using raylib
 # 
 # Build and run:
-# cargo run --bin raptor -- --compile --run -O3 --link <path_to_libraylib.a> --link -lm --link -lX11 examples/snake.rp
+# caraptor --run -O3 --link <path_to_libraylib.a> --link -lX11 examples/snake.rp
 
 extern fn InitWindow(i64 x, i64 y, str name): void as init_window;
 extern fn WindowShouldClose(): bool as window_should_close;

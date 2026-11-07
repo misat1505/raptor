@@ -1,161 +1,93 @@
 # Semantic Checker
 
-The semantic checker validates the parsed AST before compilation (and, in the Rust reference implementation, before interpretation).
+The semantic checker validates the AST after import resolution and macro expansion, before LLVM lowering.
 
-Its most important responsibility is **type checking**.
+Implementation: **`src/semantic-checker/`** (Raptor). The command-line driver runs it unless `--unsafe` is passed.
 
-There is a self-hosted implementation under `selfhost/semantic-checker/` and a Rust implementation under `src/semantic/`. Both sit in the same place in the pipeline.
+The same checker powers editor features: `tools/lsp/backend` runs the frontend through this stage and emits **diagnostics**, **hovers**, and **definitions** as JSON for the Rust LSP host.
 
 ## Responsibilities
 
-The semantic checker:
-
-- traverses the AST (visitor-style in the Rust tree; equivalent passes in selfhost);
-- checks expressions and statements for static type correctness;
-- validates function calls;
-- checks argument counts and passing modes;
-- checks assignments against declared variable types;
-- collects diagnostics instead of stopping at the first semantic error.
+- Traverse the program (statements, expressions, functions, types)
+- Resolve and check types (including vectors, structs, enums)
+- Validate calls (arity, argument types, pass-by-value / reference)
+- Validate assignments and declarations
+- Track scopes via `src/semantic-checker/stack/`
+- Type arithmetic / comparisons via `type-alu/`
+- Collect **all** diagnostics (does not stop at the first error)
+- Collect **hover** and **go-to-definition** metadata for the LSP backend
 
 ## Pipeline position
 
 ```text
-Lexer
-  │
-  ▼
-Parser
-  │
-  ▼
-Import resolver / macro expander
-  │
-  ▼
-AST
-  │
-  ▼
-Semantic Checker
-  │
-  ├── errors → stop
-  │
-  └── valid → Compiler (self-hosted default)
-              Interpreter (Rust reference only)
+Lexer → Parser → Import resolver → Macro expander → Semantic checker → Compiler (LLVM)
+                                                      │
+                                                      ├── errors / warnings
+                                                      └── hovers + definitions (LSP)
 ```
-
-The command-line driver runs the checker unless `--unsafe` is supplied.
 
 ## Type checking
 
-Raptor is strongly and statically typed.
+Raptor is strongly and statically typed. Example rejection:
 
-For example:
-
-```text
+```raptor
 i64 foo = 42;
 foo = "hello";
 ```
 
-is rejected by the semantic checker because `foo` has already been declared as `i64`.
-
-The corresponding diagnostic is:
-
 ```text
 error: Cannot assign 'str' to variable 'foo' which was previously declared as 'i64'.
   --> basic.rp:4:1
 ```
 
-This is a semantic error rather than a parser error: both statements are syntactically
-valid.
+## Vectors
 
-## Vectors and types
-
-Vector types participate in type checking just like scalar types.
-
-Examples:
-
-```text
+```raptor
 i64[] values = [1, 2, 3];
-
-i64[][] matrix = [
-    [1, 2],
-    [3, 4]
-];
+i64[][] matrix = [[1, 2], [3, 4]];
 ```
 
-A vector may have multiple dimensions:
+Element types and nesting depth are checked at assignments, indexing, and calls.
+
+## Functions and references
+
+- Parameter and return types must match at each call site
+- `&T` parameters require a compatible reference argument
+- Unknown functions and arity mismatches are diagnostics
+
+## Control flow
+
+- `if` / `while` / `for` conditions must be `bool`
+- `return` types must match the enclosing function
+- `match` scrutinees and arms are checked against enum declarations
+- `break` / `continue` only inside appropriate loops
+
+## LSP metadata
+
+While checking, the self-hosted checker records:
+
+````text
+hovers:      { span, contents }   # often a ```raptor fenced type/signature
+definitions: { use span, def span }
+````
+
+`tools/lsp-backend` serializes these alongside diagnostics for `raptor-lsp`.
+
+## Disabling the checker
+
+```bash
+./bootstrap/raptor --unsafe file.rp
+```
+
+Useful for IR experiments; type errors become backend or runtime failures.
+
+## Layout
 
 ```text
-i64[][][]
+src/semantic-checker/
+  semantic-checker.rp      # main passes
+  semantic-helpers.rp
+  semantic-checker-mod.rp
+  stack/stack.rp
+  type-alu/type-alu.rp
 ```
-
-When a vector is passed by value, the language specifies a **shallow copy** rather
-than recursively copying nested vector contents.
-
-The semantic checker is responsible for validating that vector expressions and
-assignments are used with compatible types.
-
-## Function calls
-
-The checker validates:
-
-- whether a called function exists;
-- whether the number of arguments is correct;
-- whether arguments have compatible types;
-- whether value/reference passing matches the function declaration.
-
-For example, a function expecting a reference parameter cannot receive an ordinary
-value argument in its place.
-
-## Collected diagnostics
-
-The semantic checker stores discovered errors internally. This allows a checking pass
-to report multiple problems rather than terminating at the first one.
-
-The command-line driver summarizes the result after the pass.
-
-## Errors
-
-Semantic errors use the same compiler-style location format:
-
-```text
-error: <message>
-  --> <file>:<line>:<column>
-```
-
-Example:
-
-```text
-error: Cannot assign 'str' to variable 'foo' which was previously declared as 'i64'.
-  --> basic.rp:4:1
-```
-
-If semantic errors are present, normal execution or compilation is stopped.
-
-## `--unsafe`
-
-The CLI option:
-
-```text
---unsafe
-```
-
-skips the semantic checker.
-
-This is an explicit escape hatch and changes the normal pipeline from:
-
-```text
-Lexer → Parser → Semantic Checker → Interpreter / Compiler
-```
-
-to:
-
-```text
-Lexer → Parser → Interpreter / Compiler
-```
-
-## Design boundary
-
-The semantic checker should answer:
-
-> Can this parsed program be shown to satisfy the language's static rules?
-
-Runtime failures remain the interpreter's responsibility, while code-generation failures
-remain the compiler's responsibility.

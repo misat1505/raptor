@@ -11,7 +11,6 @@ import {
 
 let client: LanguageClient | undefined;
 
-// Konwertuje ścieżkę Windows (C:\Users\...) na ścieżkę WSL (/mnt/c/Users/...)
 function windowsToWslPath(winPath: string): string {
   const match = winPath.match(/^([A-Za-z]):[\\/](.*)$/);
   if (!match) {
@@ -26,9 +25,6 @@ function resolveServerCommand(context: ExtensionContext): {
   command: string;
   args: string[];
 } {
-  // Nadpisanie ręczne w settings.json:
-  // "raptor.serverPath": "/mnt/c/.../target/release/lsp"  (ścieżka WSL)
-  // "raptor.useWsl": true/false
   const config = workspace.getConfiguration("raptor");
   const configuredPath = config.get<string>("serverPath");
   const useWsl = config.get<boolean>("useWsl", os.platform() === "win32");
@@ -37,9 +33,8 @@ function resolveServerCommand(context: ExtensionContext): {
   if (configuredPath && configuredPath.trim().length > 0) {
     linuxPath = configuredPath;
   } else {
-    // Domyślnie: repo obok vscode-ext/, binarka w target/release/lsp
     const winPath = context.asAbsolutePath(
-      path.join("..", "target", "release", "lsp"),
+      path.join("..", "..", "tools", "lsp", "target", "release", "raptor-lsp"),
     );
     linuxPath = useWsl ? windowsToWslPath(winPath) : winPath;
   }
@@ -53,11 +48,10 @@ function resolveServerCommand(context: ExtensionContext): {
 export function activate(context: ExtensionContext) {
   const { command, args } = resolveServerCommand(context);
 
-  // Szybka weryfikacja tylko dla trybu bez WSL (lokalny plik da się sprawdzić fs.existsSync)
   if (command !== "wsl.exe" && !fs.existsSync(command)) {
     window.showErrorMessage(
-      `Raptor LSP: nie znaleziono binarki serwera pod "${command}". ` +
-        `Zbuduj ją poleceniem "cargo build --release --bin lsp" w WSL, albo ustaw "raptor.serverPath".`,
+      `Raptor LSP: server binary not found at "${command}". ` +
+        `Build it with "cargo build --release" in tools/lsp (WSL), or set "raptor.serverPath".`,
     );
   }
 

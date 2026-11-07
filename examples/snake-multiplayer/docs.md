@@ -108,7 +108,7 @@ handles.
 In the root of the repo:
 
 ```bash
-./examples/snake-multiplayer/run-clients.sh
+./examples/snake-multiplayer/run-players.sh
 ```
 
 This compiles `player1.rp` and `player2.rp` in parallel, then launches

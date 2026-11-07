@@ -37,9 +37,8 @@ Compiled programs are also native binaries that link **libc** only (unless you a
 After changing sources under `src/`:
 
 ```sh
-./bootstrap/raptor ./src/raptor.rp -o ./build/raptor
-# Copy the IR the driver wrote into bootstrap/ (name may be build/raptor.ll or similar)
-cp ./build/raptor.ll ./bootstrap/raptor.ll   # adjust to the path your driver emits
+./bootstrap/raptor ./src/raptor.rp -v -O3
+cp ./build/raptor.ll ./bootstrap/raptor.ll
 ./bootstrap/bootstrap.sh
 ```
 

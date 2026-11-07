@@ -703,25 +703,25 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.1525 = private unnamed_addr constant { i64, i64, [7 x i8] } { i64 -1, i64 0, [7 x i8] c"json_i\00" }
 @.mstr.1526 = private unnamed_addr constant { i64, i64, [5 x i8] } { i64 -1, i64 0, [5 x i8] c"_vec\00" }
 @.mstr.1535 = private unnamed_addr constant { i64, i64, [13 x i8] } { i64 -1, i64 0, [13 x i8] c"_json_encode\00" }
-@.str.1538 = private unnamed_addr constant [157 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-helpers.rp:25:5\0A\0A  25 |     match (t) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1554 = private unnamed_addr constant [157 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-helpers.rp:75:5\0A\0A  75 |     match (a) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1556 = private unnamed_addr constant [213 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:64:47\0A\0A  64 |         vector_push(&new_frames, stack.frames[i]);\0A     |                                               \1B[1;31m^\1B[0m\0A\00"
-@.str.1558 = private unnamed_addr constant [226 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:70:25\0A\0A  70 |     return stack.frames[vector_size(&stack.frames) - 1];\0A     |                         \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
-@.str.1560 = private unnamed_addr constant [220 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:74:18\0A\0A  74 |     stack.frames[vector_size(&stack.frames) - 1] = frame;\0A     |                  \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
-@.str.1562 = private unnamed_addr constant [234 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:89:29\0A\0A  89 |     let last = frame.scopes[vector_size(&frame.scopes) - 1];\0A     |                             \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
-@.str.1564 = private unnamed_addr constant [213 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:92:47\0A\0A  92 |         vector_push(&new_scopes, frame.scopes[i]);\0A     |                                               \1B[1;31m^\1B[0m\0A\00"
-@.str.1566 = private unnamed_addr constant [195 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:138:30\0A\0A 138 |     let scope = frame.scopes[scope_idx];\0A     |                              \1B[1;31m^^^^^^^^^\1B[0m\0A\00"
+@.str.1538 = private unnamed_addr constant [158 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-helpers.rp:25:5\0A\0A  25 |     match (t) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1554 = private unnamed_addr constant [158 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-helpers.rp:75:5\0A\0A  75 |     match (a) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1556 = private unnamed_addr constant [214 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:64:47\0A\0A  64 |         vector_push(&new_frames, stack.frames[i]);\0D\0A     |                                               \1B[1;31m^\1B[0m\0A\00"
+@.str.1558 = private unnamed_addr constant [227 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:70:25\0A\0A  70 |     return stack.frames[vector_size(&stack.frames) - 1];\0D\0A     |                         \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
+@.str.1560 = private unnamed_addr constant [221 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:74:18\0A\0A  74 |     stack.frames[vector_size(&stack.frames) - 1] = frame;\0D\0A     |                  \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
+@.str.1562 = private unnamed_addr constant [235 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:89:29\0A\0A  89 |     let last = frame.scopes[vector_size(&frame.scopes) - 1];\0D\0A     |                             \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
+@.str.1564 = private unnamed_addr constant [214 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:92:47\0A\0A  92 |         vector_push(&new_scopes, frame.scopes[i]);\0D\0A     |                                               \1B[1;31m^\1B[0m\0A\00"
+@.str.1566 = private unnamed_addr constant [196 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:138:30\0A\0A 138 |     let scope = frame.scopes[scope_idx];\0D\0A     |                              \1B[1;31m^^^^^^^^^\1B[0m\0A\00"
 @.mstr.1570 = private unnamed_addr constant { i64, i64, [28 x i8] } { i64 -1, i64 0, [28 x i8] c"Cannot redeclare variable '\00" }
-@.str.1572 = private unnamed_addr constant [179 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:151:18\0A\0A 151 |     frame.scopes[scope_idx] = scope;\0A     |                  \1B[1;31m^^^^^^^^^\1B[0m\0A\00"
-@.str.1574 = private unnamed_addr constant [195 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:159:34\0A\0A 159 |         let scope = frame.scopes[s - 1];\0A     |                                  \1B[1;31m^^^^^\1B[0m\0A\00"
-@.str.1580 = private unnamed_addr constant [195 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:174:34\0A\0A 174 |         let scope = frame.scopes[s - 1];\0A     |                                  \1B[1;31m^^^^^\1B[0m\0A\00"
-@.str.1586 = private unnamed_addr constant [195 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:187:34\0A\0A 187 |         let scope = frame.scopes[s - 1];\0A     |                                  \1B[1;31m^^^^^\1B[0m\0A\00"
-@.str.1592 = private unnamed_addr constant [195 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:191:30\0A\0A 191 |                 frame.scopes[s - 1] = scope;\0A     |                              \1B[1;31m^^^^^\1B[0m\0A\00"
-@.str.1594 = private unnamed_addr constant [195 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:202:34\0A\0A 202 |         let scope = frame.scopes[s - 1];\0A     |                                  \1B[1;31m^^^^^\1B[0m\0A\00"
+@.str.1572 = private unnamed_addr constant [180 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:151:18\0A\0A 151 |     frame.scopes[scope_idx] = scope;\0D\0A     |                  \1B[1;31m^^^^^^^^^\1B[0m\0A\00"
+@.str.1574 = private unnamed_addr constant [196 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:159:34\0A\0A 159 |         let scope = frame.scopes[s - 1];\0D\0A     |                                  \1B[1;31m^^^^^\1B[0m\0A\00"
+@.str.1580 = private unnamed_addr constant [196 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:174:34\0A\0A 174 |         let scope = frame.scopes[s - 1];\0D\0A     |                                  \1B[1;31m^^^^^\1B[0m\0A\00"
+@.str.1586 = private unnamed_addr constant [196 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:187:34\0A\0A 187 |         let scope = frame.scopes[s - 1];\0D\0A     |                                  \1B[1;31m^^^^^\1B[0m\0A\00"
+@.str.1592 = private unnamed_addr constant [196 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:191:30\0A\0A 191 |                 frame.scopes[s - 1] = scope;\0D\0A     |                              \1B[1;31m^^^^^\1B[0m\0A\00"
+@.str.1594 = private unnamed_addr constant [196 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:202:34\0A\0A 202 |         let scope = frame.scopes[s - 1];\0D\0A     |                                  \1B[1;31m^^^^^\1B[0m\0A\00"
 @.mstr.1600 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"Cannot assign '\00" }
 @.mstr.1601 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"' to variable '\00" }
 @.mstr.1602 = private unnamed_addr constant { i64, i64, [37 x i8] } { i64 -1, i64 0, [37 x i8] c"' which was previously declared as '\00" }
-@.str.1606 = private unnamed_addr constant [237 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:236:30\0A\0A 236 |     let scope = frame.scopes[vector_size(&frame.scopes) - 1];\0A     |                              \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
+@.str.1606 = private unnamed_addr constant [238 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:236:30\0A\0A 236 |     let scope = frame.scopes[vector_size(&frame.scopes) - 1];\0D\0A     |                              \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
 @.mstr.1612 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"Cannot perform \00" }
 @.mstr.1613 = private unnamed_addr constant { i64, i64, [26 x i8] } { i64 -1, i64 0, [26 x i8] c" between values of type '\00" }
 @.mstr.1616 = private unnamed_addr constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"addition\00" }
@@ -736,10 +736,10 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.1634 = private constant { i64, i64, [14 x i8] } { i64 -1, i64 0, [14 x i8] c"Cannot cast '\00" }
 @.mstr.1635 = private constant { i64, i64, [7 x i8] } { i64 -1, i64 0, [7 x i8] c"' to '\00" }
 @.mstr.1636 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"'.\00" }
-@.str.1637 = private unnamed_addr constant [170 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:76:5\0A\0A  76 |     match (sc.last_result) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1637 = private unnamed_addr constant [171 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:76:5\0A\0A  76 |     match (sc.last_result) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1639 = private unnamed_addr constant { i64, i64, [40 x i8] } { i64 -1, i64 0, [40 x i8] c"Expected a type, but none was produced.\00" }
 @.mstr.1647 = private unnamed_addr constant { i64, i64, [18 x i8] } { i64 -1, i64 0, [18 x i8] c"```raptor\0Astruct \00" }
-@.str.1654 = private unnamed_addr constant [178 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:154:24\0A\0A 154 |         let p = params[i].value;\0A     |                        \1B[1;31m^\1B[0m\0A\00"
+@.str.1654 = private unnamed_addr constant [179 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:154:24\0A\0A 154 |         let p = params[i].value;\0D\0A     |                        \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1659 = private unnamed_addr constant { i64, i64, [11 x i8] } { i64 -1, i64 0, [11 x i8] c"```raptor\0A\00" }
 @.mstr.1661 = private constant { i64, i64, [6 x i8] } { i64 -1, i64 0, [6 x i8] c"Debug\00" }
 @.mstr.1662 = private unnamed_addr constant { i64, i64, [32 x i8] } { i64 -1, i64 0, [32 x i8] c"Creates a function to display `\00" }
@@ -753,86 +753,86 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.1674 = private unnamed_addr constant { i64, i64, [42 x i8] } { i64 -1, i64 0, [42 x i8] c"Creates a function to recursively clone `\00" }
 @.mstr.1675 = private unnamed_addr constant { i64, i64, [18 x i8] } { i64 -1, i64 0, [18 x i8] c"`.\0A\0A```raptor\0Afn \00" }
 @.mstr.1676 = private unnamed_addr constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"_clone(&\00" }
-@.str.1683 = private unnamed_addr constant [184 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:223:17\0A\0A 223 |                 match (dt) {\0A     |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.1685 = private unnamed_addr constant [306 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:232:88\0A\0A 232 |                     semantic_checker_push_definition(&sc, span, program.declared_types[i].span);\0A     |                                                                                        \1B[1;31m^\1B[0m\0A\00"
-@.str.1687 = private unnamed_addr constant [192 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:233:21\0A\0A 233 |                     match (dt) {\0A     |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.1683 = private unnamed_addr constant [185 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:223:17\0A\0A 223 |                 match (dt) {\0D\0A     |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.1685 = private unnamed_addr constant [307 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:232:88\0A\0A 232 |                     semantic_checker_push_definition(&sc, span, program.declared_types[i].span);\0D\0A     |                                                                                        \1B[1;31m^\1B[0m\0A\00"
+@.str.1687 = private unnamed_addr constant [193 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:233:21\0A\0A 233 |                     match (dt) {\0D\0A     |                     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1689 = private unnamed_addr constant { i64, i64, [15 x i8] } { i64 -1, i64 0, [15 x i8] c"Unknown type `\00" }
-@.str.1691 = private unnamed_addr constant [231 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:254:13\0A\0A 254 |             match (semantic_checker_resolve_type(&sc, &program, inner, span)) {\0A     |             \1B[1;31m^\1B[0m\0A\00"
-@.str.1699 = private unnamed_addr constant [196 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:295:9\0A\0A 295 |         match (program.declared_types[i].value) {\0A     |         \1B[1;31m^\1B[0m\0A\00"
-@.str.1701 = private unnamed_addr constant [311 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:298:93\0A\0A 298 |                     semantic_checker_derive_hover(&sc, s.identifier.value, s.struct_derives[d]);\0A     |                                                                                             \1B[1;31m^\1B[0m\0A\00"
-@.str.1703 = private unnamed_addr constant [307 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:303:91\0A\0A 303 |                     semantic_checker_derive_hover(&sc, e.identifier.value, e.enum_derives[d]);\0A     |                                                                                           \1B[1;31m^\1B[0m\0A\00"
-@.str.1713 = private unnamed_addr constant [196 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:365:9\0A\0A 365 |         match (program.declared_types[i].value) {\0A     |         \1B[1;31m^\1B[0m\0A\00"
+@.str.1691 = private unnamed_addr constant [232 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:254:13\0A\0A 254 |             match (semantic_checker_resolve_type(&sc, &program, inner, span)) {\0D\0A     |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1699 = private unnamed_addr constant [197 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:295:9\0A\0A 295 |         match (program.declared_types[i].value) {\0D\0A     |         \1B[1;31m^\1B[0m\0A\00"
+@.str.1701 = private unnamed_addr constant [312 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:298:93\0A\0A 298 |                     semantic_checker_derive_hover(&sc, s.identifier.value, s.struct_derives[d]);\0D\0A     |                                                                                             \1B[1;31m^\1B[0m\0A\00"
+@.str.1703 = private unnamed_addr constant [308 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:303:91\0A\0A 303 |                     semantic_checker_derive_hover(&sc, e.identifier.value, e.enum_derives[d]);\0D\0A     |                                                                                           \1B[1;31m^\1B[0m\0A\00"
+@.str.1713 = private unnamed_addr constant [197 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:365:9\0A\0A 365 |         match (program.declared_types[i].value) {\0D\0A     |         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1721 = private unnamed_addr constant { i64, i64, [18 x i8] } { i64 -1, i64 0, [18 x i8] c"Unused variable '\00" }
-@.str.1722 = private unnamed_addr constant [228 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:394:46\0A\0A 394 |                 \22Unused variable '\22 + unused[i].name + \22'.\22,\0A     |                                              \1B[1;31m^\1B[0m\0A\00"
-@.str.1729 = private unnamed_addr constant [172 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:417:5\0A\0A 417 |     match (statement.value) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1722 = private unnamed_addr constant [229 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:394:46\0A\0A 394 |                 \22Unused variable '\22 + unused[i].name + \22'.\22,\0D\0A     |                                              \1B[1;31m^\1B[0m\0A\00"
+@.str.1729 = private unnamed_addr constant [173 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:417:5\0A\0A 417 |     match (statement.value) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1731 = private unnamed_addr constant { i64, i64, [35 x i8] } { i64 -1, i64 0, [35 x i8] c"Break outside of a loop or switch.\00" }
 @.mstr.1732 = private unnamed_addr constant { i64, i64, [28 x i8] } { i64 -1, i64 0, [28 x i8] c"Continue outside of a loop.\00" }
-@.str.1733 = private unnamed_addr constant [166 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:479:5\0A\0A 479 |     match (decl.kind) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1735 = private unnamed_addr constant [226 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:482:13\0A\0A 482 |             match (semantic_checker_read_last(&sc, let_kind.value.span)) {\0A     |             \1B[1;31m^\1B[0m\0A\00"
-@.str.1737 = private unnamed_addr constant [261 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:489:25\0A\0A 489 |                         match (semantic_checker_resolve_type(&sc, &program, tn.value, tn.span)) {\0A     |                         \1B[1;31m^\1B[0m\0A\00"
+@.str.1733 = private unnamed_addr constant [167 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:479:5\0A\0A 479 |     match (decl.kind) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1735 = private unnamed_addr constant [227 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:482:13\0A\0A 482 |             match (semantic_checker_read_last(&sc, let_kind.value.span)) {\0D\0A     |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1737 = private unnamed_addr constant [262 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:489:25\0A\0A 489 |                         match (semantic_checker_resolve_type(&sc, &program, tn.value, tn.span)) {\0D\0A     |                         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1739 = private unnamed_addr constant { i64, i64, [44 x i8] } { i64 -1, i64 0, [44 x i8] c"Type annotation does not match initializer.\00" }
-@.str.1740 = private unnamed_addr constant [171 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:526:13\0A\0A 526 |             match (\0A     |             \1B[1;31m^\1B[0m\0A\00"
-@.str.1742 = private unnamed_addr constant [205 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:539:21\0A\0A 539 |                     match (type_kind.value) {\0A     |                     \1B[1;31m^\1B[0m\0A\00"
-@.str.1744 = private unnamed_addr constant [248 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:542:29\0A\0A 542 |                             match (semantic_checker_read_last(&sc, expr.span)) {\0A     |                             \1B[1;31m^\1B[0m\0A\00"
+@.str.1740 = private unnamed_addr constant [172 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:526:13\0A\0A 526 |             match (\0D\0A     |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1742 = private unnamed_addr constant [206 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:539:21\0A\0A 539 |                     match (type_kind.value) {\0D\0A     |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.1744 = private unnamed_addr constant [249 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:542:29\0A\0A 542 |                             match (semantic_checker_read_last(&sc, expr.span)) {\0D\0A     |                             \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1746 = private unnamed_addr constant { i64, i64, [51 x i8] } { i64 -1, i64 0, [51 x i8] c"Cannot initialize variable with incompatible type.\00" }
-@.str.1747 = private unnamed_addr constant [211 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:591:5\0A\0A 591 |     match (stack_get_variable(&sc.stack, assign.identifier.value)) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1751 = private unnamed_addr constant [214 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:607:41\0A\0A 607 |                 match (assign.accessors[i].value) {\0A     |                                         \1B[1;31m^\1B[0m\0A\00"
-@.str.1753 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:607:17\0A\0A 607 |                 match (assign.accessors[i].value) {\0A     |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.1755 = private unnamed_addr constant [246 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:610:25\0A\0A 610 |                         match (semantic_checker_read_last(&sc, index_expr.span)) {\0A     |                         \1B[1;31m^\1B[0m\0A\00"
-@.str.1760 = private unnamed_addr constant [244 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:642:58\0A\0A 642 |                                         assign.accessors[i].span\0A     |                                                          \1B[1;31m^\1B[0m\0A\00"
-@.str.1762 = private unnamed_addr constant [259 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:651:29\0A\0A 651 |                             match (semantic_checker_lookup_struct(&program, struct_name)) {\0A     |                             \1B[1;31m^\1B[0m\0A\00"
-@.str.1775 = private unnamed_addr constant [224 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:706:13\0A\0A 706 |             match (semantic_checker_read_last(&sc, assign.value.span)) {\0A     |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1747 = private unnamed_addr constant [212 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:591:5\0A\0A 591 |     match (stack_get_variable(&sc.stack, assign.identifier.value)) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1751 = private unnamed_addr constant [215 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:607:41\0A\0A 607 |                 match (assign.accessors[i].value) {\0D\0A     |                                         \1B[1;31m^\1B[0m\0A\00"
+@.str.1753 = private unnamed_addr constant [208 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:607:17\0A\0A 607 |                 match (assign.accessors[i].value) {\0D\0A     |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.1755 = private unnamed_addr constant [247 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:610:25\0A\0A 610 |                         match (semantic_checker_read_last(&sc, index_expr.span)) {\0D\0A     |                         \1B[1;31m^\1B[0m\0A\00"
+@.str.1760 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:642:58\0A\0A 642 |                                         assign.accessors[i].span\0D\0A     |                                                          \1B[1;31m^\1B[0m\0A\00"
+@.str.1762 = private unnamed_addr constant [260 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:651:29\0A\0A 651 |                             match (semantic_checker_lookup_struct(&program, struct_name)) {\0D\0A     |                             \1B[1;31m^\1B[0m\0A\00"
+@.str.1775 = private unnamed_addr constant [225 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:706:13\0A\0A 706 |             match (semantic_checker_read_last(&sc, assign.value.span)) {\0D\0A     |             \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1777 = private unnamed_addr constant { i64, i64, [51 x i8] } { i64 -1, i64 0, [51 x i8] c"Cannot assign incompatible type through accessors.\00" }
-@.str.1778 = private unnamed_addr constant [209 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:746:5\0A\0A 746 |     match (semantic_checker_read_last(&sc, cond.condition.span)) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1778 = private unnamed_addr constant [210 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:746:5\0A\0A 746 |     match (semantic_checker_read_last(&sc, cond.condition.span)) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1780 = private unnamed_addr constant { i64, i64, [33 x i8] } { i64 -1, i64 0, [33 x i8] c"If condition must be bool, got '\00" }
-@.str.1782 = private unnamed_addr constant [206 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:771:5\0A\0A 771 |     match (semantic_checker_read_last(&sc, w.condition.span)) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1782 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:771:5\0A\0A 771 |     match (semantic_checker_read_last(&sc, w.condition.span)) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1784 = private unnamed_addr constant { i64, i64, [36 x i8] } { i64 -1, i64 0, [36 x i8] c"While condition must be bool, got '\00" }
-@.str.1786 = private unnamed_addr constant [206 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:801:5\0A\0A 801 |     match (semantic_checker_read_last(&sc, f.condition.span)) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1786 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:801:5\0A\0A 801 |     match (semantic_checker_read_last(&sc, f.condition.span)) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1788 = private unnamed_addr constant { i64, i64, [34 x i8] } { i64 -1, i64 0, [34 x i8] c"For condition must be bool, got '\00" }
-@.str.1790 = private unnamed_addr constant [176 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:836:5\0A\0A 836 |     match (sc.current_function) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1790 = private unnamed_addr constant [177 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:836:5\0A\0A 836 |     match (sc.current_function) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1792 = private unnamed_addr constant { i64, i64, [30 x i8] } { i64 -1, i64 0, [30 x i8] c"Return outside of a function.\00" }
-@.str.1793 = private unnamed_addr constant [165 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:853:5\0A\0A 853 |     match (opt_expr) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1793 = private unnamed_addr constant [166 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:853:5\0A\0A 853 |     match (opt_expr) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1795 = private unnamed_addr constant { i64, i64, [23 x i8] } { i64 -1, i64 0, [23 x i8] c"Function must return '\00" }
 @.mstr.1796 = private unnamed_addr constant { i64, i64, [13 x i8] } { i64 -1, i64 0, [13 x i8] c"', got void.\00" }
-@.str.1797 = private unnamed_addr constant [216 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:868:13\0A\0A 868 |             match (semantic_checker_read_last(&sc, expr.span)) {\0A     |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1797 = private unnamed_addr constant [217 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:868:13\0A\0A 868 |             match (semantic_checker_read_last(&sc, expr.span)) {\0D\0A     |             \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1799 = private unnamed_addr constant { i64, i64, [22 x i8] } { i64 -1, i64 0, [22 x i8] c"Return type mismatch.\00" }
-@.str.1802 = private unnamed_addr constant [275 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:894:63\0A\0A 894 |         match (semantic_checker_read_last(&sc, sw.expressions[i].value.expression.span)) {\0A     |                                                               \1B[1;31m^\1B[0m\0A\00"
-@.str.1804 = private unnamed_addr constant [237 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:894:9\0A\0A 894 |         match (semantic_checker_read_last(&sc, sw.expressions[i].value.expression.span)) {\0A     |         \1B[1;31m^\1B[0m\0A\00"
-@.str.1806 = private unnamed_addr constant [252 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:900:36\0A\0A 900 |                 if (sw.expressions[i].value.alias matches OptionIdentifierNode::Some(alias)) {\0A     |                                    \1B[1;31m^\1B[0m\0A\00"
-@.str.1808 = private unnamed_addr constant [224 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:914:48\0A\0A 914 |                                 sw.expressions[i].span\0A     |                                                \1B[1;31m^\1B[0m\0A\00"
-@.str.1812 = private unnamed_addr constant [262 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:925:57\0A\0A 925 |         match (semantic_checker_read_last(&sc, sw.cases[i].value.condition.span)) {\0A     |                                                         \1B[1;31m^\1B[0m\0A\00"
-@.str.1814 = private unnamed_addr constant [230 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:925:9\0A\0A 925 |         match (semantic_checker_read_last(&sc, sw.cases[i].value.condition.span)) {\0A     |         \1B[1;31m^\1B[0m\0A\00"
+@.str.1802 = private unnamed_addr constant [276 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:894:63\0A\0A 894 |         match (semantic_checker_read_last(&sc, sw.expressions[i].value.expression.span)) {\0D\0A     |                                                               \1B[1;31m^\1B[0m\0A\00"
+@.str.1804 = private unnamed_addr constant [238 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:894:9\0A\0A 894 |         match (semantic_checker_read_last(&sc, sw.expressions[i].value.expression.span)) {\0D\0A     |         \1B[1;31m^\1B[0m\0A\00"
+@.str.1806 = private unnamed_addr constant [253 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:900:36\0A\0A 900 |                 if (sw.expressions[i].value.alias matches OptionIdentifierNode::Some(alias)) {\0D\0A     |                                    \1B[1;31m^\1B[0m\0A\00"
+@.str.1808 = private unnamed_addr constant [225 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:914:48\0A\0A 914 |                                 sw.expressions[i].span\0D\0A     |                                                \1B[1;31m^\1B[0m\0A\00"
+@.str.1812 = private unnamed_addr constant [263 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:925:57\0A\0A 925 |         match (semantic_checker_read_last(&sc, sw.cases[i].value.condition.span)) {\0D\0A     |                                                         \1B[1;31m^\1B[0m\0A\00"
+@.str.1814 = private unnamed_addr constant [231 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:925:9\0A\0A 925 |         match (semantic_checker_read_last(&sc, sw.cases[i].value.condition.span)) {\0D\0A     |         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1816 = private unnamed_addr constant { i64, i64, [36 x i8] } { i64 -1, i64 0, [36 x i8] c"Switch case condition must be bool.\00" }
-@.str.1817 = private unnamed_addr constant [220 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:936:38\0A\0A 936 |                             sw.cases[i].value.condition.span\0A     |                                      \1B[1;31m^\1B[0m\0A\00"
-@.str.1819 = private unnamed_addr constant [261 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:942:62\0A\0A 942 |         semantic_checker_visit_block(&sc, &program, sw.cases[i].value.block);\0A     |                                                              \1B[1;31m^\1B[0m\0A\00"
-@.str.1821 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:949:5\0A\0A 949 |     match (semantic_checker_read_last(&sc, m.expression.span)) {\0A     |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1823 = private unnamed_addr constant [231 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:955:17\0A\0A 955 |                 match (semantic_checker_lookup_enum(&program, enum_name)) {\0A     |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.1817 = private unnamed_addr constant [221 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:936:38\0A\0A 936 |                             sw.cases[i].value.condition.span\0D\0A     |                                      \1B[1;31m^\1B[0m\0A\00"
+@.str.1819 = private unnamed_addr constant [262 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:942:62\0A\0A 942 |         semantic_checker_visit_block(&sc, &program, sw.cases[i].value.block);\0D\0A     |                                                              \1B[1;31m^\1B[0m\0A\00"
+@.str.1821 = private unnamed_addr constant [208 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:949:5\0A\0A 949 |     match (semantic_checker_read_last(&sc, m.expression.span)) {\0D\0A     |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1823 = private unnamed_addr constant [232 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:955:17\0A\0A 955 |                 match (semantic_checker_lookup_enum(&program, enum_name)) {\0D\0A     |                 \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1825 = private unnamed_addr constant { i64, i64, [23 x i8] } { i64 -1, i64 0, [23 x i8] c"Match scrutinee type '\00" }
 @.mstr.1826 = private unnamed_addr constant { i64, i64, [18 x i8] } { i64 -1, i64 0, [18 x i8] c"' is not an enum.\00" }
 @.mstr.1829 = private unnamed_addr constant { i64, i64, [17 x i8] } { i64 -1, i64 0, [17 x i8] c"Match arm enum '\00" }
 @.mstr.1830 = private unnamed_addr constant { i64, i64, [29 x i8] } { i64 -1, i64 0, [29 x i8] c"' does not match scrutinee '\00" }
-@.str.1834 = private unnamed_addr constant [266 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:993:68\0A\0A 993 |                                             program.declared_types[di].span\0A     |                                                                    \1B[1;31m^^\1B[0m\0A\00"
-@.str.1838 = private unnamed_addr constant [237 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1011:52\0A\0A 1011 |                                         ed.members[vv].span\0A      |                                                    \1B[1;31m^^\1B[0m\0A\00"
-@.str.1841 = private unnamed_addr constant [284 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1015:52\0A\0A 1015 |                                         ed.members[vv].value.member_type matches OptionTypeNode::Some(ptn)\0A      |                                                    \1B[1;31m^^\1B[0m\0A\00"
-@.str.1852 = private unnamed_addr constant [264 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1046:41\0A\0A 1046 |                                         match (ed.members[v].value.member_type) {\0A      |                                         \1B[1;31m^\1B[0m\0A\00"
+@.str.1834 = private unnamed_addr constant [267 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:993:68\0A\0A 993 |                                             program.declared_types[di].span\0D\0A     |                                                                    \1B[1;31m^^\1B[0m\0A\00"
+@.str.1838 = private unnamed_addr constant [238 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1011:52\0A\0A 1011 |                                         ed.members[vv].span\0D\0A      |                                                    \1B[1;31m^^\1B[0m\0A\00"
+@.str.1841 = private unnamed_addr constant [285 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1015:52\0A\0A 1015 |                                         ed.members[vv].value.member_type matches OptionTypeNode::Some(ptn)\0D\0A      |                                                    \1B[1;31m^^\1B[0m\0A\00"
+@.str.1852 = private unnamed_addr constant [265 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1046:41\0A\0A 1046 |                                         match (ed.members[v].value.member_type) {\0D\0A      |                                         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1854 = private unnamed_addr constant { i64, i64, [10 x i8] } { i64 -1, i64 0, [10 x i8] c"Variant '\00" }
 @.mstr.1855 = private unnamed_addr constant { i64, i64, [26 x i8] } { i64 -1, i64 0, [26 x i8] c"' has no payload to bind.\00" }
 @.mstr.1859 = private unnamed_addr constant { i64, i64, [40 x i8] } { i64 -1, i64 0, [40 x i8] c"Match requires an enum scrutinee, got '\00" }
-@.str.1861 = private unnamed_addr constant [176 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1121:5\0A\0A 1121 |     match (expression.value) {\0A      |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1861 = private unnamed_addr constant [177 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1121:5\0A\0A 1121 |     match (expression.value) {\0D\0A      |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1875 = private constant { i64, i64, [6 x i8] } { i64 -1, i64 0, [6 x i8] c"logic\00" }
-@.str.1876 = private unnamed_addr constant [220 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1169:13\0A\0A 1169 |             match (semantic_checker_read_last(&sc, inner.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.1878 = private unnamed_addr constant [238 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1174:21\0A\0A 1174 |                     match (type_alu_boolean_negation(t, expression.span)) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
-@.str.1880 = private unnamed_addr constant [220 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1187:13\0A\0A 1187 |             match (semantic_checker_read_last(&sc, inner.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.1882 = private unnamed_addr constant [241 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1192:21\0A\0A 1192 |                     match (type_alu_arithmetic_negation(t, expression.span)) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
-@.str.1884 = private unnamed_addr constant [222 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1205:13\0A\0A 1205 |             match (semantic_checker_read_last(&sc, c.value.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.1886 = private unnamed_addr constant [190 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1210:21\0A\0A 1210 |                     match (\0A      |                     \1B[1;31m^\1B[0m\0A\00"
-@.str.1888 = private unnamed_addr constant [255 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1222:29\0A\0A 1222 |                             match (type_alu_cast(from_ty, to_ty, expression.span)) {\0A      |                             \1B[1;31m^\1B[0m\0A\00"
-@.str.1890 = private unnamed_addr constant [163 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1257:5\0A\0A 1257 |     match (lit) {\0A      |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1892 = private unnamed_addr constant [195 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1280:5\0A\0A 1280 |     match (stack_get_variable(&sc.stack, name)) {\0A      |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1876 = private unnamed_addr constant [221 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1169:13\0A\0A 1169 |             match (semantic_checker_read_last(&sc, inner.span)) {\0D\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1878 = private unnamed_addr constant [239 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1174:21\0A\0A 1174 |                     match (type_alu_boolean_negation(t, expression.span)) {\0D\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.1880 = private unnamed_addr constant [221 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1187:13\0A\0A 1187 |             match (semantic_checker_read_last(&sc, inner.span)) {\0D\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1882 = private unnamed_addr constant [242 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1192:21\0A\0A 1192 |                     match (type_alu_arithmetic_negation(t, expression.span)) {\0D\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.1884 = private unnamed_addr constant [223 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1205:13\0A\0A 1205 |             match (semantic_checker_read_last(&sc, c.value.span)) {\0D\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1886 = private unnamed_addr constant [191 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1210:21\0A\0A 1210 |                     match (\0D\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.1888 = private unnamed_addr constant [256 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1222:29\0A\0A 1222 |                             match (type_alu_cast(from_ty, to_ty, expression.span)) {\0D\0A      |                             \1B[1;31m^\1B[0m\0A\00"
+@.str.1890 = private unnamed_addr constant [164 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1257:5\0A\0A 1257 |     match (lit) {\0D\0A      |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1892 = private unnamed_addr constant [196 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1280:5\0A\0A 1280 |     match (stack_get_variable(&sc.stack, name)) {\0D\0A      |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1894 = private unnamed_addr constant { i64, i64, [11 x i8] } { i64 -1, i64 0, [11 x i8] c"Variable '\00" }
 @.mstr.1895 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"' not declared.\00" }
-@.str.1896 = private unnamed_addr constant [206 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1315:5\0A\0A 1315 |     match (semantic_checker_read_last(&sc, bin.left.span)) {\0A      |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1898 = private unnamed_addr constant [224 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1322:13\0A\0A 1322 |             match (semantic_checker_read_last(&sc, bin.right.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1896 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1315:5\0A\0A 1315 |     match (semantic_checker_read_last(&sc, bin.left.span)) {\0D\0A      |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1898 = private unnamed_addr constant [225 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1322:13\0A\0A 1322 |             match (semantic_checker_read_last(&sc, bin.right.span)) {\0D\0A      |             \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1900 = private unnamed_addr constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"internal\00" }
 @.mstr.1901 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"add\00" }
 @.mstr.1902 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"sub\00" }
@@ -840,79 +840,79 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.1904 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"div\00" }
 @.mstr.1905 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"mod\00" }
 @.mstr.1906 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"cmp\00" }
-@.str.1908 = private unnamed_addr constant [199 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1349:21\0A\0A 1349 |                     match (result) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
-@.str.1910 = private unnamed_addr constant [209 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1370:5\0A\0A 1370 |     match (semantic_checker_read_last(&sc, fa.instance.span)) {\0A      |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1912 = private unnamed_addr constant [238 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1376:17\0A\0A 1376 |                 match (semantic_checker_lookup_struct(&program, struct_name)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.1920 = private unnamed_addr constant [214 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1392:33\0A\0A 1392 |                                 match (\0A      |                                 \1B[1;31m^\1B[0m\0A\00"
-@.str.1922 = private unnamed_addr constant [258 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1408:55\0A\0A 1408 |                                             s.members[m].value.identifier.span\0A      |                                                       \1B[1;31m^\1B[0m\0A\00"
+@.str.1908 = private unnamed_addr constant [200 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1349:21\0A\0A 1349 |                     match (result) {\0D\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.1910 = private unnamed_addr constant [210 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1370:5\0A\0A 1370 |     match (semantic_checker_read_last(&sc, fa.instance.span)) {\0D\0A      |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1912 = private unnamed_addr constant [239 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1376:17\0A\0A 1376 |                 match (semantic_checker_lookup_struct(&program, struct_name)) {\0D\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.1920 = private unnamed_addr constant [215 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1392:33\0A\0A 1392 |                                 match (\0D\0A      |                                 \1B[1;31m^\1B[0m\0A\00"
+@.str.1922 = private unnamed_addr constant [259 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1408:55\0A\0A 1408 |                                             s.members[m].value.identifier.span\0D\0A      |                                                       \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1927 = private unnamed_addr constant { i64, i64, [30 x i8] } { i64 -1, i64 0, [30 x i8] c"Cannot access field on type '\00" }
-@.str.1929 = private unnamed_addr constant [212 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1452:5\0A\0A 1452 |     match (semantic_checker_read_last(&sc, idx.collection.span)) {\0A      |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1931 = private unnamed_addr constant [224 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1458:13\0A\0A 1458 |             match (semantic_checker_read_last(&sc, idx.index.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.1929 = private unnamed_addr constant [213 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1452:5\0A\0A 1452 |     match (semantic_checker_read_last(&sc, idx.collection.span)) {\0D\0A      |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1931 = private unnamed_addr constant [225 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1458:13\0A\0A 1458 |             match (semantic_checker_read_last(&sc, idx.index.span)) {\0D\0A      |             \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1933 = private unnamed_addr constant { i64, i64, [35 x i8] } { i64 -1, i64 0, [35 x i8] c"Array index must be of type `i64`.\00" }
 @.mstr.1934 = private unnamed_addr constant { i64, i64, [20 x i8] } { i64 -1, i64 0, [20 x i8] c"Cannot index type '\00" }
-@.str.1936 = private unnamed_addr constant [254 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1506:63\0A\0A 1506 |     semantic_checker_visit_expression(&sc, &program, elements[0]);\0A      |                                                               \1B[1;31m^\1B[0m\0A\00"
-@.str.1938 = private unnamed_addr constant [241 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1507:53\0A\0A 1507 |     match (semantic_checker_read_last(&sc, elements[0].span)) {\0A      |                                                     \1B[1;31m^\1B[0m\0A\00"
-@.str.1940 = private unnamed_addr constant [209 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1507:5\0A\0A 1507 |     match (semantic_checker_read_last(&sc, elements[0].span)) {\0A      |     \1B[1;31m^\1B[0m\0A\00"
-@.str.1944 = private unnamed_addr constant [265 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1514:65\0A\0A 1514 |                 match (semantic_checker_read_last(&sc, elements[i].span)) {\0A      |                                                                 \1B[1;31m^\1B[0m\0A\00"
-@.str.1946 = private unnamed_addr constant [234 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1514:17\0A\0A 1514 |                 match (semantic_checker_read_last(&sc, elements[i].span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.1936 = private unnamed_addr constant [255 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1506:63\0A\0A 1506 |     semantic_checker_visit_expression(&sc, &program, elements[0]);\0D\0A      |                                                               \1B[1;31m^\1B[0m\0A\00"
+@.str.1938 = private unnamed_addr constant [242 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1507:53\0A\0A 1507 |     match (semantic_checker_read_last(&sc, elements[0].span)) {\0D\0A      |                                                     \1B[1;31m^\1B[0m\0A\00"
+@.str.1940 = private unnamed_addr constant [210 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1507:5\0A\0A 1507 |     match (semantic_checker_read_last(&sc, elements[0].span)) {\0D\0A      |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1944 = private unnamed_addr constant [266 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1514:65\0A\0A 1514 |                 match (semantic_checker_read_last(&sc, elements[i].span)) {\0D\0A      |                                                                 \1B[1;31m^\1B[0m\0A\00"
+@.str.1946 = private unnamed_addr constant [235 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1514:17\0A\0A 1514 |                 match (semantic_checker_read_last(&sc, elements[i].span)) {\0D\0A      |                 \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1948 = private unnamed_addr constant { i64, i64, [49 x i8] } { i64 -1, i64 0, [49 x i8] c"Vector literal elements must have the same type.\00" }
-@.str.1949 = private unnamed_addr constant [223 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1527:46\0A\0A 1527 |                                     elements[i].span\0A      |                                              \1B[1;31m^\1B[0m\0A\00"
-@.str.1951 = private unnamed_addr constant [213 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1545:5\0A\0A 1545 |     match (semantic_checker_lookup_struct(&program, struct_name)) {\0A      |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1949 = private unnamed_addr constant [224 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1527:46\0A\0A 1527 |                                     elements[i].span\0D\0A      |                                              \1B[1;31m^\1B[0m\0A\00"
+@.str.1951 = private unnamed_addr constant [214 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1545:5\0A\0A 1545 |     match (semantic_checker_lookup_struct(&program, struct_name)) {\0D\0A      |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1953 = private unnamed_addr constant { i64, i64, [17 x i8] } { i64 -1, i64 0, [17 x i8] c"Unknown struct '\00" }
-@.str.1957 = private unnamed_addr constant [237 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1563:52\0A\0A 1563 |                             program.declared_types[di].span\0A      |                                                    \1B[1;31m^^\1B[0m\0A\00"
+@.str.1957 = private unnamed_addr constant [238 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1563:52\0A\0A 1563 |                             program.declared_types[di].span\0D\0A      |                                                    \1B[1;31m^^\1B[0m\0A\00"
 @.mstr.1964 = private unnamed_addr constant { i64, i64, [31 x i8] } { i64 -1, i64 0, [31 x i8] c"` is specified more than once.\00" }
 @.mstr.1969 = private unnamed_addr constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"Struct '\00" }
 @.mstr.1970 = private unnamed_addr constant { i64, i64, [17 x i8] } { i64 -1, i64 0, [17 x i8] c"' has no field '\00" }
-@.str.1972 = private unnamed_addr constant [248 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1606:21\0A\0A 1606 |                     match (semantic_checker_read_last(&sc, field.value.value.span)) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
-@.str.1974 = private unnamed_addr constant [206 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1611:29\0A\0A 1611 |                             match (\0A      |                             \1B[1;31m^\1B[0m\0A\00"
+@.str.1972 = private unnamed_addr constant [249 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1606:21\0A\0A 1606 |                     match (semantic_checker_read_last(&sc, field.value.value.span)) {\0D\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.1974 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1611:29\0A\0A 1611 |                             match (\0D\0A      |                             \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1976 = private unnamed_addr constant { i64, i64, [32 x i8] } { i64 -1, i64 0, [32 x i8] c"Cannot assign a value of type `\00" }
 @.mstr.1977 = private unnamed_addr constant { i64, i64, [13 x i8] } { i64 -1, i64 0, [13 x i8] c"` to field `\00" }
 @.mstr.1978 = private unnamed_addr constant { i64, i64, [14 x i8] } { i64 -1, i64 0, [14 x i8] c"` of struct `\00" }
 @.mstr.1984 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"Missing field `\00" }
 @.mstr.1985 = private unnamed_addr constant { i64, i64, [29 x i8] } { i64 -1, i64 0, [29 x i8] c"` in initializer of struct `\00" }
 @.mstr.1986 = private unnamed_addr constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"`.\00" }
-@.str.1987 = private unnamed_addr constant [209 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1677:5\0A\0A 1677 |     match (semantic_checker_lookup_enum(&program, enum_name)) {\0A      |     \1B[1;31m^\1B[0m\0A\00"
+@.str.1987 = private unnamed_addr constant [210 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1677:5\0A\0A 1677 |     match (semantic_checker_lookup_enum(&program, enum_name)) {\0D\0A      |     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.1989 = private unnamed_addr constant { i64, i64, [15 x i8] } { i64 -1, i64 0, [15 x i8] c"Unknown enum '\00" }
 @.mstr.1995 = private unnamed_addr constant { i64, i64, [18 x i8] } { i64 -1, i64 0, [18 x i8] c"Unknown variant '\00" }
 @.mstr.1996 = private unnamed_addr constant { i64, i64, [12 x i8] } { i64 -1, i64 0, [12 x i8] c"' on enum '\00" }
-@.str.2000 = private unnamed_addr constant [237 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1719:52\0A\0A 1719 |                             program.declared_types[di].span\0A      |                                                    \1B[1;31m^^\1B[0m\0A\00"
-@.str.2004 = private unnamed_addr constant [205 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1730:36\0A\0A 1730 |                         ed.members[mi].span\0A      |                                    \1B[1;31m^^\1B[0m\0A\00"
-@.str.2007 = private unnamed_addr constant [255 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1733:36\0A\0A 1733 |                     if (ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)) {\0A      |                                    \1B[1;31m^^\1B[0m\0A\00"
+@.str.2000 = private unnamed_addr constant [238 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1719:52\0A\0A 1719 |                             program.declared_types[di].span\0D\0A      |                                                    \1B[1;31m^^\1B[0m\0A\00"
+@.str.2004 = private unnamed_addr constant [206 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1730:36\0A\0A 1730 |                         ed.members[mi].span\0D\0A      |                                    \1B[1;31m^^\1B[0m\0A\00"
+@.str.2007 = private unnamed_addr constant [256 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1733:36\0A\0A 1733 |                     if (ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)) {\0D\0A      |                                    \1B[1;31m^^\1B[0m\0A\00"
 @.mstr.2011 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"```raptor\0Aenum \00" }
 @.mstr.2012 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"::\00" }
 @.mstr.2013 = private unnamed_addr constant { i64, i64, [5 x i8] } { i64 -1, i64 0, [5 x i8] c"\0A```\00" }
-@.str.2014 = private unnamed_addr constant [193 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1750:13\0A\0A 1750 |             match (expected_payload) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.2016 = private unnamed_addr constant [209 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1752:21\0A\0A 1752 |                     match (el.variant_value) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.2014 = private unnamed_addr constant [194 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1750:13\0A\0A 1750 |             match (expected_payload) {\0D\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.2016 = private unnamed_addr constant [210 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1752:21\0A\0A 1752 |                     match (el.variant_value) {\0D\0A      |                     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.2020 = private unnamed_addr constant { i64, i64, [27 x i8] } { i64 -1, i64 0, [27 x i8] c"' expected value of type '\00" }
-@.str.2022 = private unnamed_addr constant [251 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1771:29\0A\0A 1771 |                             match (semantic_checker_read_last(&sc, expr.span)) {\0A      |                             \1B[1;31m^\1B[0m\0A\00"
-@.str.2024 = private unnamed_addr constant [222 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1776:37\0A\0A 1776 |                                     match (\0A      |                                     \1B[1;31m^\1B[0m\0A\00"
+@.str.2022 = private unnamed_addr constant [252 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1771:29\0A\0A 1771 |                             match (semantic_checker_read_last(&sc, expr.span)) {\0D\0A      |                             \1B[1;31m^\1B[0m\0A\00"
+@.str.2024 = private unnamed_addr constant [223 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1776:37\0A\0A 1776 |                                     match (\0D\0A      |                                     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.2028 = private constant { i64, i64, [26 x i8] } { i64 -1, i64 0, [26 x i8] c"' expects value of type '\00" }
 @.mstr.2029 = private constant { i64, i64, [11 x i8] } { i64 -1, i64 0, [11 x i8] c"', found '\00" }
 @.mstr.2030 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"'.\00" }
-@.str.2031 = private unnamed_addr constant [243 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1816:25\0A\0A 1816 |                         match (semantic_checker_read_last(&sc, expr.span)) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
+@.str.2031 = private unnamed_addr constant [244 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1816:25\0A\0A 1816 |                         match (semantic_checker_read_last(&sc, expr.span)) {\0D\0A      |                         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.2033 = private constant { i64, i64, [7 x i8] } { i64 -1, i64 0, [7 x i8] c"Enum '\00" }
 @.mstr.2034 = private constant { i64, i64, [12 x i8] } { i64 -1, i64 0, [12 x i8] c"' variant '\00" }
 @.mstr.2035 = private unnamed_addr constant { i64, i64, [39 x i8] } { i64 -1, i64 0, [39 x i8] c"' doesn't expect any value. Provided '\00" }
-@.str.2039 = private unnamed_addr constant [282 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1857:74\0A\0A 1857 |             found_fn = OptionFunctionDeclaration::Some(program.functions[i].value);\0A      |                                                                          \1B[1;31m^\1B[0m\0A\00"
-@.str.2045 = private unnamed_addr constant [228 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1889:39\0A\0A 1889 |                     program.functions[fi].value.identifier.span\0A      |                                       \1B[1;31m^^\1B[0m\0A\00"
+@.str.2039 = private unnamed_addr constant [283 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1857:74\0A\0A 1857 |             found_fn = OptionFunctionDeclaration::Some(program.functions[i].value);\0D\0A      |                                                                          \1B[1;31m^\1B[0m\0A\00"
+@.str.2045 = private unnamed_addr constant [229 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1889:39\0A\0A 1889 |                     program.functions[fi].value.identifier.span\0D\0A      |                                       \1B[1;31m^^\1B[0m\0A\00"
 @.mstr.2047 = private unnamed_addr constant { i64, i64, [11 x i8] } { i64 -1, i64 0, [11 x i8] c"Function '\00" }
 @.mstr.2048 = private unnamed_addr constant { i64, i64, [11 x i8] } { i64 -1, i64 0, [11 x i8] c"' expects \00" }
-@.str.2053 = private unnamed_addr constant [294 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1914:77\0A\0A 1914 |             semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);\0A      |                                                                             \1B[1;31m^\1B[0m\0A\00"
-@.str.2055 = private unnamed_addr constant [281 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1915:67\0A\0A 1915 |             match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {\0A      |                                                                   \1B[1;31m^\1B[0m\0A\00"
-@.str.2057 = private unnamed_addr constant [244 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1915:13\0A\0A 1915 |             match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.2059 = private unnamed_addr constant [240 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1924:43\0A\0A 1924 |                             fd.parameters[i].value.parameter_type.value,\0A      |                                           \1B[1;31m^\1B[0m\0A\00"
-@.str.2063 = private unnamed_addr constant [190 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1920:21\0A\0A 1920 |                     match (\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.2053 = private unnamed_addr constant [295 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1914:77\0A\0A 1914 |             semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);\0D\0A      |                                                                             \1B[1;31m^\1B[0m\0A\00"
+@.str.2055 = private unnamed_addr constant [282 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1915:67\0A\0A 1915 |             match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {\0D\0A      |                                                                   \1B[1;31m^\1B[0m\0A\00"
+@.str.2057 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1915:13\0A\0A 1915 |             match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {\0D\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.2059 = private unnamed_addr constant [241 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1924:43\0A\0A 1924 |                             fd.parameters[i].value.parameter_type.value,\0D\0A      |                                           \1B[1;31m^\1B[0m\0A\00"
+@.str.2063 = private unnamed_addr constant [191 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1920:21\0A\0A 1920 |                     match (\0D\0A      |                     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.2065 = private unnamed_addr constant { i64, i64, [36 x i8] } { i64 -1, i64 0, [36 x i8] c"Argument type mismatch in call to '\00" }
-@.str.2067 = private unnamed_addr constant [243 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1940:56\0A\0A 1940 |                                         call.arguments[i].span\0A      |                                                        \1B[1;31m^\1B[0m\0A\00"
-@.str.2069 = private unnamed_addr constant [165 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1949:9\0A\0A 1949 |         match (\0A      |         \1B[1;31m^\1B[0m\0A\00"
-@.str.2075 = private unnamed_addr constant [215 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1985:36\0A\0A 1985 |                     call.arguments[i].value.value.span\0A      |                                    \1B[1;31m^\1B[0m\0A\00"
-@.str.2077 = private unnamed_addr constant [230 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1991:9\0A\0A 1991 |         match (semantic_checker_resolve_type(&sc, &program, extern_ret, span)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
-@.str.2081 = private unnamed_addr constant [281 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2010:67\0A\0A 2010 |             match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {\0A      |                                                                   \1B[1;31m^\1B[0m\0A\00"
-@.str.2083 = private unnamed_addr constant [244 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2010:13\0A\0A 2010 |             match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.2085 = private unnamed_addr constant [250 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2018:52\0A\0A 2018 |             vector_push(&arg_exprs, call.arguments[i].value.value.value);\0A      |                                                    \1B[1;31m^\1B[0m\0A\00"
-@.str.2087 = private unnamed_addr constant [237 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2019:52\0A\0A 2019 |             vector_push(&arg_spans, call.arguments[i].span);\0A      |                                                    \1B[1;31m^\1B[0m\0A\00"
-@.str.2089 = private unnamed_addr constant [255 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2023:13\0A\0A 2023 |             match (semantic_checker_check_std_call(collected, arg_exprs, arg_spans, std_fn, span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.2093 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2041:32\0A\0A 2041 |                 call.arguments[i].value.value.span\0A      |                                \1B[1;31m^\1B[0m\0A\00"
+@.str.2067 = private unnamed_addr constant [244 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1940:56\0A\0A 1940 |                                         call.arguments[i].span\0D\0A      |                                                        \1B[1;31m^\1B[0m\0A\00"
+@.str.2069 = private unnamed_addr constant [166 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1949:9\0A\0A 1949 |         match (\0D\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.2075 = private unnamed_addr constant [216 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1985:36\0A\0A 1985 |                     call.arguments[i].value.value.span\0D\0A      |                                    \1B[1;31m^\1B[0m\0A\00"
+@.str.2077 = private unnamed_addr constant [231 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1991:9\0A\0A 1991 |         match (semantic_checker_resolve_type(&sc, &program, extern_ret, span)) {\0D\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.2081 = private unnamed_addr constant [282 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2010:67\0A\0A 2010 |             match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {\0D\0A      |                                                                   \1B[1;31m^\1B[0m\0A\00"
+@.str.2083 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2010:13\0A\0A 2010 |             match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {\0D\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.2085 = private unnamed_addr constant [251 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2018:52\0A\0A 2018 |             vector_push(&arg_exprs, call.arguments[i].value.value.value);\0D\0A      |                                                    \1B[1;31m^\1B[0m\0A\00"
+@.str.2087 = private unnamed_addr constant [238 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2019:52\0A\0A 2019 |             vector_push(&arg_spans, call.arguments[i].span);\0D\0A      |                                                    \1B[1;31m^\1B[0m\0A\00"
+@.str.2089 = private unnamed_addr constant [256 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2023:13\0A\0A 2023 |             match (semantic_checker_check_std_call(collected, arg_exprs, arg_spans, std_fn, span)) {\0D\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.2093 = private unnamed_addr constant [208 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2041:32\0A\0A 2041 |                 call.arguments[i].value.value.span\0D\0A      |                                \1B[1;31m^\1B[0m\0A\00"
 @.mstr.2095 = private unnamed_addr constant { i64, i64, [19 x i8] } { i64 -1, i64 0, [19 x i8] c"Unknown function '\00" }
 @.mstr.2102 = private unnamed_addr constant { i64, i64, [13 x i8] } { i64 -1, i64 0, [13 x i8] c"'. Expected \00" }
 @.str.2107 = private unnamed_addr constant [209 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/std-functions/check-std-call.rp:78:30\0A\0A  78 |         if (std_fn.passed_by[i] matches PassedBy::Reference) {\0D\0A     |                              \1B[1;31m^\1B[0m\0A\00"
@@ -202502,7 +202502,7 @@ entry:
 
 diag.err.6170:                                    ; preds = %entry
   %t34614 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1538, i64 156, i64 1, ptr %t34614) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1538, i64 157, i64 1, ptr %t34614) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -202798,7 +202798,7 @@ entry:
 
 diag.err.6204:                                    ; preds = %entry
   %t34680 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1554, i64 156, i64 1, ptr %t34680) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1554, i64 157, i64 1, ptr %t34680) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -203580,7 +203580,7 @@ for.body.6291:                                    ; preds = %if.end.6289, %vec.m
 
 diag.err.6294:                                    ; preds = %for.body.6291
   %t34934 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1556, i64 212, i64 1, ptr %t34934) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1556, i64 213, i64 1, ptr %t34934) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -203719,7 +203719,7 @@ entry:
 
 diag.err.6298:                                    ; preds = %entry
   %t34979 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -203772,7 +203772,7 @@ rt_retain.exit:                                   ; preds = %entry, %chk.i, %inc
 
 diag.err.6300:                                    ; preds = %rt_retain.exit
   %t35002 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 219, i64 1, ptr %t35002) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 220, i64 1, ptr %t35002) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -203827,7 +203827,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -203943,7 +203943,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i16, %copy.st
 
 diag.err.6300.i:                                  ; preds = %rt_retain.exit.i
   %t35002.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 219, i64 1, ptr %t35002.i) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 220, i64 1, ptr %t35002.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204054,7 +204054,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204135,7 +204135,7 @@ if.end.6306:                                      ; preds = %stack_current_frame
 
 diag.err.6307:                                    ; preds = %if.end.6306
   %t35074 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1562, i64 233, i64 1, ptr %t35074) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1562, i64 234, i64 1, ptr %t35074) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204186,7 +204186,7 @@ for.body.6310:                                    ; preds = %rt_retain.exit31, %
 
 diag.err.6313:                                    ; preds = %for.body.6310
   %t35105 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.1564, i64 212, i64 1, ptr %t35105) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.1564, i64 213, i64 1, ptr %t35105) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204347,7 +204347,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i79, %chk.i.i
 
 diag.err.6300.i:                                  ; preds = %rt_retain.exit.i
   %t35002.i = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 219, i64 1, ptr %t35002.i) #26
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 220, i64 1, ptr %t35002.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204519,7 +204519,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204596,7 +204596,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i13, %copy.st
 
 diag.err.6300.i:                                  ; preds = %rt_retain.exit.i
   %t35002.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 219, i64 1, ptr %t35002.i) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 220, i64 1, ptr %t35002.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204707,7 +204707,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204792,7 +204792,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i13, %copy.st
 
 diag.err.6300.i:                                  ; preds = %rt_retain.exit.i
   %t35002.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 219, i64 1, ptr %t35002.i) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 220, i64 1, ptr %t35002.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204903,7 +204903,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -204980,7 +204980,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i13, %copy.st
 
 diag.err.6300.i:                                  ; preds = %rt_retain.exit.i
   %t35002.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 219, i64 1, ptr %t35002.i) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 220, i64 1, ptr %t35002.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -205091,7 +205091,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -205176,7 +205176,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i13, %copy.st
 
 diag.err.6300.i:                                  ; preds = %rt_retain.exit.i
   %t35002.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 219, i64 1, ptr %t35002.i) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 220, i64 1, ptr %t35002.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -205287,7 +205287,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -205359,7 +205359,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -205431,7 +205431,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -205465,7 +205465,7 @@ stack_current_frame.exit:                         ; preds = %diag.ok.6299.i, %ch
 
 diag.err.6323:                                    ; preds = %stack_current_frame.exit
   %t35227 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1566, i64 194, i64 1, ptr %t35227) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1566, i64 195, i64 1, ptr %t35227) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -205920,7 +205920,7 @@ rt_retain.exit154:                                ; preds = %vec.merge.6335, %ch
 
 diag.err.6336:                                    ; preds = %rt_retain.exit154
   %t35342 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1572, i64 178, i64 1, ptr %t35342) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1572, i64 179, i64 1, ptr %t35342) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -206009,7 +206009,7 @@ rt_retain.exit.i193:                              ; preds = %inc.i.i191, %copy.s
 
 diag.err.6300.i:                                  ; preds = %rt_retain.exit.i193
   %t35002.i = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 219, i64 1, ptr %t35002.i) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 220, i64 1, ptr %t35002.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -206146,7 +206146,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -206188,7 +206188,7 @@ for.body.6339:                                    ; preds = %stack_current_frame
 
 diag.err.6342:                                    ; preds = %for.body.6339
   %t35378 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1574, i64 194, i64 1, ptr %t35378) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1574, i64 195, i64 1, ptr %t35378) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -206406,7 +206406,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -206448,7 +206448,7 @@ for.body.6356:                                    ; preds = %stack_current_frame
 
 diag.err.6359:                                    ; preds = %for.body.6356
   %t35469 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1580, i64 194, i64 1, ptr %t35469) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1580, i64 195, i64 1, ptr %t35469) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -206666,7 +206666,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -206708,7 +206708,7 @@ for.body.6373:                                    ; preds = %stack_current_frame
 
 diag.err.6376:                                    ; preds = %for.body.6373
   %t35560 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1586, i64 194, i64 1, ptr %t35560) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1586, i64 195, i64 1, ptr %t35560) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -206782,7 +206782,7 @@ rt_retain.exit14:                                 ; preds = %diag.ok.6388, %chk.
 
 diag.err.6389:                                    ; preds = %rt_retain.exit14
   %t35627 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1592, i64 194, i64 1, ptr %t35627) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1592, i64 195, i64 1, ptr %t35627) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -206885,7 +206885,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i34, %copy.st
 
 diag.err.6300.i:                                  ; preds = %rt_retain.exit.i
   %t35002.i = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 219, i64 1, ptr %t35002.i) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.1560, i64 220, i64 1, ptr %t35002.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -207068,7 +207068,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -207110,7 +207110,7 @@ for.body.6392:                                    ; preds = %stack_current_frame
 
 diag.err.6395:                                    ; preds = %for.body.6392
   %t35665 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1594, i64 194, i64 1, ptr %t35665) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1594, i64 195, i64 1, ptr %t35665) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -208084,7 +208084,7 @@ entry:
 
 diag.err.6298.i:                                  ; preds = %entry
   %t34979.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -208165,7 +208165,7 @@ if.end.6413:                                      ; preds = %stack_current_frame
 
 diag.err.6414:                                    ; preds = %if.end.6413
   %t35868 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1606, i64 236, i64 1, ptr %t35868) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1606, i64 237, i64 1, ptr %t35868) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -212463,7 +212463,7 @@ entry:
 
 diag.err.6698:                                    ; preds = %entry
   %t37035 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1637, i64 169, i64 1, ptr %t37035) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1637, i64 170, i64 1, ptr %t37035) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -213861,7 +213861,7 @@ if.end.6720:                                      ; preds = %dofree.i41, %dec.i3
 
 diag.err.6721:                                    ; preds = %if.end.6720
   %t37382 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1654, i64 177, i64 1, ptr %t37382) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1654, i64 178, i64 1, ptr %t37382) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -215730,7 +215730,7 @@ rt_retain.exit11:                                 ; preds = %diag.ok.6755, %chk.
 
 diag.err.6762:                                    ; preds = %rt_retain.exit11
   %t37882 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1683, i64 183, i64 1, ptr %t37882) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1683, i64 184, i64 1, ptr %t37882) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -215975,7 +215975,7 @@ copy.struct.Span.exit:                            ; preds = %rt_retain.exit.i, %
 
 diag.err.6767:                                    ; preds = %copy.struct.Span.exit
   %t37920 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1685, i64 305, i64 1, ptr %t37920) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1685, i64 306, i64 1, ptr %t37920) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -216159,7 +216159,7 @@ rt_release.exit170:                               ; preds = %rt_release.exit155,
 
 diag.err.6775:                                    ; preds = %rt_release.exit170
   %t37937 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1687, i64 191, i64 1, ptr %t37937) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1687, i64 192, i64 1, ptr %t37937) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -217074,7 +217074,7 @@ rt_release.exit642:                               ; preds = %copy.struct.Span.ex
 
 diag.err.6783:                                    ; preds = %rt_release.exit642
   %t38017 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1691, i64 230, i64 1, ptr %t38017) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1691, i64 231, i64 1, ptr %t38017) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -217713,7 +217713,7 @@ diag.ok.6816:                                     ; preds = %entry, %for.step.68
 
 diag.err.6823:                                    ; preds = %diag.ok.6816
   %t38185 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1699, i64 195, i64 1, ptr %t38185) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1699, i64 196, i64 1, ptr %t38185) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -217772,7 +217772,7 @@ rt_str_copy.exit:                                 ; preds = %for.body.6826, %cp.
 
 diag.err.6829:                                    ; preds = %rt_str_copy.exit
   %t38213 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1701, i64 310, i64 1, ptr %t38213) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1701, i64 311, i64 1, ptr %t38213) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -217970,7 +217970,7 @@ rt_str_copy.exit77:                               ; preds = %for.body.6832, %cp.
 
 diag.err.6835:                                    ; preds = %rt_str_copy.exit77
   %t38249 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1703, i64 306, i64 1, ptr %t38249) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1703, i64 307, i64 1, ptr %t38249) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -219447,7 +219447,7 @@ diag.ok.6872:                                     ; preds = %for.cond.6867.prehe
 
 diag.err.6879:                                    ; preds = %diag.ok.6872
   %t38526 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1713, i64 195, i64 1, ptr %t38526) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1713, i64 196, i64 1, ptr %t38526) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -219894,7 +219894,7 @@ for.body.6900:                                    ; preds = %for.body.6900.lr.ph
 
 diag.err.6903:                                    ; preds = %for.body.6900
   %t38666 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1722, i64 227, i64 1, ptr %t38666) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1722, i64 228, i64 1, ptr %t38666) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -220383,7 +220383,7 @@ entry:
 
 diag.err.6939:                                    ; preds = %entry
   %t38774 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1729, i64 171, i64 1, ptr %t38774) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1729, i64 172, i64 1, ptr %t38774) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -221484,7 +221484,7 @@ match.arm.6920:                                   ; preds = %entry
 
 diag.err.6298.i.i:                                ; preds = %match.arm.6920
   %t34979.i.i = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i.i) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i.i) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -221818,7 +221818,7 @@ match.arm.6921:                                   ; preds = %entry
 
 diag.err.6298.i.i575:                             ; preds = %match.arm.6921
   %t34979.i.i576 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 225, i64 1, ptr %t34979.i.i576) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1558, i64 226, i64 1, ptr %t34979.i.i576) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -222714,7 +222714,7 @@ entry:
 
 diag.err.6953:                                    ; preds = %entry
   %t38894 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1733, i64 165, i64 1, ptr %t38894) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1733, i64 166, i64 1, ptr %t38894) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -222894,7 +222894,7 @@ rt_release.exit45:                                ; preds = %copy.struct.Span.ex
 
 diag.err.6961:                                    ; preds = %rt_release.exit45
   %t38918 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1735, i64 225, i64 1, ptr %t38918) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1735, i64 226, i64 1, ptr %t38918) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -223198,7 +223198,7 @@ rt_release.exit178:                               ; preds = %copy.struct.Span.ex
 
 diag.err.6973:                                    ; preds = %rt_release.exit178
   %t38953 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1737, i64 260, i64 1, ptr %t38953) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1737, i64 261, i64 1, ptr %t38953) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -224439,7 +224439,7 @@ rt_release.exit828:                               ; preds = %copy.struct.Span.ex
 
 diag.err.6988:                                    ; preds = %rt_release.exit828
   %t39054 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1740, i64 170, i64 1, ptr %t39054) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1740, i64 171, i64 1, ptr %t39054) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -224649,7 +224649,7 @@ rt_retain.exit938:                                ; preds = %match.arm.6984, %ch
 
 diag.err.6996:                                    ; preds = %rt_retain.exit938
   %t39076 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.1742, i64 204, i64 1, ptr %t39076) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.1742, i64 205, i64 1, ptr %t39076) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -224826,7 +224826,7 @@ rt_release.exit1029:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7004:                                    ; preds = %rt_release.exit1029
   %t39096 = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.1744, i64 247, i64 1, ptr %t39096) #26
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.1744, i64 248, i64 1, ptr %t39096) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -226075,7 +226075,7 @@ rt_release.exit:                                  ; preds = %rt_str_copy.exit.th
 
 diag.err.7019:                                    ; preds = %rt_release.exit
   %t39193 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1747, i64 210, i64 1, ptr %t39193) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1747, i64 211, i64 1, ptr %t39193) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -226493,7 +226493,7 @@ rt_release.exit186:                               ; preds = %rt_str_copy.exit171
 
 diag.err.7025:                                    ; preds = %rt_release.exit186
   %t39261 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1751, i64 213, i64 1, ptr %t39261) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1751, i64 214, i64 1, ptr %t39261) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -226513,7 +226513,7 @@ diag.ok.7026:                                     ; preds = %rt_release.exit186
 
 diag.err.7033:                                    ; preds = %diag.ok.7026
   %t39276 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1753, i64 206, i64 1, ptr %t39276) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1753, i64 207, i64 1, ptr %t39276) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -226689,7 +226689,7 @@ rt_release.exit271:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7041:                                    ; preds = %rt_release.exit271
   %t39296 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1755, i64 245, i64 1, ptr %t39296) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1755, i64 246, i64 1, ptr %t39296) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -227749,7 +227749,7 @@ rt_release.exit831:                               ; preds = %dofree.i828, %dec.i
 
 diag.err.7053:                                    ; preds = %rt_release.exit831
   %t39388 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.1760, i64 243, i64 1, ptr %t39388) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.1760, i64 244, i64 1, ptr %t39388) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -228250,7 +228250,7 @@ rt_release.exit1094:                              ; preds = %rt_str_copy.exit107
 
 diag.err.7065:                                    ; preds = %rt_release.exit1094
   %t39422 = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.1762, i64 258, i64 1, ptr %t39422) #26
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.1762, i64 259, i64 1, ptr %t39422) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -230127,7 +230127,7 @@ rt_release.exit2106:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7087:                                    ; preds = %rt_release.exit2106
   %t39642 = load ptr, ptr @stderr, align 8
-  %6 = tail call i64 @fwrite(ptr nonnull @.str.1775, i64 223, i64 1, ptr %t39642) #26
+  %6 = tail call i64 @fwrite(ptr nonnull @.str.1775, i64 224, i64 1, ptr %t39642) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -231091,7 +231091,7 @@ rt_release.exit39:                                ; preds = %copy.struct.Span.ex
 
 diag.err.7105:                                    ; preds = %rt_release.exit39
   %t39732 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1778, i64 208, i64 1, ptr %t39732) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1778, i64 209, i64 1, ptr %t39732) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -232144,7 +232144,7 @@ rt_release.exit39:                                ; preds = %copy.struct.Span.ex
 
 diag.err.7121:                                    ; preds = %rt_release.exit39
   %t39821 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1782, i64 205, i64 1, ptr %t39821) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1782, i64 206, i64 1, ptr %t39821) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -233164,7 +233164,7 @@ rt_release.exit98:                                ; preds = %copy.struct.Span.ex
 
 diag.err.7137:                                    ; preds = %rt_release.exit98
   %t39925 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1786, i64 205, i64 1, ptr %t39925) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1786, i64 206, i64 1, ptr %t39925) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -234067,7 +234067,7 @@ entry:
 
 diag.err.7153:                                    ; preds = %entry
   %t40023 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1790, i64 175, i64 1, ptr %t40023) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1790, i64 176, i64 1, ptr %t40023) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -234465,7 +234465,7 @@ dofree.i136:                                      ; preds = %calldrop.i135, %dro
 
 diag.err.7161:                                    ; preds = %rt_release.exit29
   %t40054 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1793, i64 164, i64 1, ptr %t40054) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1793, i64 165, i64 1, ptr %t40054) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -234982,7 +234982,7 @@ rt_release.exit411:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7173:                                    ; preds = %rt_release.exit411
   %t40109 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1797, i64 215, i64 1, ptr %t40109) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1797, i64 216, i64 1, ptr %t40109) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -235678,7 +235678,7 @@ rt_release.exit:                                  ; preds = %copy.struct.Express
 
 diag.err.7184:                                    ; preds = %rt_release.exit
   %t40190 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1802, i64 274, i64 1, ptr %t40190) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1802, i64 275, i64 1, ptr %t40190) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -235773,7 +235773,7 @@ rt_release.exit49:                                ; preds = %copy.struct.Span.ex
 
 diag.err.7192:                                    ; preds = %rt_release.exit49
   %t40211 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1804, i64 236, i64 1, ptr %t40211) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1804, i64 237, i64 1, ptr %t40211) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -235975,7 +235975,7 @@ rt_retain.exit124:                                ; preds = %match.arm.7188, %ch
 
 diag.err.7194:                                    ; preds = %rt_retain.exit124
   %t40230 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1806, i64 251, i64 1, ptr %t40230) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1806, i64 252, i64 1, ptr %t40230) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -236190,7 +236190,7 @@ rt_str_copy.exit208:                              ; preds = %rt_retain.exit198, 
 
 diag.err.7204:                                    ; preds = %rt_str_copy.exit208
   %t40285 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1808, i64 223, i64 1, ptr %t40285) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1808, i64 224, i64 1, ptr %t40285) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -236713,7 +236713,7 @@ rt_release.exit456:                               ; preds = %copy.struct.Express
 
 diag.err.7212:                                    ; preds = %rt_release.exit456
   %t40349 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.1812, i64 261, i64 1, ptr %t40349) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.1812, i64 262, i64 1, ptr %t40349) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -236808,7 +236808,7 @@ rt_release.exit496:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7220:                                    ; preds = %rt_release.exit496
   %t40370 = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.1814, i64 229, i64 1, ptr %t40370) #26
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.1814, i64 230, i64 1, ptr %t40370) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -237030,7 +237030,7 @@ match.rest.7224:                                  ; preds = %rt_retain.exit606
 
 diag.err.7226:                                    ; preds = %match.rest.7224
   %t40402 = load ptr, ptr @stderr, align 8
-  %6 = tail call i64 @fwrite(ptr nonnull @.str.1817, i64 219, i64 1, ptr %t40402) #26
+  %6 = tail call i64 @fwrite(ptr nonnull @.str.1817, i64 220, i64 1, ptr %t40402) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -237363,7 +237363,7 @@ rt_release.exit794:                               ; preds = %match.end.7214, %ch
 
 diag.err.7228:                                    ; preds = %rt_release.exit794
   %t40432 = load ptr, ptr @stderr, align 8
-  %7 = tail call i64 @fwrite(ptr nonnull @.str.1819, i64 260, i64 1, ptr %t40432) #26
+  %7 = tail call i64 @fwrite(ptr nonnull @.str.1819, i64 261, i64 1, ptr %t40432) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -237620,7 +237620,7 @@ rt_release.exit69:                                ; preds = %copy.struct.Span.ex
 
 diag.err.7236:                                    ; preds = %rt_release.exit69
   %t40469 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1821, i64 206, i64 1, ptr %t40469) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1821, i64 207, i64 1, ptr %t40469) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -237894,7 +237894,7 @@ rt_release.exit170:                               ; preds = %rt_str_copy.exit.th
 
 diag.err.7248:                                    ; preds = %rt_release.exit170
   %t40494 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1823, i64 230, i64 1, ptr %t40494) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1823, i64 231, i64 1, ptr %t40494) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -238733,7 +238733,7 @@ copy.struct.Span.exit595:                         ; preds = %rt_retain.exit.i582
 
 diag.err.7272:                                    ; preds = %copy.struct.Span.exit595
   %t40683 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1834, i64 265, i64 1, ptr %t40683) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1834, i64 266, i64 1, ptr %t40683) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -239143,7 +239143,7 @@ copy.struct.Span.exit774:                         ; preds = %rt_retain.exit.i761
 
 diag.err.7283:                                    ; preds = %copy.struct.Span.exit774
   %t40771 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1838, i64 236, i64 1, ptr %t40771) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1838, i64 237, i64 1, ptr %t40771) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -239332,7 +239332,7 @@ rt_release.exit871:                               ; preds = %rt_release.exit856,
 
 diag.err.7285:                                    ; preds = %rt_release.exit871
   %t40793 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.1841, i64 283, i64 1, ptr %t40793) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.1841, i64 284, i64 1, ptr %t40793) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -239878,7 +239878,7 @@ diag.ok.7307:                                     ; preds = %diag.ok.7302
 
 diag.err.7314:                                    ; preds = %diag.ok.7307
   %t41003 = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.1852, i64 263, i64 1, ptr %t41003) #26
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.1852, i64 264, i64 1, ptr %t41003) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -241897,7 +241897,7 @@ entry:
 
 diag.err.7377:                                    ; preds = %entry
   %t41233 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1861, i64 175, i64 1, ptr %t41233) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1861, i64 176, i64 1, ptr %t41233) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -246055,7 +246055,7 @@ rt_release.exit1759:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7385:                                    ; preds = %rt_release.exit1759
   %t41423 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1876, i64 219, i64 1, ptr %t41423) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1876, i64 220, i64 1, ptr %t41423) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -246328,7 +246328,7 @@ rt_release.exit1876:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7393:                                    ; preds = %rt_release.exit1876
   %t41445 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1878, i64 237, i64 1, ptr %t41445) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1878, i64 238, i64 1, ptr %t41445) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -246696,7 +246696,7 @@ rt_release.exit2040:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7401:                                    ; preds = %rt_release.exit2040
   %t41479 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1880, i64 219, i64 1, ptr %t41479) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1880, i64 220, i64 1, ptr %t41479) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -246969,7 +246969,7 @@ rt_release.exit2190:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7409:                                    ; preds = %rt_release.exit2190
   %t41501 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.1882, i64 240, i64 1, ptr %t41501) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.1882, i64 241, i64 1, ptr %t41501) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -247340,7 +247340,7 @@ rt_release.exit2354:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7417:                                    ; preds = %rt_release.exit2354
   %t41539 = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.1884, i64 221, i64 1, ptr %t41539) #26
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.1884, i64 222, i64 1, ptr %t41539) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -247616,7 +247616,7 @@ rt_release.exit2504:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7425:                                    ; preds = %rt_release.exit2504
   %t41569 = load ptr, ptr @stderr, align 8
-  %6 = tail call i64 @fwrite(ptr nonnull @.str.1886, i64 189, i64 1, ptr %t41569) #26
+  %6 = tail call i64 @fwrite(ptr nonnull @.str.1886, i64 190, i64 1, ptr %t41569) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -247674,7 +247674,7 @@ rt_retain.exit2520:                               ; preds = %match.arm.7421, %ch
 
 diag.err.7433:                                    ; preds = %rt_retain.exit2520
   %t41593 = load ptr, ptr @stderr, align 8
-  %7 = tail call i64 @fwrite(ptr nonnull @.str.1888, i64 254, i64 1, ptr %t41593) #26
+  %7 = tail call i64 @fwrite(ptr nonnull @.str.1888, i64 255, i64 1, ptr %t41593) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -249278,7 +249278,7 @@ entry:
 
 diag.err.7449:                                    ; preds = %entry
   %t41675 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1890, i64 162, i64 1, ptr %t41675) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1890, i64 163, i64 1, ptr %t41675) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -249850,7 +249850,7 @@ rt_release.exit:                                  ; preds = %rt_str_copy.exit.th
 
 diag.err.7457:                                    ; preds = %rt_release.exit
   %t41726 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1892, i64 194, i64 1, ptr %t41726) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1892, i64 195, i64 1, ptr %t41726) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -250887,7 +250887,7 @@ rt_release.exit39:                                ; preds = %copy.struct.Span.ex
 
 diag.err.7469:                                    ; preds = %rt_release.exit39
   %t41819 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1896, i64 205, i64 1, ptr %t41819) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1896, i64 206, i64 1, ptr %t41819) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -251275,7 +251275,7 @@ rt_release.exit209:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7477:                                    ; preds = %rt_release.exit209
   %t41849 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1898, i64 223, i64 1, ptr %t41849) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1898, i64 224, i64 1, ptr %t41849) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -252225,7 +252225,7 @@ if.end.7481:                                      ; preds = %dofree.i686, %dec.i
 
 diag.err.7506:                                    ; preds = %if.end.7481
   %t41966 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1908, i64 198, i64 1, ptr %t41966) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1908, i64 199, i64 1, ptr %t41966) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -252807,7 +252807,7 @@ rt_release.exit49:                                ; preds = %copy.struct.Span.ex
 
 diag.err.7514:                                    ; preds = %rt_release.exit49
   %t42004 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1910, i64 208, i64 1, ptr %t42004) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1910, i64 209, i64 1, ptr %t42004) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -253075,7 +253075,7 @@ rt_release.exit150:                               ; preds = %rt_str_copy.exit.th
 
 diag.err.7526:                                    ; preds = %rt_release.exit150
   %t42029 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1912, i64 237, i64 1, ptr %t42029) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1912, i64 238, i64 1, ptr %t42029) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -253505,7 +253505,7 @@ rt_release.exit357:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7545:                                    ; preds = %rt_release.exit357
   %t42137 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1920, i64 213, i64 1, ptr %t42137) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1920, i64 214, i64 1, ptr %t42137) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -253826,7 +253826,7 @@ copy.struct.Span.exit531:                         ; preds = %rt_retain.exit.i518
 
 diag.err.7547:                                    ; preds = %copy.struct.Span.exit531
   %t42170 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1922, i64 257, i64 1, ptr %t42170) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1922, i64 258, i64 1, ptr %t42170) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -255149,7 +255149,7 @@ rt_release.exit39:                                ; preds = %copy.struct.Span.ex
 
 diag.err.7558:                                    ; preds = %rt_release.exit39
   %t42300 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1929, i64 211, i64 1, ptr %t42300) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1929, i64 212, i64 1, ptr %t42300) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -255497,7 +255497,7 @@ rt_release.exit194:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7566:                                    ; preds = %rt_release.exit194
   %t42329 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1931, i64 223, i64 1, ptr %t42329) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1931, i64 224, i64 1, ptr %t42329) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -256744,7 +256744,7 @@ if.end.7580:                                      ; preds = %entry
 
 diag.err.7581:                                    ; preds = %if.end.7580
   %t42433 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1936, i64 253, i64 1, ptr %t42433) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1936, i64 254, i64 1, ptr %t42433) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -256830,7 +256830,7 @@ rt_release.exit39:                                ; preds = %copy.struct.Express
 
 diag.err.7583:                                    ; preds = %rt_release.exit39
   %t42449 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1938, i64 240, i64 1, ptr %t42449) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1938, i64 241, i64 1, ptr %t42449) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -256921,7 +256921,7 @@ rt_release.exit77:                                ; preds = %copy.struct.Span.ex
 
 diag.err.7591:                                    ; preds = %rt_release.exit77
   %t42466 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1940, i64 208, i64 1, ptr %t42466) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1940, i64 209, i64 1, ptr %t42466) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -257201,7 +257201,7 @@ rt_release.exit192:                               ; preds = %copy.struct.Express
 
 diag.err.7599:                                    ; preds = %rt_release.exit192
   %t42507 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1944, i64 264, i64 1, ptr %t42507) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1944, i64 265, i64 1, ptr %t42507) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -257293,7 +257293,7 @@ rt_release.exit232:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7607:                                    ; preds = %rt_release.exit232
   %t42524 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.1946, i64 233, i64 1, ptr %t42524) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.1946, i64 234, i64 1, ptr %t42524) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -257513,7 +257513,7 @@ if.then.7609:                                     ; preds = %rt_retain.exit342
 
 diag.err.7612:                                    ; preds = %if.then.7609
   %t42563 = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.1949, i64 222, i64 1, ptr %t42563) #26
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.1949, i64 223, i64 1, ptr %t42563) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -258088,7 +258088,7 @@ rt_release.exit:                                  ; preds = %rt_str_copy.exit40.
 
 diag.err.7620:                                    ; preds = %rt_release.exit
   %t42606 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1951, i64 212, i64 1, ptr %t42606) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1951, i64 213, i64 1, ptr %t42606) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -258499,7 +258499,7 @@ copy.struct.Span.exit194:                         ; preds = %rt_retain.exit.i182
 
 diag.err.7635:                                    ; preds = %copy.struct.Span.exit194
   %t42698 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.1957, i64 236, i64 1, ptr %t42698) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.1957, i64 237, i64 1, ptr %t42698) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -259890,7 +259890,7 @@ rt_release.exit876:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7674:                                    ; preds = %rt_release.exit876
   %t42980 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.1972, i64 247, i64 1, ptr %t42980) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.1972, i64 248, i64 1, ptr %t42980) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -260168,7 +260168,7 @@ rt_release.exit1015:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7682:                                    ; preds = %rt_release.exit1015
   %t43004 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.1974, i64 205, i64 1, ptr %t43004) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.1974, i64 206, i64 1, ptr %t43004) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -261847,7 +261847,7 @@ rt_release.exit:                                  ; preds = %rt_str_copy.exit50.
 
 diag.err.7711:                                    ; preds = %rt_release.exit
   %t43235 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.1987, i64 208, i64 1, ptr %t43235) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.1987, i64 209, i64 1, ptr %t43235) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -262874,7 +262874,7 @@ copy.struct.Span.exit505:                         ; preds = %rt_retain.exit.i493
 
 diag.err.7740:                                    ; preds = %copy.struct.Span.exit505
   %t43450 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.2000, i64 236, i64 1, ptr %t43450) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.2000, i64 237, i64 1, ptr %t43450) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -263276,7 +263276,7 @@ copy.struct.Span.exit682:                         ; preds = %rt_retain.exit.i669
 
 diag.err.7751:                                    ; preds = %copy.struct.Span.exit682
   %t43526 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.2004, i64 204, i64 1, ptr %t43526) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.2004, i64 205, i64 1, ptr %t43526) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -263465,7 +263465,7 @@ rt_release.exit779:                               ; preds = %rt_release.exit764,
 
 diag.err.7753:                                    ; preds = %rt_release.exit779
   %t43548 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.2007, i64 254, i64 1, ptr %t43548) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.2007, i64 255, i64 1, ptr %t43548) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -263935,7 +263935,7 @@ for.end.7745:                                     ; preds = %for.step.7744, %for
 
 diag.err.7767:                                    ; preds = %for.end.7745
   %t43675 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.2014, i64 192, i64 1, ptr %t43675) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.2014, i64 193, i64 1, ptr %t43675) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -263968,7 +263968,7 @@ rt_retain.exit1012:                               ; preds = %match.arm.7762, %ch
 
 diag.err.7775:                                    ; preds = %rt_retain.exit1012
   %t43688 = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.2016, i64 208, i64 1, ptr %t43688) #26
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.2016, i64 209, i64 1, ptr %t43688) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -264625,7 +264625,7 @@ rt_release.exit1371:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7783:                                    ; preds = %rt_release.exit1371
   %t43776 = load ptr, ptr @stderr, align 8
-  %6 = tail call i64 @fwrite(ptr nonnull @.str.2022, i64 250, i64 1, ptr %t43776) #26
+  %6 = tail call i64 @fwrite(ptr nonnull @.str.2022, i64 251, i64 1, ptr %t43776) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -264904,7 +264904,7 @@ rt_release.exit1510:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7791:                                    ; preds = %rt_release.exit1510
   %t43802 = load ptr, ptr @stderr, align 8
-  %7 = tail call i64 @fwrite(ptr nonnull @.str.2024, i64 221, i64 1, ptr %t43802) #26
+  %7 = tail call i64 @fwrite(ptr nonnull @.str.2024, i64 222, i64 1, ptr %t43802) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -265404,7 +265404,7 @@ rt_release.exit1724:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7806:                                    ; preds = %rt_release.exit1724
   %t43933 = load ptr, ptr @stderr, align 8
-  %8 = tail call i64 @fwrite(ptr nonnull @.str.2031, i64 242, i64 1, ptr %t43933) #26
+  %8 = tail call i64 @fwrite(ptr nonnull @.str.2031, i64 243, i64 1, ptr %t43933) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -266455,7 +266455,7 @@ if.then.7814:                                     ; preds = %diag.ok.7813
 
 diag.err.7817:                                    ; preds = %if.then.7814
   %t44084 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.2039, i64 281, i64 1, ptr %t44084) #26
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.2039, i64 282, i64 1, ptr %t44084) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -267131,7 +267131,7 @@ copy.struct.Span.exit272:                         ; preds = %rt_retain.exit.i260
 
 diag.err.7845:                                    ; preds = %copy.struct.Span.exit272
   %t44235 = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.2045, i64 227, i64 1, ptr %t44235) #26
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.2045, i64 228, i64 1, ptr %t44235) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -267870,7 +267870,7 @@ for.body.7854:                                    ; preds = %for.body.7854.lr.ph
 
 diag.err.7857:                                    ; preds = %for.body.7854
   %t44368 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.2053, i64 293, i64 1, ptr %t44368) #26
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.2053, i64 294, i64 1, ptr %t44368) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -267961,7 +267961,7 @@ rt_release.exit640:                               ; preds = %copy.struct.Express
 
 diag.err.7859:                                    ; preds = %rt_release.exit640
   %t44391 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.2055, i64 280, i64 1, ptr %t44391) #26
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.2055, i64 281, i64 1, ptr %t44391) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -268056,7 +268056,7 @@ rt_release.exit680:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7867:                                    ; preds = %rt_release.exit680
   %t44412 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.2057, i64 243, i64 1, ptr %t44412) #26
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.2057, i64 244, i64 1, ptr %t44412) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -268258,7 +268258,7 @@ rt_retain.exit779:                                ; preds = %match.arm.7863, %ch
 
 diag.err.7869:                                    ; preds = %rt_retain.exit779
   %t44433 = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.2059, i64 239, i64 1, ptr %t44433) #26
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.2059, i64 240, i64 1, ptr %t44433) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -268355,7 +268355,7 @@ rt_release.exit819:                               ; preds = %copy.struct.Span.ex
 
 diag.err.7879:                                    ; preds = %rt_release.exit819
   %t44474 = load ptr, ptr @stderr, align 8
-  %6 = tail call i64 @fwrite(ptr nonnull @.str.2063, i64 189, i64 1, ptr %t44474) #26
+  %6 = tail call i64 @fwrite(ptr nonnull @.str.2063, i64 190, i64 1, ptr %t44474) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -268599,7 +268599,7 @@ rt_release.exit959:                               ; preds = %dofree.i956, %if.th
 
 diag.err.7884:                                    ; preds = %rt_release.exit959
   %t44531 = load ptr, ptr @stderr, align 8
-  %7 = tail call i64 @fwrite(ptr nonnull @.str.2067, i64 242, i64 1, ptr %t44531) #26
+  %7 = tail call i64 @fwrite(ptr nonnull @.str.2067, i64 243, i64 1, ptr %t44531) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -269082,7 +269082,7 @@ rt_release.exit1203:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7892:                                    ; preds = %rt_release.exit1203
   %t44570 = load ptr, ptr @stderr, align 8
-  %8 = tail call i64 @fwrite(ptr nonnull @.str.2069, i64 164, i64 1, ptr %t44570) #26
+  %8 = tail call i64 @fwrite(ptr nonnull @.str.2069, i64 165, i64 1, ptr %t44570) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -270274,7 +270274,7 @@ rt_release.exit1794:                              ; preds = %copy.struct.Express
 
 diag.err.7916:                                    ; preds = %rt_release.exit1794
   %t44717 = load ptr, ptr @stderr, align 8
-  %9 = tail call i64 @fwrite(ptr nonnull @.str.2075, i64 214, i64 1, ptr %t44717) #26
+  %9 = tail call i64 @fwrite(ptr nonnull @.str.2075, i64 215, i64 1, ptr %t44717) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -270663,7 +270663,7 @@ rt_release.exit1991:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7928:                                    ; preds = %rt_release.exit1991
   %t44757 = load ptr, ptr @stderr, align 8
-  %10 = tail call i64 @fwrite(ptr nonnull @.str.2077, i64 229, i64 1, ptr %t44757) #26
+  %10 = tail call i64 @fwrite(ptr nonnull @.str.2077, i64 230, i64 1, ptr %t44757) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -271255,7 +271255,7 @@ rt_release.exit2288:                              ; preds = %copy.struct.Express
 
 diag.err.7940:                                    ; preds = %rt_release.exit2288
   %t44839 = load ptr, ptr @stderr, align 8
-  %11 = tail call i64 @fwrite(ptr nonnull @.str.2081, i64 280, i64 1, ptr %t44839) #26
+  %11 = tail call i64 @fwrite(ptr nonnull @.str.2081, i64 281, i64 1, ptr %t44839) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -271350,7 +271350,7 @@ rt_release.exit2328:                              ; preds = %copy.struct.Span.ex
 
 diag.err.7948:                                    ; preds = %rt_release.exit2328
   %t44860 = load ptr, ptr @stderr, align 8
-  %12 = tail call i64 @fwrite(ptr nonnull @.str.2083, i64 243, i64 1, ptr %t44860) #26
+  %12 = tail call i64 @fwrite(ptr nonnull @.str.2083, i64 244, i64 1, ptr %t44860) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -271643,7 +271643,7 @@ rt_release.exit2476:                              ; preds = %match.end.7942, %ch
 
 diag.err.7952:                                    ; preds = %rt_release.exit2476
   %t44900 = load ptr, ptr @stderr, align 8
-  %13 = tail call i64 @fwrite(ptr nonnull @.str.2085, i64 249, i64 1, ptr %t44900) #26
+  %13 = tail call i64 @fwrite(ptr nonnull @.str.2085, i64 250, i64 1, ptr %t44900) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -271703,7 +271703,7 @@ vec.merge.7955:                                   ; preds = %vec.grow.7954, %rt_
 
 diag.err.7956:                                    ; preds = %vec.merge.7955
   %t44940 = load ptr, ptr @stderr, align 8
-  %14 = tail call i64 @fwrite(ptr nonnull @.str.2087, i64 236, i64 1, ptr %t44940) #26
+  %14 = tail call i64 @fwrite(ptr nonnull @.str.2087, i64 237, i64 1, ptr %t44940) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -272236,7 +272236,7 @@ rt_release.exit2737:                              ; preds = %rt_release.exit2722
 
 diag.err.7969:                                    ; preds = %rt_release.exit2737
   %t44993 = load ptr, ptr @stderr, align 8
-  %15 = tail call i64 @fwrite(ptr nonnull @.str.2089, i64 254, i64 1, ptr %t44993) #26
+  %15 = tail call i64 @fwrite(ptr nonnull @.str.2089, i64 255, i64 1, ptr %t44993) #26
   tail call void @exit(i32 1)
   unreachable
 
@@ -272903,7 +272903,7 @@ rt_release.exit3083:                              ; preds = %copy.struct.Express
 
 diag.err.7977:                                    ; preds = %rt_release.exit3083
   %t45058 = load ptr, ptr @stderr, align 8
-  %16 = tail call i64 @fwrite(ptr nonnull @.str.2093, i64 206, i64 1, ptr %t45058) #26
+  %16 = tail call i64 @fwrite(ptr nonnull @.str.2093, i64 207, i64 1, ptr %t45058) #26
   tail call void @exit(i32 1)
   unreachable
 

@@ -318,7 +318,9 @@ fn quoted(str s): str {
 }
 
 # Runs a shell command. Returns "" on success, otherwise the message Rust prints.
-fn run_command(str command, str program, str step): str {
+fn run_command(str command, str program, str step, &CliOptions opts): str {
+    debug(&opts, command);
+
     let err_file = "build/.last-command.err";
 
     # A temporary passed straight to an extern function is never released, so the
@@ -414,7 +416,8 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
                 + " -o "
                 + quoted(ir_path),
             "opt-18",
-            "opt"
+            "opt",
+            &opts
         );
         if (str_len(opt_error) > 0) {
             eprintln(opt_error);
@@ -434,7 +437,8 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
     let llc_error = run_command(
         "llc-18 " + quoted(ir_path) + " -filetype=obj -o " + quoted(obj_path),
         "llc-18",
-        "llc"
+        "llc",
+        &opts
     );
     if (str_len(llc_error) > 0) {
         eprintln(llc_error);
@@ -444,8 +448,7 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
     for (let i = 0; i < vector_size(&opts.link_objects); i += 1) {
         link_cmd += " " + quoted(opts.link_objects[i]);
     }
-    link_cmd += " -lm";
-    let link_error = run_command(link_cmd, "clang-18", "clang");
+    let link_error = run_command(link_cmd, "clang-18", "clang", &opts);
     if (str_len(link_error) > 0) {
         eprintln(link_error);
         return 1;

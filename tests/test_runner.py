@@ -4,11 +4,11 @@ A test case is a black box: compiler + program + flags -> compile result, stdout
 stderr, exit code (optionally under valgrind). Both compilers share the same CLI,
 so the same cases run against either of them.
 
-    python3 ./tests/selfhost_test_runner.py run    --compiler ./target/release/raptor                  # Rust compiler
-    python3 ./tests/selfhost_test_runner.py run    --compiler ./bootstrap/raptor --memory arc          # self-hosted
-    python3 ./tests/selfhost_test_runner.py run    --compiler ./bootstrap/raptor --memory leak -k 'memory/*'
-    python3 ./tests/selfhost_test_runner.py diff   --compiler ./target/release/raptor --compiler-b ./bootstrap/raptor examples/*.rp
-    python3 ./tests/selfhost_test_runner.py import --rust-tests tests --out selfhost/tests/cases            # one-off migration
+    python3 ./tests/test_runner.py run    --compiler ./target/release/raptor                  # Rust compiler
+    python3 ./tests/test_runner.py run    --compiler ./bootstrap/raptor --memory arc          # self-hosted
+    python3 ./tests/test_runner.py run    --compiler ./bootstrap/raptor --memory leak -k 'memory/*'
+    python3 ./tests/test_runner.py diff   --compiler ./target/release/raptor --compiler-b ./bootstrap/raptor examples/*.rp
+    python3 ./tests/test_runner.py import --rust-tests tests --out selfhost/tests/cases            # one-off migration
 
 Layout (written by `import`, edited by hand afterwards):
 

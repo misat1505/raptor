@@ -18,6 +18,11 @@ struct Timeval {
     i64 usec
 };
 
+enum LinkingMode {
+    Static,
+    Dynamic
+};
+
 struct CliOptions {
     str path,
     bool verbose,
@@ -28,7 +33,8 @@ struct CliOptions {
     str opt_level,
     str overflow,
     str memory,
-    bool dump
+    bool dump,
+    LinkingMode global_linking_mode
 };
 
 
@@ -161,6 +167,7 @@ fn usage(): void {
             + "    --run               After compiling, build and run the resulting executable\n"
             + "    -o <FILE>           Set output executable path\n"
             + "    --link <FILE>       Link an additional object file\n"
+            + "    --static            Try to link statically the whole executable\n"
             + "    -O0                 No optimization (default)\n"
             + "    -O1                 Basic optimization\n"
             + "    -O2                 Default optimization\n"
@@ -186,7 +193,8 @@ fn parse_cli(): CliOptions {
         opt_level: "",
         overflow: "ignore",
         memory: "arc",
-        dump: false
+        dump: false,
+        global_linking_mode: LinkingMode::Dynamic
     };
 
     let n = vector_size(&args);
@@ -226,6 +234,10 @@ fn parse_cli(): CliOptions {
         }
         if (a == "--leak") {
             opts.memory = "leak";
+            continue;
+        }
+        if (a == "--static") {
+            opts.global_linking_mode = LinkingMode::Static;
             continue;
         }
         if (str_starts_with(a, "--memory=")) {
@@ -447,6 +459,9 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
     let link_cmd = "clang-18 " + quoted(obj_path) + " -o " + quoted(exe_path) + " -no-pie";
     for (let i = 0; i < vector_size(&opts.link_objects); i += 1) {
         link_cmd += " " + quoted(opts.link_objects[i]);
+    }
+    if (opts.global_linking_mode matches LinkingMode::Static) {
+        link_cmd += " -static";
     }
     let link_error = run_command(link_cmd, "clang-18", "clang", &opts);
     if (str_len(link_error) > 0) {

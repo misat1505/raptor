@@ -35,11 +35,15 @@ jobs:
 
       - name: Build self-hosted compiler
         run: |
-          chmod +x ./bootstrap/bootstrap.sh
-          ./bootstrap/bootstrap.sh
+          chmod +x ./scripts/bootstrap-compiler.sh
+          ./scripts/bootstrap-compiler.sh
 
-      - name: Run self-hosted tests (ARC)
+      - name: Run tests
         run: |
-          python3 ./tests/test_runner.py run \
-            --compiler ./bootstrap/raptor \
-            --memory arc
+          chmod +x ./scripts/run-tests.sh
+          ./scripts/run-tests.sh
+
+      - name: Check compiler stability
+        run: |
+          chmod +x ./scripts/compiler-stability-check.sh
+          ./scripts/compiler-stability-check.sh

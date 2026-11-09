@@ -2,7 +2,13 @@
 # Builds the self-hosted Raptor compiler from a checked-in LLVM IR file.
 set -xe
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 ROOT="$(dirname "$DIR")"
 
 mkdir -p "$ROOT/build"

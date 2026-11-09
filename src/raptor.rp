@@ -18,6 +18,11 @@ struct Timeval {
     i64 usec
 };
 
+enum LinkingMode {
+    Static,
+    Dynamic
+};
+
 struct CliOptions {
     str path,
     bool verbose,
@@ -28,7 +33,8 @@ struct CliOptions {
     str opt_level,
     str overflow,
     str memory,
-    bool dump
+    bool dump,
+    LinkingMode global_linking_mode
 };
 
 
@@ -161,6 +167,7 @@ fn usage(): void {
             + "    --run               After compiling, build and run the resulting executable\n"
             + "    -o <FILE>           Set output executable path\n"
             + "    --link <FILE>       Link an additional object file\n"
+            + "    --static            Try to link statically the whole executable\n"
             + "    -O0                 No optimization (default)\n"
             + "    -O1                 Basic optimization\n"
             + "    -O2                 Default optimization\n"
@@ -186,7 +193,8 @@ fn parse_cli(): CliOptions {
         opt_level: "",
         overflow: "ignore",
         memory: "arc",
-        dump: false
+        dump: false,
+        global_linking_mode: LinkingMode::Dynamic
     };
 
     let n = vector_size(&args);
@@ -226,6 +234,10 @@ fn parse_cli(): CliOptions {
         }
         if (a == "--leak") {
             opts.memory = "leak";
+            continue;
+        }
+        if (a == "--static") {
+            opts.global_linking_mode = LinkingMode::Static;
             continue;
         }
         if (str_starts_with(a, "--memory=")) {
@@ -318,7 +330,9 @@ fn quoted(str s): str {
 }
 
 # Runs a shell command. Returns "" on success, otherwise the message Rust prints.
-fn run_command(str command, str program, str step): str {
+fn run_command(str command, str program, str step, &CliOptions opts): str {
+    debug(&opts, command);
+
     let err_file = "build/.last-command.err";
 
     # A temporary passed straight to an extern function is never released, so the
@@ -414,7 +428,8 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
                 + " -o "
                 + quoted(ir_path),
             "opt-18",
-            "opt"
+            "opt",
+            &opts
         );
         if (str_len(opt_error) > 0) {
             eprintln(opt_error);
@@ -434,7 +449,8 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
     let llc_error = run_command(
         "llc-18 " + quoted(ir_path) + " -filetype=obj -o " + quoted(obj_path),
         "llc-18",
-        "llc"
+        "llc",
+        &opts
     );
     if (str_len(llc_error) > 0) {
         eprintln(llc_error);
@@ -444,8 +460,10 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
     for (let i = 0; i < vector_size(&opts.link_objects); i += 1) {
         link_cmd += " " + quoted(opts.link_objects[i]);
     }
-    link_cmd += " -lm";
-    let link_error = run_command(link_cmd, "clang-18", "clang");
+    if (opts.global_linking_mode matches LinkingMode::Static) {
+        link_cmd += " -static";
+    }
+    let link_error = run_command(link_cmd, "clang-18", "clang", &opts);
     if (str_len(link_error) > 0) {
         eprintln(link_error);
         return 1;

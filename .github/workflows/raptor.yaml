@@ -36,7 +36,7 @@ jobs:
       - name: Build self-hosted compiler
         run: |
           chmod +x ./bootstrap/bootstrap.sh
-          ./scripts/bootstrap-compiler.sh
+          ./bootstrap/bootstrap.sh
 
       - name: Run tests
         run: |

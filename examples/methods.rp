@@ -3,7 +3,20 @@ struct Product {
     str name,
     i64 price
 
-    fn get_total_price(): i64 {
+    fn get_total_price(self, i64 quantity): i64 {
         return self.price * quantity;
     }
+
+    fn new(i64 id, str name, i64 price): Product {
+        return Product {
+            id: id,
+            name: name,
+            price: price
+        };
+    }
+
+    fn do_nothing(self): void {}
 };
+
+let product = Product { id: 1, name: "Welna", price: 2137 };
+println(product.get_total_price(5, "usaduas"));

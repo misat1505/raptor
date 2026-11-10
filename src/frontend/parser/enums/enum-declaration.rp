@@ -82,6 +82,25 @@ fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNod
         }
     }
 
+    let methods: TypeMethodNode[] = [];
+    while (true) {
+        match (parser_parse_type_method(&parser)) {
+            ResultOptionTypeMethodNode::Err(err) {
+                return ResultOptionEnumDeclarationNode::Err(err);
+            },
+            ResultOptionTypeMethodNode::Ok(option_type_method) {
+                match (option_type_method) {
+                    OptionTypeMethodNode::Some(type_method_node) {
+                        vector_push(&methods, type_method_node);
+                    },
+                    OptionTypeMethodNode::None {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
     if (brace_close matches ResultToken::Err(err)) {
         return ResultOptionEnumDeclarationNode::Err(err);
@@ -97,7 +116,8 @@ fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNod
                 value: EnumDeclaration {
                     identifier: identifier,
                     members: members,
-                    enum_derives: enum_derives
+                    enum_derives: enum_derives,
+                    methods: methods
                 },
                 span: span_new(enum_token.span.start, semicolon_token.span.end)
             }));

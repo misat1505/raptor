@@ -4,5 +4,6 @@
 build/
 examples/libs
 examples/raylib
+src/ast.rp
 
 /bootstrap/raptor

@@ -94,7 +94,7 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
             }
         }
     }
-    
+
     let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
     if (brace_close matches ResultToken::Err(err)) {
         return ResultOptionStructDeclarationNode::Err(err);
@@ -261,6 +261,19 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
                     if (paren_open matches ResultToken::Err(err)) {
                         return ResultOptionTypeMethodNode::Err(err);
                     }
+                    let self_node = OptionIdentifierNode::None;
+                    let current_token = parser_current_token(&parser);
+                    if (current_token.category matches TokenCategory::Identifier) {
+                        if (current_token.value matches TokenValue::String(ident)) {
+                            if (ident == "self") {
+                                self_node = OptionIdentifierNode::Some(IdentifierNode {
+                                    value: ident,
+                                    span: current_token.span
+                                });
+                                parser_next_token(&parser);
+                            }
+                        }
+                    }
                     let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
                     if (paren_close matches ResultToken::Err(err)) {
                         return ResultOptionTypeMethodNode::Err(err);
@@ -301,7 +314,7 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
                                     return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::Some(TypeMethodNode {
                                         value: TypeMethod { 
                                             identifier,
-                                            self_identifier: OptionIdentifierNode::None,
+                                            self_identifier: self_node,
                                             parameters: [],
                                             return_type: type_node,
                                             block: block_node

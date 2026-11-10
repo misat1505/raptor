@@ -335,7 +335,7 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
                                     value: TypeMethod {
                                         identifier: identifier,
                                         self_identifier: self_node,
-                                        parameters: [],
+                                        parameters: parameters,
                                         return_type: type_node,
                                         block: block_node
                                     },

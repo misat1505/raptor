@@ -1,0 +1,1426 @@
+let ast = Program {
+    statements: [
+        StatementNode {
+            value: Statement::Declaration(DeclarationStatement {
+                identifier: IdentifierNode {
+                    value: "product",
+                    span: Span {
+                        start: Position {
+                            line: 21,
+                            column: 5,
+                            offset: 377,
+                            filename: OptionStr::Some("./examples/methods.rp")
+                        },
+                        end: Position {
+                            line: 21,
+                            column: 12,
+                            offset: 384,
+                            filename: OptionStr::Some("./examples/methods.rp")
+                        }
+                    }
+                },
+                kind: VariableDeclarationKind::LET(LetDeclarationKind {
+                    var_type: OptionTypeNode::None,
+                    value: ExpressionNode {
+                        value: Expression::StructLiteral(StructLiteralNode {
+                            value: StructLiteral {
+                                identifier: IdentifierNode {
+                                    value: "Product",
+                                    span: Span {
+                                        start: Position {
+                                            line: 21,
+                                            column: 15,
+                                            offset: 387,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        },
+                                        end: Position {
+                                            line: 21,
+                                            column: 22,
+                                            offset: 394,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        }
+                                    }
+                                },
+                                fields: [
+                                    StructLiteralFieldNode {
+                                        value: StructLiteralField {
+                                            identifier: IdentifierNode {
+                                                value: "id",
+                                                span: Span {
+                                                    start: Position {
+                                                        line: 21,
+                                                        column: 25,
+                                                        offset: 397,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    },
+                                                    end: Position {
+                                                        line: 21,
+                                                        column: 27,
+                                                        offset: 399,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    }
+                                                }
+                                            },
+                                            value: ExpressionNode {
+                                                value: Expression::Literal(Literal::I64(1)),
+                                                span: Span {
+                                                    start: Position {
+                                                        line: 21,
+                                                        column: 29,
+                                                        offset: 401,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    },
+                                                    end: Position {
+                                                        line: 21,
+                                                        column: 30,
+                                                        offset: 402,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        span: Span {
+                                            start: Position {
+                                                line: 21,
+                                                column: 25,
+                                                offset: 397,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            },
+                                            end: Position {
+                                                line: 21,
+                                                column: 30,
+                                                offset: 402,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            }
+                                        }
+                                    },
+                                    StructLiteralFieldNode {
+                                        value: StructLiteralField {
+                                            identifier: IdentifierNode {
+                                                value: "name",
+                                                span: Span {
+                                                    start: Position {
+                                                        line: 21,
+                                                        column: 32,
+                                                        offset: 404,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    },
+                                                    end: Position {
+                                                        line: 21,
+                                                        column: 36,
+                                                        offset: 408,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    }
+                                                }
+                                            },
+                                            value: ExpressionNode {
+                                                value: Expression::Literal(Literal::String("Welna")),
+                                                span: Span {
+                                                    start: Position {
+                                                        line: 21,
+                                                        column: 38,
+                                                        offset: 410,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    },
+                                                    end: Position {
+                                                        line: 21,
+                                                        column: 45,
+                                                        offset: 417,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        span: Span {
+                                            start: Position {
+                                                line: 21,
+                                                column: 32,
+                                                offset: 404,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            },
+                                            end: Position {
+                                                line: 21,
+                                                column: 45,
+                                                offset: 417,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            }
+                                        }
+                                    },
+                                    StructLiteralFieldNode {
+                                        value: StructLiteralField {
+                                            identifier: IdentifierNode {
+                                                value: "price",
+                                                span: Span {
+                                                    start: Position {
+                                                        line: 21,
+                                                        column: 47,
+                                                        offset: 419,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    },
+                                                    end: Position {
+                                                        line: 21,
+                                                        column: 52,
+                                                        offset: 424,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    }
+                                                }
+                                            },
+                                            value: ExpressionNode {
+                                                value: Expression::Literal(Literal::I64(2137)),
+                                                span: Span {
+                                                    start: Position {
+                                                        line: 21,
+                                                        column: 54,
+                                                        offset: 426,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    },
+                                                    end: Position {
+                                                        line: 21,
+                                                        column: 58,
+                                                        offset: 430,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        span: Span {
+                                            start: Position {
+                                                line: 21,
+                                                column: 47,
+                                                offset: 419,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            },
+                                            end: Position {
+                                                line: 21,
+                                                column: 58,
+                                                offset: 430,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            }
+                                        }
+                                    }
+                                ]
+                            },
+                            span: Span {
+                                start: Position {
+                                    line: 21,
+                                    column: 15,
+                                    offset: 387,
+                                    filename: OptionStr::Some("./examples/methods.rp")
+                                },
+                                end: Position {
+                                    line: 21,
+                                    column: 60,
+                                    offset: 432,
+                                    filename: OptionStr::Some("./examples/methods.rp")
+                                }
+                            }
+                        }),
+                        span: Span {
+                            start: Position {
+                                line: 21,
+                                column: 15,
+                                offset: 387,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            },
+                            end: Position {
+                                line: 21,
+                                column: 60,
+                                offset: 432,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            }
+                        }
+                    }
+                })
+            }),
+            span: Span {
+                start: Position {
+                    line: 21,
+                    column: 1,
+                    offset: 373,
+                    filename: OptionStr::Some("./examples/methods.rp")
+                },
+                end: Position {
+                    line: 21,
+                    column: 61,
+                    offset: 433,
+                    filename: OptionStr::Some("./examples/methods.rp")
+                }
+            }
+        },
+        StatementNode {
+            value: Statement::FunctionCall(FunctionCallExpression {
+                identifier: IdentifierNode {
+                    value: "println",
+                    span: Span {
+                        start: Position {
+                            line: 22,
+                            column: 1,
+                            offset: 435,
+                            filename: OptionStr::Some("./examples/methods.rp")
+                        },
+                        end: Position {
+                            line: 22,
+                            column: 8,
+                            offset: 442,
+                            filename: OptionStr::Some("./examples/methods.rp")
+                        }
+                    }
+                },
+                arguments: [
+                    ArgumentNode {
+                        value: Argument {
+                            value: ExpressionNode {
+                                value: Expression::MethodCall(MethodCallExpression {
+                                    instance: ExpressionNode {
+                                        value: Expression::Variable("product"),
+                                        span: Span {
+                                            start: Position {
+                                                line: 22,
+                                                column: 9,
+                                                offset: 443,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            },
+                                            end: Position {
+                                                line: 22,
+                                                column: 17,
+                                                offset: 451,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            }
+                                        }
+                                    },
+                                    field: IdentifierNode {
+                                        value: "get_total_price",
+                                        span: Span {
+                                            start: Position {
+                                                line: 22,
+                                                column: 17,
+                                                offset: 451,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            },
+                                            end: Position {
+                                                line: 22,
+                                                column: 32,
+                                                offset: 466,
+                                                filename: OptionStr::Some("./examples/methods.rp")
+                                            }
+                                        }
+                                    },
+                                    arguments: [
+                                        ArgumentNode {
+                                            value: Argument {
+                                                value: ExpressionNode {
+                                                    value: Expression::Literal(Literal::I64(5)),
+                                                    span: Span {
+                                                        start: Position {
+                                                            line: 22,
+                                                            column: 33,
+                                                            offset: 467,
+                                                            filename: OptionStr::Some("./examples/methods.rp")
+                                                        },
+                                                        end: Position {
+                                                            line: 22,
+                                                            column: 34,
+                                                            offset: 468,
+                                                            filename: OptionStr::Some("./examples/methods.rp")
+                                                        }
+                                                    }
+                                                },
+                                                passed_by: PassedBy::Value
+                                            },
+                                            span: Span {
+                                                start: Position {
+                                                    line: 22,
+                                                    column: 33,
+                                                    offset: 467,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 22,
+                                                    column: 34,
+                                                    offset: 468,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        },
+                                        ArgumentNode {
+                                            value: Argument {
+                                                value: ExpressionNode {
+                                                    value: Expression::Literal(Literal::String("usaduas")),
+                                                    span: Span {
+                                                        start: Position {
+                                                            line: 22,
+                                                            column: 36,
+                                                            offset: 470,
+                                                            filename: OptionStr::Some("./examples/methods.rp")
+                                                        },
+                                                        end: Position {
+                                                            line: 22,
+                                                            column: 45,
+                                                            offset: 479,
+                                                            filename: OptionStr::Some("./examples/methods.rp")
+                                                        }
+                                                    }
+                                                },
+                                                passed_by: PassedBy::Value
+                                            },
+                                            span: Span {
+                                                start: Position {
+                                                    line: 22,
+                                                    column: 36,
+                                                    offset: 470,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 22,
+                                                    column: 45,
+                                                    offset: 479,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }),
+                                span: Span {
+                                    start: Position {
+                                        line: 22,
+                                        column: 9,
+                                        offset: 443,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 22,
+                                        column: 46,
+                                        offset: 480,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            passed_by: PassedBy::Value
+                        },
+                        span: Span {
+                            start: Position {
+                                line: 22,
+                                column: 9,
+                                offset: 443,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            },
+                            end: Position {
+                                line: 22,
+                                column: 46,
+                                offset: 480,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            }
+                        }
+                    }
+                ]
+            }),
+            span: Span {
+                start: Position {
+                    line: 22,
+                    column: 1,
+                    offset: 435,
+                    filename: OptionStr::Some("./examples/methods.rp")
+                },
+                end: Position {
+                    line: 22,
+                    column: 48,
+                    offset: 482,
+                    filename: OptionStr::Some("./examples/methods.rp")
+                }
+            }
+        }
+    ],
+    functions: [],
+    extern_functions: [],
+    declared_types: [
+        DeclaredTypeNode {
+            value: DeclaredType::Struct(StructDeclaration {
+                identifier: IdentifierNode {
+                    value: "Product",
+                    span: Span {
+                        start: Position {
+                            line: 1,
+                            column: 8,
+                            offset: 7,
+                            filename: OptionStr::Some("./examples/methods.rp")
+                        },
+                        end: Position {
+                            line: 1,
+                            column: 15,
+                            offset: 14,
+                            filename: OptionStr::Some("./examples/methods.rp")
+                        }
+                    }
+                },
+                members: [
+                    StructMemberNode {
+                        value: StructMember {
+                            identifier: IdentifierNode {
+                                value: "id",
+                                span: Span {
+                                    start: Position {
+                                        line: 2,
+                                        column: 9,
+                                        offset: 26,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 2,
+                                        column: 11,
+                                        offset: 28,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            member_type: TypeNode {
+                                value: Type::I64,
+                                span: Span {
+                                    start: Position {
+                                        line: 2,
+                                        column: 5,
+                                        offset: 22,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 2,
+                                        column: 8,
+                                        offset: 25,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            }
+                        },
+                        span: Span {
+                            start: Position {
+                                line: 2,
+                                column: 5,
+                                offset: 22,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            },
+                            end: Position {
+                                line: 2,
+                                column: 11,
+                                offset: 28,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            }
+                        }
+                    },
+                    StructMemberNode {
+                        value: StructMember {
+                            identifier: IdentifierNode {
+                                value: "name",
+                                span: Span {
+                                    start: Position {
+                                        line: 3,
+                                        column: 9,
+                                        offset: 39,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 3,
+                                        column: 13,
+                                        offset: 43,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            member_type: TypeNode {
+                                value: Type::Str,
+                                span: Span {
+                                    start: Position {
+                                        line: 3,
+                                        column: 5,
+                                        offset: 35,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 3,
+                                        column: 8,
+                                        offset: 38,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            }
+                        },
+                        span: Span {
+                            start: Position {
+                                line: 3,
+                                column: 5,
+                                offset: 35,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            },
+                            end: Position {
+                                line: 3,
+                                column: 13,
+                                offset: 43,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            }
+                        }
+                    },
+                    StructMemberNode {
+                        value: StructMember {
+                            identifier: IdentifierNode {
+                                value: "price",
+                                span: Span {
+                                    start: Position {
+                                        line: 4,
+                                        column: 9,
+                                        offset: 54,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 4,
+                                        column: 14,
+                                        offset: 59,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            member_type: TypeNode {
+                                value: Type::I64,
+                                span: Span {
+                                    start: Position {
+                                        line: 4,
+                                        column: 5,
+                                        offset: 50,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 4,
+                                        column: 8,
+                                        offset: 53,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            }
+                        },
+                        span: Span {
+                            start: Position {
+                                line: 4,
+                                column: 5,
+                                offset: 50,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            },
+                            end: Position {
+                                line: 4,
+                                column: 14,
+                                offset: 59,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            }
+                        }
+                    }
+                ],
+                struct_derives: [],
+                methods: [
+                    TypeMethodNode {
+                        value: TypeMethod {
+                            identifier: IdentifierNode {
+                                value: "get_total_price",
+                                span: Span {
+                                    start: Position {
+                                        line: 6,
+                                        column: 8,
+                                        offset: 70,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 6,
+                                        column: 23,
+                                        offset: 85,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            self_identifier: OptionIdentifierNode::Some(IdentifierNode {
+                                value: "self",
+                                span: Span {
+                                    start: Position {
+                                        line: 6,
+                                        column: 24,
+                                        offset: 86,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 6,
+                                        column: 28,
+                                        offset: 90,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            }),
+                            parameters: [
+                                ParameterNode {
+                                    value: Parameter {
+                                        passed_by: PassedBy::Value,
+                                        parameter_type: TypeNode {
+                                            value: Type::I64,
+                                            span: Span {
+                                                start: Position {
+                                                    line: 6,
+                                                    column: 30,
+                                                    offset: 92,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 6,
+                                                    column: 33,
+                                                    offset: 95,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        },
+                                        identifier: IdentifierNode {
+                                            value: "quantity",
+                                            span: Span {
+                                                start: Position {
+                                                    line: 6,
+                                                    column: 34,
+                                                    offset: 96,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 6,
+                                                    column: 42,
+                                                    offset: 104,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        }
+                                    },
+                                    span: Span {
+                                        start: Position {
+                                            line: 6,
+                                            column: 30,
+                                            offset: 92,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        },
+                                        end: Position {
+                                            line: 6,
+                                            column: 42,
+                                            offset: 104,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        }
+                                    }
+                                }
+                            ],
+                            return_type: TypeNode {
+                                value: Type::I64,
+                                span: Span {
+                                    start: Position {
+                                        line: 6,
+                                        column: 45,
+                                        offset: 107,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 6,
+                                        column: 48,
+                                        offset: 110,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            block: BlockNode {
+                                value: Block {
+                                    statements: [
+                                        StatementNode {
+                                            value: Statement::Return(OptionExpressionNode::Some(ExpressionNode {
+                                                value: Expression::Multiplication(BinaryExpression {
+                                                    left: ExpressionNode {
+                                                        value: Expression::FieldAccess(FieldAccessExpression {
+                                                            instance: ExpressionNode {
+                                                                value: Expression::Variable("self"),
+                                                                span: Span {
+                                                                    start: Position {
+                                                                        line: 7,
+                                                                        column: 16,
+                                                                        offset: 129,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    },
+                                                                    end: Position {
+                                                                        line: 7,
+                                                                        column: 21,
+                                                                        offset: 134,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    }
+                                                                }
+                                                            },
+                                                            field: IdentifierNode {
+                                                                value: "price",
+                                                                span: Span {
+                                                                    start: Position {
+                                                                        line: 7,
+                                                                        column: 21,
+                                                                        offset: 134,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    },
+                                                                    end: Position {
+                                                                        line: 7,
+                                                                        column: 26,
+                                                                        offset: 139,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    }
+                                                                }
+                                                            }
+                                                        }),
+                                                        span: Span {
+                                                            start: Position {
+                                                                line: 7,
+                                                                column: 16,
+                                                                offset: 129,
+                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                            },
+                                                            end: Position {
+                                                                line: 7,
+                                                                column: 26,
+                                                                offset: 139,
+                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                            }
+                                                        }
+                                                    },
+                                                    right: ExpressionNode {
+                                                        value: Expression::Variable("quantity"),
+                                                        span: Span {
+                                                            start: Position {
+                                                                line: 7,
+                                                                column: 29,
+                                                                offset: 142,
+                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                            },
+                                                            end: Position {
+                                                                line: 7,
+                                                                column: 37,
+                                                                offset: 150,
+                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                            }
+                                                        }
+                                                    }
+                                                }),
+                                                span: Span {
+                                                    start: Position {
+                                                        line: 7,
+                                                        column: 16,
+                                                        offset: 129,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    },
+                                                    end: Position {
+                                                        line: 7,
+                                                        column: 37,
+                                                        offset: 150,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    }
+                                                }
+                                            })),
+                                            span: Span {
+                                                start: Position {
+                                                    line: 7,
+                                                    column: 9,
+                                                    offset: 122,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 7,
+                                                    column: 38,
+                                                    offset: 151,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                span: Span {
+                                    start: Position {
+                                        line: 6,
+                                        column: 49,
+                                        offset: 111,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 8,
+                                        column: 6,
+                                        offset: 158,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            }
+                        },
+                        span: Span {
+                            start: Position {
+                                line: 6,
+                                column: 5,
+                                offset: 67,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            },
+                            end: Position {
+                                line: 8,
+                                column: 6,
+                                offset: 158,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            }
+                        }
+                    },
+                    TypeMethodNode {
+                        value: TypeMethod {
+                            identifier: IdentifierNode {
+                                value: "new",
+                                span: Span {
+                                    start: Position {
+                                        line: 10,
+                                        column: 8,
+                                        offset: 169,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 10,
+                                        column: 11,
+                                        offset: 172,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            self_identifier: OptionIdentifierNode::None,
+                            parameters: [
+                                ParameterNode {
+                                    value: Parameter {
+                                        passed_by: PassedBy::Value,
+                                        parameter_type: TypeNode {
+                                            value: Type::I64,
+                                            span: Span {
+                                                start: Position {
+                                                    line: 10,
+                                                    column: 12,
+                                                    offset: 173,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 10,
+                                                    column: 15,
+                                                    offset: 176,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        },
+                                        identifier: IdentifierNode {
+                                            value: "id",
+                                            span: Span {
+                                                start: Position {
+                                                    line: 10,
+                                                    column: 16,
+                                                    offset: 177,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 10,
+                                                    column: 18,
+                                                    offset: 179,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        }
+                                    },
+                                    span: Span {
+                                        start: Position {
+                                            line: 10,
+                                            column: 12,
+                                            offset: 173,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        },
+                                        end: Position {
+                                            line: 10,
+                                            column: 18,
+                                            offset: 179,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        }
+                                    }
+                                },
+                                ParameterNode {
+                                    value: Parameter {
+                                        passed_by: PassedBy::Value,
+                                        parameter_type: TypeNode {
+                                            value: Type::Str,
+                                            span: Span {
+                                                start: Position {
+                                                    line: 10,
+                                                    column: 20,
+                                                    offset: 181,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 10,
+                                                    column: 23,
+                                                    offset: 184,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        },
+                                        identifier: IdentifierNode {
+                                            value: "name",
+                                            span: Span {
+                                                start: Position {
+                                                    line: 10,
+                                                    column: 24,
+                                                    offset: 185,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 10,
+                                                    column: 28,
+                                                    offset: 189,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        }
+                                    },
+                                    span: Span {
+                                        start: Position {
+                                            line: 10,
+                                            column: 20,
+                                            offset: 181,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        },
+                                        end: Position {
+                                            line: 10,
+                                            column: 28,
+                                            offset: 189,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        }
+                                    }
+                                },
+                                ParameterNode {
+                                    value: Parameter {
+                                        passed_by: PassedBy::Value,
+                                        parameter_type: TypeNode {
+                                            value: Type::I64,
+                                            span: Span {
+                                                start: Position {
+                                                    line: 10,
+                                                    column: 30,
+                                                    offset: 191,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 10,
+                                                    column: 33,
+                                                    offset: 194,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        },
+                                        identifier: IdentifierNode {
+                                            value: "price",
+                                            span: Span {
+                                                start: Position {
+                                                    line: 10,
+                                                    column: 34,
+                                                    offset: 195,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 10,
+                                                    column: 39,
+                                                    offset: 200,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        }
+                                    },
+                                    span: Span {
+                                        start: Position {
+                                            line: 10,
+                                            column: 30,
+                                            offset: 191,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        },
+                                        end: Position {
+                                            line: 10,
+                                            column: 39,
+                                            offset: 200,
+                                            filename: OptionStr::Some("./examples/methods.rp")
+                                        }
+                                    }
+                                }
+                            ],
+                            return_type: TypeNode {
+                                value: Type::Unresolved("Product"),
+                                span: Span {
+                                    start: Position {
+                                        line: 10,
+                                        column: 42,
+                                        offset: 203,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 10,
+                                        column: 49,
+                                        offset: 210,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            block: BlockNode {
+                                value: Block {
+                                    statements: [
+                                        StatementNode {
+                                            value: Statement::Return(OptionExpressionNode::Some(ExpressionNode {
+                                                value: Expression::StructLiteral(StructLiteralNode {
+                                                    value: StructLiteral {
+                                                        identifier: IdentifierNode {
+                                                            value: "Product",
+                                                            span: Span {
+                                                                start: Position {
+                                                                    line: 11,
+                                                                    column: 16,
+                                                                    offset: 229,
+                                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                                },
+                                                                end: Position {
+                                                                    line: 11,
+                                                                    column: 23,
+                                                                    offset: 236,
+                                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                                }
+                                                            }
+                                                        },
+                                                        fields: [
+                                                            StructLiteralFieldNode {
+                                                                value: StructLiteralField {
+                                                                    identifier: IdentifierNode {
+                                                                        value: "id",
+                                                                        span: Span {
+                                                                            start: Position {
+                                                                                line: 12,
+                                                                                column: 13,
+                                                                                offset: 252,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            },
+                                                                            end: Position {
+                                                                                line: 12,
+                                                                                column: 15,
+                                                                                offset: 254,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    value: ExpressionNode {
+                                                                        value: Expression::Variable("id"),
+                                                                        span: Span {
+                                                                            start: Position {
+                                                                                line: 12,
+                                                                                column: 17,
+                                                                                offset: 256,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            },
+                                                                            end: Position {
+                                                                                line: 12,
+                                                                                column: 19,
+                                                                                offset: 258,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                span: Span {
+                                                                    start: Position {
+                                                                        line: 12,
+                                                                        column: 13,
+                                                                        offset: 252,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    },
+                                                                    end: Position {
+                                                                        line: 12,
+                                                                        column: 19,
+                                                                        offset: 258,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    }
+                                                                }
+                                                            },
+                                                            StructLiteralFieldNode {
+                                                                value: StructLiteralField {
+                                                                    identifier: IdentifierNode {
+                                                                        value: "name",
+                                                                        span: Span {
+                                                                            start: Position {
+                                                                                line: 13,
+                                                                                column: 13,
+                                                                                offset: 273,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            },
+                                                                            end: Position {
+                                                                                line: 13,
+                                                                                column: 17,
+                                                                                offset: 277,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    value: ExpressionNode {
+                                                                        value: Expression::Variable("name"),
+                                                                        span: Span {
+                                                                            start: Position {
+                                                                                line: 13,
+                                                                                column: 19,
+                                                                                offset: 279,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            },
+                                                                            end: Position {
+                                                                                line: 13,
+                                                                                column: 23,
+                                                                                offset: 283,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                span: Span {
+                                                                    start: Position {
+                                                                        line: 13,
+                                                                        column: 13,
+                                                                        offset: 273,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    },
+                                                                    end: Position {
+                                                                        line: 13,
+                                                                        column: 23,
+                                                                        offset: 283,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    }
+                                                                }
+                                                            },
+                                                            StructLiteralFieldNode {
+                                                                value: StructLiteralField {
+                                                                    identifier: IdentifierNode {
+                                                                        value: "price",
+                                                                        span: Span {
+                                                                            start: Position {
+                                                                                line: 14,
+                                                                                column: 13,
+                                                                                offset: 298,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            },
+                                                                            end: Position {
+                                                                                line: 14,
+                                                                                column: 18,
+                                                                                offset: 303,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    value: ExpressionNode {
+                                                                        value: Expression::Variable("price"),
+                                                                        span: Span {
+                                                                            start: Position {
+                                                                                line: 14,
+                                                                                column: 20,
+                                                                                offset: 305,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            },
+                                                                            end: Position {
+                                                                                line: 14,
+                                                                                column: 25,
+                                                                                offset: 310,
+                                                                                filename: OptionStr::Some("./examples/methods.rp")
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                span: Span {
+                                                                    start: Position {
+                                                                        line: 14,
+                                                                        column: 13,
+                                                                        offset: 298,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    },
+                                                                    end: Position {
+                                                                        line: 14,
+                                                                        column: 25,
+                                                                        offset: 310,
+                                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                                    }
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    span: Span {
+                                                        start: Position {
+                                                            line: 11,
+                                                            column: 16,
+                                                            offset: 229,
+                                                            filename: OptionStr::Some("./examples/methods.rp")
+                                                        },
+                                                        end: Position {
+                                                            line: 15,
+                                                            column: 10,
+                                                            offset: 321,
+                                                            filename: OptionStr::Some("./examples/methods.rp")
+                                                        }
+                                                    }
+                                                }),
+                                                span: Span {
+                                                    start: Position {
+                                                        line: 11,
+                                                        column: 16,
+                                                        offset: 229,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    },
+                                                    end: Position {
+                                                        line: 15,
+                                                        column: 10,
+                                                        offset: 321,
+                                                        filename: OptionStr::Some("./examples/methods.rp")
+                                                    }
+                                                }
+                                            })),
+                                            span: Span {
+                                                start: Position {
+                                                    line: 11,
+                                                    column: 9,
+                                                    offset: 222,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                },
+                                                end: Position {
+                                                    line: 15,
+                                                    column: 11,
+                                                    offset: 322,
+                                                    filename: OptionStr::Some("./examples/methods.rp")
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                span: Span {
+                                    start: Position {
+                                        line: 10,
+                                        column: 50,
+                                        offset: 211,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 16,
+                                        column: 6,
+                                        offset: 329,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            }
+                        },
+                        span: Span {
+                            start: Position {
+                                line: 10,
+                                column: 5,
+                                offset: 166,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            },
+                            end: Position {
+                                line: 16,
+                                column: 6,
+                                offset: 329,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            }
+                        }
+                    },
+                    TypeMethodNode {
+                        value: TypeMethod {
+                            identifier: IdentifierNode {
+                                value: "do_nothing",
+                                span: Span {
+                                    start: Position {
+                                        line: 18,
+                                        column: 8,
+                                        offset: 340,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 18,
+                                        column: 18,
+                                        offset: 350,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            self_identifier: OptionIdentifierNode::Some(IdentifierNode {
+                                value: "self",
+                                span: Span {
+                                    start: Position {
+                                        line: 18,
+                                        column: 19,
+                                        offset: 351,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 18,
+                                        column: 23,
+                                        offset: 355,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            }),
+                            parameters: [],
+                            return_type: TypeNode {
+                                value: Type::Void,
+                                span: Span {
+                                    start: Position {
+                                        line: 18,
+                                        column: 26,
+                                        offset: 358,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 18,
+                                        column: 30,
+                                        offset: 362,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            },
+                            block: BlockNode {
+                                value: Block { statements: [] },
+                                span: Span {
+                                    start: Position {
+                                        line: 18,
+                                        column: 31,
+                                        offset: 363,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    },
+                                    end: Position {
+                                        line: 18,
+                                        column: 33,
+                                        offset: 365,
+                                        filename: OptionStr::Some("./examples/methods.rp")
+                                    }
+                                }
+                            }
+                        },
+                        span: Span {
+                            start: Position {
+                                line: 18,
+                                column: 5,
+                                offset: 337,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            },
+                            end: Position {
+                                line: 18,
+                                column: 33,
+                                offset: 365,
+                                filename: OptionStr::Some("./examples/methods.rp")
+                            }
+                        }
+                    }
+                ]
+            }),
+            span: Span {
+                start: Position {
+                    line: 1,
+                    column: 1,
+                    offset: 0,
+                    filename: OptionStr::Some("./examples/methods.rp")
+                },
+                end: Position {
+                    line: 19,
+                    column: 3,
+                    offset: 369,
+                    filename: OptionStr::Some("./examples/methods.rp")
+                }
+            }
+        }
+    ]
+};

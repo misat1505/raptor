@@ -100,7 +100,6 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
         return ResultOptionStructDeclarationNode::Err(err);
     }
 
-
     let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
     match (semicolon_consumed) {
         ResultToken::Err(err) {
@@ -221,7 +220,8 @@ fn parser_parse_struct_member(&Parser parser): ResultOptionStructMemberNode {
 }
 
 fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
-    # type_method = "fn", identifier, "(", ")", ":", type, statement_block
+    # type_method = "fn", identifier, "(", [ method_parameters ], ")", ":", type, statement_block;
+    # method_parameters = "self", [ ",", parameters ] | parameters;
 
     let fn_consumed = parser_consume_if_matches(&parser, TokenCategory::Fn);
 
@@ -263,6 +263,7 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
                     }
                     let self_node = OptionIdentifierNode::None;
                     let current_token = parser_current_token(&parser);
+                    let has_comma_after_self = false;
                     if (current_token.category matches TokenCategory::Identifier) {
                         if (current_token.value matches TokenValue::String(ident)) {
                             if (ident == "self") {
@@ -271,8 +272,33 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
                                     span: current_token.span
                                 });
                                 parser_next_token(&parser);
+                                let ro_comma_token = parser_consume_if_matches(
+                                    &parser,
+                                    TokenCategory::Comma
+                                );
+                                if (ro_comma_token matches ResultOptionToken::Ok(option_token)) {
+                                    if (option_token matches OptionToken::Some) {
+                                        has_comma_after_self = true;
+                                    }
+                                }
                             }
                         }
+                    }
+                    let parameters_call = parser_parse_parameters(&parser);
+                    let parameters: ParameterNode[] = [];
+                    match (parameters_call) {
+                        ResultParameterNodeVec::Err(err) {
+                            return ResultOptionTypeMethodNode::Err(err);
+                        },
+                        ResultParameterNodeVec::Ok(parsed) {
+                            parameters = parsed;
+                        }
+                    }
+                    if (has_comma_after_self && vector_size(&parameters) == 0) {
+                        return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
+                            &parser,
+                            "Expected parameter after comma."
+                        ));
                     }
                     let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
                     if (paren_close matches ResultToken::Err(err)) {
@@ -302,7 +328,9 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
                                 return ResultOptionTypeMethodNode::Err(err);
                             }
 
-                            if (stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)) {
+                            if (
+                                stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)
+                            ) {
                                 if (option_block_node matches OptionBlockNode::None) {
                                     return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
                                         &parser,
@@ -312,13 +340,13 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
 
                                 if (option_block_node matches OptionBlockNode::Some(block_node)) {
                                     return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::Some(TypeMethodNode {
-                                        value: TypeMethod { 
-                                            identifier,
+                                        value: TypeMethod {
+                                            identifier: identifier,
                                             self_identifier: self_node,
                                             parameters: [],
                                             return_type: type_node,
                                             block: block_node
-                                         },
+                                        },
                                         span: span_new(fn_token.span.start, block_node.span.end)
                                     }));
                                 }

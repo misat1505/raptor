@@ -272,6 +272,18 @@ fn parser_parse_call_or_index_tail(
                                 if (paren_close_call matches ResultToken::Err(err)) {
                                     return ResultOptionExpressionNode::Err(err);
                                 }
+                                let instance_node = ExpressionNode {
+                                    value: result,
+                                    span: span_new(start_position, field.span.start)
+                                };
+                                result = Expression::MethodCall(MethodCallExpression {
+                                    instance: instance_node,
+                                    field: field,
+                                    arguments: arguments
+                                });
+                                if (paren_close_call matches ResultToken::Ok(paren_close)) {
+                                    end_position = paren_close.span.end;
+                                }
                             } else {
                                 let instance_node = ExpressionNode {
                                     value: result,

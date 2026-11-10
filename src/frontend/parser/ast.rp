@@ -131,6 +131,12 @@ struct FieldAccessExpression derives Debug, Clone {
     IdentifierNode field
 };
 
+struct MethodCallExpression derives Debug, Clone {
+    ExpressionNode instance,
+    IdentifierNode field,
+    ArgumentNode[] arguments
+};
+
 struct ArgumentNode derives Debug, Clone {
     Argument value,
     Span span
@@ -193,6 +199,7 @@ enum Expression derives Debug, Clone {
     Vector(ExpressionNode[]),
     Index(IndexExpression),
     FieldAccess(FieldAccessExpression),
+    MethodCall(MethodCallExpression),
     Variable(str),
     FunctionCall(FunctionCallExpression),
     StructLiteral(StructLiteralNode),

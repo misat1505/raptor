@@ -2439,7 +2439,8 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
         },
         Expression::EnumLiteral(el) {
             llvm_compile_enum_literal(&c, el);
-        }
+        },
+        Expression::MethodCall {}
     }
 }
 

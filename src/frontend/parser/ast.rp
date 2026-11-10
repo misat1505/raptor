@@ -440,7 +440,8 @@ struct EnumMemberNode derives Debug, Clone {
 struct EnumDeclaration derives Debug, Clone {
     IdentifierNode identifier,
     EnumMemberNode[] members,
-    IdentifierNode[] enum_derives
+    IdentifierNode[] enum_derives,
+    TypeMethodNode[] methods
 };
 
 struct EnumDeclarationNode derives Debug, Clone {

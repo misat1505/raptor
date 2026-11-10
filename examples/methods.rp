@@ -15,3 +15,6 @@ struct Product {
         };
     }
 };
+
+let product = Product { id: 1, name: "Welna", price: 2137 };
+println(product.get_total_price(5, "usaduas"));

@@ -392,6 +392,19 @@ struct ExternFunctionDeclarationNode derives Debug, Clone {
 
 # ==================== Structs & Enums (user-declared types) ====================
 
+struct TypeMethod derives Debug, Clone {
+    IdentifierNode identifier,
+    OptionIdentifierNode self_identifier,
+    ParameterNode[] parameters,
+    TypeNode return_type,
+    BlockNode block
+};
+
+struct TypeMethodNode derives Debug, Clone {
+    TypeMethod value,
+    Span span
+};
+
 struct StructMember derives Debug, Clone {
     IdentifierNode identifier,
     TypeNode member_type
@@ -405,7 +418,8 @@ struct StructMemberNode derives Debug, Clone {
 struct StructDeclaration derives Debug, Clone {
     IdentifierNode identifier,
     StructMemberNode[] members,
-    IdentifierNode[] struct_derives
+    IdentifierNode[] struct_derives,
+    TypeMethodNode[] methods
 };
 
 struct StructDeclarationNode derives Debug, Clone {

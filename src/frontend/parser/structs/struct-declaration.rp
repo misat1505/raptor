@@ -6,7 +6,7 @@ import "../core.rp";
 
 
 fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclarationNode {
-    # struct_declaration = "struct", identifier, [ derives_declaration ], "{", [ struct_members ], "}", ";";
+    # struct_declaration = "struct", identifier, [ derives_declaration ], "{", [ struct_members ], "}", [ methods ], ";";
     let struct_consumed = parser_consume_if_matches(&parser, TokenCategory::Struct);
 
     let struct_token = parser_current_token(&parser);
@@ -76,10 +76,30 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
         }
     }
 
+    let methods: TypeMethodNode[] = [];
+    while (true) {
+        match (parser_parse_type_method(&parser)) {
+            ResultOptionTypeMethodNode::Err(err) {
+                return ResultOptionStructDeclarationNode::Err(err);
+            },
+            ResultOptionTypeMethodNode::Ok(option_type_method) {
+                match (option_type_method) {
+                    OptionTypeMethodNode::Some(type_method_node) {
+                        vector_push(&methods, type_method_node);
+                    },
+                    OptionTypeMethodNode::None {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
     let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
     if (brace_close matches ResultToken::Err(err)) {
         return ResultOptionStructDeclarationNode::Err(err);
     }
+
 
     let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
     match (semicolon_consumed) {
@@ -91,7 +111,8 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
                 value: StructDeclaration {
                     identifier: identifier,
                     members: members,
-                    struct_derives: struct_derives
+                    struct_derives: struct_derives,
+                    methods: methods
                 },
                 span: span_new(struct_token.span.start, semicolon_token.span.end)
             }));
@@ -193,6 +214,104 @@ fn parser_parse_struct_member(&Parser parser): ResultOptionStructMemberNode {
                         value: StructMember { identifier: identifier, member_type: member_type },
                         span: span_new(member_type.span.start, identifier.span.end)
                     }));
+                }
+            }
+        }
+    }
+}
+
+fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
+    # type_method = "fn", identifier, "(", ")", ":", type, statement_block
+
+    let fn_consumed = parser_consume_if_matches(&parser, TokenCategory::Fn);
+
+    let fn_token = parser_current_token(&parser);
+    let has_fn = false;
+    match (fn_consumed) {
+        ResultOptionToken::Err(err) {
+            return ResultOptionTypeMethodNode::Err(parser_error_from_lexer_error(&err));
+        },
+        ResultOptionToken::Ok(option_fn) {
+            if (option_fn matches OptionToken::Some(token)) {
+                fn_token = token;
+                has_fn = true;
+            }
+        }
+    }
+
+    if (!has_fn) {
+        return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::None);
+    }
+
+    let identifier_call = parser_parse_identifier(&parser);
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) {
+            return ResultOptionTypeMethodNode::Err(err);
+        },
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::None {
+                    return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
+                        &parser,
+                        "Couldn't create identifier while parsing struct member."
+                    ));
+                },
+                OptionIdentifierNode::Some(identifier) {
+                    let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
+                    if (paren_open matches ResultToken::Err(err)) {
+                        return ResultOptionTypeMethodNode::Err(err);
+                    }
+                    let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+                    if (paren_close matches ResultToken::Err(err)) {
+                        return ResultOptionTypeMethodNode::Err(err);
+                    }
+                    let colon = parser_consume_must_be(&parser, TokenCategory::Colon);
+                    if (colon matches ResultToken::Err(err)) {
+                        return ResultOptionTypeMethodNode::Err(err);
+                    }
+
+                    let type_call = parser_parse_type(&parser);
+                    if (type_call matches ResultOptionTypeNode::Err(err)) {
+                        return ResultOptionTypeMethodNode::Err(err);
+                    }
+
+                    if (type_call matches ResultOptionTypeNode::Ok(option_type_node)) {
+                        if (option_type_node matches OptionTypeNode::None) {
+                            return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
+                                &parser,
+                                "Couldn't create type while parsing type method."
+                            ));
+                        }
+
+                        if (option_type_node matches OptionTypeNode::Some(type_node)) {
+                            let stmt_block_call = parser_parse_statement_block(&parser);
+                            if (stmt_block_call matches ResultOptionBlockNode::Err(err)) {
+                                return ResultOptionTypeMethodNode::Err(err);
+                            }
+
+                            if (stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)) {
+                                if (option_block_node matches OptionBlockNode::None) {
+                                    return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
+                                        &parser,
+                                        "Couldn't create type while parsing type method."
+                                    ));
+                                }
+
+                                if (option_block_node matches OptionBlockNode::Some(block_node)) {
+                                    return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::Some(TypeMethodNode {
+                                        value: TypeMethod { 
+                                            identifier,
+                                            self_identifier: OptionIdentifierNode::None,
+                                            parameters: [],
+                                            return_type: type_node,
+                                            block: block_node
+                                         },
+                                        span: span_new(fn_token.span.start, block_node.span.end)
+                                    }));
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

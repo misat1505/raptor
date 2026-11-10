@@ -1,0 +1,9 @@
+struct Product {
+    i64 id,
+    str name,
+    i64 price
+
+    fn get_total_price(): i64 {
+        return self.price * quantity;
+    }
+};

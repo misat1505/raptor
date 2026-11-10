@@ -85,6 +85,11 @@ enum OptionStructLiteralFieldNode derives Debug {
     None
 };
 
+enum OptionTypeMethodNode derives Debug {
+    Some(TypeMethodNode),
+    None
+};
+
 # ---------- Result<Option<Node<X>>, ParserError> ----------
 
 enum ResultOptionLiteralNode derives Debug {
@@ -174,6 +179,11 @@ enum ResultOptionMatchArmNode derives Debug {
 
 enum ResultOptionStructLiteralFieldNode derives Debug {
     Ok(OptionStructLiteralFieldNode),
+    Err(ParserError)
+};
+
+enum ResultOptionTypeMethodNode derives Debug {
+    Ok(OptionTypeMethodNode),
     Err(ParserError)
 };
 

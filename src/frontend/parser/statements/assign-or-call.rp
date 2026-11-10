@@ -346,6 +346,12 @@ fn parser_parse_assign_or_call_without_semicolon(&Parser parser): ResultOptionSt
                         },
                         ResultOptionToken::Ok(option_paren) {
                             if (option_paren matches OptionToken::Some) {
+                                if (vector_size(&accessors) > 0) {
+                                    return ResultOptionStatementNode::Err(parser_create_parser_error(
+                                        &parser,
+                                        "Can't parse method call as statement."
+                                    ));
+                                }
                                 let arguments_call = parser_parse_arguments(&parser);
                                 let arguments: ArgumentNode[] = [];
                                 match (arguments_call) {

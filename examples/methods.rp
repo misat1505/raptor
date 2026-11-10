@@ -14,6 +14,8 @@ struct Product {
             price: price
         };
     }
+
+    fn do_nothing(self): void {}
 };
 
 let product = Product { id: 1, name: "Welna", price: 2137 };

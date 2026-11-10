@@ -309,47 +309,38 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
                         return ResultOptionTypeMethodNode::Err(err);
                     }
 
-                    let type_call = parser_parse_type(&parser);
-                    if (type_call matches ResultOptionTypeNode::Err(err)) {
+                    let type_call = parser_parse_return_type(&parser);
+                    if (type_call matches ResultTypeNode::Err(err)) {
                         return ResultOptionTypeMethodNode::Err(err);
                     }
 
-                    if (type_call matches ResultOptionTypeNode::Ok(option_type_node)) {
-                        if (option_type_node matches OptionTypeNode::None) {
-                            return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
-                                &parser,
-                                "Couldn't create type while parsing type method."
-                            ));
+                    if (type_call matches ResultTypeNode::Ok(type_node)) {
+                        let stmt_block_call = parser_parse_statement_block(&parser);
+                        if (stmt_block_call matches ResultOptionBlockNode::Err(err)) {
+                            return ResultOptionTypeMethodNode::Err(err);
                         }
 
-                        if (option_type_node matches OptionTypeNode::Some(type_node)) {
-                            let stmt_block_call = parser_parse_statement_block(&parser);
-                            if (stmt_block_call matches ResultOptionBlockNode::Err(err)) {
-                                return ResultOptionTypeMethodNode::Err(err);
+                        if (
+                            stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)
+                        ) {
+                            if (option_block_node matches OptionBlockNode::None) {
+                                return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
+                                    &parser,
+                                    "Couldn't create type while parsing type method."
+                                ));
                             }
 
-                            if (
-                                stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)
-                            ) {
-                                if (option_block_node matches OptionBlockNode::None) {
-                                    return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
-                                        &parser,
-                                        "Couldn't create type while parsing type method."
-                                    ));
-                                }
-
-                                if (option_block_node matches OptionBlockNode::Some(block_node)) {
-                                    return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::Some(TypeMethodNode {
-                                        value: TypeMethod {
-                                            identifier: identifier,
-                                            self_identifier: self_node,
-                                            parameters: [],
-                                            return_type: type_node,
-                                            block: block_node
-                                        },
-                                        span: span_new(fn_token.span.start, block_node.span.end)
-                                    }));
-                                }
+                            if (option_block_node matches OptionBlockNode::Some(block_node)) {
+                                return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::Some(TypeMethodNode {
+                                    value: TypeMethod {
+                                        identifier: identifier,
+                                        self_identifier: self_node,
+                                        parameters: [],
+                                        return_type: type_node,
+                                        block: block_node
+                                    },
+                                    span: span_new(fn_token.span.start, block_node.span.end)
+                                }));
                             }
                         }
                     }

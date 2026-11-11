@@ -85,6 +85,20 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
             ResultOptionTypeMethodNode::Ok(option_type_method) {
                 match (option_type_method) {
                     OptionTypeMethodNode::Some(type_method_node) {
+                        for (let i = 0; i < vector_size(&methods); i += 1) {
+                            let method_name = methods[i].value.identifier.value;
+                            if (method_name == type_method_node.value.identifier.value) {
+                                return ResultOptionStructDeclarationNode::Err(parser_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Redeclaration of method '"
+                                        + method_name
+                                        + "' on type '"
+                                        + identifier.value
+                                        + "'.",
+                                    methods[i].value.identifier.span
+                                ));
+                            }
+                        }
                         vector_push(&methods, type_method_node);
                     },
                     OptionTypeMethodNode::None {
@@ -320,9 +334,7 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
                             return ResultOptionTypeMethodNode::Err(err);
                         }
 
-                        if (
-                            stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)
-                        ) {
+                        if (stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)) {
                             if (option_block_node matches OptionBlockNode::None) {
                                 return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
                                     &parser,

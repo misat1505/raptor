@@ -91,6 +91,20 @@ fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNod
             ResultOptionTypeMethodNode::Ok(option_type_method) {
                 match (option_type_method) {
                     OptionTypeMethodNode::Some(type_method_node) {
+                        for (let i = 0; i < vector_size(&methods); i += 1) {
+                            let method_name = methods[i].value.identifier.value;
+                            if (method_name == type_method_node.value.identifier.value) {
+                                return ResultOptionEnumDeclarationNode::Err(parser_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Redeclaration of method '"
+                                        + method_name
+                                        + "' on type '"
+                                        + identifier.value
+                                        + "'.",
+                                    methods[i].value.identifier.span
+                                ));
+                            }
+                        }
                         vector_push(&methods, type_method_node);
                     },
                     OptionTypeMethodNode::None {

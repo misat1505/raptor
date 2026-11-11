@@ -1,4 +1,4 @@
-struct Product derives Debug, Clone {
+struct Product derives Debug, Clone, Json {
     i64 id,
     str name,
     i64 price

@@ -35,7 +35,7 @@ fn macro_expander_derive_json(
     }
 
     let json_fn_name = to_snake_case(type_name) + "_json_encode";
-    let param_name = to_snake_case(type_name);
+    let param_name = "self";
     let params: ParameterNode[] = [];
     vector_push(&params, me_param_ref(type_name, param_name));
 
@@ -48,6 +48,24 @@ fn macro_expander_derive_json(
             return_type: me_type(Type::Str),
             block: block
         },
+        derive_span
+    );
+
+    let json_encode_method = TypeMethod {
+        identifier: me_ident("json_encode"),
+        self_identifier: OptionIdentifierNode::Some(IdentifierNode {
+            value: "self",
+            span: me_span()
+        }),
+        parameters: [],
+        return_type: me_type(Type::Str),
+        block: block
+    };
+
+    macro_expander_insert_method(
+        &me,
+        &declared_type,
+        &json_encode_method,
         derive_span
     );
 }
@@ -155,8 +173,7 @@ fn macro_expander_check_json_type(
 }
 
 fn macro_expander_struct_json_block(StructDeclaration struct_declaration): BlockNode {
-    let struct_name = struct_declaration.identifier.value;
-    let variable_name = to_snake_case(struct_name);
+    let variable_name = "self";
     let result_variable = "json_str";
     let stmts: StatementNode[] = [];
 
@@ -206,7 +223,7 @@ fn macro_expander_struct_json_block(StructDeclaration struct_declaration): Block
 
 fn macro_expander_enum_json_block(EnumDeclaration enum_declaration): BlockNode {
     let enum_name = enum_declaration.identifier.value;
-    let param_name = to_snake_case(enum_name);
+    let param_name = "self";
     let match_arms: MatchArmNode[] = [];
 
     for (let i = 0; i < vector_size(&enum_declaration.members); i += 1) {

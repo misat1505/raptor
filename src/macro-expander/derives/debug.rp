@@ -35,7 +35,7 @@ fn macro_expander_derive_debug(
     }
 
     let debug_fn_name = to_snake_case(type_name) + "_debug";
-    let param_name = to_snake_case(type_name);
+    let param_name = "self";
 
     let params: ParameterNode[] = [];
     vector_push(&params, me_param_ref(type_name, param_name));
@@ -48,6 +48,24 @@ fn macro_expander_derive_debug(
     };
 
     macro_expander_insert_function(&me, &program, debug_fn, derive_span);
+
+    let debug_method = TypeMethod {
+        identifier: me_ident("debug"),
+        self_identifier: OptionIdentifierNode::Some(IdentifierNode {
+            value: "self",
+            span: me_span()
+        }),
+        parameters: [],
+        return_type: me_type(Type::Str),
+        block: block
+    };
+
+    macro_expander_insert_method(
+        &me,
+        &declared_type,
+        &debug_method,
+        derive_span
+    );
 }
 
 fn macro_expander_check_debug_dependencies(
@@ -157,7 +175,7 @@ fn macro_expander_check_debug_type(
 
 fn macro_expander_struct_debug_block(StructDeclaration struct_declaration): BlockNode {
     let struct_name = struct_declaration.identifier.value;
-    let variable_name = to_snake_case(struct_name);
+    let variable_name = "self";
 
     let has_vector = false;
     for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
@@ -251,7 +269,7 @@ fn macro_expander_struct_debug_block_with_vectors(
 
 fn macro_expander_enum_debug_block(EnumDeclaration enum_declaration): BlockNode {
     let enum_name = enum_declaration.identifier.value;
-    let variable_name = to_snake_case(enum_name);
+    let variable_name = "self";
     let match_arms: MatchArmNode[] = [];
 
     for (let i = 0; i < vector_size(&enum_declaration.members); i += 1) {

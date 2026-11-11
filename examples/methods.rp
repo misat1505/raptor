@@ -1,4 +1,4 @@
-struct Product {
+struct Product derives Debug {
     i64 id,
     str name,
     i64 price

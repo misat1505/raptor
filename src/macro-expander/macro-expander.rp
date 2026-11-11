@@ -25,6 +25,11 @@ enum OptionDeclaredType {
     None
 };
 
+enum ExpansionStrategy {
+    FunctionBased,
+    MethodBased
+};
+
 
 fn macro_expander_new(): MacroExpander {
     return MacroExpander { supported_derives: ["Debug", "Json", "Clone"], errors: [] };
@@ -282,6 +287,14 @@ fn me_call_ref(str fn_name, Expression arg): Expression {
     return Expression::FunctionCall(FunctionCallExpression {
         identifier: me_ident(fn_name),
         arguments: args
+    });
+}
+
+fn me_method_call_ref(&Expression entity_name, str method_name): Expression {
+    return Expression::MethodCall(MethodCallExpression {
+        instance: me_expr(entity_name),
+        field: me_ident(method_name),
+        arguments: []
     });
 }
 

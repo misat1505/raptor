@@ -36,6 +36,24 @@ fn macro_expander_derive_clone(
             );
             if (opt matches OptionFunctionDeclaration::Some(function)) {
                 macro_expander_insert_function(&me, &program, function, derive_span);
+
+                let clone_method = TypeMethod {
+                    identifier: me_ident("clone"),
+                    self_identifier: OptionIdentifierNode::Some(IdentifierNode {
+                        value: "self",
+                        span: me_span()
+                    }),
+                    parameters: [],
+                    return_type: function.return_type,
+                    block: function.block
+                };
+
+                macro_expander_insert_method(
+                    &me,
+                    &declared_type,
+                    &clone_method,
+                    derive_span
+                );
             }
         },
         DeclaredType::Enum(enum_declaration) {
@@ -47,6 +65,24 @@ fn macro_expander_derive_clone(
             );
             if (opt matches OptionFunctionDeclaration::Some(function)) {
                 macro_expander_insert_function(&me, &program, function, derive_span);
+
+                let clone_method = TypeMethod {
+                    identifier: me_ident("clone"),
+                    self_identifier: OptionIdentifierNode::Some(IdentifierNode {
+                        value: "self",
+                        span: me_span()
+                    }),
+                    parameters: [],
+                    return_type: function.return_type,
+                    block: function.block
+                };
+
+                macro_expander_insert_method(
+                    &me,
+                    &declared_type,
+                    &clone_method,
+                    derive_span
+                );
             }
         }
     }
@@ -120,7 +156,7 @@ fn macro_expander_generate_struct_clone(
     Span derive_span
 ): OptionFunctionDeclaration {
     let type_name = declaration.identifier.value;
-    let variable_name = to_snake_case(type_name);
+    let variable_name = "self";
 
     for (let i = 0; i < vector_size(&declaration.members); i += 1) {
         if (
@@ -194,7 +230,7 @@ fn macro_expander_generate_enum_clone(
     Span derive_span
 ): OptionFunctionDeclaration {
     let enum_name = declaration.identifier.value;
-    let variable_name = to_snake_case(enum_name);
+    let variable_name = "self";
 
     for (let i = 0; i < vector_size(&declaration.members); i += 1) {
         if (declaration.members[i].value.member_type matches OptionTypeNode::Some(t)) {

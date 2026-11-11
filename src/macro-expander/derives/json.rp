@@ -62,12 +62,7 @@ fn macro_expander_derive_json(
         block: block
     };
 
-    macro_expander_insert_method(
-        &me,
-        &declared_type,
-        &json_encode_method,
-        derive_span
-    );
+    macro_expander_insert_method(&me, &declared_type, &json_encode_method, derive_span);
 }
 
 fn macro_expander_check_json_dependencies(
@@ -82,12 +77,14 @@ fn macro_expander_check_json_dependencies(
     match (declared_type) {
         DeclaredType::Struct(s) {
             parent_type = s.identifier.value;
+
             for (let i = 0; i < vector_size(&s.members); i += 1) {
                 vector_push(&member_types, s.members[i].value.member_type.value);
             }
         },
         DeclaredType::Enum(e) {
             parent_type = e.identifier.value;
+
             for (let i = 0; i < vector_size(&e.members); i += 1) {
                 if (e.members[i].value.member_type matches OptionTypeNode::Some(t)) {
                     vector_push(&member_types, t.value);
@@ -97,6 +94,7 @@ fn macro_expander_check_json_dependencies(
     }
 
     let ok = true;
+
     for (let i = 0; i < vector_size(&member_types); i += 1) {
         if (
             !macro_expander_check_json_type(
@@ -110,6 +108,7 @@ fn macro_expander_check_json_dependencies(
             ok = false;
         }
     }
+
     return ok;
 }
 
@@ -128,13 +127,46 @@ fn macro_expander_check_json_type(
             if (dependency_type == parent_type) {
                 return true;
             }
-            let fn_name = to_snake_case(dependency_type) + "_json_encode";
-            if (me_function_exists(&program, fn_name)) {
-                return true;
-            }
+
             if (me_type_has_derive(&program, dependency_type, "Json")) {
                 return true;
             }
+
+            let fn_name = to_snake_case(dependency_type) + "_json_encode";
+
+            if (me_function_exists(&program, fn_name)) {
+                return true;
+            }
+
+            for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+                let type = program.declared_types[i].value;
+
+                let methods: TypeMethodNode[] = [];
+
+                match (type) {
+                    DeclaredType::Struct(struct_declaration) {
+                        if (struct_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = struct_declaration.methods;
+                    },
+                    DeclaredType::Enum(enum_declaration) {
+                        if (enum_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = enum_declaration.methods;
+                    }
+                }
+
+                for (let j = 0; j < vector_size(&methods); j += 1) {
+                    if (methods[j].value.identifier.value == "json_encode") {
+                        return true;
+                    }
+                }
+            }
+
             vector_push(
                 &me.errors,
                 macro_expander_error_at(
@@ -145,14 +177,15 @@ fn macro_expander_check_json_type(
                         + parent_type
                         + "' cannot be encoded to Json. Hint: add 'Json' to the derives of '"
                         + dependency_type
-                        + "', or implement 'fn "
+                        + "', or implement the function 'fn "
                         + fn_name
                         + "(&"
                         + dependency_type
-                        + " value): str'.",
+                        + " value): str', or implement the method 'fn json_encode(self): str'.",
                     derive_span
                 )
             );
+
             return false;
         },
         Type::Void {
@@ -164,6 +197,7 @@ fn macro_expander_check_json_type(
                     derive_span
                 )
             );
+
             return false;
         },
         rest {

@@ -48,12 +48,7 @@ fn macro_expander_derive_clone(
                     block: function.block
                 };
 
-                macro_expander_insert_method(
-                    &me,
-                    &declared_type,
-                    &clone_method,
-                    derive_span
-                );
+                macro_expander_insert_method(&me, &declared_type, &clone_method, derive_span);
             }
         },
         DeclaredType::Enum(enum_declaration) {
@@ -77,12 +72,7 @@ fn macro_expander_derive_clone(
                     block: function.block
                 };
 
-                macro_expander_insert_method(
-                    &me,
-                    &declared_type,
-                    &clone_method,
-                    derive_span
-                );
+                macro_expander_insert_method(&me, &declared_type, &clone_method, derive_span);
             }
         }
     }
@@ -103,13 +93,46 @@ fn macro_expander_can_clone_type(
             if (dependency_type == parent_type) {
                 return true;
             }
-            let clone_fn = to_snake_case(dependency_type) + "_clone";
-            if (me_function_exists(&program, clone_fn)) {
-                return true;
-            }
+
             if (me_type_has_derive(&program, dependency_type, "Clone")) {
                 return true;
             }
+
+            let clone_fn = to_snake_case(dependency_type) + "_clone";
+
+            if (me_function_exists(&program, clone_fn)) {
+                return true;
+            }
+
+            for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+                let type = program.declared_types[i].value;
+
+                let methods: TypeMethodNode[] = [];
+
+                match (type) {
+                    DeclaredType::Struct(struct_declaration) {
+                        if (struct_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = struct_declaration.methods;
+                    },
+                    DeclaredType::Enum(enum_declaration) {
+                        if (enum_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = enum_declaration.methods;
+                    }
+                }
+
+                for (let j = 0; j < vector_size(&methods); j += 1) {
+                    if (methods[j].value.identifier.value == "clone") {
+                        return true;
+                    }
+                }
+            }
+
             vector_push(
                 &me.errors,
                 macro_expander_error_at(
@@ -126,10 +149,13 @@ fn macro_expander_can_clone_type(
                         + dependency_type
                         + " value): "
                         + dependency_type
+                        + "', or implement the method 'fn clone(self): "
+                        + dependency_type
                         + "'.",
                     derive_span
                 )
             );
+
             return false;
         },
         Type::Void {
@@ -141,6 +167,7 @@ fn macro_expander_can_clone_type(
                     derive_span
                 )
             );
+
             return false;
         },
         rest {

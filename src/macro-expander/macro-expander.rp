@@ -109,19 +109,30 @@ fn macro_expander_insert_method(
     Span derive_span
 ): void {
     let method_name = method_declaration.identifier.value;
-    let node = TypeMethodNode {
-        value: method_declaration,
-        span: me_span()
-    };
+    let node = TypeMethodNode { value: method_declaration, span: me_span() };
 
     match (type_declaration) {
         DeclaredType::Enum(enum_declaration) {
-            if (!macro_expander_has_collision(&me, &enum_declaration.methods, method_name, &derive_span)) {
+            if (
+                !macro_expander_has_collision(
+                    &me,
+                    &enum_declaration.methods,
+                    method_name,
+                    &derive_span
+                )
+            ) {
                 vector_push(&enum_declaration.methods, node);
             }
         },
         DeclaredType::Struct(struct_declaration) {
-            if (!macro_expander_has_collision(&me, &struct_declaration.methods, method_name, &derive_span)) {
+            if (
+                !macro_expander_has_collision(
+                    &me,
+                    &struct_declaration.methods,
+                    method_name,
+                    &derive_span
+                )
+            ) {
                 vector_push(&struct_declaration.methods, node);
             }
         }

@@ -60,12 +60,7 @@ fn macro_expander_derive_debug(
         block: block
     };
 
-    macro_expander_insert_method(
-        &me,
-        &declared_type,
-        &debug_method,
-        derive_span
-    );
+    macro_expander_insert_method(&me, &declared_type, &debug_method, derive_span);
 }
 
 fn macro_expander_check_debug_dependencies(
@@ -127,13 +122,43 @@ fn macro_expander_check_debug_type(
                 return true;
             }
 
+            if (me_type_has_derive(&program, dependency_type, "Debug")) {
+                return true;
+            }
+
             let debug_fn_name = to_snake_case(dependency_type) + "_debug";
+
             if (me_function_exists(&program, debug_fn_name)) {
                 return true;
             }
 
-            if (me_type_has_derive(&program, dependency_type, "Debug")) {
-                return true;
+            for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+                let type = program.declared_types[i].value;
+
+                let methods: TypeMethodNode[] = [];
+
+                match (type) {
+                    DeclaredType::Struct(struct_declaration) {
+                        if (struct_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = struct_declaration.methods;
+                    },
+                    DeclaredType::Enum(enum_declaration) {
+                        if (enum_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = enum_declaration.methods;
+                    }
+                }
+
+                for (let j = 0; j < vector_size(&methods); j += 1) {
+                    if (methods[j].value.identifier.value == "debug") {
+                        return true;
+                    }
+                }
             }
 
             vector_push(
@@ -150,10 +175,11 @@ fn macro_expander_check_debug_type(
                         + debug_fn_name
                         + "(&"
                         + dependency_type
-                        + " value): str'.",
+                        + " value): str', or implement the method 'fn debug(self): str'.",
                     derive_span
                 )
             );
+
             return false;
         },
         Type::Void {
@@ -165,6 +191,7 @@ fn macro_expander_check_debug_type(
                     derive_span
                 )
             );
+
             return false;
         },
         rest {

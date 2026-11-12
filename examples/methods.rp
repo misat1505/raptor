@@ -2,7 +2,7 @@ enum Status derives Debug, Clone, Json {
     Active,
     OutOfStock
 
-    fn foo(self): i64 {
+    fn foo(self, &Status s): i64 {
         return 1;
     }
 };
@@ -21,7 +21,8 @@ struct Product derives Debug, Clone, Json {
         return Product {
             id: id,
             name: name,
-            price: price
+            price: price,
+            status: Status::Active
         };
     }
 
@@ -36,4 +37,4 @@ let product = Product {
 };
 
 println(product.get_total_price(&5) as str);
-println(product.status.foo() as str);
+println(product.status.foo(&Status::OutOfStock) as str);

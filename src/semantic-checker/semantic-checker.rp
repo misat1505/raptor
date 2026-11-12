@@ -372,6 +372,7 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
                         s.members[m].value.member_type.span
                     );
                 }
+                semantic_checker_check_type_methods(&sc, &program, &s.methods, &s.identifier);
             },
             DeclaredType::Enum(e) {
                 for (let m = 0; m < vector_size(&e.members); m += 1) {
@@ -379,8 +380,110 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
                         semantic_checker_resolve_type(&sc, &program, tn.value, tn.span);
                     }
                 }
+                semantic_checker_check_type_methods(&sc, &program, &e.methods, &e.identifier);
             }
         }
+    }
+}
+
+fn semantic_checker_check_type_methods(
+    &SemanticChecker sc,
+    &Program program,
+    &TypeMethodNode[] methods,
+    &IdentifierNode instance_type
+): void {
+    for (let i = 0; i < vector_size(&methods); i += 1) {
+        let method = methods[i];
+        stack_push_frame(&sc.stack);
+
+        match (
+            semantic_checker_resolve_type(
+                &sc,
+                &program,
+                method.value.return_type.value,
+                method.value.return_type.span
+            )
+        ) {
+            ResultType::Err(e) {
+                semantic_checker_push_error(&sc, e);
+            },
+            ResultType::Ok(rt) {
+                let fd = FunctionDeclaration {
+                    identifier: method.value.identifier,
+                    parameters: method.value.parameters,
+                    return_type: TypeNode { value: rt, span: method.value.return_type.span },
+                    block: method.value.block
+                };
+
+                sc.current_function = OptionFunctionDeclaration::Some(fd);
+            }
+        }
+
+        if (method.value.self_identifier matches OptionIdentifierNode::Some(self_node)) {
+            match (
+                semantic_checker_resolve_type(
+                    &sc,
+                    &program,
+                    Type::Unresolved(instance_type.value),
+                    instance_type.span
+                )
+            ) {
+                ResultType::Err(e) {
+                    semantic_checker_push_error(&sc, e);
+                },
+                ResultType::Ok(t) {
+                    if (
+                        stack_declare_variable(
+                            &sc.stack,
+                            self_node.value,
+                            t,
+                            self_node.span
+                        ) matches ResultSem::Err(err)
+                    ) {
+                        semantic_checker_push_error(&sc, err);
+                    } else {
+                        semantic_checker_identifier_hover(&sc, t, self_node);
+                    }
+                }
+            }
+        }
+
+        for (let p = 0; p < vector_size(&method.value.parameters); p += 1) {
+            let param = method.value.parameters[p];
+
+            match (
+                semantic_checker_resolve_type(
+                    &sc,
+                    &program,
+                    param.value.parameter_type.value,
+                    param.value.parameter_type.span
+                )
+            ) {
+                ResultType::Err(e) {
+                    semantic_checker_push_error(&sc, e);
+                },
+                ResultType::Ok(t) {
+                    if (
+                        stack_declare_variable(
+                            &sc.stack,
+                            param.value.identifier.value,
+                            t,
+                            param.value.identifier.span
+                        ) matches ResultSem::Err(err)
+                    ) {
+                        semantic_checker_push_error(&sc, err);
+                    } else {
+                        semantic_checker_identifier_hover(&sc, t, param.value.identifier);
+                    }
+                }
+            }
+        }
+
+        semantic_checker_visit_block(&sc, &program, method.value.block);
+
+        semantic_checker_unused_warn(&sc);
+        sc.current_function = OptionFunctionDeclaration::None;
+        stack_pop_frame(&sc.stack);
     }
 }
 
@@ -1301,7 +1404,7 @@ fn semantic_checker_check_method_call(
     MethodCallExpression mc,
     Span span
 ): void {
-    semantic_checker_visit_expression(&sc, &program, &mc.instance);
+    semantic_checker_visit_expression(&sc, &program, mc.instance);
     let result_type = semantic_checker_read_last(&sc, span);
     if (result_type matches ResultType::Err(err)) {
         semantic_checker_push_error(&sc, err);

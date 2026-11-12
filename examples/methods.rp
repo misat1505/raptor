@@ -38,3 +38,5 @@ let product = Product {
 
 println(product.get_total_price(&5) as str);
 println(product.status.foo(&Status::OutOfStock) as str);
+product = Product.new(2, "Potato", 3516);
+let a = product.do_nothing();

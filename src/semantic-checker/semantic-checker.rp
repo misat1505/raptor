@@ -1398,12 +1398,172 @@ fn semantic_checker_visit_expression(
     }
 }
 
+fn semantic_checker_is_method_static(&Program program, &MethodCallExpression mc): OptionStr {
+    if (mc.instance.value matches Expression::Variable(text)) {
+        for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+            match (program.declared_types[i].value) {
+                DeclaredType::Struct(struct_declaration) {
+                    if (text == struct_declaration.identifier.value) {
+                        println(text + "." + mc.field.value + "()");
+                        return OptionStr::Some(text);
+                    }
+                },
+                DeclaredType::Enum(enum_declaration) {
+                    if (text == enum_declaration.identifier.value) {
+                        println(text + "." + mc.field.value + "()");
+                        return OptionStr::Some(text);
+                    }
+                }
+            }
+        }
+    }
+
+    return OptionStr::None;
+}
+
 fn semantic_checker_check_method_call(
     &SemanticChecker sc,
     &Program program,
     MethodCallExpression mc,
     Span span
 ): void {
+    if (semantic_checker_is_method_static(&program, &mc) matches OptionStr::Some(instance_name)) {
+        for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+            match (program.declared_types[i].value) {
+                DeclaredType::Struct(struct_declaration) {
+                    if (struct_declaration.identifier.value != instance_name) {
+                        continue;
+                    }
+                    let method_found = false;
+                    for (let j = 0; j < vector_size(&struct_declaration.methods); j += 1) {
+                        let method = struct_declaration.methods[j].value;
+                        if (method.identifier.value == mc.field.value) {
+                            method_found = true;
+                        } else {
+                            continue;
+                        }
+
+                        if (method.self_identifier matches OptionIdentifierNode::Some) {
+                            semantic_checker_push_error(
+                                &sc,
+                                semantic_checker_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Method '"
+                                        + mc.field.value
+                                        + "' on type '"
+                                        + instance_name
+                                        + "' is not a static method",
+                                    span
+                                )
+                            );
+                        }
+
+                        semantic_checker_check_arguments(
+                            &sc,
+                            &program,
+                            mc.arguments,
+                            method.parameters,
+                            method.identifier.value,
+                            span
+                        );
+
+                        if (
+                            semantic_checker_resolve_type(
+                                &sc,
+                                &program,
+                                method.return_type.value,
+                                span
+                            ) matches ResultType::Ok(return_type)
+                        ) {
+                            semantic_checker_set_last(&sc, return_type);
+                            return;
+                        }
+                    }
+                    if (!method_found) {
+                        semantic_checker_push_error(
+                            &sc,
+                            semantic_checker_error_at(
+                                ErrorSeverity::HIGH,
+                                "Method '"
+                                    + mc.field.value
+                                    + "' doesn't exist on type '"
+                                    + instance_name
+                                    + "'.",
+                                span
+                            )
+                        );
+                    }
+                },
+                DeclaredType::Enum(enum_declaration) {
+                    if (enum_declaration.identifier.value != instance_name) {
+                        continue;
+                    }
+                    let method_found = false;
+                    for (let j = 0; j < vector_size(&enum_declaration.methods); j += 1) {
+                        let method = enum_declaration.methods[j].value;
+                        if (method.identifier.value == mc.field.value) {
+                            method_found = true;
+                        } else {
+                            continue;
+                        }
+
+                        if (method.self_identifier matches OptionIdentifierNode::Some) {
+                            semantic_checker_push_error(
+                                &sc,
+                                semantic_checker_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Method '"
+                                        + mc.field.value
+                                        + "' on type '"
+                                        + instance_name
+                                        + "' is not a static method",
+                                    span
+                                )
+                            );
+                        }
+
+                        semantic_checker_check_arguments(
+                            &sc,
+                            &program,
+                            mc.arguments,
+                            method.parameters,
+                            method.identifier.value,
+                            span
+                        );
+
+                        if (
+                            semantic_checker_resolve_type(
+                                &sc,
+                                &program,
+                                method.return_type.value,
+                                span
+                            ) matches ResultType::Ok(return_type)
+                        ) {
+                            semantic_checker_set_last(&sc, return_type);
+                            return;
+                        }
+                    }
+                    if (!method_found) {
+                        semantic_checker_push_error(
+                            &sc,
+                            semantic_checker_error_at(
+                                ErrorSeverity::HIGH,
+                                "Method '"
+                                    + mc.field.value
+                                    + "' doesn't exist on type '"
+                                    + instance_name
+                                    + "'.",
+                                span
+                            )
+                        );
+                    }
+                }
+            }
+        }
+
+        return;
+    }
+
     semantic_checker_visit_expression(&sc, &program, mc.instance);
     let result_type = semantic_checker_read_last(&sc, span);
     if (result_type matches ResultType::Err(err)) {
@@ -1424,6 +1584,21 @@ fn semantic_checker_check_method_call(
                             } else {
                                 continue;
                             }
+
+                            if (method.self_identifier matches OptionIdentifierNode::None) {
+                            semantic_checker_push_error(
+                                &sc,
+                                semantic_checker_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Method '"
+                                        + mc.field.value
+                                        + "' on type '"
+                                        + instance_name
+                                        + "' is a static method",
+                                    span
+                                )
+                            );
+                        }
 
                             semantic_checker_check_arguments(
                                 &sc,
@@ -1473,6 +1648,21 @@ fn semantic_checker_check_method_call(
                             } else {
                                 continue;
                             }
+
+                            if (method.self_identifier matches OptionIdentifierNode::None) {
+                            semantic_checker_push_error(
+                                &sc,
+                                semantic_checker_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Method '"
+                                        + mc.field.value
+                                        + "' on type '"
+                                        + instance_name
+                                        + "' is a static method",
+                                    span
+                                )
+                            );
+                        }
 
                             semantic_checker_check_arguments(
                                 &sc,

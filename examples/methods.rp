@@ -1,7 +1,13 @@
-struct Product {
+enum Status derives Debug, Clone, Json {
+    Active,
+    OutOfStock
+};
+
+struct Product derives Debug, Clone, Json {
     i64 id,
     str name,
-    i64 price
+    i64 price,
+    Status status
 
     fn get_total_price(self, i64 quantity): i64 {
         return self.price * quantity;
@@ -18,5 +24,11 @@ struct Product {
     fn do_nothing(self): void {}
 };
 
-let product = Product { id: 1, name: "Welna", price: 2137 };
+let product = Product {
+    id: 1,
+    name: "Bananas",
+    price: 433,
+    status: Status::OutOfStock
+};
+
 println(product.get_total_price(5, "usaduas"));

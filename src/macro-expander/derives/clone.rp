@@ -28,25 +28,71 @@ fn macro_expander_derive_clone(
 ): void {
     match (declared_type) {
         DeclaredType::Struct(struct_declaration) {
-            let opt = macro_expander_generate_struct_clone(
+            let opt_function_based = macro_expander_generate_struct_clone(
                 &me,
                 &program,
                 struct_declaration,
-                derive_span
+                derive_span,
+                ExpansionStrategy::FunctionBased
             );
-            if (opt matches OptionFunctionDeclaration::Some(function)) {
+            if (opt_function_based matches OptionFunctionDeclaration::Some(function)) {
                 macro_expander_insert_function(&me, &program, function, derive_span);
+            }
+
+            let opt_method_based = macro_expander_generate_struct_clone(
+                &me,
+                &program,
+                struct_declaration,
+                derive_span,
+                ExpansionStrategy::MethodBased
+            );
+            if (opt_method_based matches OptionFunctionDeclaration::Some(function)) {
+                let clone_method = TypeMethod {
+                    identifier: me_ident("clone"),
+                    self_identifier: OptionIdentifierNode::Some(IdentifierNode {
+                        value: "self",
+                        span: me_span()
+                    }),
+                    parameters: [],
+                    return_type: function.return_type,
+                    block: function.block
+                };
+
+                macro_expander_insert_method(&me, &declared_type, &clone_method, derive_span);
             }
         },
         DeclaredType::Enum(enum_declaration) {
-            let opt = macro_expander_generate_enum_clone(
+            let opt_function_based = macro_expander_generate_enum_clone(
                 &me,
                 &program,
                 enum_declaration,
-                derive_span
+                derive_span,
+                ExpansionStrategy::FunctionBased
             );
-            if (opt matches OptionFunctionDeclaration::Some(function)) {
+            if (opt_function_based matches OptionFunctionDeclaration::Some(function)) {
                 macro_expander_insert_function(&me, &program, function, derive_span);
+            }
+
+            let opt_method_based = macro_expander_generate_enum_clone(
+                &me,
+                &program,
+                enum_declaration,
+                derive_span,
+                ExpansionStrategy::MethodBased
+            );
+            if (opt_method_based matches OptionFunctionDeclaration::Some(function)) {
+                let clone_method = TypeMethod {
+                    identifier: me_ident("clone"),
+                    self_identifier: OptionIdentifierNode::Some(IdentifierNode {
+                        value: "self",
+                        span: me_span()
+                    }),
+                    parameters: [],
+                    return_type: function.return_type,
+                    block: function.block
+                };
+
+                macro_expander_insert_method(&me, &declared_type, &clone_method, derive_span);
             }
         }
     }
@@ -67,13 +113,46 @@ fn macro_expander_can_clone_type(
             if (dependency_type == parent_type) {
                 return true;
             }
-            let clone_fn = to_snake_case(dependency_type) + "_clone";
-            if (me_function_exists(&program, clone_fn)) {
-                return true;
-            }
+
             if (me_type_has_derive(&program, dependency_type, "Clone")) {
                 return true;
             }
+
+            let clone_fn = to_snake_case(dependency_type) + "_clone";
+
+            if (me_function_exists(&program, clone_fn)) {
+                return true;
+            }
+
+            for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+                let type = program.declared_types[i].value;
+
+                let methods: TypeMethodNode[] = [];
+
+                match (type) {
+                    DeclaredType::Struct(struct_declaration) {
+                        if (struct_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = struct_declaration.methods;
+                    },
+                    DeclaredType::Enum(enum_declaration) {
+                        if (enum_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = enum_declaration.methods;
+                    }
+                }
+
+                for (let j = 0; j < vector_size(&methods); j += 1) {
+                    if (methods[j].value.identifier.value == "clone") {
+                        return true;
+                    }
+                }
+            }
+
             vector_push(
                 &me.errors,
                 macro_expander_error_at(
@@ -90,10 +169,13 @@ fn macro_expander_can_clone_type(
                         + dependency_type
                         + " value): "
                         + dependency_type
+                        + "', or implement the method 'fn clone(self): "
+                        + dependency_type
                         + "'.",
                     derive_span
                 )
             );
+
             return false;
         },
         Type::Void {
@@ -105,6 +187,7 @@ fn macro_expander_can_clone_type(
                     derive_span
                 )
             );
+
             return false;
         },
         rest {
@@ -117,10 +200,11 @@ fn macro_expander_generate_struct_clone(
     &MacroExpander me,
     &Program program,
     StructDeclaration declaration,
-    Span derive_span
+    Span derive_span,
+    ExpansionStrategy expansion_strategy
 ): OptionFunctionDeclaration {
     let type_name = declaration.identifier.value;
-    let variable_name = to_snake_case(type_name);
+    let variable_name = "self";
 
     for (let i = 0; i < vector_size(&declaration.members); i += 1) {
         if (
@@ -151,7 +235,8 @@ fn macro_expander_generate_struct_clone(
             member.value.member_type.value,
             type_name,
             derive_span,
-            &counter
+            &counter,
+            expansion_strategy
         );
 
         for (let j = 0; j < vector_size(&clone_result.statements); j += 1) {
@@ -191,10 +276,11 @@ fn macro_expander_generate_enum_clone(
     &MacroExpander me,
     &Program program,
     EnumDeclaration declaration,
-    Span derive_span
+    Span derive_span,
+    ExpansionStrategy expansion_strategy
 ): OptionFunctionDeclaration {
     let enum_name = declaration.identifier.value;
-    let variable_name = to_snake_case(enum_name);
+    let variable_name = "self";
 
     for (let i = 0; i < vector_size(&declaration.members); i += 1) {
         if (declaration.members[i].value.member_type matches OptionTypeNode::Some(t)) {
@@ -247,7 +333,8 @@ fn macro_expander_generate_enum_clone(
                     type_node.value,
                     enum_name,
                     derive_span,
-                    &counter
+                    &counter,
+                    expansion_strategy
                 );
                 let arm_stmts: StatementNode[] = [];
                 for (let j = 0; j < vector_size(&clone_result.statements); j += 1) {
@@ -312,7 +399,8 @@ fn macro_expander_clone_expression(
     Type ty,
     str parent_type,
     Span derive_span,
-    &i64 counter
+    &i64 counter,
+    ExpansionStrategy expansion_strategy
 ): CloneExpressionResult {
     match (ty) {
         Type::Vector(inner) {
@@ -322,15 +410,26 @@ fn macro_expander_clone_expression(
                 inner,
                 parent_type,
                 derive_span,
-                &counter
+                &counter,
+                expansion_strategy
             );
         },
         Type::Unresolved(identifier) {
             let empty: StatementNode[] = [];
-            return CloneExpressionResult {
-                statements: empty,
-                expression: me_call_ref(to_snake_case(identifier) + "_clone", expression)
-            };
+            match (expansion_strategy) {
+                ExpansionStrategy::FunctionBased {
+                    return CloneExpressionResult {
+                        statements: empty,
+                        expression: me_call_ref(to_snake_case(identifier) + "_clone", expression)
+                    };
+                },
+                ExpansionStrategy::MethodBased {
+                    return CloneExpressionResult {
+                        statements: empty,
+                        expression: me_method_call_ref(&expression, "clone")
+                    };
+                }
+            }
         },
         Type::Str {
             # By-value string is deep-copied by language semantics when assigned;
@@ -351,7 +450,8 @@ fn macro_expander_clone_vector(
     Type inner,
     str parent_type,
     Span derive_span,
-    &i64 counter
+    &i64 counter,
+    ExpansionStrategy expansion_strategy
 ): CloneExpressionResult {
     let n = counter;
     counter = n + 1;
@@ -374,7 +474,8 @@ fn macro_expander_clone_vector(
         inner,
         parent_type,
         derive_span,
-        &counter
+        &counter,
+        expansion_strategy
     );
 
     for (let j = 0; j < vector_size(&cloned.statements); j += 1) {

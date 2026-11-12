@@ -21,21 +21,45 @@ fn macro_expander_derive_debug(
 
     let type_name = "";
     let stmts: StatementNode[] = [];
-    let block = me_block(stmts);
+    let function_based_block = me_block(stmts);
+    let method_based_block = me_block(stmts);
 
     match (declared_type) {
         DeclaredType::Enum(enum_declaration) {
             type_name = enum_declaration.identifier.value;
-            block = macro_expander_enum_debug_block(enum_declaration);
+            function_based_block = macro_expander_enum_debug_block(
+                enum_declaration,
+                ExpansionStrategy::FunctionBased
+            );
         },
         DeclaredType::Struct(struct_declaration) {
             type_name = struct_declaration.identifier.value;
-            block = macro_expander_struct_debug_block(struct_declaration);
+            function_based_block = macro_expander_struct_debug_block(
+                struct_declaration,
+                ExpansionStrategy::FunctionBased
+            );
+        }
+    }
+
+    match (declared_type) {
+        DeclaredType::Enum(enum_declaration) {
+            type_name = enum_declaration.identifier.value;
+            method_based_block = macro_expander_enum_debug_block(
+                enum_declaration,
+                ExpansionStrategy::MethodBased
+            );
+        },
+        DeclaredType::Struct(struct_declaration) {
+            type_name = struct_declaration.identifier.value;
+            method_based_block = macro_expander_struct_debug_block(
+                struct_declaration,
+                ExpansionStrategy::MethodBased
+            );
         }
     }
 
     let debug_fn_name = to_snake_case(type_name) + "_debug";
-    let param_name = to_snake_case(type_name);
+    let param_name = "self";
 
     let params: ParameterNode[] = [];
     vector_push(&params, me_param_ref(type_name, param_name));
@@ -44,10 +68,23 @@ fn macro_expander_derive_debug(
         identifier: me_ident(debug_fn_name),
         parameters: params,
         return_type: me_type(Type::Str),
-        block: block
+        block: function_based_block
     };
 
     macro_expander_insert_function(&me, &program, debug_fn, derive_span);
+
+    let debug_method = TypeMethod {
+        identifier: me_ident("debug"),
+        self_identifier: OptionIdentifierNode::Some(IdentifierNode {
+            value: "self",
+            span: me_span()
+        }),
+        parameters: [],
+        return_type: me_type(Type::Str),
+        block: method_based_block
+    };
+
+    macro_expander_insert_method(&me, &declared_type, &debug_method, derive_span);
 }
 
 fn macro_expander_check_debug_dependencies(
@@ -109,13 +146,43 @@ fn macro_expander_check_debug_type(
                 return true;
             }
 
+            if (me_type_has_derive(&program, dependency_type, "Debug")) {
+                return true;
+            }
+
             let debug_fn_name = to_snake_case(dependency_type) + "_debug";
+
             if (me_function_exists(&program, debug_fn_name)) {
                 return true;
             }
 
-            if (me_type_has_derive(&program, dependency_type, "Debug")) {
-                return true;
+            for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+                let type = program.declared_types[i].value;
+
+                let methods: TypeMethodNode[] = [];
+
+                match (type) {
+                    DeclaredType::Struct(struct_declaration) {
+                        if (struct_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = struct_declaration.methods;
+                    },
+                    DeclaredType::Enum(enum_declaration) {
+                        if (enum_declaration.identifier.value != dependency_type) {
+                            continue;
+                        }
+
+                        methods = enum_declaration.methods;
+                    }
+                }
+
+                for (let j = 0; j < vector_size(&methods); j += 1) {
+                    if (methods[j].value.identifier.value == "debug") {
+                        return true;
+                    }
+                }
             }
 
             vector_push(
@@ -132,10 +199,11 @@ fn macro_expander_check_debug_type(
                         + debug_fn_name
                         + "(&"
                         + dependency_type
-                        + " value): str'.",
+                        + " value): str', or implement the method 'fn debug(self): str'.",
                     derive_span
                 )
             );
+
             return false;
         },
         Type::Void {
@@ -147,6 +215,7 @@ fn macro_expander_check_debug_type(
                     derive_span
                 )
             );
+
             return false;
         },
         rest {
@@ -155,9 +224,12 @@ fn macro_expander_check_debug_type(
     }
 }
 
-fn macro_expander_struct_debug_block(StructDeclaration struct_declaration): BlockNode {
+fn macro_expander_struct_debug_block(
+    StructDeclaration struct_declaration,
+    ExpansionStrategy expansion_strategy
+): BlockNode {
     let struct_name = struct_declaration.identifier.value;
-    let variable_name = to_snake_case(struct_name);
+    let variable_name = "self";
 
     let has_vector = false;
     for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
@@ -167,7 +239,11 @@ fn macro_expander_struct_debug_block(StructDeclaration struct_declaration): Bloc
     }
 
     if (has_vector) {
-        return macro_expander_struct_debug_block_with_vectors(struct_declaration, variable_name);
+        return macro_expander_struct_debug_block_with_vectors(
+            struct_declaration,
+            variable_name,
+            expansion_strategy
+        );
     }
 
     let expressions: Expression[] = [];
@@ -186,7 +262,8 @@ fn macro_expander_struct_debug_block(StructDeclaration struct_declaration): Bloc
             &expressions,
             macro_expander_debug_expression_for_expression(
                 field_type,
-                me_field_access(variable_name, field_name)
+                me_field_access(variable_name, field_name),
+                expansion_strategy
             )
         );
     }
@@ -200,7 +277,8 @@ fn macro_expander_struct_debug_block(StructDeclaration struct_declaration): Bloc
 
 fn macro_expander_struct_debug_block_with_vectors(
     StructDeclaration struct_declaration,
-    str variable_name
+    str variable_name,
+    ExpansionStrategy expansion_strategy
 ): BlockNode {
     let struct_name = struct_declaration.identifier.value;
     let result_variable = "struct_str";
@@ -225,7 +303,8 @@ fn macro_expander_struct_debug_block_with_vectors(
             let vector_stmts = macro_expander_vector_debug_statements(
                 vector_variable,
                 field_expr,
-                inner_type
+                inner_type,
+                expansion_strategy
             );
             for (let j = 0; j < vector_size(&vector_stmts); j += 1) {
                 vector_push(&stmts, vector_stmts[j]);
@@ -237,7 +316,11 @@ fn macro_expander_struct_debug_block_with_vectors(
                 me_stmt(
                     me_append_str(
                         result_variable,
-                        macro_expander_debug_expression_for_expression(field_type, field_expr)
+                        macro_expander_debug_expression_for_expression(
+                            field_type,
+                            field_expr,
+                            expansion_strategy
+                        )
                     )
                 )
             );
@@ -249,9 +332,12 @@ fn macro_expander_struct_debug_block_with_vectors(
     return me_block(stmts);
 }
 
-fn macro_expander_enum_debug_block(EnumDeclaration enum_declaration): BlockNode {
+fn macro_expander_enum_debug_block(
+    EnumDeclaration enum_declaration,
+    ExpansionStrategy expansion_strategy
+): BlockNode {
     let enum_name = enum_declaration.identifier.value;
-    let variable_name = to_snake_case(enum_name);
+    let variable_name = "self";
     let match_arms: MatchArmNode[] = [];
 
     for (let i = 0; i < vector_size(&enum_declaration.members); i += 1) {
@@ -287,7 +373,8 @@ fn macro_expander_enum_debug_block(EnumDeclaration enum_declaration): BlockNode 
                         enum_name,
                         variant_name,
                         payload_variable,
-                        inner_type
+                        inner_type,
+                        expansion_strategy
                     );
                     vector_push(
                         &match_arms,
@@ -306,7 +393,8 @@ fn macro_expander_enum_debug_block(EnumDeclaration enum_declaration): BlockNode 
                 } else {
                     let debug_expression = macro_expander_debug_expression_for_variable(
                         member_type,
-                        payload_variable
+                        payload_variable,
+                        expansion_strategy
                     );
                     let return_expression = me_addition(
                         me_str_lit(enum_name + "::" + variant_name + "("),
@@ -351,7 +439,8 @@ fn macro_expander_vector_enum_debug_block(
     str enum_name,
     str variant_name,
     str vector_variable,
-    Type inner_type
+    Type inner_type,
+    ExpansionStrategy expansion_strategy
 ): BlockNode {
     let vector_str = "vector_str";
     let index = "i";
@@ -378,7 +467,11 @@ fn macro_expander_vector_enum_debug_block(
         me_stmt(
             me_append_str(
                 vector_str,
-                macro_expander_debug_expression_for_expression(inner_type, indexed)
+                macro_expander_debug_expression_for_expression(
+                    inner_type,
+                    indexed,
+                    expansion_strategy
+                )
             )
         )
     );
@@ -409,7 +502,8 @@ fn macro_expander_vector_enum_debug_block(
 fn macro_expander_vector_debug_statements(
     str vector_str,
     Expression field_expression,
-    Type inner_type
+    Type inner_type,
+    ExpansionStrategy expansion_strategy
 ): StatementNode[] {
     let index = vector_str + "_i";
     let stmts: StatementNode[] = [];
@@ -438,7 +532,11 @@ fn macro_expander_vector_debug_statements(
         me_stmt(
             me_append_str(
                 vector_str,
-                macro_expander_debug_expression_for_expression(inner_type, indexed)
+                macro_expander_debug_expression_for_expression(
+                    inner_type,
+                    indexed,
+                    expansion_strategy
+                )
             )
         )
     );
@@ -460,13 +558,22 @@ fn macro_expander_vector_debug_statements(
     return stmts;
 }
 
-fn macro_expander_debug_expression_for_variable(Type member_type, str variable_name): Expression {
-    return macro_expander_debug_expression_for_expression(member_type, me_var(variable_name));
+fn macro_expander_debug_expression_for_variable(
+    Type member_type,
+    str variable_name,
+    ExpansionStrategy expansion_strategy
+): Expression {
+    return macro_expander_debug_expression_for_expression(
+        member_type,
+        me_var(variable_name),
+        expansion_strategy
+    );
 }
 
 fn macro_expander_debug_expression_for_expression(
     Type member_type,
-    Expression expression
+    Expression expression,
+    ExpansionStrategy expansion_strategy
 ): Expression {
     match (member_type) {
         Type::Str {
@@ -509,7 +616,14 @@ fn macro_expander_debug_expression_for_expression(
             return me_cast_to_str(expression);
         },
         Type::Unresolved(identifier) {
-            return me_call_ref(to_snake_case(identifier) + "_debug", expression);
+            match (expansion_strategy) {
+                ExpansionStrategy::FunctionBased {
+                    return me_call_ref(to_snake_case(identifier) + "_debug", expression);
+                },
+                ExpansionStrategy::MethodBased {
+                    return me_method_call_ref(&expression, "debug");
+                }
+            }
         },
         Type::Vector {
             # handled at statement level

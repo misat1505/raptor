@@ -2226,6 +2226,26 @@ fn semantic_checker_check_arguments(
                                 )
                             );
                         }
+
+                        let argument_passed_by = passed_by_debug(&arguments[i].value.passed_by);
+                        let parameter_passed_by = passed_by_debug(&parameters[i].value.passed_by);
+
+                        if (argument_passed_by != parameter_passed_by) {
+                            semantic_checker_push_error(
+                                &sc,
+                                semantic_checker_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Argument passing mode mismatch in call to '"
+                                        + name
+                                        + "': expected "
+                                        + parameter_passed_by
+                                        + ", got "
+                                        + argument_passed_by
+                                        + ".",
+                                    arguments[i].span
+                                )
+                            );
+                        }
                     }
                 }
             }

@@ -1289,7 +1289,136 @@ fn semantic_checker_visit_expression(
         Expression::EnumLiteral(el) {
             semantic_checker_check_enum_literal(&sc, &program, el, expression.span);
         },
-        Expression::MethodCall {}
+        Expression::MethodCall(mc) {
+            semantic_checker_check_method_call(&sc, &program, mc, expression.span);
+        }
+    }
+}
+
+fn semantic_checker_check_method_call(
+    &SemanticChecker sc,
+    &Program program,
+    MethodCallExpression mc,
+    Span span
+): void {
+    semantic_checker_visit_expression(&sc, &program, &mc.instance);
+    let result_type = semantic_checker_read_last(&sc, span);
+    if (result_type matches ResultType::Err(err)) {
+        semantic_checker_push_error(&sc, err);
+    } else if (result_type matches ResultType::Ok(type)) {
+        if (type matches Type::Unresolved(instance_name)) {
+            for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+                match (program.declared_types[i].value) {
+                    DeclaredType::Struct(struct_declaration) {
+                        if (struct_declaration.identifier.value != instance_name) {
+                            continue;
+                        }
+                        let method_found = false;
+                        for (let j = 0; j < vector_size(&struct_declaration.methods); j += 1) {
+                            let method = struct_declaration.methods[j].value;
+                            if (method.identifier.value == mc.field.value) {
+                                method_found = true;
+                            } else {
+                                continue;
+                            }
+
+                            semantic_checker_check_arguments(
+                                &sc,
+                                &program,
+                                mc.arguments,
+                                method.parameters,
+                                method.identifier.value,
+                                span
+                            );
+
+                            if (
+                                semantic_checker_resolve_type(
+                                    &sc,
+                                    &program,
+                                    method.return_type.value,
+                                    span
+                                ) matches ResultType::Ok(return_type)
+                            ) {
+                                semantic_checker_set_last(&sc, return_type);
+                                return;
+                            }
+                        }
+                        if (!method_found) {
+                            semantic_checker_push_error(
+                                &sc,
+                                semantic_checker_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Method '"
+                                        + mc.field.value
+                                        + "' doesn't exist on type '"
+                                        + instance_name
+                                        + "'.",
+                                    span
+                                )
+                            );
+                        }
+                    },
+                    DeclaredType::Enum(enum_declaration) {
+                        if (enum_declaration.identifier.value != instance_name) {
+                            continue;
+                        }
+                        let method_found = false;
+                        for (let j = 0; j < vector_size(&enum_declaration.methods); j += 1) {
+                            let method = enum_declaration.methods[j].value;
+                            if (method.identifier.value == mc.field.value) {
+                                method_found = true;
+                            } else {
+                                continue;
+                            }
+
+                            semantic_checker_check_arguments(
+                                &sc,
+                                &program,
+                                mc.arguments,
+                                method.parameters,
+                                method.identifier.value,
+                                span
+                            );
+
+                            if (
+                                semantic_checker_resolve_type(
+                                    &sc,
+                                    &program,
+                                    method.return_type.value,
+                                    span
+                                ) matches ResultType::Ok(return_type)
+                            ) {
+                                semantic_checker_set_last(&sc, return_type);
+                                return;
+                            }
+                        }
+                        if (!method_found) {
+                            semantic_checker_push_error(
+                                &sc,
+                                semantic_checker_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Method '"
+                                        + mc.field.value
+                                        + "' doesn't exist on type '"
+                                        + instance_name
+                                        + "'.",
+                                    span
+                                )
+                            );
+                        }
+                    }
+                }
+            }
+        } else {
+            semantic_checker_push_error(
+                &sc,
+                semantic_checker_error_at(
+                    ErrorSeverity::HIGH,
+                    "Cannot call methods on this type.",
+                    span
+                )
+            );
+        }
     }
 }
 
@@ -1930,62 +2059,7 @@ fn semantic_checker_check_function_call(
                 );
             }
         }
-        if (vector_size(&call.arguments) != vector_size(&fd.parameters)) {
-            semantic_checker_push_error(
-                &sc,
-                semantic_checker_error_at(
-                    ErrorSeverity::HIGH,
-                    "Function '"
-                        + name
-                        + "' expects "
-                        + vector_size(&fd.parameters) as str
-                        + " argument(s), got "
-                        + vector_size(&call.arguments) as str
-                        + ".",
-                    span
-                )
-            );
-        }
-        let n = vector_size(&call.arguments);
-        if (vector_size(&fd.parameters) < n) {
-            n = vector_size(&fd.parameters);
-        }
-        for (let i = 0; i < n; i += 1) {
-            semantic_checker_visit_expression(&sc, &program, call.arguments[i].value.value);
-            match (semantic_checker_read_last(&sc, call.arguments[i].value.value.span)) {
-                ResultType::Err(e) {
-                    semantic_checker_push_error(&sc, e);
-                },
-                ResultType::Ok(actual) {
-                    match (
-                        semantic_checker_resolve_type(
-                            &sc,
-                            &program,
-                            fd.parameters[i].value.parameter_type.value,
-                            fd.parameters[i].span
-                        )
-                    ) {
-                        ResultType::Err(e) {
-                            semantic_checker_push_error(&sc, e);
-                        },
-                        ResultType::Ok(exp) {
-                            if (!type_compatible(exp, actual)) {
-                                semantic_checker_push_error(
-                                    &sc,
-                                    semantic_checker_error_expected_found(
-                                        ErrorSeverity::HIGH,
-                                        "Argument type mismatch in call to '" + name + "'.",
-                                        type_to_string(exp),
-                                        type_to_string(actual),
-                                        call.arguments[i].span
-                                    )
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        semantic_checker_check_arguments(&sc, &program, call.arguments, fd.parameters, name, span);
         match (
             semantic_checker_resolve_type(&sc, &program, fd.return_type.value, fd.return_type.span)
         ) {
@@ -2090,4 +2164,71 @@ fn semantic_checker_check_function_call(
     );
 }
 
-# imports already resolved; nothing to type-check
+fn semantic_checker_check_arguments(
+    &SemanticChecker sc,
+    &Program program,
+    ArgumentNode[] arguments,
+    ParameterNode[] parameters,
+    str name,
+    Span span
+): void {
+    if (vector_size(&arguments) != vector_size(&parameters)) {
+        semantic_checker_push_error(
+            &sc,
+            semantic_checker_error_at(
+                ErrorSeverity::HIGH,
+                "Function '"
+                    + name
+                    + "' expects "
+                    + vector_size(&parameters) as str
+                    + " argument(s), got "
+                    + vector_size(&arguments) as str
+                    + ".",
+                span
+            )
+        );
+    }
+
+    let n = vector_size(&arguments);
+    if (vector_size(&parameters) < n) {
+        n = vector_size(&parameters);
+    }
+
+    for (let i = 0; i < n; i += 1) {
+        semantic_checker_visit_expression(&sc, &program, arguments[i].value.value);
+
+        match (semantic_checker_read_last(&sc, arguments[i].value.value.span)) {
+            ResultType::Err(e) {
+                semantic_checker_push_error(&sc, e);
+            },
+            ResultType::Ok(actual) {
+                match (
+                    semantic_checker_resolve_type(
+                        &sc,
+                        &program,
+                        parameters[i].value.parameter_type.value,
+                        parameters[i].span
+                    )
+                ) {
+                    ResultType::Err(e) {
+                        semantic_checker_push_error(&sc, e);
+                    },
+                    ResultType::Ok(expected) {
+                        if (!type_compatible(expected, actual)) {
+                            semantic_checker_push_error(
+                                &sc,
+                                semantic_checker_error_expected_found(
+                                    ErrorSeverity::HIGH,
+                                    "Argument type mismatch in call to '" + name + "'.",
+                                    type_to_string(expected),
+                                    type_to_string(actual),
+                                    arguments[i].span
+                                )
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

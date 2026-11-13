@@ -293,6 +293,7 @@ fn me_call_ref(str fn_name, Expression arg): Expression {
 fn me_method_call_ref(&Expression entity_name, str method_name): Expression {
     return Expression::MethodCall(MethodCallExpression {
         instance: me_expr(entity_name),
+        target: MethodCallTarget::Unresolved,
         field: me_ident(method_name),
         arguments: []
     });

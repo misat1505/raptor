@@ -131,8 +131,15 @@ struct FieldAccessExpression derives Debug, Clone {
     IdentifierNode field
 };
 
+enum MethodCallTarget derives Debug, Clone {
+    Instance(str),
+    Type(str),
+    Unresolved
+};
+
 struct MethodCallExpression derives Debug, Clone {
     ExpressionNode instance,
+    MethodCallTarget target,
     IdentifierNode field,
     ArgumentNode[] arguments
 };

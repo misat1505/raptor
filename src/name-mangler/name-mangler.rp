@@ -1,0 +1,298 @@
+import "../frontend/parser/ast.rp";
+
+
+struct NameMangler {
+    Program program
+};
+
+
+fn name_mangler_new(&Program program): NameMangler {
+    return NameMangler { program: program };
+}
+
+fn nm_mangle_method_name(str target_name, str method_name): str {
+    return target_name + "__" + method_name + "__mangled";
+}
+
+fn nm_mangle_program(&NameMangler nm): void {
+    for (let i = 0; i < vector_size(&nm.program.declared_types); i += 1) {
+        nm_mangle_type(&nm, &nm.program.declared_types[i].value);
+    }
+
+    for (let i = 0; i < vector_size(&nm.program.statements); i += 1) {
+        nm_rw_statement(&nm.program.statements[i]);
+    }
+    for (let i = 0; i < vector_size(&nm.program.functions); i += 1) {
+        nm_rw_block(&nm.program.functions[i].value.block);
+    }
+}
+
+fn nm_mangle_type(&NameMangler nm, &DeclaredType declared_type): void {
+    match (declared_type) {
+        DeclaredType::Struct(struct_declaration) {
+            for (let i = 0; i < vector_size(&struct_declaration.methods); i += 1) {
+                nm_mangle_method(
+                    &nm,
+                    struct_declaration.identifier.value,
+                    &struct_declaration.methods[i]
+                );
+            }
+        },
+        DeclaredType::Enum(enum_declaration) {
+            for (let i = 0; i < vector_size(&enum_declaration.methods); i += 1) {
+                nm_mangle_method(
+                    &nm,
+                    enum_declaration.identifier.value,
+                    &enum_declaration.methods[i]
+                );
+            }
+        }
+    }
+}
+
+fn nm_mangle_method(&NameMangler nm, str type_name, &TypeMethodNode method): void {
+    let parameters: ParameterNode[] = [];
+
+    if (method.value.self_identifier matches OptionIdentifierNode::Some(ident_node)) {
+        let param = Parameter {
+            passed_by: PassedBy::Reference,
+            parameter_type: TypeNode { value: Type::Unresolved(type_name), span: span_dummy() },
+            identifier: ident_node
+        };
+        let param_node = ParameterNode { value: param, span: ident_node.span };
+        vector_push(&parameters, param_node);
+    }
+
+    for (let j = 0; j < vector_size(&method.value.parameters); j += 1) {
+        vector_push(&parameters, method.value.parameters[j]);
+    }
+
+    let mangled_name = nm_mangle_method_name(type_name, method.value.identifier.value);
+
+    let function_declaration = FunctionDeclaration {
+        identifier: IdentifierNode { value: mangled_name, span: span_dummy() },
+        parameters: parameters,
+        return_type: method.value.return_type,
+        block: method.value.block
+    };
+
+    let node = FunctionDeclarationNode { value: function_declaration, span: method.span };
+
+    vector_push(&nm.program.functions, node);
+}
+
+fn nm_rw_block(&BlockNode block): void {
+    for (let i = 0; i < vector_size(&block.value.statements); i += 1) {
+        nm_rw_statement(&block.value.statements[i]);
+    }
+}
+
+fn nm_rw_optional_block(&OptionBlockNode block): void {
+    if (block matches OptionBlockNode::Some(b)) {
+        nm_rw_block(&b);
+    }
+}
+
+fn nm_rw_optional_expression(&OptionExpressionNode expr): void {
+    if (expr matches OptionExpressionNode::Some(e)) {
+        nm_rw_expression(&e);
+    }
+}
+
+fn nm_rw_optional_statement(&OptionStatementNode stmt): void {
+    if (stmt matches OptionStatementNode::Some(s)) {
+        nm_rw_statement(&s);
+    }
+}
+
+fn nm_rw_arguments(&ArgumentNode[] arguments): void {
+    for (let i = 0; i < vector_size(&arguments); i += 1) {
+        nm_rw_expression(&arguments[i].value.value);
+    }
+}
+
+fn nm_rw_statement(&StatementNode stmt): void {
+    match (stmt.value) {
+        Statement::FunctionCall(call) {
+            nm_rw_arguments(&call.arguments);
+        },
+        Statement::Declaration(decl) {
+            match (decl.kind) {
+                VariableDeclarationKind::LET(let_kind) {
+                    nm_rw_expression(&let_kind.value);
+                },
+                VariableDeclarationKind::TYPE(type_kind) {
+                    nm_rw_optional_expression(&type_kind.value);
+                }
+            }
+        },
+        Statement::Assignment(assignment) {
+            for (let i = 0; i < vector_size(&assignment.accessors); i += 1) {
+                if (assignment.accessors[i].value matches Accessor::Index(index_expr)) {
+                    nm_rw_expression(&index_expr);
+                }
+            }
+            nm_rw_expression(&assignment.value);
+        },
+        Statement::Conditional(cond) {
+            nm_rw_expression(&cond.condition);
+            nm_rw_block(&cond.if_block);
+            nm_rw_optional_block(&cond.else_block);
+        },
+        Statement::WhileLoop(loop) {
+            nm_rw_expression(&loop.condition);
+            nm_rw_block(&loop.block);
+        },
+        Statement::ForLoop(loop) {
+            nm_rw_optional_statement(&loop.declaration);
+            nm_rw_expression(&loop.condition);
+            nm_rw_optional_statement(&loop.assignment);
+            nm_rw_block(&loop.block);
+        },
+        Statement::Switch(sw) {
+            for (let i = 0; i < vector_size(&sw.expressions); i += 1) {
+                nm_rw_expression(&sw.expressions[i].value.expression);
+            }
+            for (let i = 0; i < vector_size(&sw.cases); i += 1) {
+                nm_rw_expression(&sw.cases[i].value.condition);
+                nm_rw_block(&sw.cases[i].value.block);
+            }
+        },
+        Statement::Return(value) {
+            nm_rw_optional_expression(&value);
+        },
+        Statement::Match(m) {
+            nm_rw_expression(&m.expression);
+            for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
+                nm_rw_block(&m.match_arms[i].value.block);
+            }
+            nm_rw_optional_block(&m.rest_arm);
+        },
+        Statement::Break {},
+        Statement::Continue {},
+        Statement::Import {}
+    }
+}
+
+fn nm_rw_binary(&BinaryExpression b): void {
+    nm_rw_expression(&b.left);
+    nm_rw_expression(&b.right);
+}
+
+fn nm_rw_expression(&ExpressionNode expr): void {
+    match (expr.value) {
+        Expression::Alternative(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::Concatenation(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::Greater(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::GreaterEqual(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::Less(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::LessEqual(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::Equal(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::NotEqual(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::Addition(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::Subtraction(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::Multiplication(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::Division(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::Modulo(b) {
+            nm_rw_binary(&b);
+        },
+        Expression::BooleanNegation(inner) {
+            nm_rw_expression(&inner);
+        },
+        Expression::ArithmeticNegation(inner) {
+            nm_rw_expression(&inner);
+        },
+        Expression::Casting(c) {
+            nm_rw_expression(&c.value);
+        },
+        Expression::Literal {},
+        Expression::Vector(items) {
+            for (let i = 0; i < vector_size(&items); i += 1) {
+                nm_rw_expression(&items[i]);
+            }
+        },
+        Expression::Index(ix) {
+            nm_rw_expression(&ix.collection);
+            nm_rw_expression(&ix.index);
+        },
+        Expression::FieldAccess(fa) {
+            nm_rw_expression(&fa.instance);
+        },
+        Expression::Variable {},
+        Expression::FunctionCall(call) {
+            nm_rw_arguments(&call.arguments);
+        },
+        Expression::StructLiteral(sl) {
+            for (let i = 0; i < vector_size(&sl.value.fields); i += 1) {
+                nm_rw_expression(&sl.value.fields[i].value.value);
+            }
+        },
+        Expression::EnumLiteral(el) {
+            nm_rw_optional_expression(&el.variant_value);
+        },
+        Expression::MethodCall(call) {
+            nm_rw_expression(&call.instance);
+            nm_rw_arguments(&call.arguments);
+
+            let instance = call.instance;
+            let field = call.field;
+            let old_arguments = call.arguments;
+
+            match (call.target) {
+                MethodCallTarget::Instance(type_name) {
+                    let args: ArgumentNode[] = [];
+                    let self_arg = ArgumentNode {
+                        value: Argument { value: instance, passed_by: PassedBy::Reference },
+                        span: instance.span
+                    };
+                    vector_push(&args, self_arg);
+                    for (let i = 0; i < vector_size(&old_arguments); i += 1) {
+                        vector_push(&args, old_arguments[i]);
+                    }
+
+                    expr.value = Expression::FunctionCall(FunctionCallExpression {
+                        identifier: IdentifierNode {
+                            value: nm_mangle_method_name(type_name, field.value),
+                            span: field.span
+                        },
+                        arguments: args
+                    });
+                },
+                MethodCallTarget::Type(type_name) {
+                    expr.value = Expression::FunctionCall(FunctionCallExpression {
+                        identifier: IdentifierNode {
+                            value: nm_mangle_method_name(type_name, field.value),
+                            span: field.span
+                        },
+                        arguments: old_arguments
+                    });
+                },
+                MethodCallTarget::Unresolved {}
+            }
+        }
+    }
+}

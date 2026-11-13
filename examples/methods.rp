@@ -1,4 +1,4 @@
-enum Status {
+enum Status derives Debug, Clone, Json {
     Active,
     OutOfStock
 
@@ -7,7 +7,7 @@ enum Status {
     }
 };
 
-struct Product {
+struct Product derives Debug, Clone, Json {
     i64 id,
     str name,
     i64 price,
@@ -17,12 +17,12 @@ struct Product {
         return self.price * quantity;
     }
 
-    fn new(i64 id, str name, i64 price): Product {
+    fn new(i64 id, str name, i64 price, Status status): Product {
         return Product {
             id: id,
             name: name,
             price: price,
-            status: Status::Active
+            status: status
         };
     }
 
@@ -38,5 +38,5 @@ let product = Product {
 
 println(product.get_total_price(&5) as str);
 println(product.status.foo(&Status::OutOfStock) as str);
-product = Product.new(2, "Potato", 3516);
-let a = product.do_nothing();
+println(Product.new(2, "Potato", 3516, Status::OutOfStock).clone().debug());
+println(Product.new(3, "Mushrooms", 3243, Status::Active).json_encode());

@@ -278,6 +278,7 @@ fn parser_parse_call_or_index_tail(
                                 };
                                 result = Expression::MethodCall(MethodCallExpression {
                                     instance: instance_node,
+                                    target: MethodCallTarget::Unresolved,
                                     field: field,
                                     arguments: arguments
                                 });

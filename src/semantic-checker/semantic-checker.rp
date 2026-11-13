@@ -1393,7 +1393,7 @@ fn semantic_checker_visit_expression(
             semantic_checker_check_enum_literal(&sc, &program, el, expression.span);
         },
         Expression::MethodCall(mc) {
-            semantic_checker_check_method_call(&sc, &program, mc, expression.span);
+            semantic_checker_check_method_call(&sc, &program, &mc, &expression.span);
         }
     }
 }
@@ -1404,13 +1404,11 @@ fn semantic_checker_is_method_static(&Program program, &MethodCallExpression mc)
             match (program.declared_types[i].value) {
                 DeclaredType::Struct(struct_declaration) {
                     if (text == struct_declaration.identifier.value) {
-                        println(text + "." + mc.field.value + "()");
                         return OptionStr::Some(text);
                     }
                 },
                 DeclaredType::Enum(enum_declaration) {
                     if (text == enum_declaration.identifier.value) {
-                        println(text + "." + mc.field.value + "()");
                         return OptionStr::Some(text);
                     }
                 }
@@ -1424,8 +1422,8 @@ fn semantic_checker_is_method_static(&Program program, &MethodCallExpression mc)
 fn semantic_checker_check_method_call(
     &SemanticChecker sc,
     &Program program,
-    MethodCallExpression mc,
-    Span span
+    &MethodCallExpression mc,
+    &Span span
 ): void {
     if (semantic_checker_is_method_static(&program, &mc) matches OptionStr::Some(instance_name)) {
         for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
@@ -1466,6 +1464,8 @@ fn semantic_checker_check_method_call(
                             method.identifier.value,
                             span
                         );
+
+                        mc.target = MethodCallTarget::Type(instance_name);
 
                         if (
                             semantic_checker_resolve_type(
@@ -1530,6 +1530,8 @@ fn semantic_checker_check_method_call(
                             method.identifier.value,
                             span
                         );
+
+                        mc.target = MethodCallTarget::Type(instance_name);
 
                         if (
                             semantic_checker_resolve_type(
@@ -1609,6 +1611,8 @@ fn semantic_checker_check_method_call(
                                 span
                             );
 
+                            mc.target = MethodCallTarget::Instance(instance_name);
+
                             if (
                                 semantic_checker_resolve_type(
                                     &sc,
@@ -1650,19 +1654,21 @@ fn semantic_checker_check_method_call(
                             }
 
                             if (method.self_identifier matches OptionIdentifierNode::None) {
-                            semantic_checker_push_error(
-                                &sc,
-                                semantic_checker_error_at(
-                                    ErrorSeverity::HIGH,
-                                    "Method '"
-                                        + mc.field.value
-                                        + "' on type '"
-                                        + instance_name
-                                        + "' is a static method",
-                                    span
-                                )
-                            );
-                        }
+                                semantic_checker_push_error(
+                                    &sc,
+                                    semantic_checker_error_at(
+                                        ErrorSeverity::HIGH,
+                                        "Method '"
+                                            + mc.field.value
+                                            + "' on type '"
+                                            + instance_name
+                                            + "' is a static method",
+                                        span
+                                    )
+                                );
+                            }
+
+                            mc.target = MethodCallTarget::Instance(instance_name);
 
                             semantic_checker_check_arguments(
                                 &sc,

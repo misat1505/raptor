@@ -1,4 +1,4 @@
-enum Status derives Debug, Clone, Json {
+enum Status {
     Active,
     OutOfStock
 
@@ -7,7 +7,7 @@ enum Status derives Debug, Clone, Json {
     }
 };
 
-struct Product derives Debug, Clone, Json {
+struct Product {
     i64 id,
     str name,
     i64 price,

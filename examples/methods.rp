@@ -26,7 +26,18 @@ struct Product derives Debug, Clone, Json {
         };
     }
 
-    fn do_nothing(self): void {}
+    fn instance_method(self, i64 n): void {
+        for (let i = 0; i < n; i += 1) {
+            println("self.debug() = " + self.debug());
+        }
+    }
+
+    fn class_method(i64 n): void {
+        let dummy = Product.new(5, "Potato", 911, Status::Active);
+        for (let i = 0; i < n; i += 1) {
+            println("dummy.debug() = " + dummy.debug());
+        }
+    }
 };
 
 let product = Product {
@@ -40,3 +51,5 @@ println(product.get_total_price(&5) as str);
 println(product.status.foo(&Status::OutOfStock) as str);
 println(Product.new(2, "Potato", 3516, Status::OutOfStock).clone().debug());
 println(Product.new(3, "Mushrooms", 3243, Status::Active).json_encode());
+product.instance_method(3);
+Product.class_method(4);

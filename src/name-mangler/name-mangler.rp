@@ -168,6 +168,9 @@ fn nm_rw_statement(&StatementNode stmt): void {
             }
             nm_rw_optional_block(&m.rest_arm);
         },
+        Statement::Expression(expr) {
+            nm_rw_expression(&expr);
+        },
         Statement::Break {},
         Statement::Continue {},
         Statement::Import {}

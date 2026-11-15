@@ -188,6 +188,7 @@ fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
     for (let i = 0; i < vector_size(&assign.accessors); i += 1) {
         let is_last = i == vector_size(&assign.accessors) - 1;
         match (assign.accessors[i].value) {
+            Accessor::MethodCall {},
             Accessor::Field(field) {
                 let fidx = 0;
                 for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
@@ -825,6 +826,9 @@ fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
         },
         Statement::Switch(sw) {
             llvm_compile_switch(&c, sw);
+        },
+        Statement::Expression(expr) {
+            llvm_compile_expression(&c, expr);
         },
         Statement::Import {}
     }

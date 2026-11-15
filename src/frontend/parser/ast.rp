@@ -242,9 +242,22 @@ enum VariableDeclarationKind derives Debug, Clone {
 
 # ==================== Accessors (x[0].field) ====================
 
+struct MethodCallAccessorNode derives Debug, Clone {
+    MethodCallAccessor value,
+    Span span
+};
+
+struct MethodCallAccessor derives Debug, Clone {
+    ExpressionNode instance,
+    MethodCallTarget target,
+    IdentifierNode field,
+    ArgumentNode[] arguments
+};
+
 enum Accessor derives Debug, Clone {
     Index(ExpressionNode),
-    Field(IdentifierNode)
+    Field(IdentifierNode),
+    MethodCall(MethodCallAccessorNode)
 };
 
 struct AccessorNode derives Debug, Clone {
@@ -354,7 +367,8 @@ enum Statement derives Debug, Clone {
     Break,
     Continue,
     Import(IdentifierNode),
-    Match(MatchStatement)
+    Match(MatchStatement),
+    Expression(ExpressionNode)
 };
 
 struct StatementNode derives Debug, Clone {

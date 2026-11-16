@@ -238,7 +238,7 @@ fn macro_expander_struct_json_block(
     let result_variable = "json_str";
     let stmts: StatementNode[] = [];
 
-    vector_push(&stmts, me_stmt(me_let(result_variable, me_str_lit("{"))));
+    vector_push(&stmts, me_stmt(me_let(result_variable, me_str_lit("{"), OptionTypeNode::None)));
 
     for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
         let member = struct_declaration.members[i];
@@ -327,7 +327,13 @@ fn macro_expander_enum_json_block(
 
                 vector_push(
                     &arm_stmts,
-                    me_stmt(me_let(result_variable, me_str_lit("{\"" + variant_name + "\":")))
+                    me_stmt(
+                        me_let(
+                            result_variable,
+                            me_str_lit("{\"" + variant_name + "\":"),
+                            OptionTypeNode::None
+                        )
+                    )
                 );
 
                 if (member_type matches Type::Vector(inner_type)) {
@@ -399,9 +405,9 @@ fn macro_expander_vector_json_statements(
     let temp_vec = result_variable + "_vec";
     let stmts: StatementNode[] = [];
 
-    vector_push(&stmts, me_stmt(me_let(temp_vec, vector_expression)));
+    vector_push(&stmts, me_stmt(me_let(temp_vec, vector_expression, OptionTypeNode::None)));
     vector_push(&stmts, me_stmt(me_append_str(result_variable, me_str_lit("["))));
-    vector_push(&stmts, me_stmt(me_let(index_variable, me_i64_lit(0))));
+    vector_push(&stmts, me_stmt(me_let(index_variable, me_i64_lit(0), OptionTypeNode::None)));
 
     let loop_body: StatementNode[] = [];
     vector_push(

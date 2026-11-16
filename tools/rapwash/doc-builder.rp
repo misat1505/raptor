@@ -1,3 +1,4 @@
+
 import "../../src/semantic-checker/semantic-helpers.rp";
 import "doc.rp";
 
@@ -362,11 +363,20 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
                     );
                 }
 
+                let methods: Doc[] = [];
+                for (let j = 0; j < vector_size(&struct_decl.methods); j += 1) {
+                    vector_push(
+                        &methods,
+                        builder_type_method_doc(&builder, &struct_decl.methods[j].value)
+                    );
+                }
+
                 item = builder_type_decl_doc(
                     "struct",
                     struct_decl.identifier.value,
                     &type_derives,
-                    &members
+                    &members,
+                    &methods
                 );
             },
             DeclaredType::Enum(enum_decl) {
@@ -388,11 +398,20 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
                     vector_push(&members, variant);
                 }
 
+                let methods: Doc[] = [];
+                for (let j = 0; j < vector_size(&enum_decl.methods); j += 1) {
+                    vector_push(
+                        &methods,
+                        builder_type_method_doc(&builder, &enum_decl.methods[j].value)
+                    );
+                }
+
                 item = builder_type_decl_doc(
                     "enum",
                     enum_decl.identifier.value,
                     &type_derives,
-                    &members
+                    &members,
+                    &methods
                 );
             }
         }
@@ -413,7 +432,45 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
     return declarations;
 }
 
-fn builder_type_decl_doc(str keyword, str name, &Doc[] type_derives, &Doc[] members): Doc {
+fn builder_type_method_doc(&DocBuilder builder, &TypeMethod method): Doc {
+    let parameters: Doc[] = [];
+
+    if (method.self_identifier matches OptionIdentifierNode::Some(self_ident)) {
+        vector_push(&parameters, Doc::Text(self_ident.value));
+    }
+
+    for (let j = 0; j < vector_size(&method.parameters); j += 1) {
+        let parameter = method.parameters[j].value;
+
+        let parameter_decl = "";
+        if (parameter.passed_by matches PassedBy::Reference) {
+            parameter_decl += "&";
+        }
+        parameter_decl += type_to_string(parameter.parameter_type.value);
+        parameter_decl += " ";
+        parameter_decl += parameter.identifier.value;
+
+        vector_push(&parameters, Doc::Text(parameter_decl));
+    }
+
+    let signature = builder_list(
+        "fn " + method.identifier.value + "(",
+        ")",
+        &parameters,
+        false
+    );
+    let return_type = Doc::Text(": " + type_to_string(method.return_type.value) + " ");
+    let block = builder_build_block(&builder, &method.block);
+    return Doc::Concat([signature, return_type, block]);
+}
+
+fn builder_type_decl_doc(
+    str keyword,
+    str name,
+    &Doc[] type_derives,
+    &Doc[] members,
+    &Doc[] methods
+): Doc {
     let parts: Doc[] = [Doc::Text(keyword + " " + name)];
 
     if (vector_size(&type_derives) > 0) {
@@ -422,12 +479,29 @@ fn builder_type_decl_doc(str keyword, str name, &Doc[] type_derives, &Doc[] memb
         vector_push(&parts, doc_join(&type_derives, &comma));
     }
 
-    if (vector_size(&members) == 0) {
+    if (vector_size(&members) == 0 && vector_size(&methods) == 0) {
         vector_push(&parts, Doc::Text(" {}"));
     } else {
-        let separator = Doc::Concat([Doc::Text(","), Doc::HardLine]);
         vector_push(&parts, Doc::Text(" {"));
-        vector_push(&parts, Doc::Indent([Doc::HardLine, doc_join(&members, &separator)]));
+
+        let body_parts: Doc[] = [];
+
+        if (vector_size(&members) > 0) {
+            let separator = Doc::Concat([Doc::Text(","), Doc::HardLine]);
+            vector_push(&body_parts, doc_join(&members, &separator));
+        }
+
+        if (vector_size(&methods) > 0) {
+            if (vector_size(&members) > 0) {
+                # Blank line between fields/variants and methods.
+                vector_push(&body_parts, Doc::HardLine);
+                vector_push(&body_parts, Doc::HardLine);
+            }
+            let method_sep = Doc::Concat([Doc::HardLine, Doc::HardLine]);
+            vector_push(&body_parts, doc_join(&methods, &method_sep));
+        }
+
+        vector_push(&parts, Doc::Indent([Doc::HardLine, Doc::Concat(body_parts)]));
         vector_push(&parts, Doc::HardLine);
         vector_push(&parts, Doc::Text("}"));
     }
@@ -687,11 +761,78 @@ fn doc_builder_stmt(&DocBuilder builder, &Statement stmt): Doc {
             }
         },
         Statement::WhileLoop(while_loop) {
-            result = Doc::Concat([
-                builder_header("while", doc_builder_expr(&builder, &while_loop.condition.value)),
-                Doc::Text(" "),
-                builder_build_block(&builder, &while_loop.block)
-            ]);
+            let is_while_matches = false;
+
+            if (while_loop.condition.value matches Expression::Literal(inner)) {
+                if (inner matches Literal::True) {
+                    if (vector_size(&while_loop.block.value.statements) == 1) {
+                        let inner = while_loop.block.value.statements[0].value;
+
+                        if (inner matches Statement::Match(match_stmt)) {
+                            if (vector_size(&match_stmt.match_arms) == 1) {
+                                if (match_stmt.rest_arm matches OptionBlockNode::Some(rest_block)) {
+                                    let arm = match_stmt.match_arms[0].value;
+
+                                    let arm_is_break = builder_is_synthetic_break(&arm.block);
+                                    let rest_is_break = builder_is_synthetic_break(&rest_block);
+
+                                    if (arm_is_break != rest_is_break) {
+                                        let pattern = arm.enum_name.value + "::" + arm.variant_name.value;
+                                        if (arm.variant_value matches OptionIdentifierNode::Some(ident)) {
+                                            pattern += "(" + ident.value + ")";
+                                        }
+
+                                        let subject = doc_builder_expr(
+                                            &builder,
+                                            &match_stmt.expression.value
+                                        );
+
+                                        if (rest_is_break) {
+                                            let header = builder_header(
+                                                "while",
+                                                Doc::Concat([
+                                                    subject,
+                                                    Doc::Text(" matches " + pattern)
+                                                ])
+                                            );
+
+                                            result = Doc::Concat([
+                                                header,
+                                                Doc::Text(" "),
+                                                builder_build_block(&builder, &arm.block)
+                                            ]);
+                                        } else {
+                                            let header = builder_header(
+                                                "while",
+                                                Doc::Concat([
+                                                    subject,
+                                                    Doc::Text(" not matches " + pattern)
+                                                ])
+                                            );
+
+                                            result = Doc::Concat([
+                                                header,
+                                                Doc::Text(" "),
+                                                builder_build_block(&builder, &rest_block)
+                                            ]);
+                                        }
+
+                                        is_while_matches = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!is_while_matches) {
+                result = Doc::Concat([
+                    builder_header("while", doc_builder_expr(&builder, &while_loop.condition.value)),
+                    Doc::Text(" "),
+                    builder_build_block(&builder, &while_loop.block)
+                ]);
+            }
         },
         Statement::Match(match_stmt) {
             result = builder_match_doc(&builder, &match_stmt);
@@ -701,6 +842,12 @@ fn doc_builder_stmt(&DocBuilder builder, &Statement stmt): Doc {
         },
         Statement::Continue {
             result = Doc::Text("continue;");
+        },
+        Statement::Expression(expr_node) {
+            result = Doc::Concat([
+                doc_builder_expr(&builder, &expr_node.value),
+                Doc::Text(";")
+            ]);
         },
         Statement::Import {},
         Statement::Switch(switch_stmt) {
@@ -808,6 +955,25 @@ fn builder_assignment_doc(&DocBuilder builder, &AssignmentStatement assignment):
             },
             Accessor::Field(ident) {
                 vector_push(&lhs_parts, Doc::Text("." + ident.value));
+            },
+            Accessor::MethodCall(method_call_node) {
+                let mc = method_call_node.value;
+                let items: Doc[] = [];
+                for (let j = 0; j < vector_size(&mc.arguments); j += 1) {
+                    let argument = mc.arguments[j].value;
+                    let item = doc_builder_expr(&builder, &argument.value.value);
+                    if (argument.passed_by matches PassedBy::Reference) {
+                        item = Doc::Concat([Doc::Text("&"), item]);
+                    }
+                    vector_push(&items, item);
+                }
+                vector_push(
+                    &lhs_parts,
+                    Doc::Concat([
+                        Doc::Text("."),
+                        builder_list(mc.field.value + "(", ")", &items, false)
+                    ])
+                );
             }
         }
     }
@@ -888,6 +1054,9 @@ fn builder_is_self_bracketed(&Expression expr): bool {
         Expression::EnumLiteral {
             result = true;
         },
+        Expression::MethodCall {
+            result = true;
+        },
         rest {}
     }
 
@@ -944,6 +1113,20 @@ fn builder_is_synthetic_empty(&BlockNode block): bool {
         return false;
     }
     return block.span.start.offset == block.span.end.offset;
+}
+
+# A lowered `while matches` loop contains a synthetic block with one `break`.
+# This helper distinguishes that block from the actual loop body.
+fn builder_is_synthetic_break(&BlockNode block): bool {
+    if (vector_size(&block.value.statements) != 1) {
+        return false;
+    }
+
+    if (block.value.statements[0].value matches Statement::Break) {
+        return true;
+    }
+
+    return false;
 }
 
 fn builder_if_matches_doc(&DocBuilder builder, &MatchStatement match_stmt): Doc {
@@ -1356,6 +1539,22 @@ fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
         Expression::FunctionCall(func_call) {
             result = builder_call_doc(&builder, &func_call.identifier.value, &func_call.arguments);
         },
+        Expression::MethodCall(method_call) {
+            let items: Doc[] = [];
+            for (let i = 0; i < vector_size(&method_call.arguments); i += 1) {
+                let argument = method_call.arguments[i].value;
+                let item = doc_builder_expr(&builder, &argument.value.value);
+                if (argument.passed_by matches PassedBy::Reference) {
+                    item = Doc::Concat([Doc::Text("&"), item]);
+                }
+                vector_push(&items, item);
+            }
+            result = Doc::Concat([
+                builder_expr_min_prec(&builder, &method_call.instance.value, 8),
+                Doc::Text("."),
+                builder_list(method_call.field.value + "(", ")", &items, false)
+            ]);
+        },
         Expression::BooleanNegation(expr_node) {
             result = Doc::Concat([
                 Doc::Text("!"),
@@ -1392,6 +1591,14 @@ fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
             let fields: Doc[] = [];
             for (let i = 0; i < vector_size(&struct_literal.fields); i += 1) {
                 let field = struct_literal.fields[i].value;
+                # JS-style shorthand: `{ source }` instead of `{ source: source }`
+                # when the field value is a bare variable with the same name.
+                if (field.value.value matches Expression::Variable(var_name)) {
+                    if (var_name == field.identifier.value) {
+                        vector_push(&fields, Doc::Text(field.identifier.value));
+                        continue;
+                    }
+                }
                 vector_push(
                     &fields,
                     Doc::Concat([

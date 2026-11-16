@@ -1,0 +1,12 @@
+struct User derives Debug, Json, Clone {
+    i64 id,
+    str name
+};
+
+let user = User { id: 1, name: "Bob" };
+println(user.debug());
+println(user.json_encode());
+
+let user2 = user.clone();
+user2.id = 2;
+println(user.debug());

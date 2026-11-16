@@ -5,7 +5,7 @@ import "../parser-results.rp";
 import "../core.rp";
 
 
-# Rebuilds `identifier` followed by all of its accessors (`x[0].y`) as a
+# Rebuilds `identifier` followed by all of its accessors `x[0].y`) as a
 # plain expression - mirrors the `build_access_expression` closure the
 # Rust parser defines inline (Raptor has no closures/lambdas, so this is
 # a named helper called from the handful of compound-assignment cases
@@ -35,6 +35,18 @@ fn parser_build_access_expression(
                     value: Expression::FieldAccess(FieldAccessExpression {
                         instance: result,
                         field: field
+                    }),
+                    span: accessor_span
+                };
+            },
+            Accessor::MethodCall(method_node) {
+                let method = method_node.value;
+                result = ExpressionNode {
+                    value: Expression::MethodCall(MethodCallExpression {
+                        instance: result,
+                        target: method.target,
+                        field: method.field,
+                        arguments: method.arguments
                     }),
                     span: accessor_span
                 };
@@ -96,6 +108,7 @@ fn parser_parse_assign_or_call_without_semicolon(&Parser parser): ResultOptionSt
                 OptionIdentifierNode::Some(identifier) {
                     let identifier_start = identifier.span.start;
                     let accessors: AccessorNode[] = [];
+                    let is_expression_like = false;
 
                     while (true) {
                         let current_category = parser_current_token(&parser).category;
@@ -180,16 +193,67 @@ fn parser_parse_assign_or_call_without_semicolon(&Parser parser): ResultOptionSt
                                             ));
                                         },
                                         OptionIdentifierNode::Some(field) {
-                                            vector_push(
-                                                &accessors,
-                                                AccessorNode {
-                                                    value: Accessor::Field(field),
-                                                    span: span_new(
-                                                        dot_token.span.start,
-                                                        field.span.end
-                                                    )
+                                            current_category = parser_current_token(&parser).category;
+                                            if (current_category matches TokenCategory::ParenOpen) {
+                                                parser_consume_must_be(&parser, TokenCategory::ParenOpen);
+                                                match (parser_parse_arguments(&parser)) {
+                                                    ResultArgumentNodeVec::Err(err) {
+                                                        return ResultOptionStatementNode::Err(err);
+                                                    },
+                                                    ResultArgumentNodeVec::Ok(args) {
+                                                        is_expression_like = true;
+                                                        let end_pos = field.span.end;
+                                                        match (parser_consume_must_be(&parser, TokenCategory::ParenClose)) {
+                                                            ResultToken::Err(err) {
+                                                                return ResultOptionStatementNode::Err(err);
+                                                            },
+                                                            ResultToken::Ok(paren_close_token) {
+                                                                end_pos = paren_close_token.span.end;
+                                                            }
+                                                        }
+
+                                                        let method_call = MethodCallAccessor {
+                                                            instance: ExpressionNode {
+                                                                value: Expression::Variable(""),
+                                                                span: field.span
+                                                            },
+                                                            target: MethodCallTarget::Unresolved,
+                                                            field: field,
+                                                            arguments: args
+                                                        };
+
+                                                        let node = MethodCallAccessorNode {
+                                                            value: method_call,
+                                                            span: span_new(
+                                                                dot_token.span.start,
+                                                                end_pos
+                                                            )
+                                                        };
+
+                                                        vector_push(
+                                                            &accessors,
+                                                            AccessorNode {
+                                                                value: Accessor::MethodCall(node),
+                                                                span: span_new(
+                                                                    dot_token.span.start,
+                                                                    end_pos
+                                                                )
+                                                            }
+                                                        );
+                                                    }
                                                 }
-                                            );
+                                            } else {
+                                                vector_push(
+                                                    &accessors,
+                                                    AccessorNode {
+                                                        value: Accessor::Field(field),
+                                                        span: span_new(
+                                                            dot_token.span.start,
+                                                            field.span.end
+                                                        )
+                                                    }
+                                                );
+                                            }
                                         }
                                     }
                                 }
@@ -209,6 +273,12 @@ fn parser_parse_assign_or_call_without_semicolon(&Parser parser): ResultOptionSt
                         },
                         ResultOptionToken::Ok(option_assign) {
                             if (option_assign matches OptionToken::Some) {
+                                if (is_expression_like) {
+                                    return ResultOptionStatementNode::Err(parser_create_parser_error(
+                                        &parser,
+                                        "Cannot assign a value to expression like statement."
+                                    ));
+                                }
                                 let expr_call = parser_parse_expression(&parser);
                                 match (expr_call) {
                                     ResultOptionExpressionNode::Err(err) {
@@ -269,6 +339,12 @@ fn parser_parse_assign_or_call_without_semicolon(&Parser parser): ResultOptionSt
                     }
 
                     if (has_compound) {
+                        if (is_expression_like) {
+                            return ResultOptionStatementNode::Err(parser_create_parser_error(
+                                &parser,
+                                "Cannot assign a value to expression like statement."
+                            ));
+                        }
                         let operator_consumed = parser_consume_must_be(&parser, compound_category);
                         if (operator_consumed matches ResultToken::Err(err)) {
                             return ResultOptionStatementNode::Err(err);
@@ -331,6 +407,17 @@ fn parser_parse_assign_or_call_without_semicolon(&Parser parser): ResultOptionSt
                                 }
                             }
                         }
+                    }
+
+                    if (is_expression_like) {
+                        let expr = parser_build_access_expression(
+                            &identifier,
+                            &accessors
+                        );
+                        return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+                            value: Statement::Expression(expr),
+                            span: span_new(identifier_start, expr.span.end)
+                        }));
                     }
 
                     # "(" arguments ")" - function call.

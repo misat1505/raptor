@@ -5,6 +5,7 @@ import "./import-resolver/import-resolver.rp";
 import "./macro-expander/macro-expander-mod.rp";
 import "./semantic-checker/semantic-checker-mod.rp";
 import "./backend/llvm/llvm-mod.rp";
+import "./name-mangler/name-mangler.rp";
 
 
 # ============================================================
@@ -544,6 +545,11 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
         }
         phase_done(&opts, "Semantic checker", t);
     }
+
+    let name_mangler_time = now_ms();
+    let name_mangler = name_mangler_new(&program);
+    nm_mangle_program(&name_mangler);
+    phase_done(&opts, "Name mangling", name_mangler_time);
 
     if (opts.dump) {
         write_file("./src/ast.rp", "let ast = " + program_debug(&program) + ";");

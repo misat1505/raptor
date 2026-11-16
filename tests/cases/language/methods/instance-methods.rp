@@ -1,0 +1,16 @@
+struct User derives Debug {
+    i64 id,
+    str name
+
+    fn repr(self): str {
+        return "My name is " + self.name + " and my id is: " + self.id as str;
+    }
+
+    fn repr_multiple(self, i64 n): str {
+        return "n = " + n as str + " " + self.repr();
+    }
+};
+
+let user = User { id: 1, name: "Bob" };
+println(user.repr());
+println(user.repr_multiple(5));

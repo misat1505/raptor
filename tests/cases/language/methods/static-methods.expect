@@ -1,0 +1,3 @@
+--- stdout ---
+User { id: 0, name: "" }
+User { id: 1, name: "Bob" }

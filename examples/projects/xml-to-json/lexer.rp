@@ -38,15 +38,11 @@ struct Lexer {
     }
 
     fn advance_whitespace(self): void {
-        while (true) {
-            if (self.source.get_current_char() matches OptionChar::Some(ch)) {
-                if (ch == ' ' || ch == '\n' || ch == '\r') {
-                    self.source.consume_char();
-                } else {
-                    return;
-                }
+        while (self.source.get_current_char() matches OptionChar::Some(ch)) {
+            if (ch == ' ' || ch == '\n' || ch == '\r') {
+                self.source.consume_char();
             } else {
-                break;
+                return;
             }
         }
     }
@@ -94,22 +90,18 @@ struct Lexer {
         let start_position = self.source.position.clone();
         let number = 0;
 
-        while (true) {
-            if (self.source.get_current_char() matches OptionChar::Some(ch)) {
-                if (!char_is_digit(ch)) {
-                    break;
-                }
-
-                if (number == 0) {
-                    number = char_to_digit(ch);
-                } else {
-                    number = number * 10 + char_to_digit(ch);
-                }
-
-                self.source.consume_char();
-            } else {
+        while (self.source.get_current_char() matches OptionChar::Some(ch)) {
+            if (!char_is_digit(ch)) {
                 break;
             }
+
+            if (number == 0) {
+                number = char_to_digit(ch);
+            } else {
+                number = number * 10 + char_to_digit(ch);
+            }
+
+            self.source.consume_char();
         }
 
         let token = Token {
@@ -137,25 +129,21 @@ struct Lexer {
         let chars = ['<', '>', '/'];
         let text = "";
 
-        while (true) {
-            if (self.source.get_current_char() matches OptionChar::Some(ch)) {
-                let break_at_the_end = false;
+        while (self.source.get_current_char() matches OptionChar::Some(ch)) {
+            let break_at_the_end = false;
 
-                for (let i = 0; i < vector_size(&chars); i += 1) {
-                    if (ch == chars[i]) {
-                        break_at_the_end = true;
-                    }
+            for (let i = 0; i < vector_size(&chars); i += 1) {
+                if (ch == chars[i]) {
+                    break_at_the_end = true;
                 }
+            }
 
-                if (break_at_the_end) {
-                    break;
-                }
-
-                self.source.consume_char();
-                text += ch;
-            } else {
+            if (break_at_the_end) {
                 break;
             }
+
+            self.source.consume_char();
+            text += ch;
         }
 
         let token = Token {

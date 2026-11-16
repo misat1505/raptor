@@ -2,6 +2,11 @@ import "./lexer.rp";
 import "./ast.rp";
 
 
+struct NamedNode {
+    str key,
+    Node node
+};
+
 struct Parser {
     Lexer lexer
 
@@ -94,19 +99,15 @@ struct Parser {
         let keys: str[] = [];
         let nodes: Node[] = [];
 
-        while (true) {
-            if (self.lexer.current_token.kind matches TokenKind::Less) {
-                if (self.lexer.next_token.kind matches TokenKind::Slash) {
-                    break;
-                }
-
-                let named = self.parse_element();
-
-                vector_push(&keys, named.key);
-                vector_push(&nodes, named.node);
-            } else {
+        while (self.lexer.current_token.kind matches TokenKind::Less) {
+            if (self.lexer.next_token.kind matches TokenKind::Slash) {
                 break;
             }
+
+            let named = self.parse_element();
+
+            vector_push(&keys, named.key);
+            vector_push(&nodes, named.node);
         }
 
         return Node { kind: NodeKind::KeyValue(KeyValueNode { keys, nodes }), position };
@@ -117,24 +118,15 @@ struct Parser {
 
         let nodes: Node[] = [];
 
-        while (true) {
-            if (self.lexer.current_token.kind matches TokenKind::Less) {
-                if (self.lexer.next_token.kind matches TokenKind::Slash) {
-                    break;
-                }
-
-                let named = self.parse_element();
-                vector_push(&nodes, named.node);
-            } else {
+        while (self.lexer.current_token.kind matches TokenKind::Less) {
+            if (self.lexer.next_token.kind matches TokenKind::Slash) {
                 break;
             }
+
+            let named = self.parse_element();
+            vector_push(&nodes, named.node);
         }
 
         return Node { kind: NodeKind::Array(nodes), position };
     }
-};
-
-struct NamedNode {
-    str key,
-    Node node
 };

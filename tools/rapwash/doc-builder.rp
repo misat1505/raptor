@@ -1,3 +1,4 @@
+
 import "../../src/semantic-checker/semantic-helpers.rp";
 import "doc.rp";
 
@@ -760,11 +761,78 @@ fn doc_builder_stmt(&DocBuilder builder, &Statement stmt): Doc {
             }
         },
         Statement::WhileLoop(while_loop) {
-            result = Doc::Concat([
-                builder_header("while", doc_builder_expr(&builder, &while_loop.condition.value)),
-                Doc::Text(" "),
-                builder_build_block(&builder, &while_loop.block)
-            ]);
+            let is_while_matches = false;
+
+            if (while_loop.condition.value matches Expression::Literal(inner)) {
+                if (inner matches Literal::True) {
+                    if (vector_size(&while_loop.block.value.statements) == 1) {
+                        let inner = while_loop.block.value.statements[0].value;
+
+                        if (inner matches Statement::Match(match_stmt)) {
+                            if (vector_size(&match_stmt.match_arms) == 1) {
+                                if (match_stmt.rest_arm matches OptionBlockNode::Some(rest_block)) {
+                                    let arm = match_stmt.match_arms[0].value;
+
+                                    let arm_is_break = builder_is_synthetic_break(&arm.block);
+                                    let rest_is_break = builder_is_synthetic_break(&rest_block);
+
+                                    if (arm_is_break != rest_is_break) {
+                                        let pattern = arm.enum_name.value + "::" + arm.variant_name.value;
+                                        if (arm.variant_value matches OptionIdentifierNode::Some(ident)) {
+                                            pattern += "(" + ident.value + ")";
+                                        }
+
+                                        let subject = doc_builder_expr(
+                                            &builder,
+                                            &match_stmt.expression.value
+                                        );
+
+                                        if (rest_is_break) {
+                                            let header = builder_header(
+                                                "while",
+                                                Doc::Concat([
+                                                    subject,
+                                                    Doc::Text(" matches " + pattern)
+                                                ])
+                                            );
+
+                                            result = Doc::Concat([
+                                                header,
+                                                Doc::Text(" "),
+                                                builder_build_block(&builder, &arm.block)
+                                            ]);
+                                        } else {
+                                            let header = builder_header(
+                                                "while",
+                                                Doc::Concat([
+                                                    subject,
+                                                    Doc::Text(" not matches " + pattern)
+                                                ])
+                                            );
+
+                                            result = Doc::Concat([
+                                                header,
+                                                Doc::Text(" "),
+                                                builder_build_block(&builder, &rest_block)
+                                            ]);
+                                        }
+
+                                        is_while_matches = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!is_while_matches) {
+                result = Doc::Concat([
+                    builder_header("while", doc_builder_expr(&builder, &while_loop.condition.value)),
+                    Doc::Text(" "),
+                    builder_build_block(&builder, &while_loop.block)
+                ]);
+            }
         },
         Statement::Match(match_stmt) {
             result = builder_match_doc(&builder, &match_stmt);
@@ -1045,6 +1113,20 @@ fn builder_is_synthetic_empty(&BlockNode block): bool {
         return false;
     }
     return block.span.start.offset == block.span.end.offset;
+}
+
+# A lowered `while matches` loop contains a synthetic block with one `break`.
+# This helper distinguishes that block from the actual loop body.
+fn builder_is_synthetic_break(&BlockNode block): bool {
+    if (vector_size(&block.value.statements) != 1) {
+        return false;
+    }
+
+    if (block.value.statements[0].value matches Statement::Break) {
+        return true;
+    }
+
+    return false;
 }
 
 fn builder_if_matches_doc(&DocBuilder builder, &MatchStatement match_stmt): Doc {

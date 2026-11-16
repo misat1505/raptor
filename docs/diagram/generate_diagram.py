@@ -77,10 +77,7 @@ with graph.subgraph(name="cluster_import") as import_cluster:
         penwidth="1.5",
         margin="20",
     )
-    import_cluster.attr(
-        "node",
-        fontname="Arial",
-    )
+    import_cluster.attr("node", fontname="Arial")
 
     with import_cluster.subgraph(name="cluster_recursive") as recursive:
         recursive.attr(
@@ -126,29 +123,27 @@ icon_node(
     "#16A34A",
 )
 
+icon_node(
+    graph,
+    "name_mangler",
+    "name_mangler",
+    "Name Mangler",
+    "#EFF6FF",
+    "#2563EB",
+)
+
 graph.edge("merge", "macro_expander", xlabel=" merged AST ")
 graph.edge("macro_expander", "checker", xlabel=" expanded AST ")
+graph.edge("checker", "name_mangler", xlabel=" checked AST ")
+graph.edge("name_mangler", "compiler", xlabel=" mangled AST ")
 
 with graph.subgraph(name="cluster_backends") as backends:
     backends.attr(
-        label="  Backends  ",
-        color="#F59E0B",
-        fontcolor="#A16207",
-        fontsize="16",
-        fontname="Arial",
-        style="rounded,dashed",
-        penwidth="1.5",
-        margin="20",
+        label="",
+        style="invis",
+        margin="0",
     )
 
-    icon_node(
-        backends,
-        "interpreter",
-        "interpreter",
-        "Interpreter",
-        "#FFF7E6",
-        "#F59E0B",
-    )
     icon_node(
         backends,
         "compiler",
@@ -169,21 +164,13 @@ with graph.subgraph(name="cluster_backends") as backends:
         backends,
         "executable",
         "executable",
-        "executable",
+        "Executable",
         "#F5EEFF",
         "#7C3AED",
     )
 
     backends.edge("compiler", "llvm", xlabel=" LLVM IR ")
     backends.edge("llvm", "executable")
-
-    with backends.subgraph() as same_rank:
-        same_rank.attr(rank="same")
-        same_rank.node("interpreter")
-        same_rank.node("compiler")
-
-graph.edge("checker", "interpreter", xlabel=" checked AST ")
-graph.edge("checker", "compiler", xlabel=" checked AST ")
 
 graph.render(
     "compiler_pipeline",

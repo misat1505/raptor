@@ -362,11 +362,20 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
                     );
                 }
 
+                let methods: Doc[] = [];
+                for (let j = 0; j < vector_size(&struct_decl.methods); j += 1) {
+                    vector_push(
+                        &methods,
+                        builder_type_method_doc(&builder, &struct_decl.methods[j].value)
+                    );
+                }
+
                 item = builder_type_decl_doc(
                     "struct",
                     struct_decl.identifier.value,
                     &type_derives,
-                    &members
+                    &members,
+                    &methods
                 );
             },
             DeclaredType::Enum(enum_decl) {
@@ -388,11 +397,20 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
                     vector_push(&members, variant);
                 }
 
+                let methods: Doc[] = [];
+                for (let j = 0; j < vector_size(&enum_decl.methods); j += 1) {
+                    vector_push(
+                        &methods,
+                        builder_type_method_doc(&builder, &enum_decl.methods[j].value)
+                    );
+                }
+
                 item = builder_type_decl_doc(
                     "enum",
                     enum_decl.identifier.value,
                     &type_derives,
-                    &members
+                    &members,
+                    &methods
                 );
             }
         }
@@ -413,7 +431,45 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
     return declarations;
 }
 
-fn builder_type_decl_doc(str keyword, str name, &Doc[] type_derives, &Doc[] members): Doc {
+fn builder_type_method_doc(&DocBuilder builder, &TypeMethod method): Doc {
+    let parameters: Doc[] = [];
+
+    if (method.self_identifier matches OptionIdentifierNode::Some(self_ident)) {
+        vector_push(&parameters, Doc::Text(self_ident.value));
+    }
+
+    for (let j = 0; j < vector_size(&method.parameters); j += 1) {
+        let parameter = method.parameters[j].value;
+
+        let parameter_decl = "";
+        if (parameter.passed_by matches PassedBy::Reference) {
+            parameter_decl += "&";
+        }
+        parameter_decl += type_to_string(parameter.parameter_type.value);
+        parameter_decl += " ";
+        parameter_decl += parameter.identifier.value;
+
+        vector_push(&parameters, Doc::Text(parameter_decl));
+    }
+
+    let signature = builder_list(
+        "fn " + method.identifier.value + "(",
+        ")",
+        &parameters,
+        false
+    );
+    let return_type = Doc::Text(": " + type_to_string(method.return_type.value) + " ");
+    let block = builder_build_block(&builder, &method.block);
+    return Doc::Concat([signature, return_type, block]);
+}
+
+fn builder_type_decl_doc(
+    str keyword,
+    str name,
+    &Doc[] type_derives,
+    &Doc[] members,
+    &Doc[] methods
+): Doc {
     let parts: Doc[] = [Doc::Text(keyword + " " + name)];
 
     if (vector_size(&type_derives) > 0) {
@@ -422,12 +478,29 @@ fn builder_type_decl_doc(str keyword, str name, &Doc[] type_derives, &Doc[] memb
         vector_push(&parts, doc_join(&type_derives, &comma));
     }
 
-    if (vector_size(&members) == 0) {
+    if (vector_size(&members) == 0 && vector_size(&methods) == 0) {
         vector_push(&parts, Doc::Text(" {}"));
     } else {
-        let separator = Doc::Concat([Doc::Text(","), Doc::HardLine]);
         vector_push(&parts, Doc::Text(" {"));
-        vector_push(&parts, Doc::Indent([Doc::HardLine, doc_join(&members, &separator)]));
+
+        let body_parts: Doc[] = [];
+
+        if (vector_size(&members) > 0) {
+            let separator = Doc::Concat([Doc::Text(","), Doc::HardLine]);
+            vector_push(&body_parts, doc_join(&members, &separator));
+        }
+
+        if (vector_size(&methods) > 0) {
+            if (vector_size(&members) > 0) {
+                # Blank line between fields/variants and methods.
+                vector_push(&body_parts, Doc::HardLine);
+                vector_push(&body_parts, Doc::HardLine);
+            }
+            let method_sep = Doc::Concat([Doc::HardLine, Doc::HardLine]);
+            vector_push(&body_parts, doc_join(&methods, &method_sep));
+        }
+
+        vector_push(&parts, Doc::Indent([Doc::HardLine, Doc::Concat(body_parts)]));
         vector_push(&parts, Doc::HardLine);
         vector_push(&parts, Doc::Text("}"));
     }
@@ -702,6 +775,12 @@ fn doc_builder_stmt(&DocBuilder builder, &Statement stmt): Doc {
         Statement::Continue {
             result = Doc::Text("continue;");
         },
+        Statement::Expression(expr_node) {
+            result = Doc::Concat([
+                doc_builder_expr(&builder, &expr_node.value),
+                Doc::Text(";")
+            ]);
+        },
         Statement::Import {},
         Statement::Switch(switch_stmt) {
             let expressions: Doc[] = [];
@@ -808,6 +887,25 @@ fn builder_assignment_doc(&DocBuilder builder, &AssignmentStatement assignment):
             },
             Accessor::Field(ident) {
                 vector_push(&lhs_parts, Doc::Text("." + ident.value));
+            },
+            Accessor::MethodCall(method_call_node) {
+                let mc = method_call_node.value;
+                let items: Doc[] = [];
+                for (let j = 0; j < vector_size(&mc.arguments); j += 1) {
+                    let argument = mc.arguments[j].value;
+                    let item = doc_builder_expr(&builder, &argument.value.value);
+                    if (argument.passed_by matches PassedBy::Reference) {
+                        item = Doc::Concat([Doc::Text("&"), item]);
+                    }
+                    vector_push(&items, item);
+                }
+                vector_push(
+                    &lhs_parts,
+                    Doc::Concat([
+                        Doc::Text("."),
+                        builder_list(mc.field.value + "(", ")", &items, false)
+                    ])
+                );
             }
         }
     }
@@ -886,6 +984,9 @@ fn builder_is_self_bracketed(&Expression expr): bool {
             result = true;
         },
         Expression::EnumLiteral {
+            result = true;
+        },
+        Expression::MethodCall {
             result = true;
         },
         rest {}
@@ -1356,6 +1457,22 @@ fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
         Expression::FunctionCall(func_call) {
             result = builder_call_doc(&builder, &func_call.identifier.value, &func_call.arguments);
         },
+        Expression::MethodCall(method_call) {
+            let items: Doc[] = [];
+            for (let i = 0; i < vector_size(&method_call.arguments); i += 1) {
+                let argument = method_call.arguments[i].value;
+                let item = doc_builder_expr(&builder, &argument.value.value);
+                if (argument.passed_by matches PassedBy::Reference) {
+                    item = Doc::Concat([Doc::Text("&"), item]);
+                }
+                vector_push(&items, item);
+            }
+            result = Doc::Concat([
+                builder_expr_min_prec(&builder, &method_call.instance.value, 8),
+                Doc::Text("."),
+                builder_list(method_call.field.value + "(", ")", &items, false)
+            ]);
+        },
         Expression::BooleanNegation(expr_node) {
             result = Doc::Concat([
                 Doc::Text("!"),
@@ -1392,6 +1509,14 @@ fn doc_builder_expr(&DocBuilder builder, &Expression expr): Doc {
             let fields: Doc[] = [];
             for (let i = 0; i < vector_size(&struct_literal.fields); i += 1) {
                 let field = struct_literal.fields[i].value;
+                # JS-style shorthand: `{ source }` instead of `{ source: source }`
+                # when the field value is a bare variable with the same name.
+                if (field.value.value matches Expression::Variable(var_name)) {
+                    if (var_name == field.identifier.value) {
+                        vector_push(&fields, Doc::Text(field.identifier.value));
+                        continue;
+                    }
+                }
                 vector_push(
                     &fields,
                     Doc::Concat([

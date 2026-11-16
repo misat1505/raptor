@@ -12,7 +12,7 @@ struct Source {
 
     fn new(str source): Source {
         let position = Position { line: 1, column: 1, offset: 0 };
-        return Source { source: source, position: position };
+        return Source { source, position };
     }
 
     fn get_current_char(self): OptionChar {
@@ -39,5 +39,4 @@ struct Source {
         }
         return OptionChar::Some(ch);
     }
-
 };

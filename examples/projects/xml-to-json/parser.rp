@@ -6,7 +6,7 @@ struct Parser {
     Lexer lexer
 
     fn new(&Lexer lexer): Parser {
-        return Parser { lexer: lexer };
+        return Parser { lexer };
     }
 
     fn parse(self): Node {
@@ -19,10 +19,7 @@ struct Parser {
         vector_push(&keys, named.key);
         vector_push(&nodes, named.node);
 
-        return Node {
-            kind: NodeKind::KeyValue(KeyValueNode { keys: keys, nodes: nodes }),
-            position: position
-        };
+        return Node { kind: NodeKind::KeyValue(KeyValueNode { keys, nodes }), position };
     }
 
     fn parse_element(self): NamedNode {
@@ -51,7 +48,7 @@ struct Parser {
         self.lexer.next_token();  # consume tag name
         self.lexer.next_token();  # consume '>'
 
-        return NamedNode { key: key, node: value_node };
+        return NamedNode { key, node: value_node };
     }
 
     fn parse_value(self): Node {
@@ -88,7 +85,7 @@ struct Parser {
 
         self.lexer.next_token();  # consume literal, current = '<' of closing tag
 
-        return Node { kind: NodeKind::Literal(node_literal), position: position };
+        return Node { kind: NodeKind::Literal(node_literal), position };
     }
 
     fn parse_object_value(self): Node {
@@ -112,10 +109,7 @@ struct Parser {
             }
         }
 
-        return Node {
-            kind: NodeKind::KeyValue(KeyValueNode { keys: keys, nodes: nodes }),
-            position: position
-        };
+        return Node { kind: NodeKind::KeyValue(KeyValueNode { keys, nodes }), position };
     }
 
     fn parse_array_value(self): Node {
@@ -136,7 +130,7 @@ struct Parser {
             }
         }
 
-        return Node { kind: NodeKind::Array(nodes), position: position };
+        return Node { kind: NodeKind::Array(nodes), position };
     }
 };
 

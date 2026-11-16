@@ -1,0 +1,15 @@
+struct User derives Debug {
+    i64 id,
+    str name
+
+    fn default(): User {
+        return User { id: 0, name: "" };
+    }
+
+    fn new(i64 id, str name): User {
+        return User { id: id, name: name };
+    }
+};
+
+println(User.default().debug());
+println(User.new(1, "Bob").debug());

@@ -1,0 +1,7 @@
+struct Foo {
+    fn get_string(): str {
+        return "Hello world";
+    }
+};
+
+Foo.get_string();

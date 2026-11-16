@@ -47,9 +47,15 @@ let product = Product {
     status: Status::OutOfStock
 };
 
+struct ProductRepository {
+    Product[] products
+};
+
 println(product.get_total_price(&5) as str);
 println(product.status.foo(&Status::OutOfStock) as str);
 println(Product.new(2, "Potato", 3516, Status::OutOfStock).clone().debug());
 println(Product.new(3, "Mushrooms", 3243, Status::Active).json_encode());
-product.instance_method(3);
+
+let repo = ProductRepository { products: [product] };
+repo.products[0].instance_method(3);
 Product.class_method(4);

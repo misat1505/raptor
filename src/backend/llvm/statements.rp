@@ -829,9 +829,11 @@ fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
         },
         Statement::Expression(expr) {
             llvm_compile_expression(&c, expr);
+
+            if (c.arc && c.last_type == "ptr") {
+                llvm_emit_release(&c, c.last_value);
+            }
         },
         Statement::Import {}
     }
 }
-
-# imports already resolved before compile

@@ -612,6 +612,21 @@ fn semantic_checker_check_declaration(
                                 final_ty = ann;
                             }
                         }
+                    } else if (value_ty matches Type::Vector(inner)) {
+                        if (inner matches Type::Void) {
+                            semantic_checker_push_error(
+                                &sc,
+                                semantic_checker_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Cannot create variable of type '"
+                                        + type_to_string(value_ty)
+                                        + "'. Add a type specifier e.g. let "
+                                        + decl.identifier.value
+                                        + ": i64[] = <expr>",
+                                    span
+                                )
+                            );
+                        }
                     }
                     if (
                         stack_declare_variable(
@@ -1592,19 +1607,19 @@ fn semantic_checker_check_method_call(
                             }
 
                             if (method.self_identifier matches OptionIdentifierNode::None) {
-                            semantic_checker_push_error(
-                                &sc,
-                                semantic_checker_error_at(
-                                    ErrorSeverity::HIGH,
-                                    "Method '"
-                                        + mc.field.value
-                                        + "' on type '"
-                                        + instance_name
-                                        + "' is a static method",
-                                    span
-                                )
-                            );
-                        }
+                                semantic_checker_push_error(
+                                    &sc,
+                                    semantic_checker_error_at(
+                                        ErrorSeverity::HIGH,
+                                        "Method '"
+                                            + mc.field.value
+                                            + "' on type '"
+                                            + instance_name
+                                            + "' is a static method",
+                                        span
+                                    )
+                                );
+                            }
 
                             semantic_checker_check_arguments(
                                 &sc,

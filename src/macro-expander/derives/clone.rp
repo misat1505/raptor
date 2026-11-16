@@ -462,9 +462,18 @@ fn macro_expander_clone_vector(
     let index = "i_" + suffix;
     let stmts: StatementNode[] = [];
 
-    vector_push(&stmts, me_stmt(me_let(src, expression)));
-    vector_push(&stmts, me_stmt(me_let(dst, Expression::Vector([]))));
-    vector_push(&stmts, me_stmt(me_let(index, me_i64_lit(0))));
+    vector_push(&stmts, me_stmt(me_let(src, expression, OptionTypeNode::None)));
+    vector_push(
+        &stmts,
+        me_stmt(
+            me_let(
+                dst,
+                Expression::Vector([]),
+                OptionTypeNode::Some(TypeNode { value: Type::Vector(inner), span: me_span() })
+            )
+        )
+    );
+    vector_push(&stmts, me_stmt(me_let(index, me_i64_lit(0), OptionTypeNode::None)));
 
     let loop_body: StatementNode[] = [];
     let elem = me_index(src, index);

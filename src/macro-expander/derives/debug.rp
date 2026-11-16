@@ -284,7 +284,10 @@ fn macro_expander_struct_debug_block_with_vectors(
     let result_variable = "struct_str";
     let stmts: StatementNode[] = [];
 
-    vector_push(&stmts, me_stmt(me_let(result_variable, me_str_lit(struct_name + " { "))));
+    vector_push(
+        &stmts,
+        me_stmt(me_let(result_variable, me_str_lit(struct_name + " { "), OptionTypeNode::None))
+    );
 
     for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
         let member = struct_declaration.members[i];
@@ -446,8 +449,8 @@ fn macro_expander_vector_enum_debug_block(
     let index = "i";
     let stmts: StatementNode[] = [];
 
-    vector_push(&stmts, me_stmt(me_let(vector_str, me_str_lit("["))));
-    vector_push(&stmts, me_stmt(me_let(index, me_i64_lit(0))));
+    vector_push(&stmts, me_stmt(me_let(vector_str, me_str_lit("["), OptionTypeNode::None)));
+    vector_push(&stmts, me_stmt(me_let(index, me_i64_lit(0), OptionTypeNode::None)));
 
     let loop_body: StatementNode[] = [];
     vector_push(
@@ -510,9 +513,9 @@ fn macro_expander_vector_debug_statements(
 
     # Bind vector field to a temp so we can index it in the loop.
     let temp_vec = vector_str + "_vec";
-    vector_push(&stmts, me_stmt(me_let(temp_vec, field_expression)));
-    vector_push(&stmts, me_stmt(me_let(vector_str, me_str_lit("["))));
-    vector_push(&stmts, me_stmt(me_let(index, me_i64_lit(0))));
+    vector_push(&stmts, me_stmt(me_let(temp_vec, field_expression, OptionTypeNode::None)));
+    vector_push(&stmts, me_stmt(me_let(vector_str, me_str_lit("["), OptionTypeNode::None)));
+    vector_push(&stmts, me_stmt(me_let(index, me_i64_lit(0), OptionTypeNode::None)));
 
     let loop_body: StatementNode[] = [];
     vector_push(

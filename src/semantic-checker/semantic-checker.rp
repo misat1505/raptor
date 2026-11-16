@@ -2444,6 +2444,25 @@ fn semantic_checker_check_function_call(
                     semantic_checker_push_error(&sc, e);
                 },
                 ResultType::Ok(t) {
+                    let argument_passed_by = passed_by_debug(&call.arguments[i].value.passed_by);
+                    let parameter_passed_by = passed_by_debug(&std_fn.passed_by[i]);
+
+                    if (argument_passed_by != parameter_passed_by) {
+                        semantic_checker_push_error(
+                            &sc,
+                            semantic_checker_error_at(
+                                ErrorSeverity::HIGH,
+                                "Argument passing mode mismatch in call to '"
+                                    + name
+                                    + "': expected "
+                                    + parameter_passed_by
+                                    + ", got "
+                                    + argument_passed_by
+                                    + ".",
+                                call.arguments[i].span
+                            )
+                        );
+                    }
                     vector_push(&collected, t);
                 }
             }

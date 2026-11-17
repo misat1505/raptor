@@ -18,7 +18,10 @@ enum StdTypeCheckKind {
     None,
     VectorPush,
     VectorSize,
-    VectorStringify
+    VectorStringify,
+    VectorExtend,
+    StrToCharVector,
+    CharVectorToStr
 };
 
 struct StdFunction {

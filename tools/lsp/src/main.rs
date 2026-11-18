@@ -238,9 +238,11 @@ fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, Strin
     }
 
     let output = Command::new(&bin)
-        .arg(tmp_path.as_os_str())
-        .output()
-        .map_err(|e| format!("failed to spawn {}: {e}", bin.display()))?;
+         .arg(tmp_path.as_os_str())
+         .arg("--as")
+         .arg(display_path)
+         .output()
+         .map_err(|e| format!("failed to spawn {}: {e}", bin.display()))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);

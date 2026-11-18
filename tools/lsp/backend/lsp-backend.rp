@@ -9,6 +9,7 @@ import "../../../stdlib/string.rp";
 
 struct LspCli {
     str path,
+    str logical_path,
     str out_path,
     bool to_stdout,
     bool is_unsafe
@@ -57,6 +58,8 @@ fn usage(): void {
             + "    -h, --help          Show this help\n"
             + "    -o, --out <FILE>    Write JSON to FILE (in addition to stdout unless --no-stdout)\n"
             + "    --no-stdout         Do not print JSON on stdout (requires --out)\n"
+            + "    --as <PATH>         Analyze FILE as if it were located at PATH: imports are resolved\n"
+            + "                        relative to PATH and spans refer to it (for unsaved editor buffers)\n"
             + "    --unsafe            Skip the semantic checker (still parse / expand)\n\n"
             + "Exit 0 always means a JSON payload was produced.\n"
     );
@@ -64,7 +67,13 @@ fn usage(): void {
 
 fn parse_cli(): LspCli {
     let args = cli_args();
-    let opts = LspCli { path: "", out_path: "", to_stdout: true, is_unsafe: false };
+    let opts = LspCli {
+        path: "",
+        logical_path: "",
+        out_path: "",
+        to_stdout: true,
+        is_unsafe: false
+    };
 
     let n = vector_size(&args);
     let i = 1;
@@ -83,6 +92,15 @@ fn parse_cli(): LspCli {
         }
         if (a == "--no-stdout") {
             opts.to_stdout = false;
+            continue;
+        }
+        if (a == "--as") {
+            if (i >= n) {
+                fatal(a + " requires a path.");
+                return opts;
+            }
+            opts.logical_path = args[i];
+            i += 1;
             continue;
         }
         if (a == "-o" || a == "--out") {
@@ -143,9 +161,9 @@ fn json_escape(str s): str {
 
 fn json_str(str s): StringBuilder {
     let sb = StringBuilder.new();
-    sb.push_char('"');
+    sb.push_char('\"');
     sb.push_str(&json_escape(s));
-    sb.push_char('"');
+    sb.push_char('\"');
     return sb;
 }
 
@@ -218,10 +236,7 @@ fn lsp_definition_info_json_encode(&DefinitionInfo d): StringBuilder {
 }
 
 fn push_diag(&LspDiagnostic[] out, ErrorSeverity level, str message, str phase, Span span): void {
-    vector_push(
-        &out,
-        LspDiagnostic { severity: severity_json(level), message: message, phase: phase, span: span }
-    );
+    vector_push(&out, LspDiagnostic { severity: severity_json(level), message, phase, span });
 }
 
 fn build_payload(
@@ -296,6 +311,15 @@ fn empty_span_at_file(str path): Span {
     return span_new(pos, pos);
 }
 
+# The path the analyzed source claims to live at: `--as` if given, otherwise
+# the file that is actually read.
+fn logical_path(&LspCli opts): str {
+    if (str_len(opts.logical_path) > 0) {
+        return opts.logical_path;
+    }
+    return opts.path;
+}
+
 fn analyze_and_emit(&LspCli opts): void {
     let diagnostics: LspDiagnostic[] = [];
     let hovers: HoverInfo[] = [];
@@ -308,7 +332,7 @@ fn analyze_and_emit(&LspCli opts): void {
             ErrorSeverity::HIGH,
             "File not found: " + opts.path,
             "io",
-            empty_span_at_file(opts.path)
+            empty_span_at_file(logical_path(&opts))
         );
         emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));
         return;
@@ -317,7 +341,7 @@ fn analyze_and_emit(&LspCli opts): void {
     let source = read_file(opts.path);
     let lexer_options = default_lexer_options();
 
-    match (parse_source(source, opts.path, lexer_options)) {
+    match (parse_source(source, logical_path(&opts), lexer_options)) {
         ResultProgram::Err(err) {
             push_diag(&diagnostics, err.level, err.message, "parser", err.span);
             emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));
@@ -325,7 +349,7 @@ fn analyze_and_emit(&LspCli opts): void {
         },
         ResultProgram::Ok(parsed) {
             let resolver = import_resolver_new(lexer_options);
-            match (import_resolver_resolve(&resolver, opts.path, &parsed)) {
+            match (import_resolver_resolve(&resolver, logical_path(&opts), &parsed)) {
                 ResultProgram::Err(err) {
                     push_diag(&diagnostics, err.level, err.message, "import", err.span);
                     emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));

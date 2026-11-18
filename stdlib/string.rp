@@ -41,7 +41,7 @@ fn str_char_at(str s, i64 index): char {
 # ------------------------------------------------------------
 
 fn str_substring(str s, i64 start, i64 end): str {
-    let result = "";
+    let result = StringBuilder.new();
 
     if (start < 0) {
         start = 0;
@@ -50,14 +50,14 @@ fn str_substring(str s, i64 start, i64 end): str {
         end = str_len(s);
     }
     if (start >= end) {
-        return result;
+        return result.to_string();
     }
 
     for (let i = start; i < end; i += 1) {
-        result += s[i];
+        result.push_char(s[i]);
     }
 
-    return result;
+    return result.to_string();
 }
 
 fn str_index_of_char(str s, char target): i64 {
@@ -431,30 +431,42 @@ fn str_replace_first(str s, str old, str replacement): str {
 }
 
 fn str_replace_all(str s, str old, str replacement): str {
-    if (str_len(old) == 0) {
+    let old_len = str_len(old);
+    if (old_len == 0) {
         return s;
     }
 
-    let result = "";
-    let position = 0;
+    let chars = str_to_char_vector(&s);
+    let old_chars = str_to_char_vector(&old);
+    let rep_chars = str_to_char_vector(&replacement);
+    let n = vector_size(&chars);
+    let first = old_chars[0];
+    let out: char[] = [];
+    let i = 0;
 
-    while (position < str_len(s)) {
-        let remaining = str_substring(s, position, str_len(s));
+    while (i < n) {
+        let matched = false;
 
-        let index = str_index_of_str(remaining, old);
-
-        if (index < 0) {
-            result += remaining;
-            return result;
+        if (chars[i] == first && i + old_len <= n) {
+            matched = true;
+            for (let j = 1; j < old_len; j += 1) {
+                if (chars[i + j] != old_chars[j]) {
+                    matched = false;
+                    break;
+                }
+            }
         }
 
-        result += str_substring(remaining, 0, index);
-        result += replacement;
-
-        position += index + str_len(old);
+        if (matched) {
+            vector_extend(&out, &rep_chars);
+            i += old_len;
+        } else {
+            vector_push(&out, chars[i]);
+            i += 1;
+        }
     }
 
-    return result;
+    return char_vector_to_str(&out);
 }
 
 # ------------------------------------------------------------

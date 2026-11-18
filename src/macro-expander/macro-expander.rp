@@ -539,9 +539,19 @@ fn me_sb_push_str_stmt(Expression value): StatementNode {
 
 # sb.push_char(value);
 fn me_sb_push_char_stmt(Expression value): StatementNode {
-    return me_stmt(Statement::Expression(me_expr(
+    let is_nul = Expression::Equal(BinaryExpression {
+        left: me_expr(value),
+        right: me_expr(Expression::Literal(Literal::Char('\0')))
+    });
+    let push_char = me_stmt(Statement::Expression(me_expr(
         me_method_call_expr(me_var("sb"), "push_char", [me_arg(value, PassedBy::Value)])
     )));
+
+    return me_stmt(Statement::Conditional(ConditionalStatement {
+        condition: me_expr(is_nul),
+        if_block: me_block([me_sb_push_str_stmt(me_str_lit("\\0"))]),
+        else_block: OptionBlockNode::Some(me_block([push_char]))
+    }));
 }
 
 fn me_type_has_method(&Program program, str type_name, str method_name): bool {

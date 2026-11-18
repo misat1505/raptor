@@ -11,10 +11,15 @@ use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 /// Optional absolute path from `--backend` (set once in main before the server starts).
 static BACKEND_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Set when the client sent Windows drive URIs (`file:///c:/...`) while we run in WSL.
+/// Then every path we send back must be converted from `/mnt/c/...` to `c:/...`.
+static WSL_DRIVE_URIS: AtomicBool = AtomicBool::new(false);
 
 use serde::Deserialize;
 use tempfile::NamedTempFile;
@@ -109,6 +114,7 @@ fn fix_wsl_drive_prefix(path: String) -> String {
             && bytes[2] == b':'
             && (bytes[3] == b'/' || bytes[3] == b'\\');
         if looks_like_drive_letter {
+            WSL_DRIVE_URIS.store(true, Ordering::Relaxed);
             let drive = (bytes[1] as char).to_ascii_lowercase();
             return format!("/mnt/{}{}", drive, &path[3..]);
         }
@@ -125,6 +131,24 @@ fn path_for_uri(uri: &Url) -> String {
 }
 
 fn uri_for_path(path: &str) -> Option<Url> {
+    // Inverse of `fix_wsl_drive_prefix`: `/mnt/c/Users/x` -> `file:///c:/Users/x`,
+    // otherwise VS Code (Windows) would try to open `\mnt\c\Users\x`.
+    #[cfg(not(windows))]
+    {
+        if WSL_DRIVE_URIS.load(Ordering::Relaxed) {
+            if let Some(rest) = path.strip_prefix("/mnt/") {
+                let mut it = rest.splitn(2, '/');
+                let drive = it.next().unwrap_or("");
+                let tail = it.next().unwrap_or("");
+                if drive.len() == 1 && drive.chars().all(|c| c.is_ascii_alphabetic()) {
+                    let d = drive.to_ascii_lowercase();
+                    let mut url = Url::parse(&format!("file:///{d}:/")).ok()?;
+                    url.set_path(&format!("/{d}:/{tail}"));
+                    return Some(url);
+                }
+            }
+        }
+    }
     Url::from_file_path(path).ok()
 }
 
@@ -516,7 +540,12 @@ impl LanguageServer for Backend {
         } else {
             def.def_span.file.clone()
         };
-        let target_uri = uri_for_path(&def_path).unwrap_or_else(|| uri.clone());
+        // Same file as the one being edited: reuse the client's own URI untouched.
+        let target_uri = if paths_equal(&def_path, &doc.analyzed_path) {
+            uri.clone()
+        } else {
+            uri_for_path(&def_path).unwrap_or_else(|| uri.clone())
+        };
         Ok(Some(GotoDefinitionResponse::Scalar(Location {
             uri: target_uri,
             range: span_to_range(&def.def_span),

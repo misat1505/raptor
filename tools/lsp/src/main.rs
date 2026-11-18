@@ -237,12 +237,14 @@ fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, Strin
         ));
     }
 
+    // `--as` makes the backend resolve imports relative to the real file location
+    // (not the temp file) and put that path in every span of the edited buffer.
     let output = Command::new(&bin)
-         .arg(tmp_path.as_os_str())
-         .arg("--as")
-         .arg(display_path)
-         .output()
-         .map_err(|e| format!("failed to spawn {}: {e}", bin.display()))?;
+        .arg("--as")
+        .arg(display_path)
+        .arg(tmp_path.as_os_str())
+        .output()
+        .map_err(|e| format!("failed to spawn {}: {e}", bin.display()))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -290,6 +292,11 @@ fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, Strin
 
 fn paths_equal(a: &str, b: &str) -> bool {
     Path::new(a) == Path::new(b)
+}
+
+/// True when the span belongs to `current` (an empty file name means "the analyzed file").
+fn span_in_file(span: &BackendSpan, current: &str) -> bool {
+    span.file.is_empty() || paths_equal(&span.file, current)
 }
 
 fn payload_to_diagnostics(payload: &BackendPayload) -> HashMap<String, Vec<Diagnostic>> {
@@ -555,9 +562,12 @@ impl Backend {
         };
 
         let diagnostics_by_file = payload_to_diagnostics(&payload);
+        // The backend merges all imported modules, so hovers/definitions also
+        // describe other files. Keep only those located in the edited file.
         let hovers: Vec<HoverInfo> = payload
             .hovers
             .into_iter()
+            .filter(|h| span_in_file(&h.span, &display_path))
             .map(|h| HoverInfo {
                 span: h.span,
                 contents: h.contents,
@@ -566,6 +576,7 @@ impl Backend {
         let definitions: Vec<DefinitionInfo> = payload
             .definitions
             .into_iter()
+            .filter(|d| span_in_file(&d.use_span, &display_path))
             .map(|d| DefinitionInfo {
                 use_span: d.use_span,
                 def_span: d.def,

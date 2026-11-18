@@ -11,6 +11,7 @@ fn main(): void {
     let serializer = JsonSerializer.new();
     serializer.process(&ast);
     write_file("./examples/projects/xml-to-json/output/out1.json", serializer.serialized);
+    let a = 5;
 }
 
 

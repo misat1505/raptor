@@ -434,8 +434,15 @@ impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> LspResult<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
+                text_document_sync: Some(TextDocumentSyncCapability::Options(
+                    TextDocumentSyncOptions {
+                        open_close: Some(true),
+                        change: Some(TextDocumentSyncKind::FULL),
+                        save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                            include_text: Some(true),
+                        })),
+                        ..Default::default()
+                    },
                 )),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions::default()),
@@ -476,9 +483,21 @@ impl LanguageServer for Backend {
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        if let Some(text) = params.text {
-            self.validate(params.text_document.uri, text).await;
+        let uri = params.text_document.uri;
+        let text = match params.text {
+            Some(t) => Some(t),
+            None => self.documents.lock().await.get(&uri).map(|d| d.text.clone()),
+        };
+        if let Some(text) = text {
+            self.validate(uri.clone(), text).await;
         }
+        // The backend reads imported modules from disk, so after a save every other
+        // open document may see different imports: re-analyze them too.
+        self.revalidate_others(&uri).await;
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        self.documents.lock().await.remove(&params.text_document.uri);
     }
 
     async fn completion(
@@ -554,6 +573,20 @@ impl LanguageServer for Backend {
 }
 
 impl Backend {
+    async fn revalidate_others(&self, except: &Url) {
+        let others: Vec<(Url, String)> = self
+            .documents
+            .lock()
+            .await
+            .iter()
+            .filter(|(u, _)| *u != except)
+            .map(|(u, d)| (u.clone(), d.text.clone()))
+            .collect();
+        for (u, text) in others {
+            self.validate(u, text).await;
+        }
+    }
+
     async fn validate(&self, uri: Url, text: String) {
         let display_path = path_for_uri(&uri);
 

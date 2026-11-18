@@ -1,0 +1,106 @@
+import "../common/errors.rp";
+import "../common/span.rp";
+import "../../stdlib/string.rp";
+import "../frontend/lexer/lazy-stream-reader.rp";
+import "../frontend/lexer/lexer.rp";
+import "../frontend/parser/ast.rp";
+import "../frontend/parser/parser-results.rp";
+import "../frontend/parser/core.rp";
+import "../frontend/parser/program.rp";
+import "./macro-expander.rp";
+
+
+fn macro_expander_prelude_source(): str {
+    let lines: str[] = [
+        "struct StringBuilder {",
+        "    char[] data",
+        "",
+        "    fn new(): StringBuilder {",
+        "        return StringBuilder { data: [] };",
+        "    }",
+        "",
+        "    fn push_char(self, char c): void {",
+        "        vector_push(&self.data, c);",
+        "    }",
+        "",
+        "    fn push_str(self, &str text): void {",
+        "        for (let i = 0; i < str_len(text); i += 1) {",
+        "            vector_push(&self.data, text[i]);",
+        "        }",
+        "    }",
+        "",
+        "    fn push_char_vector(self, &char[] chars): void {",
+        "        vector_extend(&self.data, &chars);",
+        "    }",
+        "",
+        "    fn to_string(self): str {",
+        "        return char_vector_to_str(&self.data);",
+        "    }",
+        "};"
+    ];
+    return str_join(lines, "\n");
+}
+
+fn macro_expander_declared_type_name(DeclaredType declared_type): str {
+    match (declared_type) {
+        DeclaredType::Struct(struct_declaration) {
+            return struct_declaration.identifier.value;
+        },
+        DeclaredType::Enum(enum_declaration) {
+            return enum_declaration.identifier.value;
+        }
+    }
+}
+
+fn macro_expander_inject_prelude(&MacroExpander me, &Program program): void {
+    for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+        let existing = program.declared_types[i];
+        if (macro_expander_declared_type_name(existing.value) == "StringBuilder") {
+            vector_push(
+                &me.errors,
+                macro_expander_error_at(
+                    ErrorSeverity::HIGH,
+                    "Type 'StringBuilder' is a built-in type and cannot be redeclared.",
+                    existing.span
+                )
+            );
+            return;
+        }
+    }
+
+    let reader = lazy_stream_reader_new(macro_expander_prelude_source(), OptionStr::Some("<prelude>"));
+    let lexer = lexer_new(reader, LexerOptions { max_comment_length: 500, max_identifier_length: 100 });
+
+    match (parser_new(lexer)) {
+        ResultParser::Err(err) {
+            vector_push(
+                &me.errors,
+                macro_expander_error_at(
+                    ErrorSeverity::HIGH,
+                    "Internal error: cannot parse built-in prelude: " + parser_error_get_stderr_message(&err),
+                    me_span()
+                )
+            );
+        },
+        ResultParser::Ok(parser) {
+            match (parser_parse(&parser)) {
+                ResultProgram::Err(err) {
+                    vector_push(
+                        &me.errors,
+                        macro_expander_error_at(
+                            ErrorSeverity::HIGH,
+                            "Internal error: cannot parse built-in prelude: "
+                                + parser_error_get_stderr_message(&err),
+                            me_span()
+                        )
+                    );
+                },
+                ResultProgram::Ok(prelude) {
+                    for (let i = 0; i < vector_size(&prelude.declared_types); i += 1) {
+                        vector_push(&program.declared_types, prelude.declared_types[i]);
+                    }
+                }
+            }
+        }
+    }
+}

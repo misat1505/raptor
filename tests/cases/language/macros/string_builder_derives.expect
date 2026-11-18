@@ -1,0 +1,14 @@
+--- stdout ---
+Everything { prims: Prims { b: true, f: 1.5, a: 1, c: 2, d: 3, e: 4, g: 5, h: 6, i: 7, j: 8, ch: 'x', s: "hi" }, shapes: [Shape::Dot, Shape::Circle(3), Shape::Label("l"), Shape::Letter('q'), Shape::Points([1, 2]), Shape::Named(Tag { text: "t", active: false })], tags: [Tag { text: "a", active: true }, Tag { text: "b", active: false }], manual: Manual<1>, manuals: [Manual<2>, Manual<3>], words: ["one", "two"], empty: [], grid: [<vector>, <vector>], tree: Node { value: 1, children: [Node { value: 2, children: [] }, Node { value: 3, children: [Node { value: 4, children: [] }] }] } }
+{"prims":{"b":true,"f":1.5,"a":1,"c":2,"d":3,"e":4,"g":5,"h":6,"i":7,"j":8,"ch":"x","s":"hi"},"shapes":["Dot",{"Circle":3},{"Label":"l"},{"Letter":"q"},{"Points":[1,2]},{"Named":{"text":"t","active":false}}],"tags":[{"text":"a","active":true},{"text":"b","active":false}],"manual":"manual1","manuals":["manual2","manual3"],"words":["one","two"],"empty":[],"grid":[[],[]],"tree":{"value":1,"children":[{"value":2,"children":[]},{"value":3,"children":[{"value":4,"children":[]}]}]}}
+Everything { prims: Prims { b: true, f: 1.5, a: 1, c: 2, d: 3, e: 4, g: 5, h: 6, i: 7, j: 8, ch: 'x', s: "hi" }, shapes: [Shape::Dot, Shape::Circle(3), Shape::Label("l"), Shape::Letter('q'), Shape::Points([1, 2]), Shape::Named(Tag { text: "t", active: false })], tags: [Tag { text: "a", active: true }, Tag { text: "b", active: false }], manual: Manual<1>, manuals: [Manual<2>, Manual<3>], words: ["one", "two"], empty: [], grid: [<vector>, <vector>], tree: Node { value: 1, children: [Node { value: 2, children: [] }, Node { value: 3, children: [Node { value: 4, children: [] }] }] } }
+{"prims":{"b":true,"f":1.5,"a":1,"c":2,"d":3,"e":4,"g":5,"h":6,"i":7,"j":8,"ch":"x","s":"hi"},"shapes":["Dot",{"Circle":3},{"Label":"l"},{"Letter":"q"},{"Points":[1,2]},{"Named":{"text":"t","active":false}}],"tags":[{"text":"a","active":true},{"text":"b","active":false}],"manual":"manual1","manuals":["manual2","manual3"],"words":["one","two"],"empty":[],"grid":[[],[]],"tree":{"value":1,"children":[{"value":2,"children":[]},{"value":3,"children":[{"value":4,"children":[]}]}]}}
+Shape::Points([])
+"Dot"
+{"Points":[9]}
+Holder { single: Counter#5, many: [Counter#6, Counter#7] }
+{"single":"counter5","many":["counter6","counter7"]}
+Holder { single: Counter#5, many: [Counter#6, Counter#7] }
+{"single":"counter5","many":["counter6","counter7"]}
+Tag { text: "shared", active: true } | {"text":"shared","active":true} | Holder { single: Counter#5, many: [Counter#6, Counter#7] }
+Tag { text: "shared", active: true } {"text":"shared","active":true}

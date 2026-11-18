@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Type 'StringBuilder' is a built-in type and cannot be redeclared."

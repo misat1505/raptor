@@ -1,0 +1,16 @@
+let sb = StringBuilder.new();
+sb.push_str(&"Hello");
+sb.push_char(',');
+sb.push_char_vector(&[' ', 'w', 'o', 'r', 'l', 'd']);
+sb.push_str(&"");
+sb.push_char('!');
+println(sb.to_string());
+
+let empty = StringBuilder.new();
+println("[" + empty.to_string() + "]");
+
+let big = StringBuilder.new();
+for (let i = 0; i < 1000; i += 1) {
+    big.push_str(&"ab");
+}
+println(str_len(big.to_string()) as str);

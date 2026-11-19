@@ -162,52 +162,103 @@ fn semantic_checker_function_hover(
     vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
 }
 
+fn semantic_checker_method_call_hover(
+    &SemanticChecker sc,
+    str instance,
+    &TypeMethod tm,
+    Span span
+): void {
+    let sig = "fn " + instance + '.' + tm.identifier.value + "(";
+    if (tm.self_identifier matches OptionIdentifierNode::Some) {
+        sig += "self";
+        if (vector_size(&tm.parameters) > 0) {
+            sig += ", ";
+        }
+    }
+    for (let i = 0; i < vector_size(&tm.parameters); i += 1) {
+        if (i > 0) {
+            sig = sig + ", ";
+        }
+        let p = tm.parameters[i].value;
+        if (p.passed_by matches PassedBy::Reference) {
+            sig = sig + "&";
+        }
+        sig = sig + type_to_string(p.parameter_type.value) + " " + p.identifier.value;
+    }
+    sig = sig + "): " + type_to_string(tm.return_type.value);
+    let contents = "```raptor\n" + sig + "\n```";
+    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+}
+
+
 fn semantic_checker_derive_hover(
     &SemanticChecker sc,
     str identifier_name,
     IdentifierNode derive
 ): void {
     let snake = to_snake_case(identifier_name);
+
     if (derive.value == "Debug") {
         let contents =
-            "Creates a function to display `"
+            "Generates functionality for formatting `"
                 + identifier_name
-                + "`.\n\n```raptor\nfn "
+                + "` as a human-readable string.\n\n"
+                + "```raptor\n"
+                + "fn "
                 + snake
                 + "_debug(&"
                 + identifier_name
-                + " "
-                + snake
-                + "): str\n```";
+                + " value): str\n"
+                + "```\n\n"
+                + "```raptor\n"
+                + "fn "
+                + identifier_name
+                + ".debug(self): str\n"
+                + "```";
         vector_push(&sc.hovers, HoverInfo { span: derive.span, contents: contents });
     } else if (derive.value == "Json") {
         let contents =
-            "Creates a function to encode `"
+            "Generates functionality for serializing `"
                 + identifier_name
-                + "` as JSON.\n\n```raptor\nfn "
+                + "` into a JSON string.\n\n"
+                + "```raptor\n"
+                + "fn "
                 + snake
                 + "_json_encode(&"
                 + identifier_name
-                + " "
-                + snake
-                + "): str\n```";
+                + " value): str\n"
+                + "```\n\n"
+                + "```raptor\n"
+                + "fn "
+                + identifier_name
+                + ".json_encode(self): str\n"
+                + "```";
         vector_push(&sc.hovers, HoverInfo { span: derive.span, contents: contents });
     } else if (derive.value == "Clone") {
         let contents =
-            "Creates a function to recursively clone `"
+            "Generates functionality for recursively cloning `"
                 + identifier_name
-                + "`.\n\n```raptor\nfn "
+                + "` and its fields.\n\n"
+                + "```raptor\n"
+                + "fn "
                 + snake
                 + "_clone(&"
                 + identifier_name
-                + " "
-                + snake
-                + "): "
+                + " value): "
                 + identifier_name
-                + "\n```";
+                + "\n"
+                + "```\n\n"
+                + "```raptor\n"
+                + "fn "
+                + identifier_name
+                + ".clone(self): "
+                + identifier_name
+                + "\n"
+                + "```";
         vector_push(&sc.hovers, HoverInfo { span: derive.span, contents: contents });
     }
 }
+
 
 fn semantic_checker_resolve_type(
     &SemanticChecker sc,
@@ -1454,6 +1505,7 @@ fn semantic_checker_check_method_call(
                     let method_found = false;
                     for (let j = 0; j < vector_size(&struct_declaration.methods); j += 1) {
                         let method = struct_declaration.methods[j].value;
+                        let method_definition_span = struct_declaration.methods[j].span;
                         if (method.identifier.value == mc.field.value) {
                             method_found = true;
                         } else {
@@ -1485,6 +1537,9 @@ fn semantic_checker_check_method_call(
                         );
 
                         mc.target = MethodCallTarget::Type(instance_name);
+
+                        semantic_checker_method_call_hover(&sc, instance_name, &method, mc.field.span);
+                        semantic_checker_push_definition(&sc, mc.field.span, method_definition_span);
 
                         if (
                             semantic_checker_resolve_type(
@@ -1520,6 +1575,7 @@ fn semantic_checker_check_method_call(
                     let method_found = false;
                     for (let j = 0; j < vector_size(&enum_declaration.methods); j += 1) {
                         let method = enum_declaration.methods[j].value;
+                        let method_definition_span = enum_declaration.methods[j].span;
                         if (method.identifier.value == mc.field.value) {
                             method_found = true;
                         } else {
@@ -1551,6 +1607,9 @@ fn semantic_checker_check_method_call(
                         );
 
                         mc.target = MethodCallTarget::Type(instance_name);
+
+                        semantic_checker_method_call_hover(&sc, instance_name, &method, mc.field.span);
+                        semantic_checker_push_definition(&sc, mc.field.span, method_definition_span);
 
                         if (
                             semantic_checker_resolve_type(
@@ -1600,6 +1659,7 @@ fn semantic_checker_check_method_call(
                         let method_found = false;
                         for (let j = 0; j < vector_size(&struct_declaration.methods); j += 1) {
                             let method = struct_declaration.methods[j].value;
+                            let method_definition_span = struct_declaration.methods[j].span;
                             if (method.identifier.value == mc.field.value) {
                                 method_found = true;
                             } else {
@@ -1631,6 +1691,9 @@ fn semantic_checker_check_method_call(
                             );
 
                             mc.target = MethodCallTarget::Instance(instance_name);
+
+                            semantic_checker_method_call_hover(&sc, instance_name, &method, mc.field.span);
+                            semantic_checker_push_definition(&sc, mc.field.span, method_definition_span);
 
                             if (
                                 semantic_checker_resolve_type(
@@ -1666,6 +1729,7 @@ fn semantic_checker_check_method_call(
                         let method_found = false;
                         for (let j = 0; j < vector_size(&enum_declaration.methods); j += 1) {
                             let method = enum_declaration.methods[j].value;
+                            let method_definition_span = enum_declaration.methods[j].span;
                             if (method.identifier.value == mc.field.value) {
                                 method_found = true;
                             } else {
@@ -1688,6 +1752,9 @@ fn semantic_checker_check_method_call(
                             }
 
                             mc.target = MethodCallTarget::Instance(instance_name);
+
+                            semantic_checker_method_call_hover(&sc, instance_name, &method, mc.field.span);
+                            semantic_checker_push_definition(&sc, mc.field.span, method_definition_span);
 
                             semantic_checker_check_arguments(
                                 &sc,

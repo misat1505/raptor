@@ -1,0 +1,5 @@
+struct StringBuilder {
+    i64 length
+};
+
+println("unreachable");

@@ -9,9 +9,12 @@ import "../../../stdlib/string.rp";
 
 struct LspCli {
     str path,
+    str logical_path,
     str out_path,
     bool to_stdout,
-    bool is_unsafe
+    bool is_unsafe,
+    str[] overlay_paths,
+    str[] overlay_files
 };
 
 struct LspDiagnostic {
@@ -57,6 +60,11 @@ fn usage(): void {
             + "    -h, --help          Show this help\n"
             + "    -o, --out <FILE>    Write JSON to FILE (in addition to stdout unless --no-stdout)\n"
             + "    --no-stdout         Do not print JSON on stdout (requires --out)\n"
+            + "    --as <PATH>         Analyze FILE as if it were located at PATH: imports are resolved\n"
+            + "                        relative to PATH and spans refer to it (for unsaved editor buffers)\n"
+            + "    --overlay <PATH> <FILE>\n"
+            + "                        Use the content of FILE instead of the file at PATH, both for the\n"
+            + "                        entry file and for imports (unsaved editor buffers). Repeatable.\n"
             + "    --unsafe            Skip the semantic checker (still parse / expand)\n\n"
             + "Exit 0 always means a JSON payload was produced.\n"
     );
@@ -64,7 +72,17 @@ fn usage(): void {
 
 fn parse_cli(): LspCli {
     let args = cli_args();
-    let opts = LspCli { path: "", out_path: "", to_stdout: true, is_unsafe: false };
+    let opts = LspCli {
+        path: "",
+        logical_path: "",
+        out_path: "",
+        to_stdout: true,
+        is_unsafe: false,
+        overlay_paths: [],
+        overlay_files: []
+    };
+    let ov_paths: str[] = [];
+    let ov_files: str[] = [];
 
     let n = vector_size(&args);
     let i = 1;
@@ -83,6 +101,25 @@ fn parse_cli(): LspCli {
         }
         if (a == "--no-stdout") {
             opts.to_stdout = false;
+            continue;
+        }
+        if (a == "--as") {
+            if (i >= n) {
+                fatal(a + " requires a path.");
+                return opts;
+            }
+            opts.logical_path = args[i];
+            i += 1;
+            continue;
+        }
+        if (a == "--overlay") {
+            if (i + 1 >= n) {
+                fatal(a + " requires a path and a file.");
+                return opts;
+            }
+            vector_push(&ov_paths, args[i]);
+            vector_push(&ov_files, args[i + 1]);
+            i += 2;
             continue;
         }
         if (a == "-o" || a == "--out") {
@@ -106,6 +143,9 @@ fn parse_cli(): LspCli {
         }
         opts.path = a;
     }
+
+    opts.overlay_paths = ov_paths;
+    opts.overlay_files = ov_files;
 
     if (str_len(opts.path) == 0) {
         eprintln("lsp-backend: path to file not given.\n");
@@ -141,8 +181,12 @@ fn json_escape(str s): str {
     return out;
 }
 
-fn json_str(str s): str {
-    return "\"" + json_escape(s) + "\"";
+fn json_str(str s): StringBuilder {
+    let sb = StringBuilder.new();
+    sb.push_char('\"');
+    sb.push_str(&json_escape(s));
+    sb.push_char('\"');
+    return sb;
 }
 
 fn span_file(Span span): str {
@@ -152,24 +196,24 @@ fn span_file(Span span): str {
     return "";
 }
 
-fn span_json(Span span): str {
-    return
-        "{"
-            + "\"file\":"
-            + json_str(span_file(span))
-            + ",\"start_line\":"
-            + span.start.line as str
-            + ",\"start_column\":"
-            + span.start.column as str
-            + ",\"end_line\":"
-            + span.end.line as str
-            + ",\"end_column\":"
-            + span.end.column as str
-            + ",\"start_offset\":"
-            + span.start.offset as str
-            + ",\"end_offset\":"
-            + span.end.offset as str
-            + "}";
+fn span_json(Span span): StringBuilder {
+    let sb = StringBuilder.new();
+    sb.push_str(&"{\"file\":");
+    sb.push_builder(&json_str(span_file(span)));
+    sb.push_str(&",\"start_line\":");
+    sb.push_str(&span.start.line as str);
+    sb.push_str(&",\"start_column\":");
+    sb.push_str(&span.start.column as str);
+    sb.push_str(&",\"end_line\":");
+    sb.push_str(&span.end.line as str);
+    sb.push_str(&",\"end_column\":");
+    sb.push_str(&span.end.column as str);
+    sb.push_str(&",\"start_offset\":");
+    sb.push_str(&span.start.offset as str);
+    sb.push_str(&",\"end_offset\":");
+    sb.push_str(&span.end.offset as str);
+    sb.push_char('}');
+    return sb;
 }
 
 fn severity_json(ErrorSeverity level): str {
@@ -179,33 +223,42 @@ fn severity_json(ErrorSeverity level): str {
     return "warning";
 }
 
-fn diagnostic_json(LspDiagnostic d): str {
-    return
-        "{"
-            + "\"severity\":"
-            + json_str(d.severity)
-            + ",\"message\":"
-            + json_str(d.message)
-            + ",\"phase\":"
-            + json_str(d.phase)
-            + ",\"span\":"
-            + span_json(d.span)
-            + "}";
+fn diagnostic_json(LspDiagnostic d): StringBuilder {
+    let sb = StringBuilder.new();
+    sb.push_str(&"{\"severity\":");
+    sb.push_builder(&json_str(d.severity));
+    sb.push_str(&",\"message\":");
+    sb.push_builder(&json_str(d.message));
+    sb.push_str(&",\"phase\":");
+    sb.push_builder(&json_str(d.phase));
+    sb.push_str(&",\"span\":");
+    sb.push_builder(&span_json(d.span));
+    sb.push_char('}');
+    return sb;
 }
 
-fn lsp_hover_info_json_encode(&HoverInfo h): str {
-    return "{" + "\"span\":" + span_json(h.span) + ",\"contents\":" + json_str(h.contents) + "}";
+fn lsp_hover_info_json_encode(&HoverInfo h): StringBuilder {
+    let sb = StringBuilder.new();
+    sb.push_str(&"{\"span\":");
+    sb.push_builder(&span_json(h.span));
+    sb.push_str(&",\"contents\":");
+    sb.push_builder(&json_str(h.contents));
+    sb.push_char('}');
+    return sb;
 }
 
-fn lsp_definition_info_json_encode(&DefinitionInfo d): str {
-    return "{" + "\"use\":" + span_json(d.use_span) + ",\"def\":" + span_json(d.def_span) + "}";
+fn lsp_definition_info_json_encode(&DefinitionInfo d): StringBuilder {
+    let sb = StringBuilder.new();
+    sb.push_str(&"{\"use\":");
+    sb.push_builder(&span_json(d.use_span));
+    sb.push_str(&",\"def\":");
+    sb.push_builder(&span_json(d.def_span));
+    sb.push_char('}');
+    return sb;
 }
 
 fn push_diag(&LspDiagnostic[] out, ErrorSeverity level, str message, str phase, Span span): void {
-    vector_push(
-        &out,
-        LspDiagnostic { severity: severity_json(level), message: message, phase: phase, span: span }
-    );
+    vector_push(&out, LspDiagnostic { severity: severity_json(level), message, phase, span });
 }
 
 fn build_payload(
@@ -214,38 +267,39 @@ fn build_payload(
     &HoverInfo[] hovers,
     &DefinitionInfo[] definitions
 ): str {
-    let json = "{\"ok\":";
+    let json = StringBuilder.new();
+    json.push_str(&"{\"ok\":");
     if (ok) {
-        json += "true";
+        json.push_str(&"true");
     } else {
-        json += "false";
+        json.push_str(&"false");
     }
 
-    json += ",\"diagnostics\":[";
+    json.push_str(&",\"diagnostics\":[");
     for (let i = 0; i < vector_size(&diagnostics); i += 1) {
         if (i != 0) {
-            json += ",";
+            json.push_char(',');
         }
-        json += diagnostic_json(diagnostics[i]);
+        json.push_builder(&diagnostic_json(diagnostics[i]));
     }
 
-    json += "],\"definitions\":[";
+    json.push_str(&"],\"definitions\":[");
     for (let i = 0; i < vector_size(&definitions); i += 1) {
         if (i != 0) {
-            json += ",";
+            json.push_char(',');
         }
-        json += lsp_definition_info_json_encode(&definitions[i]);
+        json.push_builder(&lsp_definition_info_json_encode(&definitions[i]));
     }
 
-    json += "],\"hovers\":[";
+    json.push_str(&"],\"hovers\":[");
     for (let i = 0; i < vector_size(&hovers); i += 1) {
         if (i != 0) {
-            json += ",";
+            json.push_char(',');
         }
-        json += lsp_hover_info_json_encode(&hovers[i]);
+        json.push_builder(&lsp_hover_info_json_encode(&hovers[i]));
     }
-    json += "]}";
-    return json;
+    json.push_str(&"]}");
+    return json.to_string();
 }
 
 fn emit_json(&LspCli opts, str json): void {
@@ -279,28 +333,55 @@ fn empty_span_at_file(str path): Span {
     return span_new(pos, pos);
 }
 
+# The path the analyzed source claims to live at: `--as` if given, otherwise
+# the file that is actually read.
+fn logical_path(&LspCli opts): str {
+    if (str_len(opts.logical_path) > 0) {
+        return opts.logical_path;
+    }
+    return opts.path;
+}
+
+# Index of the `--overlay` entry for `path` (compared normalized), or -1.
+fn overlay_index(&LspCli opts, str path): i64 {
+    let target = import_resolver_normalize_path(path);
+    for (let i = 0; i < vector_size(&opts.overlay_paths); i += 1) {
+        if (import_resolver_normalize_path(opts.overlay_paths[i]) == target) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 fn analyze_and_emit(&LspCli opts): void {
     let diagnostics: LspDiagnostic[] = [];
     let hovers: HoverInfo[] = [];
     let definitions: DefinitionInfo[] = [];
     let ok = true;
 
-    if (!exists_file(opts.path)) {
+    let entry_overlay = overlay_index(&opts, opts.path);
+
+    if (entry_overlay < 0 && !exists_file(opts.path)) {
         push_diag(
             &diagnostics,
             ErrorSeverity::HIGH,
             "File not found: " + opts.path,
             "io",
-            empty_span_at_file(opts.path)
+            empty_span_at_file(logical_path(&opts))
         );
         emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));
         return;
     }
 
-    let source = read_file(opts.path);
+    let source = "";
+    if (entry_overlay >= 0) {
+        source = read_file(opts.overlay_files[entry_overlay]);
+    } else {
+        source = read_file(opts.path);
+    }
     let lexer_options = default_lexer_options();
 
-    match (parse_source(source, opts.path, lexer_options)) {
+    match (parse_source(source, logical_path(&opts), lexer_options)) {
         ResultProgram::Err(err) {
             push_diag(&diagnostics, err.level, err.message, "parser", err.span);
             emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));
@@ -308,7 +389,14 @@ fn analyze_and_emit(&LspCli opts): void {
         },
         ResultProgram::Ok(parsed) {
             let resolver = import_resolver_new(lexer_options);
-            match (import_resolver_resolve(&resolver, opts.path, &parsed)) {
+            for (let k = 0; k < vector_size(&opts.overlay_paths); k += 1) {
+                import_resolver_add_overlay(
+                    &resolver,
+                    opts.overlay_paths[k],
+                    read_file(opts.overlay_files[k])
+                );
+            }
+            match (import_resolver_resolve(&resolver, logical_path(&opts), &parsed)) {
                 ResultProgram::Err(err) {
                     push_diag(&diagnostics, err.level, err.message, "import", err.span);
                     emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));

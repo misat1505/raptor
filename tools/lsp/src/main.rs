@@ -10,11 +10,18 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::process::Command;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::OnceLock;
 
 /// Optional absolute path from `--backend` (set once in main before the server starts).
 static BACKEND_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Set when the client sent Windows drive URIs (`file:///c:/...`) while we run in WSL.
+/// Then every path we send back must be converted from `/mnt/c/...` to `c:/...`.
+static WSL_DRIVE_URIS: AtomicBool = AtomicBool::new(false);
 
 use serde::Deserialize;
 use tempfile::NamedTempFile;
@@ -93,10 +100,23 @@ struct DocumentState {
     definitions: Vec<DefinitionInfo>,
 }
 
+/// Reverse import graph: file -> files that import it (built by scanning `.rp` sources).
+struct ImportGraph {
+    built_at: Option<Instant>,
+    roots: Vec<String>,
+    importers: Arc<HashMap<String, Vec<String>>>,
+}
+
 struct Backend {
     client: Client,
     documents: Mutex<HashMap<Url, DocumentState>>,
-    published_files: Mutex<HashMap<Url, HashSet<String>>>,
+    /// Newest analysis request id per document; older results are discarded.
+    latest: Mutex<HashMap<Url, u64>>,
+    seq: AtomicU64,
+    /// Open file -> entrypoint (an importer, higher in the import tree) that analyzed it best.
+    context_cache: Mutex<HashMap<String, String>>,
+    graph: Mutex<ImportGraph>,
+    workspace_roots: Mutex<Vec<String>>,
 }
 
 fn fix_wsl_drive_prefix(path: String) -> String {
@@ -109,6 +129,7 @@ fn fix_wsl_drive_prefix(path: String) -> String {
             && bytes[2] == b':'
             && (bytes[3] == b'/' || bytes[3] == b'\\');
         if looks_like_drive_letter {
+            WSL_DRIVE_URIS.store(true, Ordering::Relaxed);
             let drive = (bytes[1] as char).to_ascii_lowercase();
             return format!("/mnt/{}{}", drive, &path[3..]);
         }
@@ -125,6 +146,24 @@ fn path_for_uri(uri: &Url) -> String {
 }
 
 fn uri_for_path(path: &str) -> Option<Url> {
+    // Inverse of `fix_wsl_drive_prefix`: `/mnt/c/Users/x` -> `file:///c:/Users/x`,
+    // otherwise VS Code (Windows) would try to open `\mnt\c\Users\x`.
+    #[cfg(not(windows))]
+    {
+        if WSL_DRIVE_URIS.load(Ordering::Relaxed) {
+            if let Some(rest) = path.strip_prefix("/mnt/") {
+                let mut it = rest.splitn(2, '/');
+                let drive = it.next().unwrap_or("");
+                let tail = it.next().unwrap_or("");
+                if drive.len() == 1 && drive.chars().all(|c| c.is_ascii_alphabetic()) {
+                    let d = drive.to_ascii_lowercase();
+                    let mut url = Url::parse(&format!("file:///{d}:/")).ok()?;
+                    url.set_path(&format!("/{d}:/{tail}"));
+                    return Some(url);
+                }
+            }
+        }
+    }
     Url::from_file_path(path).ok()
 }
 
@@ -222,13 +261,19 @@ fn severity_from_str(s: &str) -> DiagnosticSeverity {
     }
 }
 
-fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, String> {
-    let mut tmp = NamedTempFile::with_suffix(".rp").map_err(|e| e.to_string())?;
-    tmp.write_all(source.as_bytes())
-        .map_err(|e| e.to_string())?;
-    tmp.flush().map_err(|e| e.to_string())?;
-    let tmp_path = tmp.path().to_path_buf();
+/// Debounce before spawning the backend (ms) and hard limit for one analysis (s).
+const DEBOUNCE_MS: u64 = 150;
+const BACKEND_TIMEOUT_SECS: u64 = 15;
+/// Max backend runs per analysis: the file itself + this many minus one importers.
+const MAX_CONTEXT_ATTEMPTS: usize = 5;
 
+/// Runs the backend with `entry` as entrypoint. `overlays` are (path, text) of every open
+/// editor buffer: the backend reads those instead of the (possibly older) files on disk.
+/// Returns the payload and everything the backend wrote to stderr (your `eprintln`s).
+async fn run_backend(
+    entry: &str,
+    overlays: &[(String, String)],
+) -> Result<(BackendPayload, String), String> {
     let bin = backend_binary();
     if !bin.exists() {
         return Err(format!(
@@ -237,13 +282,35 @@ fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, Strin
         ));
     }
 
-    let output = Command::new(&bin)
-        .arg(tmp_path.as_os_str())
-        .output()
-        .map_err(|e| format!("failed to spawn {}: {e}", bin.display()))?;
+    let mut cmd = Command::new(&bin);
+    let mut tmp_files: Vec<NamedTempFile> = Vec::new();
+    for (path, text) in overlays {
+        let mut tmp = NamedTempFile::with_suffix(".rp").map_err(|e| e.to_string())?;
+        tmp.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
+        tmp.flush().map_err(|e| e.to_string())?;
+        cmd.arg("--overlay").arg(path).arg(tmp.path());
+        tmp_files.push(tmp);
+    }
+    // kill_on_drop + timeout: a hanging backend can no longer block a file forever.
+    cmd.arg(entry).kill_on_drop(true);
+
+    let output = match tokio::time::timeout(
+        Duration::from_secs(BACKEND_TIMEOUT_SECS),
+        cmd.output(),
+    )
+    .await
+    {
+        Ok(r) => r.map_err(|e| format!("failed to spawn {}: {e}", bin.display()))?,
+        Err(_) => {
+            return Err(format!(
+                "lsp-backend timed out after {BACKEND_TIMEOUT_SECS}s and was killed"
+            ))
+        }
+    };
+    drop(tmp_files);
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
     let json_line = stdout
         .lines()
@@ -257,60 +324,310 @@ fn run_backend(source: &str, display_path: &str) -> Result<BackendPayload, Strin
 
     if json_line.is_empty() {
         return Err(format!(
-            "lsp-backend produced no JSON (exit {}). stderr:\n{stderr}\nstdout:\n{stdout}",
+            "lsp-backend produced no JSON ({}). stderr:\n{stderr}\nstdout:\n{stdout}",
             output.status
         ));
     }
 
-    let mut payload: BackendPayload =
-        serde_json::from_str(json_line).map_err(|e| format!("invalid backend JSON: {e}\n{json_line}"))?;
+    let payload: BackendPayload = serde_json::from_str(json_line)
+        .map_err(|e| format!("invalid backend JSON: {e}\n{json_line}"))?;
+    Ok((payload, stderr))
+}
 
-    let tmp_str = tmp_path.to_string_lossy().to_string();
-    let remap = |span: &mut BackendSpan| {
-        if span.file.is_empty() || span.file == tmp_str || paths_equal(&span.file, &tmp_str) {
-            span.file = display_path.to_string();
+// ---------------------------------------------------------------------------
+// Paths and the reverse import graph (used to find a better entrypoint)
+// ---------------------------------------------------------------------------
+
+/// Lexical normalization, the same rules as `import_resolver_normalize_path` in the backend.
+fn normalize_path(path: &str) -> String {
+    let is_abs = path.starts_with('/');
+    let mut stack: Vec<&str> = Vec::new();
+    for part in path.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                stack.pop();
+            }
+            p => stack.push(p),
         }
+    }
+    let joined = stack.join("/");
+    if is_abs {
+        format!("/{joined}")
+    } else if joined.is_empty() {
+        ".".to_string()
+    } else {
+        joined
+    }
+}
+
+fn parent_dir(path: &str) -> String {
+    match path.rfind('/') {
+        Some(0) => "/".to_string(),
+        Some(idx) => path[..idx].to_string(),
+        None => ".".to_string(),
+    }
+}
+
+fn resolve_import(from_file: &str, import: &str) -> String {
+    if import.starts_with('/') {
+        return normalize_path(import);
+    }
+    let dir = parent_dir(from_file);
+    normalize_path(&format!("{dir}/{import}"))
+}
+
+/// Finds `import "x.rp";` as well as the future `import { a, b } from "x.rp";`
+/// (the first quoted string on a line that starts with `import`).
+fn parse_imports(source: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in source.lines() {
+        let t = line.trim_start();
+        let Some(rest) = t.strip_prefix("import") else {
+            continue;
+        };
+        if !rest.starts_with(|c: char| c.is_whitespace() || c == '{' || c == '"') {
+            continue;
+        }
+        let Some(start) = rest.find('"') else {
+            continue;
+        };
+        let after = &rest[start + 1..];
+        let Some(end) = after.find('"') else {
+            continue;
+        };
+        out.push(after[..end].to_string());
+    }
+    out
+}
+
+fn scan_rp_files(dir: &Path, depth: usize, out: &mut Vec<String>) {
+    if depth > 16 || out.len() > 20000 {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
     };
-    for d in &mut payload.diagnostics {
-        remap(&mut d.span);
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if path.is_dir() {
+            if name.starts_with('.') || name == "node_modules" || name == "target" {
+                continue;
+            }
+            scan_rp_files(&path, depth + 1, out);
+        } else if path.extension().map(|e| e == "rp").unwrap_or(false) {
+            out.push(normalize_path(&path.to_string_lossy()));
+        }
     }
-    for h in &mut payload.hovers {
-        remap(&mut h.span);
+}
+
+/// `overrides` holds the text of open editor buffers (newer than disk).
+fn build_import_graph(
+    roots: &[String],
+    overrides: &HashMap<String, String>,
+) -> HashMap<String, Vec<String>> {
+    let mut set: HashSet<String> = HashSet::new();
+    for root in roots {
+        let mut found = Vec::new();
+        scan_rp_files(Path::new(root), 0, &mut found);
+        set.extend(found);
     }
-    for d in &mut payload.definitions {
-        remap(&mut d.use_span);
-        remap(&mut d.def);
+    set.extend(overrides.keys().cloned());
+    let mut files: Vec<String> = set.into_iter().collect();
+    files.sort();
+
+    let mut graph: HashMap<String, Vec<String>> = HashMap::new();
+    for file in &files {
+        let text = match overrides.get(file) {
+            Some(t) => t.clone(),
+            None => match std::fs::read_to_string(file) {
+                Ok(t) => t,
+                Err(_) => continue,
+            },
+        };
+        for import in parse_imports(&text) {
+            let target = resolve_import(file, &import);
+            graph.entry(target).or_default().push(file.clone());
+        }
+    }
+    for importers in graph.values_mut() {
+        importers.sort();
+        importers.dedup();
+    }
+    graph
+}
+
+fn fallback_root(path: &str) -> String {
+    let start = parent_dir(path);
+    let mut dir = start.clone();
+    loop {
+        if Path::new(&dir).join(".git").exists() {
+            return dir;
+        }
+        let parent = parent_dir(&dir);
+        if parent == dir || dir == "/" || dir == "." {
+            return start;
+        }
+        dir = parent;
+    }
+}
+
+/// Files that (transitively) import `start`, level by level (BFS): direct importers first,
+/// then importers of those, and so on. Open files go first within a level.
+fn context_candidates(
+    graph: &HashMap<String, Vec<String>>,
+    start: &str,
+    open: &HashSet<String>,
+    max: usize,
+) -> Vec<(String, usize)> {
+    let mut result: Vec<(String, usize)> = Vec::new();
+    let mut visited: HashSet<String> = HashSet::new();
+    visited.insert(start.to_string());
+    let mut frontier = vec![start.to_string()];
+    let mut level = 0;
+    while !frontier.is_empty() && result.len() < max {
+        level += 1;
+        let mut next: Vec<String> = Vec::new();
+        for file in &frontier {
+            if let Some(importers) = graph.get(file) {
+                for importer in importers {
+                    if visited.insert(importer.clone()) {
+                        next.push(importer.clone());
+                    }
+                }
+            }
+        }
+        next.sort_by(|a, b| open.contains(b).cmp(&open.contains(a)).then_with(|| a.cmp(b)));
+        for n in &next {
+            if result.len() >= max {
+                break;
+            }
+            result.push((n.clone(), level));
+        }
+        frontier = next;
+    }
+    result
+}
+
+// ---------------------------------------------------------------------------
+// One backend run, rated from the point of view of the open file
+// ---------------------------------------------------------------------------
+
+struct Attempt {
+    entry: String,
+    level: usize,
+    result: Result<(BackendPayload, String), String>,
+    elapsed_ms: u128,
+    /// Parser / import / macro / io error somewhere: the analysis did not reach (or finish) the checker.
+    fatal: bool,
+    /// Errors located in the open file.
+    own_errors: usize,
+    /// parser / import / io error in the open file: a different entrypoint cannot fix that.
+    hard_own: bool,
+}
+
+impl Attempt {
+    fn key(&self) -> (u8, usize, usize) {
+        (self.fatal as u8, self.own_errors, self.level)
     }
 
-    drop(tmp);
-    Ok(payload)
+    fn clean(&self) -> bool {
+        !self.fatal && self.own_errors == 0
+    }
+}
+
+fn rate_attempt(
+    entry: &str,
+    level: usize,
+    open_path: &str,
+    result: Result<(BackendPayload, String), String>,
+    elapsed_ms: u128,
+) -> Attempt {
+    let (fatal, own_errors, hard_own) = match &result {
+        Ok((payload, _)) => {
+            let mut fatal = false;
+            let mut own_errors = 0;
+            let mut hard_own = false;
+            for d in &payload.diagnostics {
+                if d.severity != "error" {
+                    continue;
+                }
+                let own = span_in_file(&d.span, open_path);
+                let hard_phase = matches!(d.phase.as_str(), "io" | "parser" | "import");
+                if hard_phase || d.phase == "macro" {
+                    fatal = true;
+                }
+                if own {
+                    own_errors += 1;
+                    if hard_phase {
+                        hard_own = true;
+                    }
+                }
+            }
+            (fatal, own_errors, hard_own)
+        }
+        Err(_) => (true, 1_000_000, false),
+    };
+    Attempt {
+        entry: entry.to_string(),
+        level,
+        result,
+        elapsed_ms,
+        fatal,
+        own_errors,
+        hard_own,
+    }
 }
 
 fn paths_equal(a: &str, b: &str) -> bool {
-    Path::new(a) == Path::new(b)
+    normalize_path(a) == normalize_path(b)
 }
 
-fn payload_to_diagnostics(payload: &BackendPayload) -> HashMap<String, Vec<Diagnostic>> {
-    let mut map: HashMap<String, Vec<Diagnostic>> = HashMap::new();
+/// True when the span belongs to `current` (an empty file name means "the analyzed file").
+fn span_in_file(span: &BackendSpan, current: &str) -> bool {
+    span.file.is_empty() || paths_equal(&span.file, current)
+}
+
+/// Diagnostics located in `own_path`, as LSP diagnostics. Errors that live in other files
+/// (the analysis may cover many modules) are not shown here: each file is shown when it is
+/// opened. If such an error stopped the analysis, one note says so.
+fn own_diagnostics(payload: &BackendPayload, own_path: &str) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    let mut blocked_by: Option<&BackendDiagnostic> = None;
     for d in &payload.diagnostics {
-        let file = if d.span.file.is_empty() {
-            String::new()
-        } else {
-            d.span.file.clone()
-        };
-        let mut diagnostic = Diagnostic {
-            range: span_to_range(&d.span),
-            severity: Some(severity_from_str(&d.severity)),
-            source: Some("raptor".to_string()),
-            message: d.message.clone(),
-            ..Default::default()
-        };
-        if !d.phase.is_empty() {
-            diagnostic.message = format!("[{}] {}", d.phase, d.message);
+        if span_in_file(&d.span, own_path) {
+            let mut diagnostic = Diagnostic {
+                range: span_to_range(&d.span),
+                severity: Some(severity_from_str(&d.severity)),
+                source: Some("raptor".to_string()),
+                message: d.message.clone(),
+                ..Default::default()
+            };
+            if !d.phase.is_empty() {
+                diagnostic.message = format!("[{}] {}", d.phase, d.message);
+            }
+            out.push(diagnostic);
+        } else if blocked_by.is_none()
+            && d.severity == "error"
+            && matches!(d.phase.as_str(), "io" | "parser" | "import" | "macro")
+        {
+            blocked_by = Some(d);
         }
-        map.entry(file).or_default().push(diagnostic);
     }
-    map
+    if let Some(d) = blocked_by {
+        out.push(Diagnostic {
+            range: Range::new(Position::new(0, 0), Position::new(0, 1)),
+            severity: Some(DiagnosticSeverity::WARNING),
+            source: Some("raptor".to_string()),
+            message: format!(
+                "Analysis incomplete: error in {}:{}: {}",
+                d.span.file, d.span.start_line, d.message
+            ),
+            ..Default::default()
+        });
+    }
+    out
 }
 
 fn keyword_completions() -> Vec<CompletionItem> {
@@ -398,11 +715,30 @@ fn identifier_completions(source: &str) -> Vec<CompletionItem> {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> LspResult<InitializeResult> {
+    async fn initialize(&self, params: InitializeParams) -> LspResult<InitializeResult> {
+        let mut roots: Vec<String> = Vec::new();
+        if let Some(folders) = &params.workspace_folders {
+            for folder in folders {
+                roots.push(normalize_path(&path_for_uri(&folder.uri)));
+            }
+        }
+        if roots.is_empty() {
+            if let Some(root) = &params.root_uri {
+                roots.push(normalize_path(&path_for_uri(root)));
+            }
+        }
+        *self.workspace_roots.lock().await = roots;
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
+                text_document_sync: Some(TextDocumentSyncCapability::Options(
+                    TextDocumentSyncOptions {
+                        open_close: Some(true),
+                        change: Some(TextDocumentSyncKind::FULL),
+                        save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                            include_text: Some(true),
+                        })),
+                        ..Default::default()
+                    },
                 )),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions::default()),
@@ -443,9 +779,27 @@ impl LanguageServer for Backend {
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        if let Some(text) = params.text {
-            self.validate(params.text_document.uri, text).await;
+        let uri = params.text_document.uri;
+        let text = match params.text {
+            Some(t) => Some(t),
+            None => self.documents.lock().await.get(&uri).map(|d| d.text.clone()),
+        };
+        if let Some(text) = text {
+            self.validate(uri.clone(), text).await;
         }
+        // Imports may have changed on disk: rebuild the import graph and re-analyze the
+        // other open documents too.
+        self.graph.lock().await.built_at = None;
+        self.revalidate_others(&uri).await;
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        let uri = params.text_document.uri;
+        self.documents.lock().await.remove(&uri);
+        self.context_cache
+            .lock()
+            .await
+            .remove(&normalize_path(&path_for_uri(&uri)));
     }
 
     async fn completion(
@@ -507,7 +861,12 @@ impl LanguageServer for Backend {
         } else {
             def.def_span.file.clone()
         };
-        let target_uri = uri_for_path(&def_path).unwrap_or_else(|| uri.clone());
+        // Same file as the one being edited: reuse the client's own URI untouched.
+        let target_uri = if paths_equal(&def_path, &doc.analyzed_path) {
+            uri.clone()
+        } else {
+            uri_for_path(&def_path).unwrap_or_else(|| uri.clone())
+        };
         Ok(Some(GotoDefinitionResponse::Scalar(Location {
             uri: target_uri,
             range: span_to_range(&def.def_span),
@@ -516,21 +875,206 @@ impl LanguageServer for Backend {
 }
 
 impl Backend {
+    async fn revalidate_others(&self, except: &Url) {
+        let others: Vec<(Url, String)> = self
+            .documents
+            .lock()
+            .await
+            .iter()
+            .filter(|(u, _)| *u != except)
+            .map(|(u, d)| (u.clone(), d.text.clone()))
+            .collect();
+        for (u, text) in others {
+            self.validate(u, text).await;
+        }
+    }
+
+    async fn is_latest(&self, uri: &Url, seq: u64) -> bool {
+        self.latest.lock().await.get(uri).copied() == Some(seq)
+    }
+
+    /// (path, text) of every open editor buffer.
+    async fn open_overlays(&self) -> Vec<(String, String)> {
+        self.documents
+            .lock()
+            .await
+            .values()
+            .map(|d| (d.analyzed_path.clone(), d.text.clone()))
+            .collect()
+    }
+
+    /// Reverse import graph, rebuilt when older than 3 s (or after a save).
+    async fn importers_snapshot(
+        &self,
+        focus: &str,
+        overlays: &[(String, String)],
+    ) -> Arc<HashMap<String, Vec<String>>> {
+        let mut roots = self.workspace_roots.lock().await.clone();
+        let inside = roots
+            .iter()
+            .any(|r| focus.starts_with(&format!("{}/", r.trim_end_matches('/'))));
+        if !inside {
+            // single file / file outside the workspace folders
+            roots.push(fallback_root(focus));
+        }
+        roots.sort();
+        roots.dedup();
+
+        let mut graph = self.graph.lock().await;
+        let fresh = graph
+            .built_at
+            .map(|t| t.elapsed() < Duration::from_secs(3))
+            .unwrap_or(false)
+            && graph.roots == roots;
+        if !fresh {
+            let overrides: HashMap<String, String> = overlays.iter().cloned().collect();
+            let scan_roots = roots.clone();
+            let built =
+                tokio::task::spawn_blocking(move || build_import_graph(&scan_roots, &overrides))
+                    .await
+                    .unwrap_or_default();
+            graph.importers = Arc::new(built);
+            graph.roots = roots;
+            graph.built_at = Some(Instant::now());
+        }
+        graph.importers.clone()
+    }
+
+    async fn attempt(
+        &self,
+        entry: &str,
+        level: usize,
+        open_path: &str,
+        overlays: &[(String, String)],
+    ) -> Attempt {
+        let started = Instant::now();
+        let result = run_backend(entry, overlays).await;
+        rate_attempt(entry, level, open_path, result, started.elapsed().as_millis())
+    }
+
+    /// Analyze `path`. Standalone first; when that leaves errors in the file (typically
+    /// symbols that are only defined by whoever imports it), walk up the import tree:
+    /// importers, importers of importers, ... and keep the entrypoint with the fewest errors.
+    /// Returns None when a newer edit made this analysis stale.
+    async fn analyze_with_context(
+        &self,
+        uri: &Url,
+        path: &str,
+        seq: u64,
+        overlays: &[(String, String)],
+    ) -> Option<(Attempt, usize)> {
+        // 1) entrypoint that worked last time
+        let cached = self.context_cache.lock().await.get(path).cloned();
+        if let Some(entry) = cached {
+            let usable = entry != path
+                && (overlays.iter().any(|(p, _)| paths_equal(p, &entry))
+                    || Path::new(&entry).exists());
+            if usable {
+                let a = self.attempt(&entry, 1, path, overlays).await;
+                if !self.is_latest(uri, seq).await {
+                    return None;
+                }
+                if !a.fatal || a.hard_own {
+                    return Some((a, 1));
+                }
+            }
+            self.context_cache.lock().await.remove(path);
+        }
+
+        // 2) the file on its own
+        let first = self.attempt(path, 0, path, overlays).await;
+        if !self.is_latest(uri, seq).await {
+            return None;
+        }
+        // A syntax / import / io error in the file itself cannot be fixed by a different entrypoint.
+        if first.clean() || first.hard_own {
+            return Some((first, 1));
+        }
+
+        // 3) walk up the import tree
+        let graph = self.importers_snapshot(path, overlays).await;
+        let open: HashSet<String> = overlays.iter().map(|(p, _)| p.clone()).collect();
+        let candidates = context_candidates(&graph, path, &open, MAX_CONTEXT_ATTEMPTS - 1);
+
+        let mut best = first;
+        let mut tried = 1;
+        for (entry, level) in candidates {
+            if !self.is_latest(uri, seq).await {
+                return None;
+            }
+            let a = self.attempt(&entry, level, path, overlays).await;
+            tried += 1;
+            let clean = a.clean();
+            if a.key() < best.key() {
+                best = a;
+            }
+            if clean {
+                break;
+            }
+        }
+
+        let mut cache = self.context_cache.lock().await;
+        if paths_equal(&best.entry, path) {
+            cache.remove(path);
+        } else {
+            cache.insert(path.to_string(), best.entry.clone());
+        }
+        Some((best, tried))
+    }
+
     async fn validate(&self, uri: Url, text: String) {
-        let display_path = path_for_uri(&uri);
+        let display_path = normalize_path(&path_for_uri(&uri));
 
-        let result = tokio::task::spawn_blocking({
-            let text = text.clone();
-            let display_path = display_path.clone();
-            move || run_backend(&text, &display_path)
-        })
-        .await;
+        // Register this request and store the newest text right away, so completion
+        // never sees older text and older analyses can be recognized as stale.
+        let seq = self.seq.fetch_add(1, Ordering::SeqCst) + 1;
+        self.latest.lock().await.insert(uri.clone(), seq);
+        {
+            let mut docs = self.documents.lock().await;
+            match docs.get_mut(&uri) {
+                Some(d) => {
+                    d.text = text.clone();
+                    d.analyzed_path = display_path.clone();
+                }
+                None => {
+                    docs.insert(
+                        uri.clone(),
+                        DocumentState {
+                            text: text.clone(),
+                            analyzed_path: display_path.clone(),
+                            hovers: Vec::new(),
+                            definitions: Vec::new(),
+                        },
+                    );
+                }
+            }
+        }
 
-        let payload = match result {
-            Ok(Ok(p)) => p,
-            Ok(Err(e)) => {
+        // Debounce: while the user types, only the last request runs the backend.
+        tokio::time::sleep(Duration::from_millis(DEBOUNCE_MS)).await;
+        if !self.is_latest(&uri, seq).await {
+            return;
+        }
+
+        let overlays = self.open_overlays().await;
+        let Some((best, tried)) = self
+            .analyze_with_context(&uri, &display_path, seq, &overlays)
+            .await
+        else {
+            return;
+        };
+        if !self.is_latest(&uri, seq).await {
+            return;
+        }
+
+        let (payload, stderr) = match best.result {
+            Ok(r) => r,
+            Err(e) => {
                 self.client
-                    .log_message(MessageType::ERROR, format!("analysis failed: {e}"))
+                    .log_message(
+                        MessageType::ERROR,
+                        format!("analysis failed for {display_path} (entry {}): {e}", best.entry),
+                    )
                     .await;
                 let diag = Diagnostic {
                     range: Range::new(Position::new(0, 0), Position::new(0, 1)),
@@ -544,18 +1088,30 @@ impl Backend {
                     .await;
                 return;
             }
-            Err(e) => {
-                self.client
-                    .log_message(MessageType::ERROR, format!("analysis task panicked: {e}"))
-                    .await;
-                return;
-            }
         };
 
-        let diagnostics_by_file = payload_to_diagnostics(&payload);
+        if !stderr.trim().is_empty() {
+            self.client
+                .log_message(
+                    MessageType::LOG,
+                    format!("lsp-backend stderr for {display_path}:\n{stderr}"),
+                )
+                .await;
+        }
+
+        let own = own_diagnostics(&payload, &display_path);
+        let (raw_ok, raw_diags, raw_h, raw_d) = (
+            payload.ok,
+            payload.diagnostics.len(),
+            payload.hovers.len(),
+            payload.definitions.len(),
+        );
+
+        // The analysis may cover many modules: keep only what is located in the open file.
         let hovers: Vec<HoverInfo> = payload
             .hovers
             .into_iter()
+            .filter(|h| span_in_file(&h.span, &display_path))
             .map(|h| HoverInfo {
                 span: h.span,
                 contents: h.contents,
@@ -564,59 +1120,41 @@ impl Backend {
         let definitions: Vec<DefinitionInfo> = payload
             .definitions
             .into_iter()
+            .filter(|d| span_in_file(&d.use_span, &display_path))
             .map(|d| DefinitionInfo {
                 use_span: d.use_span,
                 def_span: d.def,
             })
             .collect();
 
-        self.documents.lock().await.insert(
-            uri.clone(),
-            DocumentState {
-                text,
-                analyzed_path: display_path.clone(),
-                hovers,
-                definitions,
-            },
-        );
-
-        let mut current_files: HashSet<String> = HashSet::new();
-
-        let own = diagnostics_by_file
-            .get(&display_path)
-            .cloned()
-            .or_else(|| diagnostics_by_file.get("").cloned())
-            .unwrap_or_default();
         self.client
-            .publish_diagnostics(uri.clone(), own, None)
+            .log_message(
+                MessageType::INFO,
+                format!(
+                    "analysis {display_path}: entry {} (level {}, {tried} attempt(s)), {} ms, \
+                     ok={raw_ok}, diagnostics {}/{raw_diags} own, hovers {}/{raw_h}, definitions {}/{raw_d}",
+                    best.entry,
+                    best.level,
+                    best.elapsed_ms,
+                    own.len(),
+                    hovers.len(),
+                    definitions.len(),
+                ),
+            )
             .await;
-        current_files.insert(display_path.clone());
 
-        for (file, diags) in &diagnostics_by_file {
-            if file.is_empty() || paths_equal(file, &display_path) {
-                continue;
-            }
-            if let Some(other_uri) = uri_for_path(file) {
-                self.client
-                    .publish_diagnostics(other_uri, diags.clone(), None)
-                    .await;
-                current_files.insert(file.clone());
-            }
-        }
-
-        let mut published = self.published_files.lock().await;
-        if let Some(previous) = published.get(&uri) {
-            for stale in previous {
-                if !current_files.contains(stale) {
-                    if let Some(stale_uri) = uri_for_path(stale) {
-                        self.client
-                            .publish_diagnostics(stale_uri, vec![], None)
-                            .await;
-                    }
+        {
+            let mut docs = self.documents.lock().await;
+            match docs.get_mut(&uri) {
+                Some(d) => {
+                    d.hovers = hovers;
+                    d.definitions = definitions;
                 }
+                None => return, // document was closed meanwhile
             }
         }
-        published.insert(uri, current_files);
+
+        self.client.publish_diagnostics(uri, own, None).await;
     }
 }
 
@@ -642,7 +1180,15 @@ async fn main() {
     let (service, socket) = LspService::new(|client| Backend {
         client,
         documents: Mutex::new(HashMap::new()),
-        published_files: Mutex::new(HashMap::new()),
+        latest: Mutex::new(HashMap::new()),
+        seq: AtomicU64::new(0),
+        context_cache: Mutex::new(HashMap::new()),
+        graph: Mutex::new(ImportGraph {
+            built_at: None,
+            roots: Vec::new(),
+            importers: Arc::new(HashMap::new()),
+        }),
+        workspace_roots: Mutex::new(Vec::new()),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }

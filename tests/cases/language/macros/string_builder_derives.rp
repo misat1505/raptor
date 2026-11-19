@@ -1,0 +1,123 @@
+enum Shape derives Debug, Json {
+    Dot,
+    Circle(i64),
+    Label(str),
+    Letter(char),
+    Points(i64[]),
+    Named(Tag)
+};
+
+struct Tag derives Debug, Json {
+    str text,
+    bool active
+};
+
+struct Manual {
+    i64 n
+
+    fn debug(self): str {
+        return "Manual<" + self.n as str + ">";
+    }
+
+    fn json_encode(self): str {
+        return "\"manual" + self.n as str + "\"";
+    }
+};
+
+struct Counter {
+    i64 n
+
+    fn debug_sb(self, &StringBuilder sb): StringBuilder {
+        sb.push_str(&"Counter#");
+        sb.push_str(&(self.n as str));
+        return sb;
+    }
+
+    fn json_encode_sb(self, &StringBuilder sb): StringBuilder {
+        sb.push_str(&"\"counter");
+        sb.push_str(&(self.n as str));
+        sb.push_char('"');
+        return sb;
+    }
+};
+
+struct Holder derives Debug, Json {
+    Counter single,
+    Counter[] many
+};
+
+struct Prims derives Debug, Json {
+    bool b,
+    f64 f,
+    i8 a,
+    i16 c,
+    i32 d,
+    i64 e,
+    u8 g,
+    u16 h,
+    u32 i,
+    u64 j,
+    char ch,
+    str s
+};
+
+struct Node derives Debug, Json {
+    i64 value,
+    Node[] children
+};
+
+struct Everything derives Debug, Json {
+    Prims prims,
+    Shape[] shapes,
+    Tag[] tags,
+    Manual manual,
+    Manual[] manuals,
+    str[] words,
+    i64[] empty,
+    i64[][] grid,
+    Node tree
+};
+
+let everything = Everything {
+    prims: Prims { b: true, f: 1.5, a: 1 as i8, c: 2 as i16, d: 3 as i32, e: 4, g: 5 as u8, h: 6 as u16, i: 7 as u32, j: 8 as u64, ch: 'x', s: "hi" },
+    shapes: [Shape::Dot, Shape::Circle(3), Shape::Label("l"), Shape::Letter('q'), Shape::Points([1, 2]), Shape::Named(Tag { text: "t", active: false })],
+    tags: [Tag { text: "a", active: true }, Tag { text: "b", active: false }],
+    manual: Manual { n: 1 },
+    manuals: [Manual { n: 2 }, Manual { n: 3 }],
+    words: ["one", "two"],
+    empty: [],
+    grid: [[1, 2], [3]],
+    tree: Node { value: 1, children: [Node { value: 2, children: [] }, Node { value: 3, children: [Node { value: 4, children: [] }] }] }
+};
+
+println(everything.debug());
+println(everything.json_encode());
+println(everything_debug(&everything));
+println(everything_json_encode(&everything));
+let empty_points = Shape::Points([]);
+let dot = Shape::Dot;
+let nine = Shape::Points([9]);
+println(empty_points.debug());
+println(dot.json_encode());
+println(shape_json_encode(&nine));
+
+let holder = Holder { single: Counter { n: 5 }, many: [Counter { n: 6 }, Counter { n: 7 }] };
+println(holder.debug());
+println(holder.json_encode());
+println(holder_debug(&holder));
+println(holder_json_encode(&holder));
+
+let tag = Tag { text: "shared", active: true };
+let sb = StringBuilder.new();
+tag.debug_sb(&sb);
+sb.push_str(&" | ");
+tag.json_encode_sb(&sb);
+sb.push_str(&" | ");
+holder.debug_sb(&sb);
+println(sb.to_string());
+
+let fn_sb = StringBuilder.new();
+tag_debug_sb(&tag, &fn_sb);
+fn_sb.push_char(' ');
+tag_json_encode_sb(&tag, &fn_sb);
+println(fn_sb.to_string());

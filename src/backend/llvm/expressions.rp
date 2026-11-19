@@ -1884,11 +1884,251 @@ fn llvm_compile_call_dispatch(
         return;
     }
 
+        if (name == "vector_extend") {
+        # target.extend(source): one realloc + one memcpy.
+        # Slots are 8 bytes for every element kind, so a flat copy is valid.
+        let tgt = arg_vals[0];
+        let src = arg_vals[1];
+
+        let s_len_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + s_len_p + " = getelementptr i8, ptr " + src + ", i64 16");
+        let s_len = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + s_len + " = load i64, ptr " + s_len_p);
+        let s_flag = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + s_flag + " = load i64, ptr " + src);
+
+        let has = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + has + " = icmp sgt i64 " + s_len + ", 0");
+        let do_l = ir_label(&c.ir, "vext.do");
+        let grow_l = ir_label(&c.ir, "vext.grow");
+        let merge_l = ir_label(&c.ir, "vext.merge");
+        let end_l = ir_label(&c.ir, "vext.end");
+        ir_emit(&c.ir, "  br i1 " + has + ", label %" + do_l + ", label %" + end_l);
+
+        ir_emit(&c.ir, do_l + ":");
+        let t_len_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t_len_p + " = getelementptr i8, ptr " + tgt + ", i64 16");
+        let t_len = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t_len + " = load i64, ptr " + t_len_p);
+        let t_cap_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t_cap_p + " = getelementptr i8, ptr " + tgt + ", i64 24");
+        let t_cap = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t_cap + " = load i64, ptr " + t_cap_p);
+        let t_data_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t_data_p + " = getelementptr i8, ptr " + tgt + ", i64 8");
+        let new_len = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + new_len + " = add i64 " + t_len + ", " + s_len);
+        let need = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + need + " = icmp sgt i64 " + new_len + ", " + t_cap);
+        ir_emit(&c.ir, "  br i1 " + need + ", label %" + grow_l + ", label %" + merge_l);
+
+        ir_emit(&c.ir, grow_l + ":");
+        let old_data = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + old_data + " = load ptr, ptr " + t_data_p);
+        let dbl = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + dbl + " = mul i64 " + t_cap + ", 2");
+        let big = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + big + " = icmp sgt i64 " + new_len + ", " + dbl);
+        let nc = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + nc + " = select i1 " + big + ", i64 " + new_len + ", i64 " + dbl);
+        let small = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + small + " = icmp slt i64 " + nc + ", 4");
+        let nc2 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + nc2 + " = select i1 " + small + ", i64 4, i64 " + nc);
+        let bytes = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + bytes + " = mul i64 " + nc2 + ", 8");
+        let nd = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + nd + " = call ptr @realloc(ptr " + old_data + ", i64 " + bytes + ")");
+        ir_emit(&c.ir, "  store ptr " + nd + ", ptr " + t_data_p);
+        ir_emit(&c.ir, "  store i64 " + nc2 + ", ptr " + t_cap_p);
+        ir_emit(&c.ir, "  br label %" + merge_l);
+
+        ir_emit(&c.ir, merge_l + ":");
+        # Reload both data pointers AFTER the realloc: source may alias target.
+        let data = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + data + " = load ptr, ptr " + t_data_p);
+        let s_data_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + s_data_p + " = getelementptr i8, ptr " + src + ", i64 8");
+        let s_data = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + s_data + " = load ptr, ptr " + s_data_p);
+        let dst = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + dst + " = getelementptr i64, ptr " + data + ", i64 " + t_len);
+        let nbytes = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + nbytes + " = mul i64 " + s_len + ", 8");
+        ir_emit(
+            &c.ir,
+            "  " + ir_tmp(&c.ir) + " = call ptr @memcpy(ptr " + dst + ", ptr " + s_data + ", i64 " + nbytes + ")"
+        );
+        ir_emit(&c.ir, "  store i64 " + new_len + ", ptr " + t_len_p);
+
+        # Managed-elements flag: target |= source (same convention as rt_vec_copy).
+        let t_flag = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + t_flag + " = load i64, ptr " + tgt);
+        let n_flag = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + n_flag + " = or i64 " + t_flag + ", " + s_flag);
+        ir_emit(&c.ir, "  store i64 " + n_flag + ", ptr " + tgt);
+
+        if (c.arc) {
+            # The copied pointers are now shared by two vectors: retain each one.
+            let ip = ir_tmp(&c.ir);
+            vector_push(&c.allocas, "  " + ip + " = alloca i64");
+            let mg = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + mg + " = icmp ne i64 " + s_flag + ", 0");
+            let rinit_l = ir_label(&c.ir, "vext.rinit");
+            let rloop_l = ir_label(&c.ir, "vext.rloop");
+            let rbody_l = ir_label(&c.ir, "vext.rbody");
+            ir_emit(&c.ir, "  br i1 " + mg + ", label %" + rinit_l + ", label %" + end_l);
+
+            ir_emit(&c.ir, rinit_l + ":");
+            ir_emit(&c.ir, "  store i64 0, ptr " + ip);
+            ir_emit(&c.ir, "  br label %" + rloop_l);
+
+            ir_emit(&c.ir, rloop_l + ":");
+            let i = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + i + " = load i64, ptr " + ip);
+            let k = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + k + " = icmp slt i64 " + i + ", " + s_len);
+            ir_emit(&c.ir, "  br i1 " + k + ", label %" + rbody_l + ", label %" + end_l);
+
+            ir_emit(&c.ir, rbody_l + ":");
+            let slot = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + slot + " = getelementptr ptr, ptr " + s_data + ", i64 " + i);
+            let el = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + el + " = load ptr, ptr " + slot);
+            ir_emit(&c.ir, "  call void @rt_retain(ptr " + el + ")");
+            let inext = ir_tmp(&c.ir);
+            ir_emit(&c.ir, "  " + inext + " = add i64 " + i + ", 1");
+            ir_emit(&c.ir, "  store i64 " + inext + ", ptr " + ip);
+            ir_emit(&c.ir, "  br label %" + rloop_l);
+        } else {
+            ir_emit(&c.ir, "  br label %" + end_l);
+        }
+
+        ir_emit(&c.ir, end_l + ":");
+        llvm_compiler_set_last(&c, "0", "i64");
+        return;
+    }
+
     # ========== STRINGS ==========
     if (name == "str_len") {
         let r = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + r + " = call i64 @strlen(ptr " + arg_vals[0] + ")");
         llvm_compiler_set_last(&c, r, "i64");
+        return;
+    }
+
+    if (name == "str_to_char_vector") {
+        # One allocation of len*8 bytes, then widen each byte into an i64 slot.
+        let s = arg_vals[0];
+        let len = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + len + " = call i64 @strlen(ptr " + s + ")");
+        let vec = llvm_vector_alloc_empty(&c);
+
+        let has = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + has + " = icmp sgt i64 " + len + ", 0");
+        let fill_l = ir_label(&c.ir, "s2c.fill");
+        let loop_l = ir_label(&c.ir, "s2c.loop");
+        let body_l = ir_label(&c.ir, "s2c.body");
+        let done_l = ir_label(&c.ir, "s2c.done");
+        ir_emit(&c.ir, "  br i1 " + has + ", label %" + fill_l + ", label %" + done_l);
+
+        ir_emit(&c.ir, fill_l + ":");
+        let bytes = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + bytes + " = mul i64 " + len + ", 8");
+        let data = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + data + " = call ptr @malloc(i64 " + bytes + ")");
+        let d_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + d_p + " = getelementptr i8, ptr " + vec + ", i64 8");
+        ir_emit(&c.ir, "  store ptr " + data + ", ptr " + d_p);
+        let l_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + l_p + " = getelementptr i8, ptr " + vec + ", i64 16");
+        ir_emit(&c.ir, "  store i64 " + len + ", ptr " + l_p);
+        let c_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + c_p + " = getelementptr i8, ptr " + vec + ", i64 24");
+        ir_emit(&c.ir, "  store i64 " + len + ", ptr " + c_p);
+        let ip = ir_tmp(&c.ir);
+        vector_push(&c.allocas, "  " + ip + " = alloca i64");
+        ir_emit(&c.ir, "  store i64 0, ptr " + ip);
+        ir_emit(&c.ir, "  br label %" + loop_l);
+
+        ir_emit(&c.ir, loop_l + ":");
+        let i = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + i + " = load i64, ptr " + ip);
+        let k = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + k + " = icmp slt i64 " + i + ", " + len);
+        ir_emit(&c.ir, "  br i1 " + k + ", label %" + body_l + ", label %" + done_l);
+
+        ir_emit(&c.ir, body_l + ":");
+        let bp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + bp + " = getelementptr i8, ptr " + s + ", i64 " + i);
+        let b = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + b + " = load i8, ptr " + bp);
+        let w = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + w + " = zext i8 " + b + " to i64");
+        let sp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + sp + " = getelementptr i64, ptr " + data + ", i64 " + i);
+        ir_emit(&c.ir, "  store i64 " + w + ", ptr " + sp);
+        let inext = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + inext + " = add i64 " + i + ", 1");
+        ir_emit(&c.ir, "  store i64 " + inext + ", ptr " + ip);
+        ir_emit(&c.ir, "  br label %" + loop_l);
+
+        ir_emit(&c.ir, done_l + ":");
+        llvm_compiler_set_last(&c, vec, "ptr");
+        return;
+    }
+
+    if (name == "char_vector_to_str") {
+        # Narrow each i64 slot to one byte; NUL-terminate.
+        let vec = arg_vals[0];
+        let len_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + len_p + " = getelementptr i8, ptr " + vec + ", i64 16");
+        let len = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + len + " = load i64, ptr " + len_p);
+        let data_p = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + data_p + " = getelementptr i8, ptr " + vec + ", i64 8");
+        let data = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + data + " = load ptr, ptr " + data_p);
+
+        let n1 = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + n1 + " = add i64 " + len + ", 1");
+        let buf = llvm_alloc_bytes(&c, n1, "null");
+
+        let ip = ir_tmp(&c.ir);
+        vector_push(&c.allocas, "  " + ip + " = alloca i64");
+        ir_emit(&c.ir, "  store i64 0, ptr " + ip);
+        let loop_l = ir_label(&c.ir, "c2s.loop");
+        let body_l = ir_label(&c.ir, "c2s.body");
+        let done_l = ir_label(&c.ir, "c2s.done");
+        ir_emit(&c.ir, "  br label %" + loop_l);
+
+        ir_emit(&c.ir, loop_l + ":");
+        let i = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + i + " = load i64, ptr " + ip);
+        let k = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + k + " = icmp slt i64 " + i + ", " + len);
+        ir_emit(&c.ir, "  br i1 " + k + ", label %" + body_l + ", label %" + done_l);
+
+        ir_emit(&c.ir, body_l + ":");
+        let slot = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + slot + " = getelementptr i64, ptr " + data + ", i64 " + i);
+        let raw = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + raw + " = load i64, ptr " + slot);
+        let b = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + b + " = trunc i64 " + raw + " to i8");
+        let bp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + bp + " = getelementptr i8, ptr " + buf + ", i64 " + i);
+        ir_emit(&c.ir, "  store i8 " + b + ", ptr " + bp);
+        let inext = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + inext + " = add i64 " + i + ", 1");
+        ir_emit(&c.ir, "  store i64 " + inext + ", ptr " + ip);
+        ir_emit(&c.ir, "  br label %" + loop_l);
+
+        ir_emit(&c.ir, done_l + ":");
+        let endp = ir_tmp(&c.ir);
+        ir_emit(&c.ir, "  " + endp + " = getelementptr i8, ptr " + buf + ", i64 " + len);
+        ir_emit(&c.ir, "  store i8 0, ptr " + endp);
+        llvm_compiler_set_last(&c, buf, "ptr");
         return;
     }
 

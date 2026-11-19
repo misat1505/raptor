@@ -23,15 +23,40 @@ import "../frontend/parser/core.rp";
 import "../frontend/parser/program.rp";
 
 
+# `overlay_*`: in-memory sources that take precedence over files on disk (used by the
+# LSP backend for unsaved editor buffers). Paths are stored normalized.
 struct ImportResolver {
     str[] stack,
     str[] visited,
-    LexerOptions lexer_options
+    LexerOptions lexer_options,
+    str[] overlay_paths,
+    str[] overlay_sources
 };
 
 
 fn import_resolver_new(LexerOptions lexer_options): ImportResolver {
-    return ImportResolver { stack: [], visited: [], lexer_options: lexer_options };
+    return ImportResolver {
+        stack: [],
+        visited: [],
+        lexer_options: lexer_options,
+        overlay_paths: [],
+        overlay_sources: []
+    };
+}
+
+# Register `source` as the content of `path` (instead of reading it from disk).
+fn import_resolver_add_overlay(&ImportResolver resolver, str path, str source): void {
+    vector_push(&resolver.overlay_paths, import_resolver_normalize_path(path));
+    vector_push(&resolver.overlay_sources, source);
+}
+
+fn import_resolver_overlay_index(&ImportResolver resolver, str path): i64 {
+    for (let i = 0; i < vector_size(&resolver.overlay_paths); i += 1) {
+        if (resolver.overlay_paths[i] == path) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 # Public entry: merge `entry_program` (already parsed from `entry_path`)
@@ -210,15 +235,20 @@ fn import_resolver_handle_import(
 }
 
 fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_span): ResultProgram {
-    if (!exists_file(path)) {
-        return ResultProgram::Err(parser_error_new(
-            ErrorSeverity::HIGH,
-            "File '" + path + "' not found.",
-            import_span
-        ));
+    let overlay_idx = import_resolver_overlay_index(&resolver, import_resolver_normalize_path(path));
+    let source = "";
+    if (overlay_idx >= 0) {
+        source = resolver.overlay_sources[overlay_idx];
+    } else {
+        if (!exists_file(path)) {
+            return ResultProgram::Err(parser_error_new(
+                ErrorSeverity::HIGH,
+                "File '" + path + "' not found.",
+                import_span
+            ));
+        }
+        source = read_file(path);
     }
-
-    let source = read_file(path);
     let src = lazy_stream_reader_new(source, OptionStr::Some(path));
 
     let options = LexerOptions {

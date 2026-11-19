@@ -132,6 +132,16 @@ fn get_std_functions(): StdFunction[] {
             StdTypeCheckKind::VectorStringify
         )
     );
+    vector_push(
+        &out,
+        std_function_new(
+            "vector_extend",
+            [Type::Vector(Type::Void), Type::Vector(Type::Void)],
+            [PassedBy::Reference, PassedBy::Reference],
+            Type::Void,
+            StdTypeCheckKind::VectorExtend
+        )
+    );
 
     # --- strings ---
     vector_push(
@@ -142,6 +152,26 @@ fn get_std_functions(): StdFunction[] {
             [PassedBy::Value],
             Type::I64,
             StdTypeCheckKind::None
+        )
+    );
+    vector_push(
+        &out,
+        std_function_new(
+            "str_to_char_vector",
+            [Type::Str],
+            [PassedBy::Reference],
+            Type::Vector(Type::Char),
+            StdTypeCheckKind::StrToCharVector
+        )
+    );
+    vector_push(
+        &out,
+        std_function_new(
+            "char_vector_to_str",
+            [Type::Vector(Type::Char)],
+            [PassedBy::Reference],
+            Type::Str,
+            StdTypeCheckKind::CharVectorToStr
         )
     );
 

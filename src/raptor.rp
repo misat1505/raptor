@@ -552,7 +552,13 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
     phase_done(&opts, "Name mangling", name_mangler_time);
 
     if (opts.dump) {
-        write_file("./src/ast.rp", "let ast = " + program_debug(&program) + ";");
+        let ast_dump_time = now_ms();
+        let text = program_debug(&program);
+        text = str_replace_all(text, "\\", "\\\\");
+        text = str_replace_all(text, "\n", "\\n");
+        text = str_replace_all(text, "\r", "\\r");
+        write_file("./src/ast.rp", "let ast = \"" + text + "\";");
+        phase_done(&opts, "AST dump", ast_dump_time);
     }
 
     let code = compile_and_maybe_run(&opts, &program, total_started);

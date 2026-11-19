@@ -3,3 +3,4 @@ import "./semantic-helpers.rp";
 import "./stack/stack.rp";
 import "./type-alu/type-alu.rp";
 import "./semantic-checker.rp";
+import "./semantic-checker-intrinsic-methods.rp";

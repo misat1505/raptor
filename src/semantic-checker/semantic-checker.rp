@@ -1795,14 +1795,46 @@ fn semantic_checker_check_method_call(
                 }
             }
         } else {
-            semantic_checker_push_error(
+            let imc = semantic_checker_check_for_intrinsic_method_call(
                 &sc,
-                semantic_checker_error_at(
-                    ErrorSeverity::HIGH,
-                    "Cannot call methods on this type.",
-                    span
-                )
+                &program,
+                &type,
+                &mc
             );
+
+            match (imc) {
+                CheckForIntrinsicMethodCallData::ErrorInCall(message) {
+                    semantic_checker_push_error(
+                        &sc,
+                        semantic_checker_error_at(
+                            ErrorSeverity::HIGH,
+                            message,
+                            span
+                        )
+                    );
+                },
+                CheckForIntrinsicMethodCallData::NoTypeMatch {
+                    semantic_checker_push_error(
+                        &sc,
+                        semantic_checker_error_at(
+                            ErrorSeverity::HIGH,
+                            "Cannot call methods on type '" + type_to_string(type) + "'.",
+                            span
+                        )
+                    );
+                },
+                CheckForIntrinsicMethodCallData::NoMethodMatchInType {
+                    semantic_checker_push_error(
+                        &sc,
+                        semantic_checker_error_at(
+                            ErrorSeverity::HIGH,
+                            "Method '" + mc.field.value + "' not found on type '" + type_to_string(type) + "'.",
+                            span
+                        )
+                    );
+                },
+                rest {}
+            }
         }
     }
 }

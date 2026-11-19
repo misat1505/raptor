@@ -21,8 +21,8 @@ struct Parser {
         let keys: str[] = [];
         let nodes: Node[] = [];
 
-        vector_push(&keys, named.key);
-        vector_push(&nodes, named.node);
+        keys.push(named.key);
+        nodes.push(named.node);
 
         return Node { kind: NodeKind::KeyValue(KeyValueNode { keys, nodes }), position };
     }
@@ -106,8 +106,8 @@ struct Parser {
 
             let named = self.parse_element();
 
-            vector_push(&keys, named.key);
-            vector_push(&nodes, named.node);
+            keys.push(named.key);
+            nodes.push(named.node);
         }
 
         return Node { kind: NodeKind::KeyValue(KeyValueNode { keys, nodes }), position };
@@ -124,7 +124,7 @@ struct Parser {
             }
 
             let named = self.parse_element();
-            vector_push(&nodes, named.node);
+            nodes.push(named.node);
         }
 
         return Node { kind: NodeKind::Array(nodes), position };

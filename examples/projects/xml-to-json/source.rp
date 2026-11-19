@@ -17,7 +17,7 @@ struct Source {
 
     fn get_current_char(self): OptionChar {
         let idx = self.position.offset;
-        if (str_len(self.source) <= idx) {
+        if (self.source.size() <= idx) {
             return OptionChar::None;
         }
         return OptionChar::Some(self.source[idx]);
@@ -25,7 +25,7 @@ struct Source {
 
     fn consume_char(self): OptionChar {
         let idx = self.position.offset;
-        if (str_len(self.source) <= idx) {
+        if (self.source.size() <= idx) {
             return OptionChar::None;
         }
 

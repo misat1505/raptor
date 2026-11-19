@@ -11,6 +11,20 @@ fn name_mangler_new(&Program program): NameMangler {
 }
 
 fn nm_mangle_method_name(str target_name, str method_name): str {
+    if (str_ends_with(target_name, "[]")) {
+        if (method_name == "push") {
+            return "vector_push";
+        } else if (method_name == "size") {
+            return "vector_size";
+        } else if (method_name == "extend") {
+            return "vector_extend";
+        }
+    }
+    if (target_name == "str") {
+        if (method_name == "size") {
+            return "str_len";
+        }
+    }
     return target_name + "__" + method_name + "__mangled";
 }
 

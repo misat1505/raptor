@@ -1833,7 +1833,9 @@ fn semantic_checker_check_method_call(
                         )
                     );
                 },
-                rest {}
+                CheckForIntrinsicMethodCallData::Ok {
+                    mc.target = MethodCallTarget::Instance(type_to_string(type));
+                }
             }
         }
     }

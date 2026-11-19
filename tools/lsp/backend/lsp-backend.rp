@@ -12,7 +12,9 @@ struct LspCli {
     str logical_path,
     str out_path,
     bool to_stdout,
-    bool is_unsafe
+    bool is_unsafe,
+    str[] overlay_paths,
+    str[] overlay_files
 };
 
 struct LspDiagnostic {
@@ -60,6 +62,9 @@ fn usage(): void {
             + "    --no-stdout         Do not print JSON on stdout (requires --out)\n"
             + "    --as <PATH>         Analyze FILE as if it were located at PATH: imports are resolved\n"
             + "                        relative to PATH and spans refer to it (for unsaved editor buffers)\n"
+            + "    --overlay <PATH> <FILE>\n"
+            + "                        Use the content of FILE instead of the file at PATH, both for the\n"
+            + "                        entry file and for imports (unsaved editor buffers). Repeatable.\n"
             + "    --unsafe            Skip the semantic checker (still parse / expand)\n\n"
             + "Exit 0 always means a JSON payload was produced.\n"
     );
@@ -72,8 +77,12 @@ fn parse_cli(): LspCli {
         logical_path: "",
         out_path: "",
         to_stdout: true,
-        is_unsafe: false
+        is_unsafe: false,
+        overlay_paths: [],
+        overlay_files: []
     };
+    let ov_paths: str[] = [];
+    let ov_files: str[] = [];
 
     let n = vector_size(&args);
     let i = 1;
@@ -103,6 +112,16 @@ fn parse_cli(): LspCli {
             i += 1;
             continue;
         }
+        if (a == "--overlay") {
+            if (i + 1 >= n) {
+                fatal(a + " requires a path and a file.");
+                return opts;
+            }
+            vector_push(&ov_paths, args[i]);
+            vector_push(&ov_files, args[i + 1]);
+            i += 2;
+            continue;
+        }
         if (a == "-o" || a == "--out") {
             if (i >= n) {
                 fatal(a + " requires a path.");
@@ -124,6 +143,9 @@ fn parse_cli(): LspCli {
         }
         opts.path = a;
     }
+
+    opts.overlay_paths = ov_paths;
+    opts.overlay_files = ov_files;
 
     if (str_len(opts.path) == 0) {
         eprintln("lsp-backend: path to file not given.\n");
@@ -320,13 +342,26 @@ fn logical_path(&LspCli opts): str {
     return opts.path;
 }
 
+# Index of the `--overlay` entry for `path` (compared normalized), or -1.
+fn overlay_index(&LspCli opts, str path): i64 {
+    let target = import_resolver_normalize_path(path);
+    for (let i = 0; i < vector_size(&opts.overlay_paths); i += 1) {
+        if (import_resolver_normalize_path(opts.overlay_paths[i]) == target) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 fn analyze_and_emit(&LspCli opts): void {
     let diagnostics: LspDiagnostic[] = [];
     let hovers: HoverInfo[] = [];
     let definitions: DefinitionInfo[] = [];
     let ok = true;
 
-    if (!exists_file(opts.path)) {
+    let entry_overlay = overlay_index(&opts, opts.path);
+
+    if (entry_overlay < 0 && !exists_file(opts.path)) {
         push_diag(
             &diagnostics,
             ErrorSeverity::HIGH,
@@ -338,7 +373,12 @@ fn analyze_and_emit(&LspCli opts): void {
         return;
     }
 
-    let source = read_file(opts.path);
+    let source = "";
+    if (entry_overlay >= 0) {
+        source = read_file(opts.overlay_files[entry_overlay]);
+    } else {
+        source = read_file(opts.path);
+    }
     let lexer_options = default_lexer_options();
 
     match (parse_source(source, logical_path(&opts), lexer_options)) {
@@ -349,6 +389,13 @@ fn analyze_and_emit(&LspCli opts): void {
         },
         ResultProgram::Ok(parsed) {
             let resolver = import_resolver_new(lexer_options);
+            for (let k = 0; k < vector_size(&opts.overlay_paths); k += 1) {
+                import_resolver_add_overlay(
+                    &resolver,
+                    opts.overlay_paths[k],
+                    read_file(opts.overlay_files[k])
+                );
+            }
             match (import_resolver_resolve(&resolver, logical_path(&opts), &parsed)) {
                 ResultProgram::Err(err) {
                     push_diag(&diagnostics, err.level, err.message, "import", err.span);

@@ -132,7 +132,7 @@ struct Lexer {
         while (self.source.get_current_char() matches OptionChar::Some(ch)) {
             let break_at_the_end = false;
 
-            for (let i = 0; i < vector_size(&chars); i += 1) {
+            for (let i = 0; i < chars.size(); i += 1) {
                 if (ch == chars[i]) {
                     break_at_the_end = true;
                 }
@@ -164,7 +164,7 @@ struct Lexer {
                 return OptionToken::None;
             },
             OptionChar::Some(ch) {
-                for (let i = 0; i < vector_size(&chars); i += 1) {
+                for (let i = 0; i < chars.size(); i += 1) {
                     if (ch == chars[i]) {
                         let position = self.source.position.clone();
 

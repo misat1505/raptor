@@ -1,0 +1,9 @@
+struct S {
+    i64 a
+
+    fn add(self, i64 n): i64 {
+        return self.a + n;
+    }
+};
+let s = S { a: 1 };
+println(s.add("x") as str);

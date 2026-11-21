@@ -1,0 +1,12 @@
+import "../../../stdlib/string.rp";
+
+println((str_count_char("banana", 'a')) as str);
+println((str_count_char("banana", 'z')) as str);
+println((str_count_str("banana", "an")) as str);
+println((str_count_str("aaaa", "aa")) as str);
+println((str_count_str("abc", "z")) as str);
+println(str_remove_whitespace(" a b\tc\n"));
+println(str_remove_prefix("foobar", "foo"));
+println(str_remove_prefix("foobar", "bar"));
+println(str_remove_suffix("foobar", "bar"));
+println(str_remove_suffix("foobar", "foo"));

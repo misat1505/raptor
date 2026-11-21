@@ -1,0 +1,20 @@
+let ints: i64[] = [];
+let words: str[] = [];
+let flags: bool[] = [];
+let reals: f64[] = [];
+let chars: char[] = [];
+
+ints.push(1);
+ints.push(2);
+words.push("a");
+words.push("b");
+flags.push(true);
+reals.push(1.5);
+chars.push('x');
+
+println(ints.size() as str);
+println(ints[1] as str);
+println(words[0] + words[1]);
+println(flags[0] as str);
+println(reals[0] as str);
+println(chars[0] as str);

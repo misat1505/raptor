@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Cannot access field on type 'i64'."

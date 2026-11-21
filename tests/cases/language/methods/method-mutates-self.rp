@@ -1,0 +1,12 @@
+struct C {
+    i64 n
+
+    fn inc(self): void {
+        self.n += 1;
+    }
+};
+
+let c = C { n: 0 };
+c.inc();
+c.inc();
+println(c.n as str);

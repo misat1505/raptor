@@ -1,0 +1,20 @@
+enum Op {
+    Add,
+    Mul
+
+    fn apply(self, i64 a, i64 b): i64 {
+        match (self) {
+            Op::Add {
+                return a + b;
+            },
+            Op::Mul {
+                return a * b;
+            }
+        }
+        return 0;
+    }
+};
+
+let add = Op::Add;
+let mul = Op::Mul;
+println(add.apply(2, 3) as str + "," + mul.apply(2, 3) as str);

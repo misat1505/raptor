@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'foo' doesn't exist on type 'S'."

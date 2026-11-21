@@ -1,0 +1,8 @@
+enum E derives Clone, Debug {
+    A,
+    B(i64[])
+};
+
+let x = E::B([1, 2]);
+let y = x.clone();
+println(y.debug());

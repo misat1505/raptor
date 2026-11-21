@@ -1,0 +1,9 @@
+struct S {
+    i64 a
+
+    fn get(self): i64 {
+        return self.a;
+    }
+};
+let t = S.get();
+println(t as str);

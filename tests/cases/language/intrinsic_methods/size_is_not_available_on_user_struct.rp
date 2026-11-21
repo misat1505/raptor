@@ -1,0 +1,5 @@
+struct P {
+    i64 a
+};
+let p = P { a: 1 };
+let n = p.size();

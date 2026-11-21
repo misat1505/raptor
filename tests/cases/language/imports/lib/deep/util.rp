@@ -1,0 +1,5 @@
+import "../math.rp";
+
+fn double_sum(i64 a, i64 b): i64 {
+    return add(a, b) * 2;
+}

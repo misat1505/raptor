@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Argument passing mode mismatch in call to 'f': expected PassedBy::Reference, got PassedBy::Value."

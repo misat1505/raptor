@@ -1,0 +1,20 @@
+struct S {
+    i64[] items
+};
+
+struct Holder {
+    S inner
+};
+
+let m: i64[][] = [[1], [2]];
+m[1].push(5);
+println(m[1].size() as str);
+
+let s = S { items: [] };
+s.items.push(4);
+s.items.push(5);
+println(s.items.size() as str);
+
+let h = Holder { inner: S { items: [] } };
+h.inner.items.push(7);
+println(h.inner.items.size() as str);

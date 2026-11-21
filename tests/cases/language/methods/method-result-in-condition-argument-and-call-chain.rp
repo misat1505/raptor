@@ -1,0 +1,28 @@
+struct P {
+    i64 n
+
+    fn big(self): bool {
+        return self.n > 10;
+    }
+
+    fn get(self): i64 {
+        return self.n;
+    }
+};
+
+fn dbl(i64 x): i64 {
+    return x * 2;
+}
+
+fn make(): P {
+    return P { n: 6 };
+}
+
+let p = P { n: 11 };
+if (p.big()) {
+    println("big");
+} else {
+    println("small");
+}
+println(dbl(p.get()) as str);
+println(make().get() as str);

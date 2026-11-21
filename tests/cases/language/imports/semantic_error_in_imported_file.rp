@@ -1,0 +1,3 @@
+import "./lib/bad_semantics.rp";
+
+println(f() as str);

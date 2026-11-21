@@ -1,0 +1,19 @@
+let a = [1, 2];
+let b = [3, 4, 5];
+a.extend(&b);
+println(a.size() as str);
+println(a[4] as str);
+println(b.size() as str);
+
+let x = [1];
+let e: i64[] = [];
+x.extend(&e);
+e.extend(&x);
+println(x.size() as str);
+println(e.size() as str);
+
+let words = ["x"];
+let more = ["y", "z"];
+words.extend(&more);
+println(words[2]);
+println(words.size() as str);

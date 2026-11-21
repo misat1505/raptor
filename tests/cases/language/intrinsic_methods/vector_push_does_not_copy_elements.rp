@@ -1,0 +1,15 @@
+struct P {
+    i64 n
+};
+
+let items: P[] = [];
+let p = P { n: 3 };
+items.push(p);
+p.n = 9;
+println(items[0].n as str);
+
+let outer: i64[][] = [];
+let inner: i64[] = [1];
+outer.push(inner);
+inner.push(2);
+println(outer[0].size() as str);

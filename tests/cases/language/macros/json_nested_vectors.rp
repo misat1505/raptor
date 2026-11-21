@@ -1,0 +1,9 @@
+struct S derives Json {
+    i64[][] m
+};
+
+let a: i64[] = [1, 2];
+let b: i64[] = [];
+let c: i64[] = [3];
+let s = S { m: [a, b, c] };
+println(s.json_encode());

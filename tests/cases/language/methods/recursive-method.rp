@@ -1,0 +1,13 @@
+struct F {
+    i64 d
+
+    fn fact(self, i64 n): i64 {
+        if (n <= 1) {
+            return 1;
+        }
+        return n * self.fact(n - 1);
+    }
+};
+
+let f = F { d: 0 };
+println(f.fact(5) as str);

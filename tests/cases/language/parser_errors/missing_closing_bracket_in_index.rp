@@ -1,0 +1,2 @@
+let v = [1, 2];
+println(v[0 as str);

@@ -1,0 +1,5 @@
+struct A {
+    i64 x
+};
+let a = A { x: 1, x: 2 };
+println(a.x as str);

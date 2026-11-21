@@ -1,0 +1,5 @@
+struct S {
+    i64 a
+};
+let s = S { a: 1 };
+let t = s.foo();

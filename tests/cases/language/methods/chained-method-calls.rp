@@ -1,0 +1,14 @@
+struct B {
+    i64 n
+
+    fn add(self, i64 k): B {
+        return B { n: self.n + k };
+    }
+
+    fn show(self): str {
+        return "n=" + self.n as str;
+    }
+};
+
+let b = B { n: 1 };
+println(b.add(2).add(3).show());

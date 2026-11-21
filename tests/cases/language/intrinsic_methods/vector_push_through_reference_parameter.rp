@@ -1,0 +1,10 @@
+fn fill(&i64[] v): void {
+    v.push(7);
+    v.push(8);
+}
+
+let v: i64[] = [];
+fill(&v);
+fill(&v);
+println(v.size() as str);
+println(v[3] as str);

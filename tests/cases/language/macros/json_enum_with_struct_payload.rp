@@ -1,0 +1,13 @@
+struct In derives Json {
+    i64 a
+};
+
+enum E derives Json {
+    X(In),
+    Y
+};
+
+let e = E::X(In { a: 7 });
+let f = E::Y;
+println(e.json_encode());
+println(f.json_encode());

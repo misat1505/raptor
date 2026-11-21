@@ -1,0 +1,6 @@
+struct E {
+    i64 a
+};
+enum E {
+    B
+};

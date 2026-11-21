@@ -1,0 +1,5 @@
+struct P {
+    i64 x
+};
+let p = P { x: "s" };
+println(p.x as str);

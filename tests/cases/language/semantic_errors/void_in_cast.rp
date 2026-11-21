@@ -1,0 +1,3 @@
+fn f(): void {
+}
+println(f() as str);

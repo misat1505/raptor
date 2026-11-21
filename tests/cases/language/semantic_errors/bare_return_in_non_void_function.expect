@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Function must return 'i64', got void."

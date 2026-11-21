@@ -1,0 +1,24 @@
+import "../../../stdlib/string.rp";
+
+println(str_join(str_split("a,b,,c", ","), "|"));
+println(str_join(str_split("a,b,", ","), "|"));
+println(str_join(str_split("a::b::c", "::"), "|"));
+println(str_join(str_split("abc", ","), "|"));
+println(str_join(str_split(",", ","), "|"));
+println((str_split("a,b,c", ",").size()) as str);
+println(str_join(["a"], ","));
+println(str_join(["a", "b", "c"], ", "));
+println(str_join(["a", "b"], ""));
+println((str_to_i64("-42")) as str);
+println((str_to_i64("+7")) as str);
+println((str_to_i64("0")) as str);
+println((str_to_i64("123456789")) as str);
+println((str_is_i64("-5")) as str);
+println((str_is_i64("5")) as str);
+println((str_is_i64("-")) as str);
+println((str_is_i64("5x")) as str);
+println((str_is_i64("")) as str);
+println((str_is_i64("+3")) as str);
+println(i64_to_str(0));
+println(i64_to_str(-17));
+println(i64_to_str(123456789));

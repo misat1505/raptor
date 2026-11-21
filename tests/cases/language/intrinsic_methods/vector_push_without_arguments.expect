@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'push' expects exactly 1 argument, but 0 were provided."

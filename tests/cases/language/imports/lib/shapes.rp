@@ -1,0 +1,29 @@
+struct Rect {
+    i64 w,
+    i64 h
+
+    fn area(self): i64 {
+        return self.w * self.h;
+    }
+
+    fn square(i64 side): Rect {
+        return Rect { w: side, h: side };
+    }
+};
+
+enum Kind {
+    Small,
+    Big
+
+    fn label(self): str {
+        match (self) {
+            Kind::Small {
+                return "small";
+            },
+            Kind::Big {
+                return "big";
+            }
+        }
+        return "?";
+    }
+};

@@ -1,0 +1,4 @@
+fn f(): i64 {
+    return "s";
+}
+println(f() as str);

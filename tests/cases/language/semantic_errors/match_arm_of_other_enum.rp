@@ -1,0 +1,12 @@
+enum E {
+    A
+};
+enum F {
+    X
+};
+let e = E::A;
+match (e) {
+    F::X {
+        println("x");
+    }
+}

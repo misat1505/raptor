@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Vector literal elements must have the same type."

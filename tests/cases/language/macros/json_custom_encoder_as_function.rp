@@ -1,0 +1,14 @@
+struct Money {
+    i64 cents
+};
+
+fn money_json_encode(&Money value): str {
+    return "\"" + value.cents as str + " cents\"";
+}
+
+struct Order derives Json {
+    Money total
+};
+
+let o = Order { total: Money { cents: 250 } };
+println(o.json_encode());

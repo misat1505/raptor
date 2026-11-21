@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Unknown variant 'C' on enum 'E'."

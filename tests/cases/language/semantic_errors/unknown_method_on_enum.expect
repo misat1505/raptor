@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'nope' doesn't exist on type 'E'."

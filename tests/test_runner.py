@@ -19,6 +19,8 @@ Format of `.expect` (every line is optional):
 
     flags: --overflow error                  extra compiler flags (shell syntax)
     compile: ok | fail                       must the compiler accept the program? (default ok)
+    in-place: yes | no                       compile the file where it lies instead of a copy
+                                             (needed for relative `import`s; default no)
     compile-stderr-contains: "text"          repeatable, JSON string or plain text
     exit: 1 | nonzero                        exit code of the program (default 0)
     valgrind: yes | no                       default: yes when exit is 0, otherwise no
@@ -71,6 +73,7 @@ def parse_expect(path):
     exp = {
         "flags": [],
         "compile": "ok",
+        "in_place": False,
         "compile_contains": [],
         "exit": 0,
         "exit_nonzero": False,
@@ -96,6 +99,8 @@ def parse_expect(path):
             exp["flags"] = shlex.split(value)
         elif key == "compile":
             exp["compile"] = value.strip()
+        elif key == "in-place":
+            exp["in_place"] = value.strip() in ("yes", "true", "1")
         elif key == "compile-stderr-contains":
             exp["compile_contains"].append(parse_value(value))
         elif key == "exit":
@@ -130,6 +135,8 @@ def write_expect(path, exp):
         lines.append("flags: " + " ".join(shlex.quote(f) for f in exp["flags"]))
     if exp.get("compile", "ok") != "ok":
         lines.append("compile: " + exp["compile"])
+    if exp.get("in_place"):
+        lines.append("in-place: yes")
     if exp.get("exit_nonzero"):
         lines.append("exit: nonzero")
     elif exp.get("exit", 0) != 0:
@@ -177,14 +184,21 @@ def supports_memory_flag(compiler):
     return "--memory" in r.stdout
 
 
-def build_and_run(opts, rp_path, flags, use_valgrind, stdin_text=None):
-    """Compile `rp_path` with opts.compiler and run it. Returns an Outcome."""
+def build_and_run(opts, rp_path, flags, use_valgrind, stdin_text=None, in_place=False):
+    """Compile `rp_path` with opts.compiler and run it. Returns an Outcome.
+
+    By default the program is copied to a scratch directory as `t.rp`. With `in_place`
+    it is compiled where it lies, so that relative `import`s resolve."""
     out = Outcome()
     work = tempfile.mkdtemp(prefix="raptor-e2e-")
     out.workdir = work
     try:
-        shutil.copy(rp_path, os.path.join(work, "t.rp"))
-        cmd = [opts.compiler, "-o", "./exe", "t.rp"] + list(flags)
+        if in_place:
+            source = os.path.abspath(rp_path)
+        else:
+            shutil.copy(rp_path, os.path.join(work, "t.rp"))
+            source = "t.rp"
+        cmd = [opts.compiler, "-o", "./exe", source] + list(flags)
         if opts.memory and opts.has_memory_flag:
             cmd += ["--memory", opts.memory]
         c = subprocess.run(
@@ -237,7 +251,11 @@ def check_case(opts, rp_path, exp):
     out = None
     try:
         out = build_and_run(
-            opts, rp_path, exp["flags"], exp["valgrind"] and opts.valgrind
+            opts,
+            rp_path,
+            exp["flags"],
+            exp["valgrind"] and opts.valgrind,
+            in_place=exp.get("in_place", False),
         )
         problems = []
         if exp["compile"] == "fail":
@@ -306,7 +324,78 @@ def discover(cases_dir, pattern):
     return found
 
 
+class Progress:
+    """Shows how many cases are done and how many of them failed.
+
+    mode "bar":   one line redrawn in place (terminals); failures are printed above it
+    mode "lines": one line per finished case (logs)
+    mode "off":   nothing
+    """
+
+    def __init__(self, total, mode):
+        self.total = total
+        self.done = 0
+        self.failed = 0
+        self.mode = mode
+        self.width = len(str(total))
+        self.drawn = False
+
+    def _bar_line(self, last):
+        cols = shutil.get_terminal_size((100, 20)).columns
+        bar_w = 24
+        filled = bar_w * self.done // self.total
+        bar = "#" * filled + "-" * (bar_w - filled)
+        pct = 100 * self.done // self.total
+        head = (
+            f"[{bar}] {self.done:>{self.width}}/{self.total} {pct:>3}%"
+            f"  failed: {self.failed}  "
+        )
+        room = max(0, cols - len(head) - 1)
+        return head + (last[-room:] if room else "")
+
+    def _clear(self):
+        if self.drawn:
+            sys.stdout.write("\r\x1b[2K")
+            self.drawn = False
+
+    def update(self, name, kind):
+        """kind: ok | FAIL | xfail | XPASS"""
+        self.done += 1
+        if kind == "FAIL" or kind == "XPASS":
+            self.failed += 1
+        if self.mode == "off":
+            return
+        if self.mode == "lines":
+            print(
+                f"[{self.done:>{self.width}}/{self.total}] {kind:<5} {name}", flush=True
+            )
+            return
+        self._clear()
+        if kind in ("FAIL", "XPASS"):
+            print(f"  {kind:<5} {name}")
+        sys.stdout.write(self._bar_line(name))
+        sys.stdout.flush()
+        self.drawn = True
+
+    def finish(self):
+        if self.mode == "bar":
+            self._clear()
+            sys.stdout.flush()
+
+
+def resolve_progress(value):
+    """None = flag not given: a bar on a terminal, nothing in logs.
+    "on" = bare --progress: a bar on a terminal, one line per case otherwise."""
+    tty = sys.stdout.isatty()
+    if value is None:
+        return "bar" if tty else "off"
+    if value == "on":
+        return "bar" if tty else "lines"
+    return value
+
+
 def cmd_run(opts):
+    opts.progress = resolve_progress(opts.progress)
     opts.has_memory_flag = supports_memory_flag(opts.compiler)
     if opts.memory and not opts.has_memory_flag:
         print(
@@ -326,17 +415,21 @@ def cmd_run(opts):
 
     started = time.time()
     results = []
+    progress = Progress(len(cases), opts.progress)
     with cf.ThreadPoolExecutor(opts.j) as pool:
         futures = {}
         for name, rp, expect in cases:
             futures[pool.submit(check_case, opts, rp, parse_expect(expect))] = name
         for fut in cf.as_completed(futures):
             status, detail = fut.result()
-            results.append((futures[fut], status, detail))
-            if opts.progress:
-                print(("." if status == "ok" else "F"), end="", flush=True)
-    if opts.progress:
-        print()
+            name = futures[fut]
+            results.append((name, status, detail))
+            if status == "ok":
+                kind = "XPASS" if name in xfail else "ok"
+            else:
+                kind = "xfail" if name in xfail else "FAIL"
+            progress.update(name, kind)
+    progress.finish()
     results.sort()
 
     failures, expected_failures, unexpected_passes = [], 0, []
@@ -695,7 +788,14 @@ def main():
     )
     run.add_argument("-j", type=int, default=os.cpu_count() or 1)
     run.add_argument("--timeout", type=int, default=120)
-    run.add_argument("--progress", action="store_true")
+    run.add_argument(
+        "--progress",
+        nargs="?",
+        const="on",
+        choices=["on", "bar", "lines", "off"],
+        help="live progress: a bar on a terminal, a line per case otherwise "
+        "(default: a bar on a terminal, nothing otherwise)",
+    )
     run.add_argument("-v", action="store_true", help="also list the passing cases")
     run.set_defaults(func=cmd_run)
 

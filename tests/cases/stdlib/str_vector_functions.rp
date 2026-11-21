@@ -1,0 +1,52 @@
+import "../../../stdlib/vector.rp";
+
+fn show(&str[] v): str {
+    let out = "[";
+    for (let i = 0; i < vector_size(&v); i += 1) {
+        if (i > 0) {
+            out += ",";
+        }
+        out += v[i];
+    }
+    return out + "]";
+}
+
+let v = ["b", "a", "c", "a"];
+let e: str[] = [];
+let w = ["x", "y"];
+println((str_vector_is_empty(&e)) as str);
+println((str_vector_is_empty(&v)) as str);
+println((str_vector_contains(&v, "c")) as str);
+println((str_vector_contains(&v, "z")) as str);
+println((str_vector_contains(&e, "a")) as str);
+println((str_vector_index_of(&v, "a")) as str);
+println((str_vector_index_of(&v, "z")) as str);
+println((str_vector_last_index_of(&v, "a")) as str);
+println((str_vector_last_index_of(&v, "z")) as str);
+println(str_vector_first(&v));
+println(str_vector_last(&v));
+println((str_vector_first(&e) == "") as str);
+println((str_vector_last(&e) == "") as str);
+println(show(&str_vector_reverse(&v)));
+println(show(&str_vector_copy(&v)));
+println(show(&str_vector_remove_at(&v, 0)));
+println(show(&str_vector_remove_at(&v, 9)));
+println(show(&str_vector_insert_at(&v, 1, "Z")));
+println(show(&str_vector_insert_at(&v, 0, "Z")));
+println(show(&str_vector_insert_at(&v, 99, "Z")));
+println(show(&str_vector_insert_at(&e, 0, "Z")));
+println(show(&str_vector_concat(&v, &w)));
+println(show(&str_vector_take(&v, 2)));
+println(show(&str_vector_take(&v, 99)));
+println(show(&str_vector_skip(&v, 3)));
+println(show(&str_vector_skip(&v, 99)));
+println(show(&str_vector_slice(&v, 1, 3)));
+println(str_vector_join(&v, "-"));
+println(str_vector_join(&e, "-"));
+println(str_vector_join(&w, ", "));
+println((str_vector_count(&v, "a")) as str);
+println((str_vector_count(&v, "z")) as str);
+println(show(&str_vector_remove_value(&v, "a")));
+println(show(&str_vector_distinct(&v)));
+println(str_vector_concat_all(&v));
+println(str_vector_concat_all(&e));

@@ -1,0 +1,20 @@
+struct P derives Json {
+    i64 a,
+    f64 b,
+    bool c,
+    str d,
+    char e
+};
+
+struct R derives Json {
+    i64[] v,
+    str[] w
+};
+
+let p = P { a: -5, b: 2.5, c: true, d: "x", e: 'y' };
+println(p.json_encode());
+
+let v: i64[] = [];
+let w: str[] = [];
+let r = R { v: v, w: w };
+println(r.json_encode());

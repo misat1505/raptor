@@ -1,0 +1,5 @@
+let a = [1, 2];
+a.extend(&a);
+println(a.size() as str);
+println(a[2] as str);
+println(a[3] as str);

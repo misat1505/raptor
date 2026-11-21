@@ -1,0 +1,13 @@
+struct S {
+    i64 a
+
+    fn f(self): i64 {
+        return 1;
+    }
+
+    fn f(self): i64 {
+        return 2;
+    }
+};
+let s = S { a: 1 };
+println(s.f() as str);

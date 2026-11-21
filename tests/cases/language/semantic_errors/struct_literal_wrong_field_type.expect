@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Cannot assign a value of type `str` to field `x` of struct `P`."

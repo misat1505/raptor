@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Argument of method 'extend' must be passed by reference."

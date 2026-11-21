@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'pop' not found on type 'i64[]'."

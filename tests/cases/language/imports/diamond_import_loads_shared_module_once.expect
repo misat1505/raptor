@@ -1,0 +1,4 @@
+in-place: yes
+--- stdout ---
+shared loaded
+LSRS

@@ -1,0 +1,11 @@
+struct P derives Debug {
+    i64 a,
+    f64 b,
+    bool c,
+    str d,
+    char e,
+    i64[] v
+};
+
+let p = P { a: 1, b: 0.5, c: false, d: "s", e: 'z', v: [1, 2] };
+println(p.debug());

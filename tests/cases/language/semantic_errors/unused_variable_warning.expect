@@ -1,0 +1,3 @@
+compile-stderr-contains: "Unused variable 'unused'."
+--- stdout ---
+ran

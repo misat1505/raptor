@@ -1,0 +1,2 @@
+let x = nope(1);
+println(x as str);

@@ -1,0 +1,3 @@
+fn f(): void {
+}
+let n = f() + 1;

@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Argument type mismatch in call to 'f'."

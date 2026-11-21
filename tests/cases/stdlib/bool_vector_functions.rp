@@ -1,0 +1,31 @@
+import "../../../stdlib/vector.rp";
+
+fn showb(&bool[] v): str {
+    let out = "[";
+    for (let i = 0; i < vector_size(&v); i += 1) {
+        if (i > 0) {
+            out += ",";
+        }
+        out += v[i] as str;
+    }
+    return out + "]";
+}
+
+let bs = [true, false, true];
+let bt = [true, true];
+let be: bool[] = [];
+println((bool_vector_contains(&bs, false)) as str);
+println((bool_vector_contains(&bt, false)) as str);
+println((bool_vector_contains(&be, true)) as str);
+println((bool_vector_all(&bt, true)) as str);
+println((bool_vector_all(&bs, true)) as str);
+println((bool_vector_all(&be, true)) as str);
+println((bool_vector_any(&bs, false)) as str);
+println((bool_vector_any(&bt, false)) as str);
+println((bool_vector_any(&be, true)) as str);
+println((bool_vector_count(&bs, true)) as str);
+println((bool_vector_count(&bs, false)) as str);
+println((bool_vector_count(&be, true)) as str);
+println(showb(&bool_vector_negate(&bs)));
+println(showb(&bool_vector_negate(&be)));
+println(showb(&bs));

@@ -1,0 +1,14 @@
+import "../../../stdlib/string.rp";
+
+println("[" + str_trim_left("  a b  ") + "]");
+println("[" + str_trim_right("  a b  ") + "]");
+println("[" + str_trim("  a b  ") + "]");
+println("[" + str_trim("\t\nx\n") + "]");
+println("[" + str_trim("abc") + "]");
+println(str_to_lower("HeLLo 123"));
+println(str_to_upper("HeLLo 123"));
+println(str_capitalize("hello"));
+println(str_capitalize(""));
+println(str_capitalize("Hello"));
+println(str_uncapitalize("Hello"));
+println(str_uncapitalize(""));

@@ -1,0 +1,18 @@
+enum Color {
+    Red,
+    Green
+
+    fn default(): Color {
+        return Color::Red;
+    }
+};
+
+let c = Color.default();
+match (c) {
+    Color::Red {
+        println("red");
+    },
+    Color::Green {
+        println("green");
+    }
+}

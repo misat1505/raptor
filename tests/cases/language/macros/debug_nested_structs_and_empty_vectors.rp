@@ -1,0 +1,21 @@
+struct In derives Debug {
+    i64 a
+};
+
+struct Out derives Debug {
+    In inner,
+    In[] list
+};
+
+struct Empty derives Debug {
+    i64[] v,
+    str[] w
+};
+
+let o = Out { inner: In { a: 1 }, list: [In { a: 2 }, In { a: 3 }] };
+println(o.debug());
+
+let e: i64[] = [];
+let f: str[] = [];
+let em = Empty { v: e, w: f };
+println(em.debug());

@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Couldn't create identifier while parsing function declaration."

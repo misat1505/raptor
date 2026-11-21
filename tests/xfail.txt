@@ -1,3 +1,2 @@
 # Known bugs: each case below is expected to fail until the bug is fixed.
 # "unexpectedly passing" once a bug is fixed, then remove the line.
-language/macros/json_nested_vectors

@@ -1,0 +1,49 @@
+fn true_fn(): bool {
+    println("true");
+    return true;
+}
+
+fn false_fn(): bool {
+    println("false");
+    return false;
+}
+
+fn name(): str {
+    println("name");
+    return "x";
+}
+
+println("1");
+println((true_fn() && false_fn()) as str);
+println("2");
+println((false_fn() && true_fn()) as str);
+println("3");
+println((true_fn() || false_fn()) as str);
+println("4");
+println((false_fn() || true_fn()) as str);
+
+println("5 chain and");
+println((true_fn() && true_fn() && false_fn() && true_fn()) as str);
+println("6 chain or");
+println((false_fn() || false_fn() || true_fn() || false_fn()) as str);
+println("7 mixed");
+println((false_fn() || true_fn() && false_fn()) as str);
+println("8 nested");
+println(((false_fn() || true_fn()) && (true_fn() && (false_fn() || true_fn()))) as str);
+
+println("9 arc temp");
+println((false_fn() && name() == "x") as str);
+println((true_fn() && name() == "x" && name() != "y") as str);
+
+println("10 bounds guard");
+let v: i64[] = [1, 2, 3];
+let i = 5;
+println((i < 3 && v[i] == 1) as str);
+println((i >= 3 || v[i] == 1) as str);
+
+println("11 while");
+let n = 0;
+while (n < 3 && true_fn()) {
+    n += 1;
+}
+println(n as str);

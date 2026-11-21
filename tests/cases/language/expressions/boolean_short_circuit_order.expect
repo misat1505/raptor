@@ -1,0 +1,52 @@
+--- stdout ---
+1
+true
+false
+false
+2
+false
+false
+3
+true
+true
+4
+false
+true
+true
+5 chain and
+true
+true
+false
+false
+6 chain or
+false
+false
+true
+true
+7 mixed
+false
+true
+false
+false
+8 nested
+false
+true
+true
+false
+true
+true
+9 arc temp
+false
+false
+true
+name
+name
+true
+10 bounds guard
+false
+true
+11 while
+true
+true
+true
+3

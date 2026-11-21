@@ -327,12 +327,8 @@ fn char_to_digit(char c): i64 {
 fn str_trim_left(str s): str {
     let start = 0;
 
-    while (start < str_len(s)) {
-        if (char_is_whitespace(s[start])) {
-            start += 1;
-        } else {
-            break;
-        }
+    while (start < str_len(s) && char_is_whitespace(s[start])) {
+        start += 1;
     }
 
     return str_substring(s, start, str_len(s));
@@ -341,12 +337,8 @@ fn str_trim_left(str s): str {
 fn str_trim_right(str s): str {
     let end = str_len(s);
 
-    while (end > 0) {
-        if (char_is_whitespace(s[end - 1])) {
-            end -= 1;
-        } else {
-            break;
-        }
+    while (end > 0 && char_is_whitespace(s[end - 1])) {
+        end -= 1;
     }
 
     return str_substring(s, 0, end);
@@ -356,20 +348,12 @@ fn str_trim(str s): str {
     let start = 0;
     let end = str_len(s);
 
-    while (start < end) {
-        if (char_is_whitespace(s[start])) {
-            start += 1;
-        } else {
-            break;
-        }
+    while (start < end && char_is_whitespace(s[start])) {
+        start += 1;
     }
 
-    while (end > start) {
-        if (char_is_whitespace(s[end - 1])) {
-            end -= 1;
-        } else {
-            break;
-        }
+    while (end > start && char_is_whitespace(s[end - 1])) {
+        end -= 1;
     }
 
     return str_substring(s, start, end);

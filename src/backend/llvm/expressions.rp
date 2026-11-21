@@ -1884,7 +1884,7 @@ fn llvm_compile_call_dispatch(
         return;
     }
 
-        if (name == "vector_extend") {
+    if (name == "vector_extend") {
         # target.extend(source): one realloc + one memcpy.
         # Slots are 8 bytes for every element kind, so a flat copy is valid.
         let tgt = arg_vals[0];
@@ -1944,6 +1944,7 @@ fn llvm_compile_call_dispatch(
         ir_emit(&c.ir, "  br label %" + merge_l);
 
         ir_emit(&c.ir, merge_l + ":");
+
         # Reload both data pointers AFTER the realloc: source may alias target.
         let data = ir_tmp(&c.ir);
         ir_emit(&c.ir, "  " + data + " = load ptr, ptr " + t_data_p);
@@ -1957,7 +1958,15 @@ fn llvm_compile_call_dispatch(
         ir_emit(&c.ir, "  " + nbytes + " = mul i64 " + s_len + ", 8");
         ir_emit(
             &c.ir,
-            "  " + ir_tmp(&c.ir) + " = call ptr @memcpy(ptr " + dst + ", ptr " + s_data + ", i64 " + nbytes + ")"
+            "  "
+                + ir_tmp(&c.ir)
+                + " = call ptr @memcpy(ptr "
+                + dst
+                + ", ptr "
+                + s_data
+                + ", i64 "
+                + nbytes
+                + ")"
         );
         ir_emit(&c.ir, "  store i64 " + new_len + ", ptr " + t_len_p);
 
@@ -2650,20 +2659,10 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
             llvm_compile_cast(&c, cast, node.span);
         },
         Expression::Alternative(bin) {
-            llvm_compile_expression(&c, bin.left);
-            let lv = c.last_value;
-            llvm_compile_expression(&c, bin.right);
-            let r = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + r + " = or i1 " + lv + ", " + c.last_value);
-            llvm_compiler_set_last(&c, r, "i1");
+            llvm_compile_short_circuit(&c, bin.left, bin.right, false);
         },
         Expression::Concatenation(bin) {
-            llvm_compile_expression(&c, bin.left);
-            let lv = c.last_value;
-            llvm_compile_expression(&c, bin.right);
-            let r = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + r + " = and i1 " + lv + ", " + c.last_value);
-            llvm_compiler_set_last(&c, r, "i1");
+            llvm_compile_short_circuit(&c, bin.left, bin.right, true);
         },
         Expression::Vector(elems) {
             llvm_compile_vector_literal(&c, elems);
@@ -2682,6 +2681,63 @@ fn llvm_compile_expression(&LlvmCompiler c, ExpressionNode node): void {
         },
         Expression::MethodCall {}
     }
+}
+
+fn llvm_compile_short_circuit(
+    &LlvmCompiler c,
+    ExpressionNode left,
+    ExpressionNode right,
+    bool is_and
+): void {
+    let prefix = "or";
+    if (is_and) {
+        prefix = "and";
+    }
+    let lhs_l = ir_label(&c.ir, prefix + ".lhs");
+    let rhs_l = ir_label(&c.ir, prefix + ".rhs");
+    let rhs_end_l = ir_label(&c.ir, prefix + ".rhs.end");
+    let end_l = ir_label(&c.ir, prefix + ".end");
+
+    llvm_compile_expression(&c, left);
+    let lv = c.last_value;
+    ir_emit(&c.ir, "  br label %" + lhs_l);
+    ir_emit(&c.ir, lhs_l + ":");
+    if (is_and) {
+        ir_emit(&c.ir, "  br i1 " + lv + ", label %" + rhs_l + ", label %" + end_l);
+    } else {
+        ir_emit(&c.ir, "  br i1 " + lv + ", label %" + end_l + ", label %" + rhs_l);
+    }
+
+    ir_emit(&c.ir, rhs_l + ":");
+    let rhs_temps = vector_size(&c.temps);
+    llvm_compile_expression(&c, right);
+    let rv = c.last_value;
+    llvm_flush_temps_from(&c, rhs_temps);
+    ir_emit(&c.ir, "  br label %" + rhs_end_l);
+    ir_emit(&c.ir, rhs_end_l + ":");
+    ir_emit(&c.ir, "  br label %" + end_l);
+
+    ir_emit(&c.ir, end_l + ":");
+    let r = ir_tmp(&c.ir);
+    let short_value = "true";
+    if (is_and) {
+        short_value = "false";
+    }
+    ir_emit(
+        &c.ir,
+        "  "
+            + r
+            + " = phi i1 [ "
+            + short_value
+            + ", %"
+            + lhs_l
+            + " ], [ "
+            + rv
+            + ", %"
+            + rhs_end_l
+            + " ]"
+    );
+    llvm_compiler_set_last(&c, r, "i1");
 }
 
 # NB: in Raptor `Concatenation` is the boolean AND, not string concat.

@@ -1,6 +1,4 @@
 # Known bugs: each case below is expected to fail until the bug is fixed.
 # "unexpectedly passing" once a bug is fixed, then remove the line.
-language/semantic_errors/duplicate_field_in_struct_declaration
-language/semantic_errors/duplicate_variant_in_enum_declaration
 language/macros/json_nested_vectors
 stdlib/string_trim_of_empty_and_blank_strings

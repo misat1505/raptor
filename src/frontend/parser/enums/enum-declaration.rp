@@ -181,6 +181,17 @@ fn parser_parse_enum_members(&Parser parser): ResultEnumMemberNodeVec {
                             ));
                         },
                         OptionEnumMemberNode::Some(next) {
+                            for (let i = 0; i < vector_size(&members); i += 1) {
+                                if (members[i].value.identifier.value == next.value.identifier.value) {
+                                    return ResultEnumMemberNodeVec::Err(parser_error_at(
+                                        ErrorSeverity::HIGH,
+                                        "Redeclaration of member '"
+                                            + next.value.identifier.value
+                                            + "'.",
+                                        next.span
+                                    ));
+                                }
+                            }
                             vector_push(&members, next);
                         }
                     }

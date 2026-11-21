@@ -121,12 +121,7 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
         },
         ResultToken::Ok(semicolon_token) {
             return ResultOptionStructDeclarationNode::Ok(OptionStructDeclarationNode::Some(StructDeclarationNode {
-                value: StructDeclaration {
-                    identifier: identifier,
-                    members: members,
-                    struct_derives: struct_derives,
-                    methods: methods
-                },
+                value: StructDeclaration { identifier, members, struct_derives, methods },
                 span: span_new(struct_token.span.start, semicolon_token.span.end)
             }));
         }
@@ -154,34 +149,41 @@ fn parser_parse_struct_members(&Parser parser): ResultStructMemberNodeVec {
         }
     }
 
-    while (true) {
-        if (parser_current_token(&parser).category matches TokenCategory::Comma) {
-            let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
-            if (comma_consumed matches ResultToken::Err(err)) {
-                return ResultStructMemberNodeVec::Err(err);
-            }
+    while (parser_current_token(&parser).category matches TokenCategory::Comma) {
+        let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
+        if (comma_consumed matches ResultToken::Err(err)) {
+            return ResultStructMemberNodeVec::Err(err);
+        }
 
-            let next_call = parser_parse_struct_member(&parser);
-            match (next_call) {
-                ResultOptionStructMemberNode::Err(err) {
-                    return ResultStructMemberNodeVec::Err(err);
-                },
-                ResultOptionStructMemberNode::Ok(option_next) {
-                    match (option_next) {
-                        OptionStructMemberNode::None {
-                            return ResultStructMemberNodeVec::Err(parser_create_parser_error(
-                                &parser,
-                                "Expected struct member after comma."
-                            ));
-                        },
-                        OptionStructMemberNode::Some(next) {
-                            vector_push(&members, next);
+        let next_call = parser_parse_struct_member(&parser);
+        match (next_call) {
+            ResultOptionStructMemberNode::Err(err) {
+                return ResultStructMemberNodeVec::Err(err);
+            },
+            ResultOptionStructMemberNode::Ok(option_next) {
+                match (option_next) {
+                    OptionStructMemberNode::None {
+                        return ResultStructMemberNodeVec::Err(parser_create_parser_error(
+                            &parser,
+                            "Expected struct member after comma."
+                        ));
+                    },
+                    OptionStructMemberNode::Some(next) {
+                        for (let i = 0; i < vector_size(&members); i += 1) {
+                            if (members[i].value.identifier.value == next.value.identifier.value) {
+                                return ResultStructMemberNodeVec::Err(parser_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Redeclaration of member '"
+                                        + next.value.identifier.value
+                                        + "'.",
+                                    next.span
+                                ));
+                            }
                         }
+                        vector_push(&members, next);
                     }
                 }
             }
-        } else {
-            break;
         }
     }
 
@@ -224,7 +226,7 @@ fn parser_parse_struct_member(&Parser parser): ResultOptionStructMemberNode {
                 },
                 OptionIdentifierNode::Some(identifier) {
                     return ResultOptionStructMemberNode::Ok(OptionStructMemberNode::Some(StructMemberNode {
-                        value: StructMember { identifier: identifier, member_type: member_type },
+                        value: StructMember { identifier, member_type },
                         span: span_new(member_type.span.start, identifier.span.end)
                     }));
                 }
@@ -345,9 +347,9 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
                             if (option_block_node matches OptionBlockNode::Some(block_node)) {
                                 return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::Some(TypeMethodNode {
                                     value: TypeMethod {
-                                        identifier: identifier,
+                                        identifier,
                                         self_identifier: self_node,
-                                        parameters: parameters,
+                                        parameters,
                                         return_type: type_node,
                                         block: block_node
                                     },

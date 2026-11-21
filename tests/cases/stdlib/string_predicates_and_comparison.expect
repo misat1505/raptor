@@ -1,0 +1,23 @@
+in-place: yes
+--- stdout ---
+true
+false
+true
+false
+true
+false
+false
+true
+true
+false
+false
+true
+true
+false
+false
+true
+false
+false
+true
+true
+false

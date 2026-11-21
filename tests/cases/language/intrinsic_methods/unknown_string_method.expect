@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'len' not found on type 'str'."

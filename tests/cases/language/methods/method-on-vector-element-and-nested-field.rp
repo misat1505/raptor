@@ -1,0 +1,25 @@
+struct U {
+    str name
+
+    fn hi(self): str {
+        return "hi " + self.name;
+    }
+};
+
+struct In {
+    i64 v
+
+    fn get(self): i64 {
+        return self.v;
+    }
+};
+
+struct Out {
+    In inner
+};
+
+let us = [U { name: "a" }, U { name: "b" }];
+println(us[1].hi());
+
+let o = Out { inner: In { v: 9 } };
+println(o.inner.get() as str);

@@ -1,0 +1,20 @@
+enum Shape {
+    Circle(i64),
+    Square(i64)
+
+    fn size(self): i64 {
+        match (self) {
+            Shape::Circle(r) {
+                return r;
+            },
+            Shape::Square(s) {
+                return s * 2;
+            }
+        }
+        return 0;
+    }
+};
+
+let a = Shape::Circle(3);
+let b = Shape::Square(4);
+println(a.size() as str + "," + b.size() as str);

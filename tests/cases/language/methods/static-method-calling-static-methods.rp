@@ -1,0 +1,17 @@
+struct M {
+    i64 x
+
+    fn zero(): M {
+        return M { x: 0 };
+    }
+
+    fn with(i64 x): M {
+        return M { x: x };
+    }
+
+    fn fresh(): M {
+        return M.with(M.zero().x + 5);
+    }
+};
+
+println(M.fresh().x as str);

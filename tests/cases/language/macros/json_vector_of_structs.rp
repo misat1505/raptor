@@ -1,0 +1,10 @@
+struct T derives Json {
+    str name
+};
+
+struct U derives Json {
+    T[] ts
+};
+
+let u = U { ts: [T { name: "" }, T { name: "b" }] };
+println(u.json_encode());

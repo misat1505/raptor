@@ -1,0 +1,14 @@
+in-place: yes
+--- stdout ---
+[a b  ]
+[  a b]
+[a b]
+[x]
+[abc]
+hello 123
+HELLO 123
+Hello
+
+Hello
+hello
+

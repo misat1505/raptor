@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'make' on type 'S' is a static method"

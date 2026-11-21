@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'get' on type 'S' is not a static method"

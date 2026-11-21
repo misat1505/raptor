@@ -1,0 +1,5 @@
+import "./shared.rp";
+
+fn right(): str {
+    return "R" + shared();
+}

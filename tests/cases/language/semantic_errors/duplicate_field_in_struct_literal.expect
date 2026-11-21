@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Field `x` is specified more than once."

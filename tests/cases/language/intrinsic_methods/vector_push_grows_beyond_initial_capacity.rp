@@ -1,0 +1,12 @@
+let v: i64[] = [];
+for (let i = 0; i < 1000; i += 1) {
+    v.push(i);
+}
+
+let sum = 0;
+for (let i = 0; i < v.size(); i += 1) {
+    sum += v[i];
+}
+
+println(v.size() as str);
+println(sum as str);

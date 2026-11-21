@@ -1,0 +1,13 @@
+enum E {
+    A
+
+    fn f(self): i64 {
+        return 1;
+    }
+
+    fn f(self): i64 {
+        return 2;
+    }
+};
+let e = E::A;
+println(e.f() as str);

@@ -1,0 +1,4 @@
+--- stdout ---
+Box { items: [P { n: 1 }] }
+Box { items: [P { n: 5 }] }
+1,2

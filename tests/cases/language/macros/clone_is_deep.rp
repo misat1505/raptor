@@ -1,0 +1,15 @@
+struct In derives Clone {
+    i64[] v
+};
+
+struct Out derives Clone {
+    In inner,
+    str[] names
+};
+
+let a = Out { inner: In { v: [1, 2] }, names: ["x"] };
+let b = a.clone();
+b.inner.v.push(3);
+b.names[0] = "y";
+println(a.inner.v.size() as str + "," + a.names[0]);
+println(b.inner.v.size() as str + "," + b.names[0]);

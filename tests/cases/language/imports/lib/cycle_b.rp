@@ -1,0 +1,5 @@
+import "./cycle_a.rp";
+
+fn b(): i64 {
+    return 2;
+}

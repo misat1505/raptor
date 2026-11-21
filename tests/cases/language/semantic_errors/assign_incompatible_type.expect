@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Cannot assign 'str' to variable 'a' which was previously declared as 'i64'."

@@ -1,0 +1,22 @@
+struct P derives Clone, Debug {
+    i64 n
+};
+
+struct Box derives Clone, Debug {
+    P[] items
+};
+
+struct M derives Clone {
+    i64[][] rows
+};
+
+let a = Box { items: [P { n: 1 }] };
+let b = a.clone();
+b.items[0].n = 5;
+println(a.debug());
+println(b.debug());
+
+let m = M { rows: [[1], [2]] };
+let n = m.clone();
+n.rows[0].push(9);
+println(m.rows[0].size() as str + "," + n.rows[0].size() as str);

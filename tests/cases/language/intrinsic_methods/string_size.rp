@@ -1,0 +1,24 @@
+struct Text {
+    str s
+
+    fn length(self): i64 {
+        return self.s.size();
+    }
+};
+
+fn name(): str {
+    return "abcd";
+}
+
+let s = "hello";
+let empty = "";
+let t = Text { s: "xyz" };
+
+println(s.size() as str);
+println(empty.size() as str);
+println(name().size() as str);
+println(t.length() as str);
+println((s.size() == str_len(s)) as str);
+
+s += "!!";
+println(s.size() as str);

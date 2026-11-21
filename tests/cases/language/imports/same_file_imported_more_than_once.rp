@@ -1,0 +1,6 @@
+import "./lib/math.rp";
+import "./lib/math.rp";
+import "./lib/../lib/math.rp";
+import "lib/math.rp";
+
+println(add(2, 3) as str);

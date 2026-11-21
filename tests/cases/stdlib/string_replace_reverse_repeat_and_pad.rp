@@ -1,0 +1,19 @@
+import "../../../stdlib/string.rp";
+
+println(str_replace_first("a-a-a", "a", "X"));
+println(str_replace_first("abc", "z", "X"));
+println(str_replace_all("a-a-a", "a", "X"));
+println(str_replace_all("aaa", "aa", "b"));
+println(str_replace_all("abc", "z", "X"));
+println(str_replace_all("hello", "l", ""));
+println(str_replace_all("abc", "b", "xyz"));
+println(str_reverse("abc"));
+println(str_reverse(""));
+println(str_reverse("a"));
+println(str_repeat("ab", 3));
+println(str_repeat("ab", 0));
+println(str_repeat("", 5));
+println(str_pad_left("7", 3, '0'));
+println(str_pad_left("1234", 3, '0'));
+println(str_pad_right("ab", 5, '.'));
+println(str_pad_right("abcdef", 3, '.'));

@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "While condition must be bool, got 'str'."

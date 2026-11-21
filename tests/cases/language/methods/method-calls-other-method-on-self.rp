@@ -1,0 +1,14 @@
+struct C {
+    i64 n
+
+    fn twice(self): i64 {
+        return self.base() * 2;
+    }
+
+    fn base(self): i64 {
+        return self.n;
+    }
+};
+
+let c = C { n: 21 };
+println(c.twice() as str);

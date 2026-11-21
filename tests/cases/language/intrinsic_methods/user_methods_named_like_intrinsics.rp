@@ -1,0 +1,22 @@
+struct Stack {
+    i64 top
+
+    fn push(self, i64 x): void {
+        self.top = x;
+    }
+
+    fn size(self): i64 {
+        return self.top + 100;
+    }
+};
+
+let s = Stack { top: 0 };
+s.push(5);
+println(s.top as str);
+println(s.size() as str);
+
+let stacks: Stack[] = [];
+stacks.push(Stack { top: 1 });
+stacks[0].push(42);
+println(stacks[0].top as str);
+println(stacks.size() as str);

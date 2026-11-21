@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Function 'f' expects 1 argument(s), got 2."

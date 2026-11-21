@@ -1,0 +1,6 @@
+struct A {
+    i64 x
+};
+struct A {
+    i64 y
+};

@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'size' expects no arguments, but 1 were provided."

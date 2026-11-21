@@ -1,0 +1,24 @@
+in-place: yes
+--- stdout ---
+a|b||c
+a|b|
+a|b|c
+abc
+|
+3
+a
+a, b, c
+ab
+-42
+7
+0
+123456789
+true
+true
+false
+false
+false
+true
+0
+-17
+123456789

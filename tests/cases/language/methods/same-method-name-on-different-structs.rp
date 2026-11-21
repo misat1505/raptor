@@ -1,0 +1,19 @@
+struct A {
+    i64 n
+
+    fn id(self): i64 {
+        return self.n;
+    }
+};
+
+struct B {
+    i64 n
+
+    fn id(self): i64 {
+        return self.n * 10;
+    }
+};
+
+let a = A { n: 1 };
+let b = B { n: 1 };
+println(a.id() as str + "," + b.id() as str);

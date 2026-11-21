@@ -1,0 +1,24 @@
+struct Bag {
+    i64[] items
+};
+
+fn make(): i64[] {
+    return [1, 2];
+}
+
+let empty: i64[] = [];
+let v = [1, 2, 3];
+let bag = Bag { items: [4, 5, 6, 7] };
+
+println(empty.size() as str);
+println(v.size() as str);
+println((v.size() - 1) as str);
+println(make().size() as str);
+println(bag.items.size() as str);
+
+if (v.size() > 2) {
+    println("big");
+}
+
+v.push(4);
+println(v.size() as str);

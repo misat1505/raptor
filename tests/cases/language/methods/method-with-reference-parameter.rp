@@ -1,0 +1,14 @@
+struct S {
+    i64 k
+
+    fn fill(self, &i64[] v): void {
+        v.push(self.k);
+    }
+};
+
+let s = S { k: 4 };
+let v: i64[] = [];
+s.fill(&v);
+s.fill(&v);
+println(v.size() as str);
+println(v[1] as str);

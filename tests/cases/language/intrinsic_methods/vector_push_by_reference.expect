@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Argument of method 'push' must be passed by value."

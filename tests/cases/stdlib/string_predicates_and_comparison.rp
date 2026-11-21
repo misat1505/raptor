@@ -1,0 +1,23 @@
+import "../../../stdlib/string.rp";
+
+println((str_contains("hello", "ell")) as str);
+println((str_contains("hello", "xyz")) as str);
+println((str_contains_char("hello", 'h')) as str);
+println((str_contains_char("hello", 'z')) as str);
+println((str_starts_with("abc", "ab")) as str);
+println((str_starts_with("abc", "bc")) as str);
+println((str_starts_with("a", "ab")) as str);
+println((str_starts_with("abc", "")) as str);
+println((str_ends_with("abc", "bc")) as str);
+println((str_ends_with("abc", "ab")) as str);
+println((str_ends_with("c", "bc")) as str);
+println((str_ends_with("abc", "")) as str);
+println((str_equals("a", "a")) as str);
+println((str_equals("a", "b")) as str);
+println((str_equals("a", "ab")) as str);
+println((str_equals_ignore_case("HeLLo", "hello")) as str);
+println((str_equals_ignore_case("a", "b")) as str);
+println((str_equals_ignore_case("abc", "abcd")) as str);
+println((str_is_blank("")) as str);
+println((str_is_blank("  \t")) as str);
+println((str_is_blank(" a ")) as str);

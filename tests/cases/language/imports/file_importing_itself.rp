@@ -1,0 +1,3 @@
+import "./file_importing_itself.rp";
+
+println("x");

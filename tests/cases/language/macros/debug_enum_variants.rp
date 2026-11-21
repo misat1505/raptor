@@ -1,0 +1,12 @@
+enum E derives Debug {
+    A,
+    B(i64),
+    C(str)
+};
+
+let a = E::A;
+let b = E::B(3);
+let c = E::C("q");
+println(a.debug());
+println(b.debug());
+println(c.debug());

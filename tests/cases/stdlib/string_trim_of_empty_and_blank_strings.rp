@@ -1,0 +1,11 @@
+import "../../../stdlib/string.rp";
+
+println("[" + str_trim_left("") + "]");
+println("[" + str_trim_left("   ") + "]");
+println("[" + str_trim_left("\t\n ") + "]");
+println("[" + str_trim_right("") + "]");
+println("[" + str_trim_right("   ") + "]");
+println("[" + str_trim_right("\t\n ") + "]");
+println("[" + str_trim("") + "]");
+println("[" + str_trim("   ") + "]");
+println("[" + str_trim("\t\n ") + "]");

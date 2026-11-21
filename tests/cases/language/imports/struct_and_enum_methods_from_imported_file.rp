@@ -1,0 +1,7 @@
+import "./lib/shapes.rp";
+
+let r = Rect { w: 2, h: 3 };
+println(r.area() as str);
+println(Rect.square(4).area() as str);
+let k = Kind::Big;
+println(k.label());

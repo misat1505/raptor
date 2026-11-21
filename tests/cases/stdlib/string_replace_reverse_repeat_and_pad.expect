@@ -1,0 +1,19 @@
+in-place: yes
+--- stdout ---
+X-a-a
+abc
+X-X-X
+ba
+abc
+heo
+axyzc
+cba
+
+a
+ababab
+
+
+007
+1234
+ab...
+abcdef

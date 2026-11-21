@@ -1,0 +1,9 @@
+enum E {
+    A
+
+    fn mk(): E {
+        return E::A;
+    }
+};
+let e = E::A;
+let f = e.mk();

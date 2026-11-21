@@ -1,0 +1,12 @@
+struct T derives Json {
+    i64 a
+};
+
+let t = T { a: 1 };
+println(t.json_encode());
+println((t.json_encode() == t_json_encode(&t)) as str);
+
+let sb = StringBuilder.new();
+sb.push_str(&"X=");
+t.json_encode_sb(&sb);
+println(sb.to_string());

@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Array index must be of type `i64`."

@@ -1,0 +1,2 @@
+let s = "a";
+let n = s.size(1);

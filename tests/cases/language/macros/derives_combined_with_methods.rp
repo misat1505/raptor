@@ -1,0 +1,13 @@
+struct K derives Debug, Clone {
+    i64 n
+
+    fn bump(self): void {
+        self.n += 1;
+    }
+};
+
+let a = K { n: 1 };
+let b = a.clone();
+b.bump();
+println(a.debug());
+println(b.debug());

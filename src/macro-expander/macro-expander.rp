@@ -453,6 +453,7 @@ struct SbFormat {
     str char_quote,
     str vector_separator,
     str nested_vector_literal,
+    bool nest_vectors,
     str unprintable_literal
 };
 
@@ -465,6 +466,7 @@ fn me_sb_format_debug(): SbFormat {
         char_quote: "'",
         vector_separator: ", ",
         nested_vector_literal: "<vector>",
+        nest_vectors: false,
         unprintable_literal: "<unprintable>"
     };
 }
@@ -478,6 +480,7 @@ fn me_sb_format_json(): SbFormat {
         char_quote: "\"",
         vector_separator: ",",
         nested_vector_literal: "[]",
+        nest_vectors: true,
         unprintable_literal: "null"
     };
 }
@@ -620,8 +623,9 @@ fn me_is_number_like(Type ty): bool {
 
 # Appends the statements that write `expression` (of type `ty`) to `sb`.
 # `ctx` makes the names of temporaries unique within the generated function.
-# `in_vector` is true for vector elements: a vector inside a vector keeps the
-# pre-StringBuilder behaviour of printing a fixed placeholder.
+# `in_vector` is true for vector elements: unless the format sets `nest_vectors`
+# (Json), a vector inside a vector keeps the pre-StringBuilder behaviour of
+# printing a fixed placeholder (Debug).
 fn me_sb_emit_value(
     &Program program,
     &SbEmit e,
@@ -647,7 +651,7 @@ fn me_sb_emit_value(
             me_sb_emit_dependency(&program, &e, &f, type_name, expression, ctx, strategy);
         },
         Type::Vector(inner_type) {
-            if (in_vector) {
+            if (in_vector && !f.nest_vectors) {
                 sb_emit_lit(&e, f.nested_vector_literal);
             } else {
                 me_sb_emit_vector(&program, &e, &f, inner_type, expression, ctx, strategy);

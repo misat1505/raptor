@@ -130,7 +130,7 @@ Full grammar: [docs/grammar.md](docs/grammar.md).
 
 | Topic                    | Document                                               |
 | ------------------------ | ------------------------------------------------------ |
-| Grammar                  | [docs/grammar.md](docs/grammar.md)                     |
+| Grammar                  | [docs/grammar/grammar.md](docs/grammar/grammar.md)                     |
 | Lexer                    | [docs/lexer.md](docs/lexer.md)                         |
 | Parser                   | [docs/parser.md](docs/parser.md)                       |
 | Semantic checker         | [docs/semantic-checker.md](docs/semantic-checker.md)   |

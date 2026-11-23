@@ -292,8 +292,34 @@ fn parser_parse_program(&Parser parser): ResultProgram {
     let functions: FunctionDeclarationNode[] = [];
     let extern_functions: ExternFunctionDeclarationNode[] = [];
     let declared_types: DeclaredTypeNode[] = [];
+    let extend_blocks: ExtendBlock[] = [];
 
     while (true) {
+        match (parser_parse_extend_block(&parser)) {
+            ResultOptionExtendBlock::Err(err) {
+                return ResultProgram::Err(err);
+            },
+            ResultOptionExtendBlock::Ok(option_extend_block) {
+                if (option_extend_block matches OptionExtendBlock::Some(extend_block)) {
+                    # let type_name = struct_declaration.value.identifier.value;
+
+                    # let collision = parser_check_name_collision(
+                    #     type_name,
+                    #     struct_declaration.span,
+                    #     &functions,
+                    #     &extern_functions,
+                    #     &declared_types
+                    # );
+                    # if (collision matches ResultUnit::Err(err)) {
+                    #     return ResultProgram::Err(err);
+                    # }
+
+                    vector_push(&extend_blocks, extend_block);
+                    continue;
+                }
+            }
+        }
+
         match (parser_parse_struct_declaration(&parser)) {
             ResultOptionStructDeclarationNode::Err(err) {
                 return ResultProgram::Err(err);

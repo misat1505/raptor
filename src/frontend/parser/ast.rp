@@ -487,6 +487,11 @@ struct DeclaredTypeNode derives Debug, Clone {
     Span span
 };
 
+struct ExtendBlock derives Debug, Clone {
+    TypeNode type,
+    TypeMethodNode[] methods
+};
+
 # ==================== Program ====================
 
 # The Rust `Program` keys functions/extern_functions/declared_types by

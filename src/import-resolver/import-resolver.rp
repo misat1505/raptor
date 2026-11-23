@@ -89,8 +89,10 @@ fn import_resolver_resolve(
         return ResultProgram::Err(err);
     }
 
+
     # pop entry from the cycle stack (mirrors Rust `self.stack.pop()`)
     if (vector_size(&resolver.stack) > 0) {
+
         # rebuild stack without last element (no vector_pop in language)
         let new_stack: str[] = [];
         for (let i = 0; i < vector_size(&resolver.stack) - 1; i += 1) {
@@ -144,6 +146,8 @@ fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
             ));
         }
     }
+
+    return ResultUnit::Ok;
 }
 
 fn import_resolver_merge_program(

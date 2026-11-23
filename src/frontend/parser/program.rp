@@ -301,19 +301,6 @@ fn parser_parse_program(&Parser parser): ResultProgram {
             },
             ResultOptionExtendBlock::Ok(option_extend_block) {
                 if (option_extend_block matches OptionExtendBlock::Some(extend_block)) {
-                    # let type_name = struct_declaration.value.identifier.value;
-
-                    # let collision = parser_check_name_collision(
-                    #     type_name,
-                    #     struct_declaration.span,
-                    #     &functions,
-                    #     &extern_functions,
-                    #     &declared_types
-                    # );
-                    # if (collision matches ResultUnit::Err(err)) {
-                    #     return ResultProgram::Err(err);
-                    # }
-
                     vector_push(&extend_blocks, extend_block);
                     continue;
                 }
@@ -473,7 +460,8 @@ fn parser_parse_program(&Parser parser): ResultProgram {
         statements: statements,
         functions: functions,
         extern_functions: extern_functions,
-        declared_types: declared_types
+        declared_types: declared_types,
+        extend_blocks: extend_blocks
     });
 }
 

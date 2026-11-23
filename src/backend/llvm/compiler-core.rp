@@ -83,10 +83,6 @@ struct LlvmCompiler {
 # so it needs marks that only loops (not switches) push.
 
 fn llvm_compiler_new(): LlvmCompiler {
-    let empty_stmts: StatementNode[] = [];
-    let empty_fns: FunctionDeclarationNode[] = [];
-    let empty_ext: ExternFunctionDeclarationNode[] = [];
-    let empty_types: DeclaredTypeNode[] = [];
     return LlvmCompiler {
         ir: ir_builder_new(),
         locals: [],
@@ -98,10 +94,11 @@ fn llvm_compiler_new(): LlvmCompiler {
         current_ret_ty: "i32",
         has_terminator: false,
         program: Program {
-            statements: empty_stmts,
-            functions: empty_fns,
-            extern_functions: empty_ext,
-            declared_types: empty_types
+            statements: [],
+            functions: [],
+            extern_functions: [],
+            declared_types: [],
+            extend_blocks: []
         },
         local_id: 0,
         arc: true,

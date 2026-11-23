@@ -72,7 +72,8 @@ fn import_resolver_resolve(
         statements: [],
         functions: [],
         extern_functions: [],
-        declared_types: []
+        declared_types: [],
+        extend_blocks: []
     };
 
     vector_push(&resolver.stack, normalized_entry);
@@ -98,7 +99,41 @@ fn import_resolver_resolve(
         resolver.stack = new_stack;
     }
 
+    import_resolver_evaluate_extend_blocks(&merged);
+
     return ResultProgram::Ok(merged);
+}
+
+fn import_resolver_evaluate_extend_blocks(&Program merged): void {
+    for (let i = 0; i < vector_size(&merged.extend_blocks); i += 1) {
+        let extend_block = merged.extend_blocks[i];
+
+        match (extend_block.type.value) {
+            Type::Unresolved(custom_type_name) {
+                for (let j = 0; j < vector_size(&merged.declared_types); j += 1) {
+                    match (merged.declared_types[j].value) {
+                        DeclaredType::Enum(e) {
+                            if (e.identifier.value != custom_type_name) {
+                                continue;
+                            }
+                            vector_extend(&e.methods, &extend_block.methods);
+                            return;
+                        },
+                        DeclaredType::Struct(s) {
+                            if (s.identifier.value != custom_type_name) {
+                                continue;
+                            }
+                            vector_extend(&s.methods, &extend_block.methods);
+                            return;
+                        }
+                    }
+                }
+            },
+            rest {
+                println("Not implemented");
+            }
+        }
+    }
 }
 
 fn import_resolver_merge_program(
@@ -166,6 +201,10 @@ fn import_resolver_merge_program(
         }
     }
 
+    # for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
+    #     vector_push(&merged.extend_blocks, program.extend_blocks[i]);
+    # }
+    vector_extend(&merged.extend_blocks, &program.extend_blocks);
     return ResultUnit::Ok;
 }
 

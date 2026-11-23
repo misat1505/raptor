@@ -506,7 +506,8 @@ struct Program derives Debug {
     StatementNode[] statements,
     FunctionDeclarationNode[] functions,
     ExternFunctionDeclarationNode[] extern_functions,
-    DeclaredTypeNode[] declared_types
+    DeclaredTypeNode[] declared_types,
+    ExtendBlock[] extend_blocks
 };
 
 # Vector(Box<Type>) in Rust.

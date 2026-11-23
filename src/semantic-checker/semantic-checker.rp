@@ -357,6 +357,41 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
         }
     }
 
+    for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
+        match (program.extend_blocks[i].type.value) {
+            Type::Unresolved(custom_type_name) {
+                for (let j = 0; j < vector_size(&program.declared_types); j += 1) {
+                    match (program.declared_types[i].value) {
+                        DeclaredType::Struct(s) {
+                            if (s.identifier.value != custom_type_name) {
+                                continue;
+                            }
+
+                            semantic_checker_struct_hover(&sc, custom_type_name, program.extend_blocks[i].type.span);
+                            semantic_checker_push_definition(
+                                &sc,
+                                program.extend_blocks[i].type.span,
+                                program.declared_types[i].span
+                            );
+                        },
+                        DeclaredType::Enum(e) {
+                            if (e.identifier.value != custom_type_name) {
+                                continue;
+                            }
+                            semantic_checker_enum_hover(&sc, custom_type_name, program.extend_blocks[i].type.span);
+                            semantic_checker_push_definition(
+                                &sc,
+                                program.extend_blocks[i].type.span,
+                                program.declared_types[i].span
+                            );
+                        }
+                    }
+                }
+            },
+            rest {}
+        }
+    }
+
     for (let i = 0; i < vector_size(&program.statements); i += 1) {
         semantic_checker_visit_statement(&sc, &program, program.statements[i]);
     }

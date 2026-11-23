@@ -38,7 +38,7 @@ fn import_resolver_new(LexerOptions lexer_options): ImportResolver {
     return ImportResolver {
         stack: [],
         visited: [],
-        lexer_options: lexer_options,
+        lexer_options,
         overlay_paths: [],
         overlay_sources: []
     };
@@ -99,39 +99,49 @@ fn import_resolver_resolve(
         resolver.stack = new_stack;
     }
 
-    import_resolver_evaluate_extend_blocks(&merged);
+    let extend_block_result = import_resolver_evaluate_extend_blocks(&merged);
+    if (extend_block_result matches ResultUnit::Err(err)) {
+        return ResultProgram::Err(err);
+    }
 
     return ResultProgram::Ok(merged);
 }
 
-fn import_resolver_evaluate_extend_blocks(&Program merged): void {
+fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
     for (let i = 0; i < vector_size(&merged.extend_blocks); i += 1) {
         let extend_block = merged.extend_blocks[i];
 
-        match (extend_block.type.value) {
-            Type::Unresolved(custom_type_name) {
-                for (let j = 0; j < vector_size(&merged.declared_types); j += 1) {
-                    match (merged.declared_types[j].value) {
-                        DeclaredType::Enum(e) {
-                            if (e.identifier.value != custom_type_name) {
-                                continue;
-                            }
-                            vector_extend(&e.methods, &extend_block.methods);
-                            return;
-                        },
-                        DeclaredType::Struct(s) {
-                            if (s.identifier.value != custom_type_name) {
-                                continue;
-                            }
-                            vector_extend(&s.methods, &extend_block.methods);
-                            return;
+        if (extend_block.type.value matches Type::Unresolved(custom_type_name)) {
+            for (let j = 0; j < vector_size(&merged.declared_types); j += 1) {
+                match (merged.declared_types[j].value) {
+                    DeclaredType::Enum(e) {
+                        if (e.identifier.value != custom_type_name) {
+                            continue;
                         }
+                        vector_extend(&e.methods, &extend_block.methods);
+                        return ResultUnit::Ok;
+                    },
+                    DeclaredType::Struct(s) {
+                        if (s.identifier.value != custom_type_name) {
+                            continue;
+                        }
+                        vector_extend(&s.methods, &extend_block.methods);
+                        return ResultUnit::Ok;
                     }
                 }
-            },
-            rest {
-                println("Not implemented");
             }
+
+            return ResultUnit::Err(parser_error_at(
+                ErrorSeverity::HIGH,
+                "Type '" + custom_type_name + "' not found.",
+                extend_block.type.span
+            ));
+        } else {
+            return ResultUnit::Err(parser_error_at(
+                ErrorSeverity::HIGH,
+                "Extend is not supported on this data type.",
+                extend_block.type.span
+            ));
         }
     }
 }
@@ -274,7 +284,10 @@ fn import_resolver_handle_import(
 }
 
 fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_span): ResultProgram {
-    let overlay_idx = import_resolver_overlay_index(&resolver, import_resolver_normalize_path(path));
+    let overlay_idx = import_resolver_overlay_index(
+        &resolver,
+        import_resolver_normalize_path(path)
+    );
     let source = "";
     if (overlay_idx >= 0) {
         source = resolver.overlay_sources[overlay_idx];

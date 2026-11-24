@@ -121,6 +121,14 @@ fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
                         if (e.identifier.value != custom_type_name) {
                             continue;
                         }
+                        let duplicate = import_resolver_check_duplicate_methods(
+                            custom_type_name,
+                            &e.methods,
+                            &extend_block.methods
+                        );
+                        if (duplicate matches ResultUnit::Err(err)) {
+                            return ResultUnit::Err(err);
+                        }
                         vector_extend(&e.methods, &extend_block.methods);
                         found = true;
                         break;
@@ -128,6 +136,14 @@ fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
                     DeclaredType::Struct(s) {
                         if (s.identifier.value != custom_type_name) {
                             continue;
+                        }
+                        let duplicate = import_resolver_check_duplicate_methods(
+                            custom_type_name,
+                            &s.methods,
+                            &extend_block.methods
+                        );
+                        if (duplicate matches ResultUnit::Err(err)) {
+                            return ResultUnit::Err(err);
                         }
                         vector_extend(&s.methods, &extend_block.methods);
                         found = true;
@@ -143,9 +159,50 @@ fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
                     extend_block.type.span
                 ));
             }
+        } else {
+            # Built-in type: blocks stay in `merged.extend_blocks`, so make sure no earlier
+            # block extending the same type already declares one of these methods.
+            let wanted = type_debug(&extend_block.type.value);
+            for (let k = 0; k < i; k += 1) {
+                let earlier_type = merged.extend_blocks[k].type.value;
+                if (earlier_type matches Type::Unresolved) {
+                    continue;
+                }
+                if (type_debug(&earlier_type) != wanted) {
+                    continue;
+                }
+                let duplicate = import_resolver_check_duplicate_methods(
+                    type_to_string(extend_block.type.value),
+                    &merged.extend_blocks[k].methods,
+                    &extend_block.methods
+                );
+                if (duplicate matches ResultUnit::Err(err)) {
+                    return ResultUnit::Err(err);
+                }
+            }
         }
     }
 
+    return ResultUnit::Ok;
+}
+
+fn import_resolver_check_duplicate_methods(
+    str type_name,
+    &TypeMethodNode[] existing,
+    &TypeMethodNode[] added
+): ResultUnit {
+    for (let a = 0; a < vector_size(&added); a += 1) {
+        let name = added[a].value.identifier.value;
+        for (let e = 0; e < vector_size(&existing); e += 1) {
+            if (existing[e].value.identifier.value == name) {
+                return ResultUnit::Err(parser_error_at(
+                    ErrorSeverity::HIGH,
+                    "Redeclaration of method '" + name + "' on type '" + type_name + "'.",
+                    added[a].value.identifier.span
+                ));
+            }
+        }
+    }
     return ResultUnit::Ok;
 }
 

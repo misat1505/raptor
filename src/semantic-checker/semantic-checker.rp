@@ -361,7 +361,7 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
         match (program.extend_blocks[i].type.value) {
             Type::Unresolved(custom_type_name) {
                 for (let j = 0; j < vector_size(&program.declared_types); j += 1) {
-                    match (program.declared_types[i].value) {
+                    match (program.declared_types[j].value) {
                         DeclaredType::Struct(s) {
                             if (s.identifier.value != custom_type_name) {
                                 continue;
@@ -371,7 +371,7 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
                             semantic_checker_push_definition(
                                 &sc,
                                 program.extend_blocks[i].type.span,
-                                program.declared_types[i].span
+                                program.declared_types[j].span
                             );
                         },
                         DeclaredType::Enum(e) {
@@ -382,7 +382,7 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
                             semantic_checker_push_definition(
                                 &sc,
                                 program.extend_blocks[i].type.span,
-                                program.declared_types[i].span
+                                program.declared_types[j].span
                             );
                         }
                     }

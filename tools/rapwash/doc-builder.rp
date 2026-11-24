@@ -252,6 +252,9 @@ fn doc_builder_build(&DocBuilder builder): Doc {
     let types = builder_build_type_declarations(&builder);
     builder_push_section(&sections, &types, &blank_line);
 
+    let extend_blocks = builder_build_extend_blocks(&builder);
+    builder_push_section(&sections, &extend_blocks, &blank_line);
+
     let extern_functions = builder_build_extern_function_declarations(&builder);
     builder_push_section(&sections, &extern_functions, &hard);
 
@@ -430,6 +433,63 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
     }
 
     return declarations;
+}
+
+# `extend <type> { methods };` blocks. They are printed after all type declarations and
+# before extern functions / functions, in source order.
+fn builder_build_extend_blocks(&DocBuilder builder): Doc[] {
+    let blocks: Doc[] = [];
+    let previous_end_line = 0;
+
+    for (let i = 0; i < vector_size(&builder.ast.extend_blocks); i += 1) {
+        let block = builder.ast.extend_blocks[i];
+        let start_line = block.type.span.start.line;
+
+        # ExtendBlock has no span of its own: the block ends one line after its last
+        # method (the closing `};`), or on the type line when it has no methods.
+        let end_line = start_line;
+        if (vector_size(&block.methods) > 0) {
+            end_line = block.methods[vector_size(&block.methods) - 1].span.end.line + 1;
+        }
+
+        # Comments before this block that already belong to a type declaration are used
+        # up by now, so start looking right after the last type declared above the block.
+        let after_line = previous_end_line;
+        for (let j = 0; j < vector_size(&builder.ast.declared_types); j += 1) {
+            let type_end_line = builder.ast.declared_types[j].span.end.line;
+            if (type_end_line < start_line && type_end_line > after_line) {
+                after_line = type_end_line;
+            }
+        }
+
+        let methods: Doc[] = [];
+        for (let j = 0; j < vector_size(&block.methods); j += 1) {
+            vector_push(&methods, builder_type_method_doc(&builder, &block.methods[j].value));
+        }
+
+        let parts: Doc[] = [Doc::Text("extend " + type_to_string(block.type.value))];
+        if (vector_size(&methods) == 0) {
+            vector_push(&parts, Doc::Text(" {}"));
+        } else {
+            let method_sep = Doc::Concat([Doc::HardLine, Doc::HardLine]);
+            vector_push(&parts, Doc::Text(" {"));
+            vector_push(
+                &parts,
+                Doc::Indent([Doc::HardLine, doc_join(&methods, &method_sep)])
+            );
+            vector_push(&parts, Doc::HardLine);
+            vector_push(&parts, Doc::Text("}"));
+        }
+        vector_push(&parts, Doc::Text(";"));
+
+        vector_push(
+            &blocks,
+            builder_with_comments(&builder, after_line, start_line, end_line, Doc::Concat(parts))
+        );
+        previous_end_line = end_line;
+    }
+
+    return blocks;
 }
 
 fn builder_type_method_doc(&DocBuilder builder, &TypeMethod method): Doc {

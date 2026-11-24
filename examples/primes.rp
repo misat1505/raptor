@@ -3,7 +3,7 @@ fn is_prime(i64 x): bool {
         return false;
     }
 
-    for (i64 i = 2; i < x; i += 1) {
+    for (let i = 2; i < x; i += 1) {
         if (x % i == 0) {
             return false;
         }
@@ -13,7 +13,7 @@ fn is_prime(i64 x): bool {
 }
 
 
-for (i64 x = 0; x < 1000; x = x + 1) {
+for (let x = 0; x < 1000; x = x + 1) {
     if (is_prime(x)) {
         println(x as str + " is a prime.");
     }

@@ -87,40 +87,6 @@ fn parser_parse_declaration(&Parser parser): ResultOptionStatementNode {
     }));
 }
 
-fn parser_parse_variable_declaration(&Parser parser): ResultOptionStatementNode {
-    let declaration_call = parser_parse_declaration(&parser);
-
-    match (declaration_call) {
-        ResultOptionStatementNode::Err(err) {
-            return ResultOptionStatementNode::Err(err);
-        },
-        ResultOptionStatementNode::Ok(option_declaration) {
-            match (option_declaration) {
-                OptionStatementNode::None {
-                    return ResultOptionStatementNode::Ok(OptionStatementNode::None);
-                },
-                OptionStatementNode::Some(declaration) {
-                    let semicolon_consumed = parser_consume_must_be(
-                        &parser,
-                        TokenCategory::Semicolon
-                    );
-                    match (semicolon_consumed) {
-                        ResultToken::Err(err) {
-                            return ResultOptionStatementNode::Err(err);
-                        },
-                        ResultToken::Ok(semicolon_token) {
-                            return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
-                                value: declaration.value,
-                                span: span_new(declaration.span.start, semicolon_token.span.end)
-                            }));
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 fn parser_parse_let_declaration(&Parser parser): ResultOptionStatementNode {
     # let_declaration = let, identifier, [ ":", type ], "=", expression;
     let let_consumed = parser_consume_if_matches(&parser, TokenCategory::Let);

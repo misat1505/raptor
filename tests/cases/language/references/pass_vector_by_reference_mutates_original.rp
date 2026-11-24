@@ -3,9 +3,9 @@ fn append_one(&i64[] arr): void {
 }
 
 
-i64[] numbers = [];
+let numbers: i64[] = [];
 append_one(&numbers);
 append_one(&numbers);
-i64 size = vector_size(&numbers);
+let size = vector_size(&numbers);
 
 println(size as str);

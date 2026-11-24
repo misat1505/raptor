@@ -3,6 +3,6 @@ fn foo(&i64 x): void {
 }
 
 
-i64 x = 2;
+let x = 2;
 foo(&x);
 println(x as str);

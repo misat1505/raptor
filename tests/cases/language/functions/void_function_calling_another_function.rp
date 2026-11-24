@@ -7,7 +7,7 @@ fn main_logic(&i64 result): void {
 }
 
 
-i64 output = 0;
+let output = 0;
 main_logic(&output);
 
 println(output as str);

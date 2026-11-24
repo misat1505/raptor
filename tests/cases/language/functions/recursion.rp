@@ -7,5 +7,5 @@ fn fib(i64 x): i64 {
 }
 
 
-i64 x = fib(6);
+let x = fib(6);
 println(x as str);

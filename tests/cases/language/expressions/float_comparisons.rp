@@ -1,8 +1,8 @@
-f64 a = 1.5;
-f64 b = 2.5;
-bool less = a < b;
-bool greater_equal = b >= a;
-bool equal_same = a == 1.5;
+let a = 1.5;
+let b = 2.5;
+let less = a < b;
+let greater_equal = b >= a;
+let equal_same = a == 1.5;
 
 println(less as str);
 println(greater_equal as str);

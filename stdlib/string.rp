@@ -461,7 +461,7 @@ fn str_replace_all(str s, str old, str replacement): str {
             vector_extend(&out, &rep_chars);
             i += old_len;
         } else {
-            vector_push(&out, chars[i]);
+            out.push(chars[i]);
             i += 1;
         }
     }
@@ -810,3 +810,743 @@ fn str_remove_suffix(str s, str suffix): str {
 
     return s;
 }
+
+# ------------------------------------------------------------
+# str methods
+# ------------------------------------------------------------
+
+extend str {
+    # Basic
+    fn is_empty(self): bool {
+        return self.size() == 0;
+    }
+
+    fn first(self): char {
+        if (self.size() == 0) {
+            return '\0';
+        }
+        return self[0];
+    }
+
+    fn last(self): char {
+        let len = self.size();
+        if (len == 0) {
+            return '\0';
+        }
+        return self[len - 1];
+    }
+
+    fn char_at(self, i64 index): char {
+        if (index < 0) {
+            return '\0';
+        }
+        if (index >= self.size()) {
+            return '\0';
+        }
+        return self[index];
+    }
+
+    # Substrings / searching
+    fn substring(self, i64 start, i64 end): str {
+        let result = StringBuilder.new();
+
+        if (start < 0) {
+            start = 0;
+        }
+        if (end > self.size()) {
+            end = self.size();
+        }
+        if (start >= end) {
+            return result.to_string();
+        }
+
+        for (let i = start; i < end; i += 1) {
+            result.push_char(self[i]);
+        }
+
+        return result.to_string();
+    }
+
+    fn index_of_char(self, char target): i64 {
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == target) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    fn last_index_of_char(self, char target): i64 {
+        for (let i = self.size() - 1; i >= 0; i -= 1) {
+            if (self[i] == target) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    fn index_of(self, str target): i64 {
+        let s_len = self.size();
+        let t_len = target.size();
+
+        if (t_len == 0) {
+            return 0;
+        }
+        if (t_len > s_len) {
+            return -1;
+        }
+
+        for (let i = 0; i <= s_len - t_len; i += 1) {
+            let matched = true;
+
+            for (let j = 0; j < t_len; j += 1) {
+                if (self[i + j] != target[j]) {
+                    matched = false;
+                    break;
+                }
+            }
+
+            if (matched) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    fn last_index_of(self, str target): i64 {
+        let s_len = self.size();
+        let t_len = target.size();
+
+        if (t_len == 0) {
+            return s_len;
+        }
+        if (t_len > s_len) {
+            return -1;
+        }
+
+        let start = s_len - t_len;
+
+        for (let i = start; i >= 0; i -= 1) {
+            let matched = true;
+
+            for (let j = 0; j < t_len; j += 1) {
+                if (self[i + j] != target[j]) {
+                    matched = false;
+                    break;
+                }
+            }
+
+            if (matched) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    fn contains(self, str target): bool {
+        return self.index_of(target) >= 0;
+    }
+
+    fn contains_char(self, char target): bool {
+        return self.index_of_char(target) >= 0;
+    }
+
+    fn starts_with(self, str prefix): bool {
+        return self.index_of(prefix) == 0;
+    }
+
+    fn ends_with(self, str suffix): bool {
+        let s_len = self.size();
+        let suffix_len = suffix.size();
+
+        if (suffix_len > s_len) {
+            return false;
+        }
+
+        return self.last_index_of(suffix) == s_len - suffix_len;
+    }
+
+    # Equality
+    fn equals(self, str other): bool {
+        if (self.size() != other.size()) {
+            return false;
+        }
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] != other[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    fn equals_ignore_case(self, str other): bool {
+        if (self.size() != other.size()) {
+            return false;
+        }
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i].to_lower() != other[i].to_lower()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    # Trim
+    fn trim_left(self): str {
+        let start = 0;
+
+        while (start < self.size() && self[start].is_whitespace()) {
+            start += 1;
+        }
+
+        return self.substring(start, self.size());
+    }
+
+    fn trim_right(self): str {
+        let end = self.size();
+
+        while (end > 0 && self[end - 1].is_whitespace()) {
+            end -= 1;
+        }
+
+        return self.substring(0, end);
+    }
+
+    fn trim(self): str {
+        let start = 0;
+        let end = self.size();
+
+        while (start < end && self[start].is_whitespace()) {
+            start += 1;
+        }
+
+        while (end > start && self[end - 1].is_whitespace()) {
+            end -= 1;
+        }
+
+        return self.substring(start, end);
+    }
+
+    # Case conversion
+    fn to_lower(self): str {
+        let result = "";
+
+        for (let i = 0; i < self.size(); i += 1) {
+            result += self[i].to_lower();
+        }
+
+        return result;
+    }
+
+    fn to_upper(self): str {
+        let result = "";
+
+        for (let i = 0; i < self.size(); i += 1) {
+            result += self[i].to_upper();
+        }
+
+        return result;
+    }
+
+    fn capitalize(self): str {
+        if (self.size() == 0) {
+            return "";
+        }
+
+        let result = "";
+        result += self[0].to_upper();
+
+        for (let i = 1; i < self.size(); i += 1) {
+            result += self[i];
+        }
+
+        return result;
+    }
+
+    fn uncapitalize(self): str {
+        if (self.size() == 0) {
+            return "";
+        }
+
+        let result = "";
+        result += self[0].to_lower();
+
+        for (let i = 1; i < self.size(); i += 1) {
+            result += self[i];
+        }
+
+        return result;
+    }
+
+    # Replace
+    fn replace_first(self, str old, str replacement): str {
+        let index = self.index_of(old);
+
+        if (index < 0) {
+            return self;
+        }
+
+        let left = self.substring(0, index);
+        let right = self.substring(index + old.size(), self.size());
+
+        return left + replacement + right;
+    }
+
+    fn replace_all(self, str old, str replacement): str {
+        let old_len = old.size();
+        if (old_len == 0) {
+            return self;
+        }
+
+        let chars = str_to_char_vector(&self);
+        let old_chars = str_to_char_vector(&old);
+        let rep_chars = str_to_char_vector(&replacement);
+        let n = chars.size();
+        let first = old_chars[0];
+        let out: char[] = [];
+        let i = 0;
+
+        while (i < n) {
+            let matched = false;
+
+            if (chars[i] == first && i + old_len <= n) {
+                matched = true;
+                for (let j = 1; j < old_len; j += 1) {
+                    if (chars[i + j] != old_chars[j]) {
+                        matched = false;
+                        break;
+                    }
+                }
+            }
+
+            if (matched) {
+                vector_extend(&out, &rep_chars);
+                i += old_len;
+            } else {
+                out.push(chars[i]);
+                i += 1;
+            }
+        }
+
+        return char_vector_to_str(&out);
+    }
+
+    # Split
+    fn split(self, str sep): str[] {
+        let result: str[] = [];
+        let sep_len = sep.size();
+        let s_len = self.size();
+
+        if (sep_len == 0) {
+            result.push(self);
+            return result;
+        }
+
+        let start = 0;
+        let i = 0;
+
+        while (i + sep_len <= s_len) {
+            let matched = true;
+            for (let j = 0; j < sep_len; j += 1) {
+                if (self[i + j] != sep[j]) {
+                    matched = false;
+                    break;
+                }
+            }
+
+            if (matched) {
+                result.push(self.substring(start, i));
+                i += sep_len;
+                start = i;
+            } else {
+                i += 1;
+            }
+        }
+
+        result.push(self.substring(start, s_len));
+        return result;
+    }
+
+    # Reverse
+    fn reverse(self): str {
+        let result = "";
+
+        for (let i = self.size() - 1; i >= 0; i -= 1) {
+            result += self[i];
+        }
+
+        return result;
+    }
+
+    # Repeat / Padding
+    fn repeat(self, i64 count): str {
+        let result = "";
+
+        if (count <= 0) {
+            return result;
+        }
+
+        for (let i = 0; i < count; i += 1) {
+            result += self;
+        }
+
+        return result;
+    }
+
+    fn pad_left(self, i64 length, char padding): str {
+        let result = self;
+
+        while (result.size() < length) {
+            result = padding + result;
+        }
+
+        return result;
+    }
+
+    fn pad_right(self, i64 length, char padding): str {
+        let result = self;
+
+        while (result.size() < length) {
+            result += padding;
+        }
+
+        return result;
+    }
+
+    # Numeric parsing
+    fn is_i64(self): bool {
+        if (self.size() == 0) {
+            return false;
+        }
+
+        let start = 0;
+
+        if (self[0] == '-' || self[0] == '+') {
+            if (self.size() == 1) {
+                return false;
+            }
+            start = 1;
+        }
+
+        for (let i = start; i < self.size(); i += 1) {
+            if (!self[i].is_digit()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    fn to_i64(self): i64 {
+        if (self.size() == 0) {
+            return 0;
+        }
+
+        let sign = 1;
+        let start = 0;
+
+        if (self[0] == '-') {
+            sign = -1;
+            start = 1;
+        }
+
+        if (self[0] == '+') {
+            start = 1;
+        }
+
+        let result = 0;
+
+        for (let i = start; i < self.size(); i += 1) {
+            let digit = self[i].to_digit();
+
+            if (digit < 0) {
+                return 0;
+            }
+
+            result = result * 10 + digit;
+        }
+
+        return result * sign;
+    }
+
+    # Hexadecimal
+    fn is_hex(self): bool {
+        if (self.size() == 0) {
+            return false;
+        }
+
+        let start = 0;
+
+        if (self.size() >= 2) {
+            if (self[0] == '0' && (self[1] == 'x' || self[1] == 'X')) {
+                start = 2;
+            }
+        }
+
+        if (start == self.size()) {
+            return false;
+        }
+
+        for (let i = start; i < self.size(); i += 1) {
+            if (!self[i].is_hex_digit()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    fn to_hex_i64(self): i64 {
+        let start = 0;
+
+        if (self.size() >= 2) {
+            if (self[0] == '0' && (self[1] == 'x' || self[1] == 'X')) {
+                start = 2;
+            }
+        }
+
+        let result = 0;
+
+        for (let i = start; i < self.size(); i += 1) {
+            let digit = self[i].to_hex_digit();
+
+            if (digit < 0) {
+                return 0;
+            }
+
+            result = result * 16 + digit;
+        }
+
+        return result;
+    }
+
+    # Misc
+    fn count_char(self, char target): i64 {
+        let count = 0;
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == target) {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    fn count(self, str target): i64 {
+        if (target.size() == 0) {
+            return 0;
+        }
+
+        let count = 0;
+        let position = 0;
+
+        while (position < self.size()) {
+            let remaining = self.substring(position, self.size());
+            let index = remaining.index_of(target);
+
+            if (index < 0) {
+                break;
+            }
+
+            count += 1;
+            position += index + target.size();
+        }
+
+        return count;
+    }
+
+    fn is_blank(self): bool {
+        if (self.size() == 0) {
+            return true;
+        }
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (!self[i].is_whitespace()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    fn remove_whitespace(self): str {
+        let result = "";
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (!self[i].is_whitespace()) {
+                result += self[i];
+            }
+        }
+
+        return result;
+    }
+
+    fn remove_prefix(self, str prefix): str {
+        if (self.starts_with(prefix)) {
+            return self.substring(prefix.size(), self.size());
+        }
+
+        return self;
+    }
+
+    fn remove_suffix(self, str suffix): str {
+        if (self.ends_with(suffix)) {
+            return self.substring(0, self.size() - suffix.size());
+        }
+
+        return self;
+    }
+};
+
+# ------------------------------------------------------------
+# char methods
+# ------------------------------------------------------------
+
+extend char {
+    # Character classification
+    fn is_digit(self): bool {
+        return self as u8 >= '0' as u8 && self as u8 <= '9' as u8;
+    }
+
+    fn is_lower(self): bool {
+        return self as u8 >= 'a' as u8 && self as u8 <= 'z' as u8;
+    }
+
+    fn is_upper(self): bool {
+        return self as u8 >= 'A' as u8 && self as u8 <= 'Z' as u8;
+    }
+
+    fn is_letter(self): bool {
+        return self.is_lower() || self.is_upper();
+    }
+
+    fn is_alphanumeric(self): bool {
+        return self.is_letter() || self.is_digit();
+    }
+
+    fn is_whitespace(self): bool {
+        return self == ' ' || self == '\t' || self == '\n' || self == '\r';
+    }
+
+    fn is_hex_digit(self): bool {
+        return
+            self.is_digit()
+                || self as u8 >= 'a' as u8 && self as u8 <= 'f' as u8
+                || self as u8 >= 'A' as u8 && self as u8 <= 'F' as u8;
+    }
+
+    # Character conversion
+    fn to_lower(self): char {
+        if (self as u8 >= 'A' as u8 && self as u8 <= 'Z' as u8) {
+            return (self as u8 + ('a' as u8 - 'A' as u8)) as char;
+        }
+        return self;
+    }
+
+    fn to_upper(self): char {
+        if (self as u8 >= 'a' as u8 && self as u8 <= 'z' as u8) {
+            return (self as u8 - ('a' as u8 - 'A' as u8)) as char;
+        }
+        return self;
+    }
+
+    fn to_digit(self): i64 {
+        if (self == '0') { return 0; }
+        if (self == '1') { return 1; }
+        if (self == '2') { return 2; }
+        if (self == '3') { return 3; }
+        if (self == '4') { return 4; }
+        if (self == '5') { return 5; }
+        if (self == '6') { return 6; }
+        if (self == '7') { return 7; }
+        if (self == '8') { return 8; }
+        if (self == '9') { return 9; }
+        return -1;
+    }
+
+    fn to_hex_digit(self): i64 {
+        if (self as u8 >= '0' as u8 && self as u8 <= '9' as u8) {
+            return (self as u8 - '0' as u8) as i64;
+        }
+        if (self as u8 >= 'a' as u8 && self as u8 <= 'f' as u8) {
+            return (self as u8 - 'a' as u8 + 10 as u8) as i64;
+        }
+        if (self as u8 >= 'A' as u8 && self as u8 <= 'F' as u8) {
+            return (self as u8 - 'A' as u8 + 10 as u8) as i64;
+        }
+        return -1;
+    }
+};
+
+# ------------------------------------------------------------
+# i64 methods
+# ------------------------------------------------------------
+
+extend i64 {
+    fn to_str(self): str {
+        if (self == 0) {
+            return "0";
+        }
+
+        let value = self;
+        let negative = value < 0;
+
+        if (negative) {
+            value = -value;
+        }
+
+        let result = "";
+
+        while (value > 0) {
+            let digit = value % 10;
+            result = digit.to_digit_char() + result;
+            value = value / 10;
+        }
+
+        if (negative) {
+            result = "-" + result;
+        }
+
+        return result;
+    }
+
+    fn to_digit_char(self): char {
+        if (self == 0) { return '0'; }
+        if (self == 1) { return '1'; }
+        if (self == 2) { return '2'; }
+        if (self == 3) { return '3'; }
+        if (self == 4) { return '4'; }
+        if (self == 5) { return '5'; }
+        if (self == 6) { return '6'; }
+        if (self == 7) { return '7'; }
+        if (self == 8) { return '8'; }
+        if (self == 9) { return '9'; }
+        return '\0';
+    }
+};
+
+# ------------------------------------------------------------
+# str[] methods
+# ------------------------------------------------------------
+
+extend str[] {
+    fn join(self, str separator): str {
+        let result = "";
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (i != 0) {
+                result += separator;
+            }
+            result += self[i];
+        }
+
+        return result;
+    }
+};

@@ -7,7 +7,7 @@ fn count_down(i64 n, &i64 steps): void {
 }
 
 
-i64 steps = 0;
+let steps = 0;
 count_down(5, &steps);
 
 println(steps as str);

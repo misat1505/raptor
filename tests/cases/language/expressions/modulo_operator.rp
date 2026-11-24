@@ -1,6 +1,6 @@
-i64 a = 10 % 3;
-i64 b = 10 % 3;
-i64 c = 10;
+let a = 10 % 3;
+let b = 10 % 3;
+let c = 10;
 c %= 3;
 println(a as str);
 println(b as str);

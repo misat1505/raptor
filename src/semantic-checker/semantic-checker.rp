@@ -696,122 +696,61 @@ fn semantic_checker_check_declaration(
     DeclarationStatement decl,
     Span span
 ): void {
-    match (decl.kind) {
-        VariableDeclarationKind::LET(let_kind) {
-            semantic_checker_visit_expression(&sc, &program, let_kind.value);
-            match (semantic_checker_read_last(&sc, let_kind.value.span)) {
-                ResultType::Err(e) {
-                    semantic_checker_push_error(&sc, e);
-                },
-                ResultType::Ok(value_ty) {
-                    let final_ty = value_ty;
-                    if (let_kind.var_type matches OptionTypeNode::Some(tn)) {
-                        match (semantic_checker_resolve_type(&sc, &program, tn.value, tn.span)) {
-                            ResultType::Err(e) {
-                                semantic_checker_push_error(&sc, e);
-                            },
-                            ResultType::Ok(ann) {
-                                if (!type_compatible(ann, value_ty)) {
-                                    semantic_checker_push_error(
-                                        &sc,
-                                        semantic_checker_error_expected_found(
-                                            ErrorSeverity::HIGH,
-                                            "Type annotation does not match initializer.",
-                                            type_to_string(ann),
-                                            type_to_string(value_ty),
-                                            span
-                                        )
-                                    );
-                                }
-                                final_ty = ann;
-                            }
-                        }
-                    } else if (value_ty matches Type::Vector(inner)) {
-                        if (inner matches Type::Void) {
+    semantic_checker_visit_expression(&sc, &program, decl.value);
+    match (semantic_checker_read_last(&sc, decl.value.span)) {
+        ResultType::Err(e) {
+            semantic_checker_push_error(&sc, e);
+        },
+        ResultType::Ok(value_ty) {
+            let final_ty = value_ty;
+            if (decl.var_type matches OptionTypeNode::Some(tn)) {
+                match (semantic_checker_resolve_type(&sc, &program, tn.value, tn.span)) {
+                    ResultType::Err(e) {
+                        semantic_checker_push_error(&sc, e);
+                    },
+                    ResultType::Ok(ann) {
+                        if (!type_compatible(ann, value_ty)) {
                             semantic_checker_push_error(
                                 &sc,
-                                semantic_checker_error_at(
+                                semantic_checker_error_expected_found(
                                     ErrorSeverity::HIGH,
-                                    "Cannot create variable of type '"
-                                        + type_to_string(value_ty)
-                                        + "'. Add a type specifier e.g. let "
-                                        + decl.identifier.value
-                                        + ": i64[] = <expr>",
+                                    "Type annotation does not match initializer.",
+                                    type_to_string(ann),
+                                    type_to_string(value_ty),
                                     span
                                 )
                             );
                         }
+                        final_ty = ann;
                     }
-                    if (
-                        stack_declare_variable(
-                            &sc.stack,
-                            decl.identifier.value,
-                            final_ty,
-                            decl.identifier.span
-                        ) matches ResultSem::Err(e)
-                    ) {
-                        semantic_checker_push_error(&sc, e);
-                    } else {
-                        semantic_checker_identifier_hover(&sc, final_ty, decl.identifier);
-                    }
+                }
+            } else if (value_ty matches Type::Vector(inner)) {
+                if (inner matches Type::Void) {
+                    semantic_checker_push_error(
+                        &sc,
+                        semantic_checker_error_at(
+                            ErrorSeverity::HIGH,
+                            "Cannot create variable of type '"
+                                + type_to_string(value_ty)
+                                + "'. Add a type specifier e.g. let "
+                                + decl.identifier.value
+                                + ": i64[] = <expr>",
+                            span
+                        )
+                    );
                 }
             }
-        },
-        VariableDeclarationKind::TYPE(type_kind) {
-            match (
-                semantic_checker_resolve_type(
-                    &sc,
-                    &program,
-                    type_kind.var_type.value,
-                    type_kind.var_type.span
-                )
+            if (
+                stack_declare_variable(
+                    &sc.stack,
+                    decl.identifier.value,
+                    final_ty,
+                    decl.identifier.span
+                ) matches ResultSem::Err(e)
             ) {
-                ResultType::Err(e) {
-                    semantic_checker_push_error(&sc, e);
-                },
-                ResultType::Ok(ann) {
-                    let value_ty = Type::Void;
-                    match (type_kind.value) {
-                        OptionExpressionNode::Some(expr) {
-                            semantic_checker_visit_expression(&sc, &program, expr);
-                            match (semantic_checker_read_last(&sc, expr.span)) {
-                                ResultType::Err(e) {
-                                    semantic_checker_push_error(&sc, e);
-                                },
-                                ResultType::Ok(vt) {
-                                    if (!type_compatible(ann, vt)) {
-                                        semantic_checker_push_error(
-                                            &sc,
-                                            semantic_checker_error_expected_found(
-                                                ErrorSeverity::HIGH,
-                                                "Cannot initialize variable with incompatible type.",
-                                                type_to_string(ann),
-                                                type_to_string(vt),
-                                                span
-                                            )
-                                        );
-                                    }
-                                    value_ty = ann;
-                                }
-                            }
-                        },
-                        OptionExpressionNode::None {
-                            value_ty = ann;
-                        }
-                    }
-                    if (
-                        stack_declare_variable(
-                            &sc.stack,
-                            decl.identifier.value,
-                            value_ty,
-                            decl.identifier.span
-                        ) matches ResultSem::Err(e)
-                    ) {
-                        semantic_checker_push_error(&sc, e);
-                    } else {
-                        semantic_checker_identifier_hover(&sc, value_ty, decl.identifier);
-                    }
-                }
+                semantic_checker_push_error(&sc, e);
+            } else {
+                semantic_checker_identifier_hover(&sc, final_ty, decl.identifier);
             }
         }
     }

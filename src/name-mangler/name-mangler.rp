@@ -149,14 +149,7 @@ fn nm_rw_statement(&StatementNode stmt): void {
             nm_rw_arguments(&call.arguments);
         },
         Statement::Declaration(decl) {
-            match (decl.kind) {
-                VariableDeclarationKind::LET(let_kind) {
-                    nm_rw_expression(&let_kind.value);
-                },
-                VariableDeclarationKind::TYPE(type_kind) {
-                    nm_rw_optional_expression(&type_kind.value);
-                }
-            }
+            nm_rw_expression(&decl.value);
         },
         Statement::Assignment(assignment) {
             for (let i = 0; i < vector_size(&assignment.accessors); i += 1) {

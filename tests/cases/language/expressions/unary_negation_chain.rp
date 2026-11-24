@@ -1,7 +1,7 @@
-i64 a = 5;
-i64 b = -(-a);
-i64 c = -a - -a;
-bool d = !(!true);
+let a = 5;
+let b = -(-a);
+let c = -a - -a;
+let d = !(!true);
 
 println(b as str);
 println(c as str);

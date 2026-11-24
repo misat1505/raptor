@@ -6,8 +6,8 @@ fn random(&i64 state): i64 {
 fn print_maze(&str[][] maze): void {
     print("\e[2J\e[H");
 
-    for (i64 y = 0; y < vector_size(&maze); y += 1) {
-        for (i64 x = 0; x < vector_size(&maze[y]); x += 1) {
+    for (let y = 0; y < vector_size(&maze); y += 1) {
+        for (let x = 0; x < vector_size(&maze[y]); x += 1) {
             print(maze[y][x]);
         }
 
@@ -30,22 +30,22 @@ fn is_inside(&str[][] maze, i64 x, i64 y): bool {
 fn carve(&str[][] maze, i64 x, i64 y, &i64 state): void {
     maze[y][x] = " ";
 
-    i64[] directions = [0, 1, 2, 3];
+    let directions = [0, 1, 2, 3];
 
-    for (i64 i = 0; i < 4; i += 1) {
-        i64 remaining = 4 - i;
-        i64 index = random(&state) % remaining + i;
+    for (let i = 0; i < 4; i += 1) {
+        let remaining = 4 - i;
+        let index = random(&state) % remaining + i;
 
-        i64 temp = directions[i];
+        let temp = directions[i];
         directions[i] = directions[index];
         directions[index] = temp;
     }
 
-    for (i64 i = 0; i < 4; i += 1) {
-        i64 direction = directions[i];
+    for (let i = 0; i < 4; i += 1) {
+        let direction = directions[i];
 
-        i64 dx = 0;
-        i64 dy = 0;
+        let dx = 0;
+        let dy = 0;
 
         if (direction == 0) {
             dx = 2;
@@ -57,8 +57,8 @@ fn carve(&str[][] maze, i64 x, i64 y, &i64 state): void {
             dy = -2;
         }
 
-        i64 nx = x + dx;
-        i64 ny = y + dy;
+        let nx = x + dx;
+        let ny = y + dy;
 
         if (is_inside(&maze, nx, ny)) {
             if (maze[ny][nx] == "#") {
@@ -70,12 +70,12 @@ fn carve(&str[][] maze, i64 x, i64 y, &i64 state): void {
 }
 
 fn create_maze(i64 width, i64 height, &i64 state): str[][] {
-    str[][] maze = [];
+    let maze: str[][] = [];
 
-    for (i64 y = 0; y < height; y += 1) {
-        str[] row = [];
+    for (let y = 0; y < height; y += 1) {
+        let row: str[] = [];
 
-        for (i64 x = 0; x < width; x += 1) {
+        for (let x = 0; x < width; x += 1) {
             vector_push(&row, "#");
         }
 
@@ -91,17 +91,17 @@ fn create_maze(i64 width, i64 height, &i64 state): str[][] {
 }
 
 fn find_path(&str[][] maze, i64 start_x, i64 start_y): void {
-    i64 height = vector_size(&maze);
-    i64 width = vector_size(&maze[0]);
+    let height = vector_size(&maze);
+    let width = vector_size(&maze[0]);
 
-    i64[][] parent_x = [];
-    i64[][] parent_y = [];
+    let parent_x: i64[][] = [];
+    let parent_y: i64[][] = [];
 
-    for (i64 y = 0; y < height; y += 1) {
-        i64[] row_x = [];
-        i64[] row_y = [];
+    for (let y = 0; y < height; y += 1) {
+        let row_x: i64[] = [];
+        let row_y: i64[] = [];
 
-        for (i64 x = 0; x < width; x += 1) {
+        for (let x = 0; x < width; x += 1) {
             vector_push(&row_x, -1);
             vector_push(&row_y, -1);
         }
@@ -110,8 +110,8 @@ fn find_path(&str[][] maze, i64 start_x, i64 start_y): void {
         vector_push(&parent_y, row_y);
     }
 
-    i64[] queue_x = [];
-    i64[] queue_y = [];
+    let queue_x: i64[] = [];
+    let queue_y: i64[] = [];
 
     vector_push(&queue_x, start_x);
     vector_push(&queue_y, start_y);
@@ -119,12 +119,12 @@ fn find_path(&str[][] maze, i64 start_x, i64 start_y): void {
     parent_x[start_y][start_x] = start_x;
     parent_y[start_y][start_x] = start_y;
 
-    i64 front = 0;
-    bool found = false;
+    let front = 0;
+    let found = false;
 
     while (front < vector_size(&queue_x)) {
-        i64 x = queue_x[front];
-        i64 y = queue_y[front];
+        let x = queue_x[front];
+        let y = queue_y[front];
 
         front += 1;
 
@@ -133,9 +133,9 @@ fn find_path(&str[][] maze, i64 start_x, i64 start_y): void {
             break;
         }
 
-        for (i64 direction = 0; direction < 4; direction += 1) {
-            i64 dx = 0;
-            i64 dy = 0;
+        for (let direction = 0; direction < 4; direction += 1) {
+            let dx = 0;
+            let dy = 0;
 
             if (direction == 0) {
                 dy = -1;
@@ -147,8 +147,8 @@ fn find_path(&str[][] maze, i64 start_x, i64 start_y): void {
                 dx = -1;
             }
 
-            i64 nx = x + dx;
-            i64 ny = y + dy;
+            let nx = x + dx;
+            let ny = y + dy;
 
             if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
                 continue;
@@ -172,16 +172,16 @@ fn find_path(&str[][] maze, i64 start_x, i64 start_y): void {
         return;
     }
 
-    i64 x = width - 2;
-    i64 y = height - 2;
+    let x = width - 2;
+    let y = height - 2;
 
     while (x != start_x || y != start_y) {
         if (maze[y][x] != "E") {
             maze[y][x] = ".";
         }
 
-        i64 previous_x = parent_x[y][x];
-        i64 previous_y = parent_y[y][x];
+        let previous_x = parent_x[y][x];
+        let previous_y = parent_y[y][x];
 
         x = previous_x;
         y = previous_y;
@@ -189,9 +189,9 @@ fn find_path(&str[][] maze, i64 start_x, i64 start_y): void {
 }
 
 fn main(): void {
-    i64 state = 123456789;
+    let state = 123456789;
 
-    str[][] maze = create_maze(31, 17, &state);
+    let maze = create_maze(31, 17, &state);
 
     println("Generated maze:");
     print_maze(&maze);

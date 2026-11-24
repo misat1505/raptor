@@ -23,7 +23,7 @@
 #
 # Build and run:
 #
-# raptor --run -O3 --link <path_to_libraylib.a> --link -lX11 examples/raylib.rp
+# raptor --run -O3 --link <path_to_libraylib.a> --link -lX11 --link -lm examples/raylib.rp
 
 extern fn InitWindow(i64 x, i64 y, str name): void as init_window;
 extern fn WindowShouldClose(): bool as window_should_close;
@@ -39,10 +39,10 @@ init_window(800, 600, "Raylib from Raptor");
 while (!window_should_close()) {
     begin_drawing();
 
-    i64 r = 0;
-    i64 g = 0;
-    i64 b = 255;
-    i64 a = 0;
+    let r = 0;
+    let g = 0;
+    let b = 255;
+    let a = 0;
 
     clear_background(a * 256 * 256 * 256 + b * 256 * 256 + g * 256 + r);
 

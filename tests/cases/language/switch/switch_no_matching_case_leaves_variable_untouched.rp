@@ -1,5 +1,5 @@
-i64 x = -5;
-str result = "default";
+let x = -5;
+let result = "default";
 switch (x) {
     (x > 0) -> {
         result = "positive";

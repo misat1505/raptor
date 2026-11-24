@@ -3,6 +3,6 @@ fn make_matrix(): i64[][] {
 }
 
 
-i64 x = make_matrix()[1][0];
+let x = make_matrix()[1][0];
 
 println(x as str);

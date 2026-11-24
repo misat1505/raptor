@@ -1,6 +1,6 @@
-i64 x = 2;
-i64 y = 2;
-str text;
+let x = 2;
+let y = 2;
+let text = "";
 
 if (x == y) {
     text = "equal";

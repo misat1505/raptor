@@ -1,5 +1,5 @@
-i64 x = 5;
-i64 counter = 0;
+let x = 5;
+let counter = 0;
 switch (x) {
     (x > 0) -> {
         counter = counter + 1;

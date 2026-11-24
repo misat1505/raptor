@@ -325,10 +325,8 @@ fn me_return_expr(Expression e): Statement {
 fn me_let(str name, Expression value, OptionTypeNode var_type): Statement {
     return Statement::Declaration(DeclarationStatement {
         identifier: me_ident(name),
-        kind: VariableDeclarationKind::LET(LetDeclarationKind {
-            var_type: var_type,
-            value: me_expr(value)
-        })
+        var_type: var_type,
+        value: me_expr(value)
     });
 }
 

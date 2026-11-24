@@ -7,7 +7,7 @@ fn pass_by_change_inner(i64[][] arr): void {
 }
 
 
-i64[][] arr = [[1], [2]];
+let arr = [[1], [2]];
 pass_by_change_outer(arr);
 
 pass_by_change_inner(arr);

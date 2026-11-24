@@ -778,7 +778,7 @@ fn lexer_parse_integer(&Lexer lexer): ResultI64Array {
 
     while (true) {
         if (char_is_digit(current_char)) {
-            i64 digit = (current_char as u8) as i64 - ('0' as u8) as i64;
+            let digit = (current_char as u8) as i64 - ('0' as u8) as i64;
 
             if (total > 922337203685477580) {
                 return ResultI64Array::Err(lexer_create_error(

@@ -223,23 +223,6 @@ enum OptionExpressionNode derives Debug, Clone {
     None
 };
 
-# ==================== Variable declarations ====================
-
-struct LetDeclarationKind derives Debug, Clone {
-    OptionTypeNode var_type,
-    ExpressionNode value
-};
-
-struct TypeDeclarationKind derives Debug, Clone {
-    TypeNode var_type,
-    OptionExpressionNode value
-};
-
-enum VariableDeclarationKind derives Debug, Clone {
-    LET(LetDeclarationKind),
-    TYPE(TypeDeclarationKind)
-};
-
 # ==================== Accessors (x[0].field) ====================
 
 struct MethodCallAccessorNode derives Debug, Clone {
@@ -285,7 +268,8 @@ enum OptionBlockNode derives Debug, Clone {
 
 struct DeclarationStatement derives Debug, Clone {
     IdentifierNode identifier,
-    VariableDeclarationKind kind
+    OptionTypeNode var_type,
+    ExpressionNode value
 };
 
 struct AssignmentStatement derives Debug, Clone {

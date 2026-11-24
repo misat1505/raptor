@@ -1,8 +1,8 @@
-str a = "hello";
-str b = "hello";
-str c = "world";
-bool eq = a == b;
-bool neq = a != c;
+let a = "hello";
+let b = "hello";
+let c = "world";
+let eq = a == b;
+let neq = a != c;
 
 println(eq as str);
 println(neq as str);

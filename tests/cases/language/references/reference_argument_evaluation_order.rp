@@ -4,8 +4,8 @@ fn set_both(&i64 a, &i64 b): void {
 }
 
 
-i64 x = 0;
-i64 y = 0;
+let x = 0;
+let y = 0;
 set_both(&x, &y);
 
 println(x as str);

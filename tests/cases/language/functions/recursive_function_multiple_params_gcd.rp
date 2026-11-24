@@ -6,6 +6,6 @@ fn gcd(i64 a, i64 b): i64 {
 }
 
 
-i64 result = gcd(48, 18);
+let result = gcd(48, 18);
 
 println(result as str);

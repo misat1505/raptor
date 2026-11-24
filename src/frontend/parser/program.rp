@@ -100,17 +100,6 @@ fn parser_parse_statement(&Parser parser): ResultOptionStatementNode {
         }
     }
 
-    match (parser_parse_variable_declaration(&parser)) {
-        ResultOptionStatementNode::Err(err) {
-            return ResultOptionStatementNode::Err(err);
-        },
-        ResultOptionStatementNode::Ok(option_statement) {
-            if (option_statement matches OptionStatementNode::Some) {
-                return ResultOptionStatementNode::Ok(option_statement);
-            }
-        }
-    }
-
     match (parser_parse_let_variable_declaration(&parser)) {
         ResultOptionStatementNode::Err(err) {
             return ResultOptionStatementNode::Err(err);
@@ -182,18 +171,7 @@ fn parser_parse_program_statement(&Parser parser): ResultOptionStatementNode {
             }
         }
     }
-
-    match (parser_parse_variable_declaration(&parser)) {
-        ResultOptionStatementNode::Err(err) {
-            return ResultOptionStatementNode::Err(err);
-        },
-        ResultOptionStatementNode::Ok(option_statement) {
-            if (option_statement matches OptionStatementNode::Some) {
-                return ResultOptionStatementNode::Ok(option_statement);
-            }
-        }
-    }
-
+    
     match (parser_parse_let_variable_declaration(&parser)) {
         ResultOptionStatementNode::Err(err) {
             return ResultOptionStatementNode::Err(err);

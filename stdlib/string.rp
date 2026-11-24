@@ -1531,22 +1531,3 @@ extend i64 {
         return '\0';
     }
 };
-
-# ------------------------------------------------------------
-# str[] methods
-# ------------------------------------------------------------
-
-extend str[] {
-    fn join(self, str separator): str {
-        let result = "";
-
-        for (let i = 0; i < self.size(); i += 1) {
-            if (i != 0) {
-                result += separator;
-            }
-            result += self[i];
-        }
-
-        return result;
-    }
-};

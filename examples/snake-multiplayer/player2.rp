@@ -15,9 +15,9 @@ fn make_color(i64 r, i64 g, i64 b, i64 a): i64 {
 }
 
 fn tcp_read_all(i64 socket): str {
-    str result = "";
+    let result = "";
     while (true) {
-        str chunk = tcp_read(socket);
+        let chunk = tcp_read(socket);
         if (str_len(chunk) == 0) {
             break;
         }
@@ -27,11 +27,11 @@ fn tcp_read_all(i64 socket): str {
 }
 
 fn split_by_delim(str text, char delim): str[] {
-    str[] segments = [];
-    str word = "";
+    let segments: str[] = [];
+    let word = "";
 
-    for (i64 i = 0; i < str_len(text); i += 1) {
-        char c = text[i];
+    for (let i = 0; i < str_len(text); i += 1) {
+        let c = text[i];
         if (c == delim) {
             vector_push(&segments, word);
             word = "";
@@ -46,21 +46,21 @@ fn split_by_delim(str text, char delim): str[] {
 }
 
 fn fetch_world(str host, i64 port, i64 player_id, i64 dx, i64 dy): str {
-    i64 sock = tcp_connect(host, port);
+    let sock = tcp_connect(host, port);
     println("DEBUG player " + player_id as str + " sock=" + sock as str);
     if (sock == -1) {
         return "";
     }
-    str msg = "INPUT " + player_id as str + " " + dx as str + " " + dy as str;
+    let msg = "INPUT " + player_id as str + " " + dx as str + " " + dy as str;
     tcp_write(sock, msg);
-    str response = tcp_read_all(sock);
+    let response = tcp_read_all(sock);
     println("DEBUG player " + player_id as str + " response len=" + str_len(response) as str);
     tcp_close(sock);
     return response;
 }
 
 fn send_reset(str host, i64 port): void {
-    i64 sock = tcp_connect(host, port);
+    let sock = tcp_connect(host, port);
     if (sock == -1) {
         return;
     }
@@ -70,46 +70,46 @@ fn send_reset(str host, i64 port): void {
 }
 
 fn parse_coords(str s): i64[] {
-    str[] xy = split_by_delim(s, ',');
+    let xy = split_by_delim(s, ',');
     return [xy[0] as i64, xy[1] as i64];
 }
 
 fn parse_snake(str field): i64[][] {
-    str[] kv = split_by_delim(field, ':');
-    str[] cells = split_by_delim(kv[1], ';');
-    i64[][] result = [];
-    for (i64 i = 0; i < vector_size(&cells); i += 1) {
+    let kv = split_by_delim(field, ':');
+    let cells = split_by_delim(kv[1], ';');
+    let result: i64[][] = [];
+    for (let i = 0; i < vector_size(&cells); i += 1) {
         vector_push(&result, parse_coords(cells[i]));
     }
     return result;
 }
 
 fn draw_cell(i64 x, i64 y, i64 color): void {
-    i64 CELL_SIZE = 20;
+    let CELL_SIZE = 20;
     draw_rectangle(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1, color);
 }
 
 
-i64 PLAYER_ID = 1;
+let PLAYER_ID = 1;
 
-str SERVER_HOST = "localhost";
-i64 SERVER_PORT = 8080;
+let SERVER_HOST = "localhost";
+let SERVER_PORT = 8080;
 
-i64 CELL_SIZE = 20;
-i64 GRID_W = 30;
-i64 GRID_H = 20;
+let CELL_SIZE = 20;
+let GRID_W = 30;
+let GRID_H = 20;
 
-i64 KEY_RIGHT = 262;
-i64 KEY_LEFT = 263;
-i64 KEY_DOWN = 264;
-i64 KEY_UP = 265;
-i64 KEY_ENTER = 257;
+let KEY_RIGHT = 262;
+let KEY_LEFT = 263;
+let KEY_DOWN = 264;
+let KEY_UP = 265;
+let KEY_ENTER = 257;
 
-i64 COLOR_BG = make_color(24, 24, 24, 255);
-i64 COLOR_SNAKE_ME = make_color(0, 200, 60, 255);
-i64 COLOR_SNAKE_OTHER = make_color(60, 120, 220, 255);
-i64 COLOR_APPLE = make_color(220, 30, 30, 255);
-i64 COLOR_TEXT = make_color(255, 255, 255, 255);
+let COLOR_BG = make_color(24, 24, 24, 255);
+let COLOR_SNAKE_ME = make_color(0, 200, 60, 255);
+let COLOR_SNAKE_OTHER = make_color(60, 120, 220, 255);
+let COLOR_APPLE = make_color(220, 30, 30, 255);
+let COLOR_TEXT = make_color(255, 255, 255, 255);
 
 init_window(
     GRID_W * CELL_SIZE,
@@ -118,19 +118,19 @@ init_window(
 );
 set_target_fps(15);
 
-i64 dx = 1;
-i64 dy = 0;
+let dx = 1;
+let dy = 0;
 if (PLAYER_ID == 1) {
     dx = -1;
     dy = 0;
 }
 
-i64[][] snake0 = [];
-i64[][] snake1 = [];
-i64[] apple = [0, 0];
-i64 score0 = 0;
-i64 score1 = 0;
-bool game_over = false;
+let snake0: i64[][] = [];
+let snake1: i64[][] = [];
+let apple = [0, 0];
+let score0 = 0;
+let score1 = 0;
+let game_over = false;
 
 while (!window_should_close()) {
     if (!game_over) {
@@ -156,21 +156,21 @@ while (!window_should_close()) {
         send_reset(SERVER_HOST, SERVER_PORT);
     }
 
-    str world = fetch_world(SERVER_HOST, SERVER_PORT, PLAYER_ID, dx, dy);
+    let world = fetch_world(SERVER_HOST, SERVER_PORT, PLAYER_ID, dx, dy);
 
     if (str_len(world) > 0) {
-        str[] fields = split_by_delim(world, '|');
+        let fields = split_by_delim(world, '|');
 
-        str[] go_kv = split_by_delim(fields[0], ':');
+        let go_kv = split_by_delim(fields[0], ':');
         game_over = go_kv[1] as i64 == 1;
 
-        str[] s0_kv = split_by_delim(fields[1], ':');
+        let s0_kv = split_by_delim(fields[1], ':');
         score0 = s0_kv[1] as i64;
 
-        str[] s1_kv = split_by_delim(fields[2], ':');
+        let s1_kv = split_by_delim(fields[2], ':');
         score1 = s1_kv[1] as i64;
 
-        str[] apple_kv = split_by_delim(fields[3], ':');
+        let apple_kv = split_by_delim(fields[3], ':');
         apple = parse_coords(apple_kv[1]);
 
         snake0 = parse_snake(fields[4]);
@@ -180,15 +180,15 @@ while (!window_should_close()) {
     begin_drawing();
     clear_background(COLOR_BG);
 
-    for (i64 i = 0; i < vector_size(&snake0); i += 1) {
-        i64 c = COLOR_SNAKE_OTHER;
+    for (let i = 0; i < vector_size(&snake0); i += 1) {
+        let c = COLOR_SNAKE_OTHER;
         if (PLAYER_ID == 0) {
             c = COLOR_SNAKE_ME;
         }
         draw_cell(snake0[i][0], snake0[i][1], c);
     }
-    for (i64 i = 0; i < vector_size(&snake1); i += 1) {
-        i64 c = COLOR_SNAKE_OTHER;
+    for (let i = 0; i < vector_size(&snake1); i += 1) {
+        let c = COLOR_SNAKE_OTHER;
         if (PLAYER_ID == 1) {
             c = COLOR_SNAKE_ME;
         }

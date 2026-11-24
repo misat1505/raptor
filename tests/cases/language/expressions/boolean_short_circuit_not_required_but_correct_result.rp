@@ -1,7 +1,7 @@
-bool a = true || false;
-bool b = true && false;
-bool c = false || false;
-bool d = true && true;
+let a = true || false;
+let b = true && false;
+let c = false || false;
+let d = true && true;
 
 println(a as str);
 println(b as str);

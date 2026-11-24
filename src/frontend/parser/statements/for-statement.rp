@@ -43,16 +43,6 @@ fn parser_parse_for_statement(&Parser parser): ResultOptionStatementNode {
                 declaration = option_decl;
             }
         }
-    } else {
-        let decl_call = parser_parse_declaration(&parser);
-        match (decl_call) {
-            ResultOptionStatementNode::Err(err) {
-                return ResultOptionStatementNode::Err(err);
-            },
-            ResultOptionStatementNode::Ok(option_decl) {
-                declaration = option_decl;
-            }
-        }
     }
 
     if (parser_consume_must_be(&parser, TokenCategory::Semicolon) matches ResultToken::Err(err)) {

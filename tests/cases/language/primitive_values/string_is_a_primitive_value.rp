@@ -6,8 +6,8 @@ a[0] = 'B';
 println(a);
 println(b);
 
-str c = "A";
-str d = c;
+let c = "A";
+let d = c;
 
 c[0] = 'B';
 

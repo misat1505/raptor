@@ -1,4 +1,4 @@
-str a = "Hello, ";
-str b = "world!";
-str c = a + b;
+let a = "Hello, ";
+let b = "world!";
+let c = a + b;
 println(c);

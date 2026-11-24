@@ -143,12 +143,6 @@ fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
                     extend_block.type.span
                 ));
             }
-        } else {
-            return ResultUnit::Err(parser_error_at(
-                ErrorSeverity::HIGH,
-                "Extend is not supported on this data type.",
-                extend_block.type.span
-            ));
         }
     }
 

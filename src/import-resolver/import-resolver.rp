@@ -114,6 +114,7 @@ fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
         let extend_block = merged.extend_blocks[i];
 
         if (extend_block.type.value matches Type::Unresolved(custom_type_name)) {
+            let found = false;
             for (let j = 0; j < vector_size(&merged.declared_types); j += 1) {
                 match (merged.declared_types[j].value) {
                     DeclaredType::Enum(e) {
@@ -121,23 +122,27 @@ fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
                             continue;
                         }
                         vector_extend(&e.methods, &extend_block.methods);
-                        return ResultUnit::Ok;
+                        found = true;
+                        break;
                     },
                     DeclaredType::Struct(s) {
                         if (s.identifier.value != custom_type_name) {
                             continue;
                         }
                         vector_extend(&s.methods, &extend_block.methods);
-                        return ResultUnit::Ok;
+                        found = true;
+                        break;
                     }
                 }
             }
 
-            return ResultUnit::Err(parser_error_at(
-                ErrorSeverity::HIGH,
-                "Type '" + custom_type_name + "' not found.",
-                extend_block.type.span
-            ));
+            if (!found) {
+                return ResultUnit::Err(parser_error_at(
+                    ErrorSeverity::HIGH,
+                    "Type '" + custom_type_name + "' not found.",
+                    extend_block.type.span
+                ));
+            }
         } else {
             return ResultUnit::Err(parser_error_at(
                 ErrorSeverity::HIGH,

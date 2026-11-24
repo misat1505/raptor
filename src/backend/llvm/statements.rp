@@ -106,52 +106,18 @@ fn llvm_store_typed(&LlvmCompiler c, str dst_ptr, str dst_ty, str rval, str rty)
 }
 
 fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
-    match (decl.kind) {
-        VariableDeclarationKind::LET(k) {
-            llvm_compile_owned(&c, k.value);
-            let ty = c.last_type;
-            let rty = llvm_expr_rtype(&c, k.value);
-            if (k.var_type matches OptionTypeNode::Some(tn)) {
-                ty = type_to_llvm(tn.value);
-                rty = llvm_type_rname(tn.value);
-            }
-            let ptr = llvm_compiler_declare_local(&c, decl.identifier.value, ty);
-            llvm_compiler_set_last_local_rty(&c, rty);
-            llvm_store_typed(&c, ptr, ty, c.last_value, c.last_type);
-            if (ty == "ptr") {
-                llvm_compiler_mark_last_owned(&c);
-            }
-        },
-        VariableDeclarationKind::TYPE(k) {
-            let ty = type_to_llvm(k.var_type.value);
-            let ptr = llvm_compiler_declare_local(&c, decl.identifier.value, ty);
-            llvm_compiler_set_last_local_rty(&c, llvm_type_rname(k.var_type.value));
-            if (ty == "ptr") {
-                llvm_compiler_mark_last_owned(&c);
-            }
-            match (k.value) {
-                OptionExpressionNode::Some(expr) {
-                    llvm_compile_owned(&c, expr);
-                    llvm_store_typed(&c, ptr, ty, c.last_value, c.last_type);
-                },
-                OptionExpressionNode::None {
-                    if (k.var_type.value matches Type::Str) {
-                        ir_emit(&c.ir, "  store ptr " + llvm_str_literal(&c, "") + ", ptr " + ptr);
-                    } else if (k.var_type.value matches Type::Vector) {
-                        ir_emit(
-                            &c.ir,
-                            "  store ptr " + llvm_vector_alloc_empty(&c) + ", ptr " + ptr
-                        );
-                    } else {
-                        let def = type_default_llvm(k.var_type.value);
-                        if (ty == "double") {
-                            def = llvm_double_const(def);
-                        }
-                        ir_emit(&c.ir, "  store " + ty + " " + def + ", ptr " + ptr);
-                    }
-                }
-            }
-        }
+    llvm_compile_owned(&c, decl.value);
+    let ty = c.last_type;
+    let rty = llvm_expr_rtype(&c, decl.value);
+    if (decl.var_type matches OptionTypeNode::Some(tn)) {
+        ty = type_to_llvm(tn.value);
+        rty = llvm_type_rname(tn.value);
+    }
+    let ptr = llvm_compiler_declare_local(&c, decl.identifier.value, ty);
+    llvm_compiler_set_last_local_rty(&c, rty);
+    llvm_store_typed(&c, ptr, ty, c.last_value, c.last_type);
+    if (ty == "ptr") {
+        llvm_compiler_mark_last_owned(&c);
     }
 }
 

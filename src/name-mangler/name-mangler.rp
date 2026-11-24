@@ -16,7 +16,7 @@ fn nm_mangle_method_name(str target_name, str method_name): str {
             return "vector_push";
         } else if (method_name == "size") {
             return "vector_size";
-        } else if (method_name == "extend") {
+        } else if (method_name == "ext") {
             return "vector_extend";
         }
     }

@@ -1134,13 +1134,13 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.2621 = private constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"', but '\00" }
 @.mstr.2622 = private constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"' was provided.\00" }
 @.mstr.2623 = private unnamed_addr constant { i64, i64, [68 x i8] } { i64 -1, i64 0, [68 x i8] c"Failed to resolve the type of the argument passed to method 'push'.\00" }
-@.mstr.2624 = private constant { i64, i64, [7 x i8] } { i64 -1, i64 0, [7 x i8] c"extend\00" }
-@.mstr.2625 = private unnamed_addr constant { i64, i64, [49 x i8] } { i64 -1, i64 0, [49 x i8] c"Method 'extend' expects exactly 1 argument, but \00" }
-@.mstr.2630 = private constant { i64, i64, [57 x i8] } { i64 -1, i64 0, [57 x i8] c"Argument of method 'extend' must be passed by reference.\00" }
-@.mstr.2631 = private constant { i64, i64, [46 x i8] } { i64 -1, i64 0, [46 x i8] c"Method 'extend' expects an argument of type '\00" }
+@.mstr.2624 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"ext\00" }
+@.mstr.2625 = private unnamed_addr constant { i64, i64, [46 x i8] } { i64 -1, i64 0, [46 x i8] c"Method 'ext' expects exactly 1 argument, but \00" }
+@.mstr.2630 = private constant { i64, i64, [54 x i8] } { i64 -1, i64 0, [54 x i8] c"Argument of method 'ext' must be passed by reference.\00" }
+@.mstr.2631 = private constant { i64, i64, [43 x i8] } { i64 -1, i64 0, [43 x i8] c"Method 'ext' expects an argument of type '\00" }
 @.mstr.2632 = private constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"', but '\00" }
 @.mstr.2633 = private constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"' was provided.\00" }
-@.mstr.2634 = private constant { i64, i64, [70 x i8] } { i64 -1, i64 0, [70 x i8] c"Failed to resolve the type of the argument passed to method 'extend'.\00" }
+@.mstr.2634 = private constant { i64, i64, [67 x i8] } { i64 -1, i64 0, [67 x i8] c"Failed to resolve the type of the argument passed to method 'ext'.\00" }
 @.mstr.2635 = private constant { i64, i64, [5 x i8] } { i64 -1, i64 0, [5 x i8] c"size\00" }
 @.mstr.2639 = private constant { i64, i64, [5 x i8] } { i64 -1, i64 0, [5 x i8] c"size\00" }
 @.mstr.2640 = private unnamed_addr constant { i64, i64, [41 x i8] } { i64 -1, i64 0, [41 x i8] c"Method 'size' expects no arguments, but \00" }
@@ -2610,7 +2610,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.5647 = private constant { i64, i64, [12 x i8] } { i64 -1, i64 0, [12 x i8] c"vector_push\00" }
 @.mstr.5648 = private constant { i64, i64, [5 x i8] } { i64 -1, i64 0, [5 x i8] c"size\00" }
 @.mstr.5649 = private constant { i64, i64, [12 x i8] } { i64 -1, i64 0, [12 x i8] c"vector_size\00" }
-@.mstr.5650 = private constant { i64, i64, [7 x i8] } { i64 -1, i64 0, [7 x i8] c"extend\00" }
+@.mstr.5650 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"ext\00" }
 @.mstr.5651 = private constant { i64, i64, [14 x i8] } { i64 -1, i64 0, [14 x i8] c"vector_extend\00" }
 @.mstr.5652 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"str\00" }
 @.mstr.5653 = private constant { i64, i64, [5 x i8] } { i64 -1, i64 0, [5 x i8] c"size\00" }
@@ -316039,7 +316039,7 @@ dofree.i250:                                      ; preds = %calldrop.i249, %dro
   br label %common.ret
 
 if.else.9651:                                     ; preds = %rt_retain.exit
-  %t55985 = tail call i32 @strcmp(ptr noundef nonnull dereferenceable(1) %t55811, ptr noundef nonnull dereferenceable(7) getelementptr inbounds ({ i64, i64, [7 x i8] }, ptr @.mstr.2624, i64 0, i32 2))
+  %t55985 = tail call i32 @strcmp(ptr noundef nonnull dereferenceable(1) %t55811, ptr noundef nonnull dereferenceable(4) getelementptr inbounds ({ i64, i64, [4 x i8] }, ptr @.mstr.2624, i64 0, i32 2))
   %t55984 = icmp eq i32 %t55985, 0
   br i1 %t55984, label %if.then.9669, label %if.else.9670
 
@@ -316068,13 +316068,13 @@ if.then.9672:                                     ; preds = %if.then.9669
   %obj.i259 = getelementptr i8, ptr %raw.i257, i64 16
   %t56004 = tail call i32 (ptr, i64, ptr, ...) @snprintf(ptr nonnull dereferenceable(1) %obj.i259, i64 32, ptr nonnull @.str.7045, i64 %t55990)
   %t56006 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i259)
-  %total.i260 = add i64 %t56006, 65
+  %total.i260 = add i64 %t56006, 62
   %raw.i261 = tail call ptr @malloc(i64 %total.i260)
   store i64 1, ptr %raw.i261, align 8
   %dp.i262 = getelementptr i8, ptr %raw.i261, i64 8
   store ptr null, ptr %dp.i262, align 8
   %obj.i263 = getelementptr i8, ptr %raw.i261, i64 16
-  tail call void @llvm.memcpy.p0.p0.i64(ptr noundef nonnull align 1 dereferenceable(49) %obj.i263, ptr noundef nonnull align 16 dereferenceable(49) getelementptr inbounds ({ i64, i64, [49 x i8] }, ptr @.mstr.2625, i64 0, i32 2), i64 49, i1 false)
+  tail call void @llvm.memcpy.p0.p0.i64(ptr noundef nonnull align 1 dereferenceable(46) %obj.i263, ptr noundef nonnull align 16 dereferenceable(46) getelementptr inbounds ({ i64, i64, [46 x i8] }, ptr @.mstr.2625, i64 0, i32 2), i64 46, i1 false)
   %t56011 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i263, ptr noundef nonnull dereferenceable(1) %obj.i259)
   %small.i266 = icmp ult ptr %obj.i259, inttoptr (i64 65536 to ptr)
   br i1 %small.i266, label %rt_release.exit280, label %chk.i267
@@ -316209,7 +316209,7 @@ match.arm.9678:                                   ; preds = %rt_retain.exit324
   %t56048 = getelementptr i8, ptr %raw.i325, i64 24
   store i64 1, ptr %t56048, align 8
   %t56049 = getelementptr i8, ptr %raw.i325, i64 32
-  %t56051 = tail call ptr @rt_str_copy(ptr nonnull getelementptr inbounds ({ i64, i64, [57 x i8] }, ptr @.mstr.2630, i64 0, i32 2))
+  %t56051 = tail call ptr @rt_str_copy(ptr nonnull getelementptr inbounds ({ i64, i64, [54 x i8] }, ptr @.mstr.2630, i64 0, i32 2))
   store ptr %t56051, ptr %t56049, align 8
   tail call void @rt_release(ptr nonnull %t56036)
   tail call void @rt_release(ptr %t55806)
@@ -316268,15 +316268,15 @@ if.then.9685:                                     ; preds = %rt_retain.exit335
   store i64 1, ptr %t56127, align 8
   %t56086 = tail call ptr @type_to_string(ptr nonnull %type.arg)
   %t56088 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %t56086)
-  %total.i339 = add i64 %t56088, 62
+  %total.i339 = add i64 %t56088, 59
   %raw.i340 = tail call ptr @malloc(i64 %total.i339)
   store i64 1, ptr %raw.i340, align 8
   %dp.i341 = getelementptr i8, ptr %raw.i340, i64 8
   store ptr null, ptr %dp.i341, align 8
   %obj.i342 = getelementptr i8, ptr %raw.i340, i64 16
-  tail call void @llvm.memcpy.p0.p0.i64(ptr noundef nonnull align 1 dereferenceable(46) %obj.i342, ptr noundef nonnull align 16 dereferenceable(46) getelementptr inbounds ({ i64, i64, [46 x i8] }, ptr @.mstr.2631, i64 0, i32 2), i64 46, i1 false)
+  tail call void @llvm.memcpy.p0.p0.i64(ptr noundef nonnull align 1 dereferenceable(43) %obj.i342, ptr noundef nonnull align 16 dereferenceable(43) getelementptr inbounds ({ i64, i64, [43 x i8] }, ptr @.mstr.2631, i64 0, i32 2), i64 43, i1 false)
   %t56093 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i342, ptr noundef nonnull dereferenceable(1) %t56086)
-  tail call void @rt_release(ptr nonnull getelementptr inbounds ({ i64, i64, [46 x i8] }, ptr @.mstr.2631, i64 0, i32 2))
+  tail call void @rt_release(ptr nonnull getelementptr inbounds ({ i64, i64, [43 x i8] }, ptr @.mstr.2631, i64 0, i32 2))
   tail call void @rt_release(ptr %t56086)
   %t56095 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i342)
   %total.i343 = add i64 %t56095, 25
@@ -316356,7 +316356,7 @@ match.rest.9683:                                  ; preds = %match.end.9677
   %t56140 = getelementptr i8, ptr %raw.i361, i64 24
   store i64 1, ptr %t56140, align 8
   %t56141 = getelementptr i8, ptr %raw.i361, i64 32
-  %t56143 = tail call ptr @rt_str_copy(ptr nonnull getelementptr inbounds ({ i64, i64, [70 x i8] }, ptr @.mstr.2634, i64 0, i32 2))
+  %t56143 = tail call ptr @rt_str_copy(ptr nonnull getelementptr inbounds ({ i64, i64, [67 x i8] }, ptr @.mstr.2634, i64 0, i32 2))
   store ptr %t56143, ptr %t56141, align 8
   tail call void @rt_release(ptr nonnull %t56067)
   tail call void @rt_release(ptr nonnull %t56036)
@@ -485779,7 +485779,7 @@ if.then.13219:                                    ; preds = %if.else.13217
   br label %common.ret
 
 if.else.13220:                                    ; preds = %if.else.13217
-  %t97391 = tail call i32 @strcmp(ptr noundef nonnull dereferenceable(1) %method_name.arg, ptr noundef nonnull dereferenceable(7) getelementptr inbounds ({ i64, i64, [7 x i8] }, ptr @.mstr.5650, i64 0, i32 2))
+  %t97391 = tail call i32 @strcmp(ptr noundef nonnull dereferenceable(1) %method_name.arg, ptr noundef nonnull dereferenceable(4) getelementptr inbounds ({ i64, i64, [4 x i8] }, ptr @.mstr.5650, i64 0, i32 2))
   %t97390 = icmp eq i32 %t97391, 0
   br i1 %t97390, label %if.then.13222, label %if.end.13215
 

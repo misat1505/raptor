@@ -3073,6 +3073,27 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.7793 = private unnamed_addr constant { i64, i64, [18 x i8] } { i64 -1, i64 0, [18 x i8] c"ResultParser::Ok(\00" }
 @.mstr.7795 = private unnamed_addr constant { i64, i64, [19 x i8] } { i64 -1, i64 0, [19 x i8] c"ResultParser::Err(\00" }
 @.mstr.7798 = private unnamed_addr constant { i64, i64, [14 x i8] } { i64 -1, i64 0, [14 x i8] c",\22contents\22:\22\00" }
+@.str.7805 = private unnamed_addr constant [142 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:828:21\0A\0A 828 |         return self[0];\0A     |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.7807 = private unnamed_addr constant [154 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:836:21\0A\0A 836 |         return self[len - 1];\0A     |                     \1B[1;31m^^^^^^^\1B[0m\0A\00"
+@.str.7811 = private unnamed_addr constant [171 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:864:35\0A\0A 864 |             result.push_char(self[i]);\0A     |                                   \1B[1;31m^\1B[0m\0A\00"
+@.str.7815 = private unnamed_addr constant [156 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:881:22\0A\0A 881 |             if (self[i] == target) {\0A     |                      \1B[1;31m^\1B[0m\0A\00"
+@.str.7817 = private unnamed_addr constant [175 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:903:26\0A\0A 903 |                 if (self[i + j] != target[j]) {\0A     |                          \1B[1;31m^^^^^\1B[0m\0A\00"
+@.str.7821 = private unnamed_addr constant [175 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:934:26\0A\0A 934 |                 if (self[i + j] != target[j]) {\0A     |                          \1B[1;31m^^^^^\1B[0m\0A\00"
+@.str.7827 = private unnamed_addr constant [170 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:978:34\0A\0A 978 |             if (self[i] != other[i]) {\0A     |                                  \1B[1;31m^\1B[0m\0A\00"
+@.str.7831 = private unnamed_addr constant [203 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:992:45\0A\0A 992 |             if (self[i].to_lower() != other[i].to_lower()) {\0A     |                                             \1B[1;31m^\1B[0m\0A\00"
+@.str.7839 = private unnamed_addr constant [205 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1029:36\0A\0A 1029 |         while (end > start && self[end - 1].is_whitespace()) {\0A      |                                    \1B[1;31m^^^^^^^\1B[0m\0A\00"
+@.str.7849 = private unnamed_addr constant [162 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1063:24\0A\0A 1063 |         result += self[0].to_upper();\0A      |                        \1B[1;31m^\1B[0m\0A\00"
+@.str.7855 = private unnamed_addr constant [162 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1078:24\0A\0A 1078 |         result += self[0].to_lower();\0A      |                        \1B[1;31m^\1B[0m\0A\00"
+@.str.7859 = private unnamed_addr constant [165 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1111:31\0A\0A 1111 |         let first = old_chars[0];\0A      |                               \1B[1;31m^\1B[0m\0A\00"
+@.str.7861 = private unnamed_addr constant [180 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1118:23\0A\0A 1118 |             if (chars[i] == first && i + old_len <= n) {\0A      |                       \1B[1;31m^\1B[0m\0A\00"
+@.str.7863 = private unnamed_addr constant [191 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1121:31\0A\0A 1121 |                     if (chars[i + j] != old_chars[j]) {\0A      |                               \1B[1;31m^^^^^\1B[0m\0A\00"
+@.str.7865 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1121:51\0A\0A 1121 |                     if (chars[i + j] != old_chars[j]) {\0A      |                                                   \1B[1;31m^\1B[0m\0A\00"
+@.str.7869 = private unnamed_addr constant [175 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1157:26\0A\0A 1157 |                 if (self[i + j] != sep[j]) {\0A      |                          \1B[1;31m^^^^^\1B[0m\0A\00"
+@.str.7871 = private unnamed_addr constant [185 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1157:40\0A\0A 1157 |                 if (self[i + j] != sep[j]) {\0A      |                                        \1B[1;31m^\1B[0m\0A\00"
+@.str.7874 = private unnamed_addr constant [159 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1181:28\0A\0A 1181 |             result += self[i];\0A      |                            \1B[1;31m^\1B[0m\0A\00"
+@.str.7877 = private unnamed_addr constant [166 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1230:18\0A\0A 1230 |         if (self[0] == '-' || self[0] == '+') {\0A      |                  \1B[1;31m^\1B[0m\0A\00"
+@.str.7883 = private unnamed_addr constant [148 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1254:18\0A\0A 1254 |         if (self[0] == '-') {\0A      |                  \1B[1;31m^\1B[0m\0A\00"
+@.str.7918 = private unnamed_addr constant [159 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> stdlib/string.rp:1547:28\0A\0A 1547 |             result += self[i];\0A      |                            \1B[1;31m^\1B[0m\0A\00"
 @stderr = external local_unnamed_addr global ptr
 @raptor_argc = internal unnamed_addr global i32 0
 @raptor_argv = internal unnamed_addr global ptr null
@@ -706422,6 +706443,4448 @@ c2s.done.16517:                                   ; preds = %c2s.body.16516, %en
   ret ptr %obj.i
 }
 
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i1 @str__is_empty__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %char0 = load i8, ptr %self.arg, align 1
+  %t116959 = icmp eq i8 %char0, 0
+  ret i1 %t116959
+}
+
+define i32 @str__first__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %t116961 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t116962 = icmp eq i64 %t116961, 0
+  br i1 %t116962, label %common.ret, label %if.end.16520
+
+common.ret:                                       ; preds = %entry, %diag.ok.16522
+  %common.ret.op = phi i32 [ %t116974, %diag.ok.16522 ], [ 0, %entry ]
+  ret i32 %common.ret.op
+
+if.end.16520:                                     ; preds = %entry
+  %t116966 = icmp slt i64 %t116961, 1
+  br i1 %t116966, label %diag.err.16521, label %diag.ok.16522
+
+diag.err.16521:                                   ; preds = %if.end.16520
+  %t116970 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7805, i64 141, i64 1, ptr %t116970) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16522:                                    ; preds = %if.end.16520
+  %t116973 = load i8, ptr %self.arg, align 1
+  %t116974 = zext i8 %t116973 to i32
+  br label %common.ret
+}
+
+define i32 @str__last__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %t116976 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t116978 = icmp eq i64 %t116976, 0
+  br i1 %t116978, label %common.ret, label %if.end.16525
+
+common.ret:                                       ; preds = %entry, %diag.ok.16527
+  %common.ret.op = phi i32 [ %t116992, %diag.ok.16527 ], [ 0, %entry ]
+  ret i32 %common.ret.op
+
+if.end.16525:                                     ; preds = %entry
+  %t116985 = icmp slt i64 %t116976, 1
+  br i1 %t116985, label %diag.err.16526, label %diag.ok.16527
+
+diag.err.16526:                                   ; preds = %if.end.16525
+  %t116988 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7807, i64 153, i64 1, ptr %t116988) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16527:                                    ; preds = %if.end.16525
+  %1 = getelementptr i8, ptr %self.arg, i64 %t116976
+  %t116990 = getelementptr i8, ptr %1, i64 -1
+  %t116991 = load i8, ptr %t116990, align 1
+  %t116992 = zext i8 %t116991 to i32
+  br label %common.ret
+}
+
+; Function Attrs: mustprogress nofree nounwind willreturn memory(argmem: read)
+define i32 @str__char_at__mangled(ptr nocapture readonly %self.arg, i64 %index.arg) local_unnamed_addr #1 {
+entry:
+  %t116994 = icmp slt i64 %index.arg, 0
+  br i1 %t116994, label %common.ret, label %if.end.16530
+
+common.ret:                                       ; preds = %if.end.16530, %entry, %diag.ok.16535
+  %common.ret.op = phi i32 [ %t117011, %diag.ok.16535 ], [ 0, %entry ], [ 0, %if.end.16530 ]
+  ret i32 %common.ret.op
+
+if.end.16530:                                     ; preds = %entry
+  %t116997 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t116998.not = icmp sgt i64 %t116997, %index.arg
+  br i1 %t116998.not, label %diag.ok.16535, label %common.ret
+
+diag.ok.16535:                                    ; preds = %if.end.16530
+  %t117009 = getelementptr i8, ptr %self.arg, i64 %index.arg
+  %t117010 = load i8, ptr %t117009, align 1
+  %t117011 = zext i8 %t117010 to i32
+  br label %common.ret
+}
+
+define noundef ptr @str__substring__mangled(ptr nocapture readonly %self.arg, i64 %start.arg, i64 %end.arg) local_unnamed_addr {
+entry:
+  %raw.i.i = tail call dereferenceable_or_null(32) ptr @malloc(i64 32)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr @drop.struct.StringBuilder, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  %t116794.i = getelementptr i8, ptr %raw.i.i, i64 24
+  store i64 1, ptr %t116794.i, align 8
+  %raw.i1.i = tail call dereferenceable_or_null(48) ptr @malloc(i64 48)
+  store i64 1, ptr %raw.i1.i, align 8
+  %dp.i2.i = getelementptr i8, ptr %raw.i1.i, i64 8
+  store ptr @rt_drop_vec, ptr %dp.i2.i, align 8
+  %obj.i3.i = getelementptr i8, ptr %raw.i1.i, i64 16
+  tail call void @llvm.memset.p0.i64(ptr noundef nonnull align 8 dereferenceable(32) %obj.i3.i, i8 0, i64 32, i1 false)
+  store ptr %obj.i3.i, ptr %obj.i.i, align 8
+  %spec.store.select = tail call i64 @llvm.smax.i64(i64 %start.arg, i64 0)
+  %t117017 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %spec.select = tail call i64 @llvm.smin.i64(i64 %t117017, i64 %end.arg)
+  %t117023.not = icmp slt i64 %spec.store.select, %spec.select
+  br i1 %t117023.not, label %for.body.16546, label %StringBuilder__to_string__mangled.exit
+
+common.ret.sink.split:                            ; preds = %rt_drop_vec.exit, %dofree.i, %drop.i38, %calldrop.i42
+  %common.ret.op.ph = phi ptr [ %obj.i.i18, %calldrop.i42 ], [ %obj.i.i18, %drop.i38 ], [ %obj.i.i9, %dofree.i ], [ %obj.i.i9, %rt_drop_vec.exit ]
+  tail call void @free(ptr nonnull %raw.i.i)
+  br label %common.ret
+
+common.ret:                                       ; preds = %common.ret.sink.split, %dec.i35, %chk.i31, %StringBuilder__to_string__mangled.exit29, %StringBuilder__to_string__mangled.exit
+  %common.ret.op = phi ptr [ %obj.i.i9, %StringBuilder__to_string__mangled.exit ], [ %obj.i.i18, %StringBuilder__to_string__mangled.exit29 ], [ %obj.i.i18, %chk.i31 ], [ %obj.i.i18, %dec.i35 ], [ %common.ret.op.ph, %common.ret.sink.split ]
+  ret ptr %common.ret.op
+
+StringBuilder__to_string__mangled.exit:           ; preds = %entry
+  %raw.i.i7 = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i7, align 8
+  %dp.i.i8 = getelementptr i8, ptr %raw.i.i7, i64 8
+  store ptr null, ptr %dp.i.i8, align 8
+  %obj.i.i9 = getelementptr i8, ptr %raw.i.i7, i64 16
+  store i8 0, ptr %obj.i.i9, align 1
+  %small.i = icmp ult ptr %obj.i.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %common.ret, label %dofree.i
+
+dofree.i:                                         ; preds = %StringBuilder__to_string__mangled.exit
+  %small.i.i = icmp ult ptr %obj.i3.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i.i, label %common.ret.sink.split, label %rt_drop_vec.exit
+
+rt_drop_vec.exit:                                 ; preds = %dofree.i
+  tail call void @free(ptr nonnull %raw.i1.i)
+  br label %common.ret.sink.split
+
+for.body.16546:                                   ; preds = %entry, %StringBuilder__push_char__mangled.exit
+  %i.6594.addr.046 = phi i64 [ %t117046, %StringBuilder__push_char__mangled.exit ], [ %spec.store.select, %entry ]
+  %t117034 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117036.not = icmp slt i64 %i.6594.addr.046, %t117034
+  br i1 %t117036.not, label %diag.ok.16550, label %diag.err.16549
+
+diag.err.16549:                                   ; preds = %for.body.16546
+  %t117040 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7811, i64 170, i64 1, ptr %t117040) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16550:                                    ; preds = %for.body.16546
+  %t117042 = getelementptr i8, ptr %self.arg, i64 %i.6594.addr.046
+  %t117043 = load i8, ptr %t117042, align 1
+  %t116803.i = load ptr, ptr %obj.i.i, align 8
+  %t116806.i = getelementptr i8, ptr %t116803.i, i64 16
+  %t116807.i = load i64, ptr %t116806.i, align 8
+  %t116808.i = getelementptr i8, ptr %t116803.i, i64 24
+  %t116809.i = load i64, ptr %t116808.i, align 8
+  %t116810.i = getelementptr i8, ptr %t116803.i, i64 8
+  %t116812.not.i = icmp slt i64 %t116807.i, %t116809.i
+  %t116818.pre.i = load ptr, ptr %t116810.i, align 8
+  br i1 %t116812.not.i, label %StringBuilder__push_char__mangled.exit, label %vec.grow64.16491.i
+
+vec.grow64.16491.i:                               ; preds = %diag.ok.16550
+  %t116813.i = add i64 %t116809.i, 8
+  %t116814.i = icmp eq i64 %t116809.i, 0
+  %t116815.i = select i1 %t116814.i, i64 4, i64 %t116813.i
+  %t116816.i = shl i64 %t116815.i, 3
+  %t116817.i = tail call ptr @realloc(ptr %t116818.pre.i, i64 %t116816.i)
+  store ptr %t116817.i, ptr %t116810.i, align 8
+  store i64 %t116815.i, ptr %t116808.i, align 8
+  %t116819.pre.i = load i64, ptr %t116806.i, align 8
+  br label %StringBuilder__push_char__mangled.exit
+
+StringBuilder__push_char__mangled.exit:           ; preds = %diag.ok.16550, %vec.grow64.16491.i
+  %t116819.i = phi i64 [ %t116819.pre.i, %vec.grow64.16491.i ], [ %t116807.i, %diag.ok.16550 ]
+  %t116818.i = phi ptr [ %t116817.i, %vec.grow64.16491.i ], [ %t116818.pre.i, %diag.ok.16550 ]
+  %t116805.i = zext i8 %t117043 to i64
+  %t116820.i = getelementptr i64, ptr %t116818.i, i64 %t116819.i
+  store i64 %t116805.i, ptr %t116820.i, align 8
+  %t116821.i = add i64 %t116819.i, 1
+  store i64 %t116821.i, ptr %t116806.i, align 8
+  %t117046 = add nuw nsw i64 %i.6594.addr.046, 1
+  %exitcond.not = icmp eq i64 %t117046, %spec.select
+  br i1 %exitcond.not, label %for.end.16548.loopexit, label %for.body.16546
+
+for.end.16548.loopexit:                           ; preds = %StringBuilder__push_char__mangled.exit
+  %t116941.i10.pre = load ptr, ptr %obj.i.i, align 8
+  %t116942.i11 = getelementptr i8, ptr %t116941.i10.pre, i64 16
+  %t116943.i12 = load i64, ptr %t116942.i11, align 8
+  %t116944.i13 = getelementptr i8, ptr %t116941.i10.pre, i64 8
+  %t116945.i14 = load ptr, ptr %t116944.i13, align 8
+  %total.i.i15 = add i64 %t116943.i12, 17
+  %raw.i.i16 = tail call ptr @malloc(i64 %total.i.i15)
+  store i64 1, ptr %raw.i.i16, align 8
+  %dp.i.i17 = getelementptr i8, ptr %raw.i.i16, i64 8
+  store ptr null, ptr %dp.i.i17, align 8
+  %obj.i.i18 = getelementptr i8, ptr %raw.i.i16, i64 16
+  %t1169501.i19 = icmp sgt i64 %t116943.i12, 0
+  br i1 %t1169501.i19, label %c2s.body.16516.i21, label %StringBuilder__to_string__mangled.exit29
+
+c2s.body.16516.i21:                               ; preds = %for.end.16548.loopexit, %c2s.body.16516.i21
+  %t116948.02.i22 = phi i64 [ %t116955.i27, %c2s.body.16516.i21 ], [ 0, %for.end.16548.loopexit ]
+  %t116951.i23 = getelementptr i64, ptr %t116945.i14, i64 %t116948.02.i22
+  %t116952.i24 = load i64, ptr %t116951.i23, align 8
+  %t116953.i25 = trunc i64 %t116952.i24 to i8
+  %t116954.i26 = getelementptr i8, ptr %obj.i.i18, i64 %t116948.02.i22
+  store i8 %t116953.i25, ptr %t116954.i26, align 1
+  %t116955.i27 = add nuw nsw i64 %t116948.02.i22, 1
+  %exitcond.not.i28 = icmp eq i64 %t116955.i27, %t116943.i12
+  br i1 %exitcond.not.i28, label %StringBuilder__to_string__mangled.exit29, label %c2s.body.16516.i21
+
+StringBuilder__to_string__mangled.exit29:         ; preds = %c2s.body.16516.i21, %for.end.16548.loopexit
+  %t116956.i20 = getelementptr i8, ptr %obj.i.i18, i64 %t116943.i12
+  store i8 0, ptr %t116956.i20, align 1
+  %small.i30 = icmp ult ptr %obj.i.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i30, label %common.ret, label %chk.i31
+
+chk.i31:                                          ; preds = %StringBuilder__to_string__mangled.exit29
+  %rc.i33 = load i64, ptr %raw.i.i, align 8
+  %imm.i34 = icmp slt i64 %rc.i33, 0
+  br i1 %imm.i34, label %common.ret, label %dec.i35
+
+dec.i35:                                          ; preds = %chk.i31
+  %n.i36 = add nsw i64 %rc.i33, -1
+  store i64 %n.i36, ptr %raw.i.i, align 8
+  %z.i37 = icmp eq i64 %n.i36, 0
+  br i1 %z.i37, label %drop.i38, label %common.ret
+
+drop.i38:                                         ; preds = %dec.i35
+  %dfn.i40 = load ptr, ptr %dp.i.i, align 8
+  %has.not.i41 = icmp eq ptr %dfn.i40, null
+  br i1 %has.not.i41, label %common.ret.sink.split, label %calldrop.i42
+
+calldrop.i42:                                     ; preds = %drop.i38
+  tail call void %dfn.i40(ptr nonnull %obj.i.i)
+  br label %common.ret.sink.split
+}
+
+; Function Attrs: nofree nounwind memory(argmem: read)
+define i64 @str__index_of_char__mangled(ptr nocapture readonly %self.arg, i32 %target.arg) local_unnamed_addr #17 {
+entry:
+  %t117052 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t1170534 = icmp sgt i64 %t117052, 0
+  br i1 %t1170534, label %diag.ok.16556, label %common.ret
+
+diag.ok.16556:                                    ; preds = %entry, %for.step.16553
+  %i.6597.addr.05 = phi i64 [ %t117071, %for.step.16553 ], [ 0, %entry ]
+  %t117064 = getelementptr i8, ptr %self.arg, i64 %i.6597.addr.05
+  %t117065 = load i8, ptr %t117064, align 1
+  %t117066 = zext i8 %t117065 to i32
+  %t117068 = icmp eq i32 %t117066, %target.arg
+  br i1 %t117068, label %common.ret, label %for.step.16553
+
+common.ret:                                       ; preds = %diag.ok.16556, %for.step.16553, %entry
+  %common.ret.op = phi i64 [ -1, %entry ], [ -1, %for.step.16553 ], [ %i.6597.addr.05, %diag.ok.16556 ]
+  ret i64 %common.ret.op
+
+for.step.16553:                                   ; preds = %diag.ok.16556
+  %t117071 = add nuw nsw i64 %i.6597.addr.05, 1
+  %exitcond.not = icmp eq i64 %t117071, %t117052
+  br i1 %exitcond.not, label %common.ret, label %diag.ok.16556
+}
+
+define i64 @str__last_index_of_char__mangled(ptr nocapture readonly %self.arg, i32 %target.arg) local_unnamed_addr {
+entry:
+  %t117074 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117082.not.not = icmp eq i64 %t117074, -9223372036854775808
+  br label %for.cond.16560
+
+for.cond.16560:                                   ; preds = %diag.ok.16565, %entry
+  %i.6600.addr.0.in = phi i64 [ %t117074, %entry ], [ %i.6600.addr.0, %diag.ok.16565 ]
+  %i.6600.addr.0 = add i64 %i.6600.addr.0.in, -1
+  %t117077 = icmp sgt i64 %i.6600.addr.0, -1
+  br i1 %t117077, label %for.body.16561, label %common.ret
+
+for.body.16561:                                   ; preds = %for.cond.16560
+  br i1 %t117082.not.not, label %diag.err.16564, label %diag.ok.16565
+
+diag.err.16564:                                   ; preds = %for.body.16561
+  %t117086 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7815, i64 155, i64 1, ptr %t117086) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16565:                                    ; preds = %for.body.16561
+  %t117088 = getelementptr i8, ptr %self.arg, i64 %i.6600.addr.0
+  %t117089 = load i8, ptr %t117088, align 1
+  %t117090 = zext i8 %t117089 to i32
+  %t117092 = icmp eq i32 %t117090, %target.arg
+  br i1 %t117092, label %common.ret, label %for.cond.16560
+
+common.ret:                                       ; preds = %for.cond.16560, %diag.ok.16565
+  %common.ret.op = phi i64 [ %i.6600.addr.0, %diag.ok.16565 ], [ -1, %for.cond.16560 ]
+  ret i64 %common.ret.op
+}
+
+define i64 @str__index_of__mangled(ptr nocapture readonly %self.arg, ptr nocapture readonly %target.arg) local_unnamed_addr {
+entry:
+  %t117098 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117100 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %target.arg)
+  %t117102 = icmp eq i64 %t117100, 0
+  br i1 %t117102, label %common.ret, label %if.end.16571
+
+common.ret:                                       ; preds = %for.step.16577.us, %for.cond.16579.us, %for.cond.16579.preheader.lr.ph, %for.cond.16575.preheader, %if.end.16571, %entry
+  %common.ret.op = phi i64 [ 0, %entry ], [ -1, %if.end.16571 ], [ -1, %for.cond.16575.preheader ], [ 0, %for.cond.16579.preheader.lr.ph ], [ %i.6605.addr.018.us, %for.cond.16579.us ], [ -1, %for.step.16577.us ]
+  ret i64 %common.ret.op
+
+if.end.16571:                                     ; preds = %entry
+  %t117105 = icmp sgt i64 %t117100, %t117098
+  br i1 %t117105, label %common.ret, label %for.cond.16575.preheader
+
+for.cond.16575.preheader:                         ; preds = %if.end.16571
+  %t117110 = sub i64 %t117098, %t117100
+  %t117111.not17 = icmp slt i64 %t117110, 0
+  br i1 %t117111.not17, label %common.ret, label %for.cond.16579.preheader.lr.ph
+
+for.cond.16579.preheader.lr.ph:                   ; preds = %for.cond.16575.preheader
+  %t117114.not14 = icmp sgt i64 %t117100, 0
+  br i1 %t117114.not14, label %for.cond.16579.preheader.us, label %common.ret
+
+for.cond.16579.preheader.us:                      ; preds = %for.cond.16579.preheader.lr.ph, %for.step.16577.us
+  %i.6605.addr.018.us = phi i64 [ %t117149.us, %for.step.16577.us ], [ 0, %for.cond.16579.preheader.lr.ph ]
+  %t117120.us = icmp slt i64 %i.6605.addr.018.us, 0
+  br label %for.body.16580.us
+
+for.cond.16579.us:                                ; preds = %diag.ok.16586.us
+  %t117145.us = add nuw nsw i64 %j.6607.addr.015.us, 1
+  %exitcond.not = icmp eq i64 %t117145.us, %t117100
+  br i1 %exitcond.not, label %common.ret, label %for.body.16580.us
+
+for.body.16580.us:                                ; preds = %for.cond.16579.preheader.us, %for.cond.16579.us
+  %j.6607.addr.015.us = phi i64 [ 0, %for.cond.16579.preheader.us ], [ %t117145.us, %for.cond.16579.us ]
+  %t117118.us = add nuw nsw i64 %j.6607.addr.015.us, %i.6605.addr.018.us
+  %t117121.us = icmp sge i64 %t117118.us, %t117098
+  %t117122.us = or i1 %t117120.us, %t117121.us
+  br i1 %t117122.us, label %diag.err.16583, label %diag.ok.16586.us
+
+diag.ok.16586.us:                                 ; preds = %for.body.16580.us
+  %t117127.us = getelementptr i8, ptr %self.arg, i64 %t117118.us
+  %t117128.us = load i8, ptr %t117127.us, align 1
+  %t117140.us = getelementptr i8, ptr %target.arg, i64 %j.6607.addr.015.us
+  %t117141.us = load i8, ptr %t117140.us, align 1
+  %t117143.not.us = icmp eq i8 %t117128.us, %t117141.us
+  br i1 %t117143.not.us, label %for.cond.16579.us, label %for.step.16577.us
+
+for.step.16577.us:                                ; preds = %diag.ok.16586.us
+  %t117149.us = add nuw i64 %i.6605.addr.018.us, 1
+  %t117111.not.us = icmp sgt i64 %t117149.us, %t117110
+  br i1 %t117111.not.us, label %common.ret, label %for.cond.16579.preheader.us
+
+diag.err.16583:                                   ; preds = %for.body.16580.us
+  %t117125 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7817, i64 174, i64 1, ptr %t117125) #28
+  tail call void @exit(i32 1)
+  unreachable
+}
+
+define i64 @str__last_index_of__mangled(ptr nocapture readonly %self.arg, ptr nocapture readonly %target.arg) local_unnamed_addr {
+entry:
+  %t117152 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117154 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %target.arg)
+  %t117156 = icmp eq i64 %t117154, 0
+  br i1 %t117156, label %common.ret, label %if.end.16595
+
+common.ret:                                       ; preds = %for.step.16601.us, %for.cond.16603.us, %for.cond.16603.preheader.lr.ph, %if.end.16598, %if.end.16595, %entry
+  %common.ret.op = phi i64 [ %t117152, %entry ], [ -1, %if.end.16595 ], [ -1, %if.end.16598 ], [ %t117164, %for.cond.16603.preheader.lr.ph ], [ %i.6613.addr.019.us, %for.cond.16603.us ], [ -1, %for.step.16601.us ]
+  ret i64 %common.ret.op
+
+if.end.16595:                                     ; preds = %entry
+  %t117160 = icmp sgt i64 %t117154, %t117152
+  br i1 %t117160, label %common.ret, label %if.end.16598
+
+if.end.16598:                                     ; preds = %if.end.16595
+  %t117164 = sub i64 %t117152, %t117154
+  %t11716718 = icmp sgt i64 %t117164, -1
+  br i1 %t11716718, label %for.cond.16603.preheader.lr.ph, label %common.ret
+
+for.cond.16603.preheader.lr.ph:                   ; preds = %if.end.16598
+  %t117170.not15 = icmp sgt i64 %t117154, 0
+  br i1 %t117170.not15, label %for.cond.16603.preheader.us, label %common.ret
+
+for.cond.16603.preheader.us:                      ; preds = %for.cond.16603.preheader.lr.ph, %for.step.16601.us
+  %i.6613.addr.019.us = phi i64 [ %t117205.us, %for.step.16601.us ], [ %t117164, %for.cond.16603.preheader.lr.ph ]
+  %t117176.us = icmp slt i64 %i.6613.addr.019.us, 0
+  br label %for.body.16604.us
+
+for.cond.16603.us:                                ; preds = %diag.ok.16610.us
+  %t117201.us = add nuw nsw i64 %j.6615.addr.016.us, 1
+  %exitcond.not = icmp eq i64 %t117201.us, %t117154
+  br i1 %exitcond.not, label %common.ret, label %for.body.16604.us
+
+for.body.16604.us:                                ; preds = %for.cond.16603.preheader.us, %for.cond.16603.us
+  %j.6615.addr.016.us = phi i64 [ 0, %for.cond.16603.preheader.us ], [ %t117201.us, %for.cond.16603.us ]
+  %t117174.us = add nuw nsw i64 %j.6615.addr.016.us, %i.6613.addr.019.us
+  %t117177.us = icmp sge i64 %t117174.us, %t117152
+  %t117178.us = or i1 %t117176.us, %t117177.us
+  br i1 %t117178.us, label %diag.err.16607, label %diag.ok.16610.us
+
+diag.ok.16610.us:                                 ; preds = %for.body.16604.us
+  %t117183.us = getelementptr i8, ptr %self.arg, i64 %t117174.us
+  %t117184.us = load i8, ptr %t117183.us, align 1
+  %t117196.us = getelementptr i8, ptr %target.arg, i64 %j.6615.addr.016.us
+  %t117197.us = load i8, ptr %t117196.us, align 1
+  %t117199.not.us = icmp eq i8 %t117184.us, %t117197.us
+  br i1 %t117199.not.us, label %for.cond.16603.us, label %for.step.16601.us
+
+for.step.16601.us:                                ; preds = %diag.ok.16610.us
+  %t117205.us = add nsw i64 %i.6613.addr.019.us, -1
+  %t117167.us = icmp sgt i64 %i.6613.addr.019.us, 0
+  br i1 %t117167.us, label %for.cond.16603.preheader.us, label %common.ret
+
+diag.err.16607:                                   ; preds = %for.body.16604.us
+  %t117181 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7821, i64 174, i64 1, ptr %t117181) #28
+  tail call void @exit(i32 1)
+  unreachable
+}
+
+define i1 @str__contains__mangled(ptr nocapture readonly %self.arg, ptr readonly %target.arg) local_unnamed_addr {
+entry:
+  %isnull.i = icmp eq ptr %target.arg, null
+  br i1 %isnull.i, label %rt_str_copy.exit, label %cp.i
+
+cp.i:                                             ; preds = %entry
+  %len.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %target.arg)
+  %sz.i = add i64 %len.i, 1
+  %total.i.i = add i64 %len.i, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %target.arg, i64 %sz.i, i1 false)
+  br label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %entry, %cp.i
+  %common.ret.op.i = phi ptr [ %obj.i.i, %cp.i ], [ null, %entry ]
+  %t117098.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117100.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %common.ret.op.i)
+  %t117102.i = icmp eq i64 %t117100.i, 0
+  br i1 %t117102.i, label %str__index_of__mangled.exit, label %if.end.16571.i
+
+if.end.16571.i:                                   ; preds = %rt_str_copy.exit
+  %t117105.i = icmp sgt i64 %t117100.i, %t117098.i
+  br i1 %t117105.i, label %str__index_of__mangled.exit, label %for.cond.16575.preheader.i
+
+for.cond.16575.preheader.i:                       ; preds = %if.end.16571.i
+  %t117110.i = sub i64 %t117098.i, %t117100.i
+  %t117111.not17.i = icmp slt i64 %t117110.i, 0
+  br i1 %t117111.not17.i, label %str__index_of__mangled.exit, label %for.cond.16579.preheader.lr.ph.i
+
+for.cond.16579.preheader.lr.ph.i:                 ; preds = %for.cond.16575.preheader.i
+  %t117114.not14.i = icmp sgt i64 %t117100.i, 0
+  br i1 %t117114.not14.i, label %for.cond.16579.preheader.us.i, label %str__index_of__mangled.exit
+
+for.cond.16579.preheader.us.i:                    ; preds = %for.cond.16579.preheader.lr.ph.i, %for.step.16577.us.i
+  %i.6605.addr.018.us.i = phi i64 [ %t117149.us.i, %for.step.16577.us.i ], [ 0, %for.cond.16579.preheader.lr.ph.i ]
+  %exitcond = icmp eq i64 %i.6605.addr.018.us.i, -9223372036854775808
+  br i1 %exitcond, label %diag.err.16583.i.split, label %for.body.16580.us.i
+
+for.cond.16579.us.i:                              ; preds = %diag.ok.16586.us.i
+  %t117145.us.i = add nuw nsw i64 %j.6607.addr.015.us.i, 1
+  %exitcond.not.i = icmp eq i64 %t117145.us.i, %t117100.i
+  br i1 %exitcond.not.i, label %str__index_of__mangled.exit.loopexit, label %for.body.16580.us.i
+
+for.body.16580.us.i:                              ; preds = %for.cond.16579.preheader.us.i, %for.cond.16579.us.i
+  %j.6607.addr.015.us.i = phi i64 [ %t117145.us.i, %for.cond.16579.us.i ], [ 0, %for.cond.16579.preheader.us.i ]
+  %t117118.us.i = add nuw nsw i64 %j.6607.addr.015.us.i, %i.6605.addr.018.us.i
+  %t117121.us.i.not = icmp slt i64 %t117118.us.i, %t117098.i
+  br i1 %t117121.us.i.not, label %diag.ok.16586.us.i, label %diag.err.16583.i.split
+
+diag.ok.16586.us.i:                               ; preds = %for.body.16580.us.i
+  %t117127.us.i = getelementptr i8, ptr %self.arg, i64 %t117118.us.i
+  %t117128.us.i = load i8, ptr %t117127.us.i, align 1
+  %t117140.us.i = getelementptr i8, ptr %common.ret.op.i, i64 %j.6607.addr.015.us.i
+  %t117141.us.i = load i8, ptr %t117140.us.i, align 1
+  %t117143.not.us.i = icmp eq i8 %t117128.us.i, %t117141.us.i
+  br i1 %t117143.not.us.i, label %for.cond.16579.us.i, label %for.step.16577.us.i
+
+for.step.16577.us.i:                              ; preds = %diag.ok.16586.us.i
+  %t117149.us.i = add nuw i64 %i.6605.addr.018.us.i, 1
+  %t117111.not.us.i = icmp sgt i64 %t117149.us.i, %t117110.i
+  br i1 %t117111.not.us.i, label %str__index_of__mangled.exit, label %for.cond.16579.preheader.us.i
+
+diag.err.16583.i.split:                           ; preds = %for.cond.16579.preheader.us.i, %for.body.16580.us.i
+  %t117125.i = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7817, i64 174, i64 1, ptr %t117125.i) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+str__index_of__mangled.exit.loopexit:             ; preds = %for.cond.16579.us.i
+  %1 = icmp sgt i64 %i.6605.addr.018.us.i, -1
+  br label %str__index_of__mangled.exit
+
+str__index_of__mangled.exit:                      ; preds = %for.step.16577.us.i, %str__index_of__mangled.exit.loopexit, %rt_str_copy.exit, %if.end.16571.i, %for.cond.16575.preheader.i, %for.cond.16579.preheader.lr.ph.i
+  %common.ret.op.i1 = phi i1 [ true, %rt_str_copy.exit ], [ false, %if.end.16571.i ], [ false, %for.cond.16575.preheader.i ], [ true, %for.cond.16579.preheader.lr.ph.i ], [ %1, %str__index_of__mangled.exit.loopexit ], [ false, %for.step.16577.us.i ]
+  %small.i = icmp ult ptr %common.ret.op.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %chk.i
+
+chk.i:                                            ; preds = %str__index_of__mangled.exit
+  %rcp.i = getelementptr i8, ptr %common.ret.op.i, i64 -16
+  %rc.i = load i64, ptr %rcp.i, align 8
+  %imm.i = icmp slt i64 %rc.i, 0
+  br i1 %imm.i, label %rt_release.exit, label %dec.i
+
+dec.i:                                            ; preds = %chk.i
+  %n.i = add nsw i64 %rc.i, -1
+  store i64 %n.i, ptr %rcp.i, align 8
+  %z.i = icmp eq i64 %n.i, 0
+  br i1 %z.i, label %drop.i, label %rt_release.exit
+
+drop.i:                                           ; preds = %dec.i
+  %dpp.i = getelementptr i8, ptr %common.ret.op.i, i64 -8
+  %dfn.i = load ptr, ptr %dpp.i, align 8
+  %has.not.i = icmp eq ptr %dfn.i, null
+  br i1 %has.not.i, label %dofree.i, label %calldrop.i
+
+calldrop.i:                                       ; preds = %drop.i
+  tail call void %dfn.i(ptr nonnull %common.ret.op.i)
+  br label %dofree.i
+
+dofree.i:                                         ; preds = %calldrop.i, %drop.i
+  tail call void @free(ptr %rcp.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %str__index_of__mangled.exit, %chk.i, %dec.i, %dofree.i
+  ret i1 %common.ret.op.i1
+}
+
+; Function Attrs: nofree nounwind memory(argmem: read)
+define i1 @str__contains_char__mangled(ptr nocapture readonly %self.arg, i32 %target.arg) local_unnamed_addr #17 {
+entry:
+  %t117052.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t1170534.i = icmp sgt i64 %t117052.i, 0
+  br i1 %t1170534.i, label %diag.ok.16556.i, label %str__index_of_char__mangled.exit
+
+diag.ok.16556.i:                                  ; preds = %entry, %for.step.16553.i
+  %i.6597.addr.05.i = phi i64 [ %t117071.i, %for.step.16553.i ], [ 0, %entry ]
+  %t117064.i = getelementptr i8, ptr %self.arg, i64 %i.6597.addr.05.i
+  %t117065.i = load i8, ptr %t117064.i, align 1
+  %t117066.i = zext i8 %t117065.i to i32
+  %t117068.i = icmp eq i32 %t117066.i, %target.arg
+  br i1 %t117068.i, label %str__index_of_char__mangled.exit.loopexit, label %for.step.16553.i
+
+for.step.16553.i:                                 ; preds = %diag.ok.16556.i
+  %t117071.i = add nuw nsw i64 %i.6597.addr.05.i, 1
+  %exitcond.not.i = icmp eq i64 %t117071.i, %t117052.i
+  br i1 %exitcond.not.i, label %str__index_of_char__mangled.exit.loopexit, label %diag.ok.16556.i
+
+str__index_of_char__mangled.exit.loopexit:        ; preds = %for.step.16553.i, %diag.ok.16556.i
+  %common.ret.op.i.ph = phi i64 [ -1, %for.step.16553.i ], [ %i.6597.addr.05.i, %diag.ok.16556.i ]
+  %0 = icmp sgt i64 %common.ret.op.i.ph, -1
+  br label %str__index_of_char__mangled.exit
+
+str__index_of_char__mangled.exit:                 ; preds = %str__index_of_char__mangled.exit.loopexit, %entry
+  %common.ret.op.i = phi i1 [ false, %entry ], [ %0, %str__index_of_char__mangled.exit.loopexit ]
+  ret i1 %common.ret.op.i
+}
+
+define i1 @str__starts_with__mangled(ptr nocapture readonly %self.arg, ptr readonly %prefix.arg) local_unnamed_addr {
+entry:
+  %isnull.i = icmp eq ptr %prefix.arg, null
+  br i1 %isnull.i, label %rt_str_copy.exit, label %cp.i
+
+cp.i:                                             ; preds = %entry
+  %len.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %prefix.arg)
+  %sz.i = add i64 %len.i, 1
+  %total.i.i = add i64 %len.i, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %prefix.arg, i64 %sz.i, i1 false)
+  br label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %entry, %cp.i
+  %common.ret.op.i = phi ptr [ %obj.i.i, %cp.i ], [ null, %entry ]
+  %t117098.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117100.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %common.ret.op.i)
+  %t117102.i = icmp eq i64 %t117100.i, 0
+  br i1 %t117102.i, label %str__index_of__mangled.exit, label %if.end.16571.i
+
+if.end.16571.i:                                   ; preds = %rt_str_copy.exit
+  %t117105.i = icmp sgt i64 %t117100.i, %t117098.i
+  br i1 %t117105.i, label %str__index_of__mangled.exit, label %for.cond.16575.preheader.i
+
+for.cond.16575.preheader.i:                       ; preds = %if.end.16571.i
+  %t117110.i = sub i64 %t117098.i, %t117100.i
+  %t117111.not17.i = icmp slt i64 %t117110.i, 0
+  br i1 %t117111.not17.i, label %str__index_of__mangled.exit, label %for.cond.16579.preheader.lr.ph.i
+
+for.cond.16579.preheader.lr.ph.i:                 ; preds = %for.cond.16575.preheader.i
+  %t117114.not14.i = icmp sgt i64 %t117100.i, 0
+  br i1 %t117114.not14.i, label %for.cond.16579.preheader.us.i, label %str__index_of__mangled.exit
+
+for.cond.16579.preheader.us.i:                    ; preds = %for.cond.16579.preheader.lr.ph.i, %for.step.16577.us.i
+  %i.6605.addr.018.us.i = phi i64 [ %t117149.us.i, %for.step.16577.us.i ], [ 0, %for.cond.16579.preheader.lr.ph.i ]
+  %exitcond = icmp eq i64 %i.6605.addr.018.us.i, -9223372036854775808
+  br i1 %exitcond, label %diag.err.16583.i.split, label %for.body.16580.us.i
+
+for.cond.16579.us.i:                              ; preds = %diag.ok.16586.us.i
+  %t117145.us.i = add nuw nsw i64 %j.6607.addr.015.us.i, 1
+  %exitcond.not.i = icmp eq i64 %t117145.us.i, %t117100.i
+  br i1 %exitcond.not.i, label %str__index_of__mangled.exit.loopexit, label %for.body.16580.us.i
+
+for.body.16580.us.i:                              ; preds = %for.cond.16579.preheader.us.i, %for.cond.16579.us.i
+  %j.6607.addr.015.us.i = phi i64 [ %t117145.us.i, %for.cond.16579.us.i ], [ 0, %for.cond.16579.preheader.us.i ]
+  %t117118.us.i = add nuw nsw i64 %j.6607.addr.015.us.i, %i.6605.addr.018.us.i
+  %t117121.us.i.not = icmp slt i64 %t117118.us.i, %t117098.i
+  br i1 %t117121.us.i.not, label %diag.ok.16586.us.i, label %diag.err.16583.i.split
+
+diag.ok.16586.us.i:                               ; preds = %for.body.16580.us.i
+  %t117127.us.i = getelementptr i8, ptr %self.arg, i64 %t117118.us.i
+  %t117128.us.i = load i8, ptr %t117127.us.i, align 1
+  %t117140.us.i = getelementptr i8, ptr %common.ret.op.i, i64 %j.6607.addr.015.us.i
+  %t117141.us.i = load i8, ptr %t117140.us.i, align 1
+  %t117143.not.us.i = icmp eq i8 %t117128.us.i, %t117141.us.i
+  br i1 %t117143.not.us.i, label %for.cond.16579.us.i, label %for.step.16577.us.i
+
+for.step.16577.us.i:                              ; preds = %diag.ok.16586.us.i
+  %t117149.us.i = add nuw i64 %i.6605.addr.018.us.i, 1
+  %t117111.not.us.i = icmp sgt i64 %t117149.us.i, %t117110.i
+  br i1 %t117111.not.us.i, label %str__index_of__mangled.exit, label %for.cond.16579.preheader.us.i
+
+diag.err.16583.i.split:                           ; preds = %for.cond.16579.preheader.us.i, %for.body.16580.us.i
+  %t117125.i = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7817, i64 174, i64 1, ptr %t117125.i) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+str__index_of__mangled.exit.loopexit:             ; preds = %for.cond.16579.us.i
+  %1 = icmp eq i64 %i.6605.addr.018.us.i, 0
+  br label %str__index_of__mangled.exit
+
+str__index_of__mangled.exit:                      ; preds = %for.step.16577.us.i, %str__index_of__mangled.exit.loopexit, %rt_str_copy.exit, %if.end.16571.i, %for.cond.16575.preheader.i, %for.cond.16579.preheader.lr.ph.i
+  %common.ret.op.i1 = phi i1 [ true, %rt_str_copy.exit ], [ false, %if.end.16571.i ], [ false, %for.cond.16575.preheader.i ], [ true, %for.cond.16579.preheader.lr.ph.i ], [ %1, %str__index_of__mangled.exit.loopexit ], [ false, %for.step.16577.us.i ]
+  %small.i = icmp ult ptr %common.ret.op.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %chk.i
+
+chk.i:                                            ; preds = %str__index_of__mangled.exit
+  %rcp.i = getelementptr i8, ptr %common.ret.op.i, i64 -16
+  %rc.i = load i64, ptr %rcp.i, align 8
+  %imm.i = icmp slt i64 %rc.i, 0
+  br i1 %imm.i, label %rt_release.exit, label %dec.i
+
+dec.i:                                            ; preds = %chk.i
+  %n.i = add nsw i64 %rc.i, -1
+  store i64 %n.i, ptr %rcp.i, align 8
+  %z.i = icmp eq i64 %n.i, 0
+  br i1 %z.i, label %drop.i, label %rt_release.exit
+
+drop.i:                                           ; preds = %dec.i
+  %dpp.i = getelementptr i8, ptr %common.ret.op.i, i64 -8
+  %dfn.i = load ptr, ptr %dpp.i, align 8
+  %has.not.i = icmp eq ptr %dfn.i, null
+  br i1 %has.not.i, label %dofree.i, label %calldrop.i
+
+calldrop.i:                                       ; preds = %drop.i
+  tail call void %dfn.i(ptr nonnull %common.ret.op.i)
+  br label %dofree.i
+
+dofree.i:                                         ; preds = %calldrop.i, %drop.i
+  tail call void @free(ptr %rcp.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %str__index_of__mangled.exit, %chk.i, %dec.i, %dofree.i
+  ret i1 %common.ret.op.i1
+}
+
+define i1 @str__ends_with__mangled(ptr nocapture readonly %self.arg, ptr readonly %suffix.arg) local_unnamed_addr {
+entry:
+  %t117222 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117224 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %suffix.arg)
+  %t117227 = icmp sgt i64 %t117224, %t117222
+  br i1 %t117227, label %common.ret, label %if.end.16619
+
+common.ret:                                       ; preds = %entry, %rt_release.exit
+  %common.ret.op = phi i1 [ %t117235, %rt_release.exit ], [ false, %entry ]
+  ret i1 %common.ret.op
+
+if.end.16619:                                     ; preds = %entry
+  %isnull.i = icmp eq ptr %suffix.arg, null
+  br i1 %isnull.i, label %rt_str_copy.exit, label %cp.i
+
+cp.i:                                             ; preds = %if.end.16619
+  %sz.i = add i64 %t117224, 1
+  %total.i.i = add i64 %t117224, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %suffix.arg, i64 %sz.i, i1 false)
+  br label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %if.end.16619, %cp.i
+  %common.ret.op.i = phi ptr [ %obj.i.i, %cp.i ], [ null, %if.end.16619 ]
+  %t117154.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %common.ret.op.i)
+  %t117156.i = icmp eq i64 %t117154.i, 0
+  br i1 %t117156.i, label %str__last_index_of__mangled.exit, label %if.end.16595.i
+
+if.end.16595.i:                                   ; preds = %rt_str_copy.exit
+  %t117160.i = icmp sgt i64 %t117154.i, %t117222
+  br i1 %t117160.i, label %str__last_index_of__mangled.exit, label %if.end.16598.i
+
+if.end.16598.i:                                   ; preds = %if.end.16595.i
+  %t117164.i = sub i64 %t117222, %t117154.i
+  %t11716718.i = icmp sgt i64 %t117164.i, -1
+  br i1 %t11716718.i, label %for.cond.16603.preheader.lr.ph.i, label %str__last_index_of__mangled.exit
+
+for.cond.16603.preheader.lr.ph.i:                 ; preds = %if.end.16598.i
+  %t117170.not15.i = icmp sgt i64 %t117154.i, 0
+  br i1 %t117170.not15.i, label %for.cond.16603.preheader.us.i, label %str__last_index_of__mangled.exit
+
+for.cond.16603.preheader.us.i:                    ; preds = %for.cond.16603.preheader.lr.ph.i, %for.step.16601.us.i
+  %i.6613.addr.019.us.i = phi i64 [ %t117205.us.i, %for.step.16601.us.i ], [ %t117164.i, %for.cond.16603.preheader.lr.ph.i ]
+  br label %for.body.16604.us.i
+
+for.cond.16603.us.i:                              ; preds = %diag.ok.16610.us.i
+  %t117201.us.i = add nuw nsw i64 %j.6615.addr.016.us.i, 1
+  %exitcond.not.i = icmp eq i64 %t117201.us.i, %t117154.i
+  br i1 %exitcond.not.i, label %str__last_index_of__mangled.exit, label %for.body.16604.us.i
+
+for.body.16604.us.i:                              ; preds = %for.cond.16603.us.i, %for.cond.16603.preheader.us.i
+  %j.6615.addr.016.us.i = phi i64 [ 0, %for.cond.16603.preheader.us.i ], [ %t117201.us.i, %for.cond.16603.us.i ]
+  %t117174.us.i = add nuw nsw i64 %j.6615.addr.016.us.i, %i.6613.addr.019.us.i
+  %t117177.us.i.not = icmp slt i64 %t117174.us.i, %t117222
+  br i1 %t117177.us.i.not, label %diag.ok.16610.us.i, label %diag.err.16607.i
+
+diag.ok.16610.us.i:                               ; preds = %for.body.16604.us.i
+  %t117183.us.i = getelementptr i8, ptr %self.arg, i64 %t117174.us.i
+  %t117184.us.i = load i8, ptr %t117183.us.i, align 1
+  %t117196.us.i = getelementptr i8, ptr %common.ret.op.i, i64 %j.6615.addr.016.us.i
+  %t117197.us.i = load i8, ptr %t117196.us.i, align 1
+  %t117199.not.us.i = icmp eq i8 %t117184.us.i, %t117197.us.i
+  br i1 %t117199.not.us.i, label %for.cond.16603.us.i, label %for.step.16601.us.i
+
+for.step.16601.us.i:                              ; preds = %diag.ok.16610.us.i
+  %t117205.us.i = add nsw i64 %i.6613.addr.019.us.i, -1
+  %t117167.us.i.not = icmp eq i64 %i.6613.addr.019.us.i, 0
+  br i1 %t117167.us.i.not, label %str__last_index_of__mangled.exit, label %for.cond.16603.preheader.us.i
+
+diag.err.16607.i:                                 ; preds = %for.body.16604.us.i
+  %t117181.i = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7821, i64 174, i64 1, ptr %t117181.i) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+str__last_index_of__mangled.exit:                 ; preds = %for.step.16601.us.i, %for.cond.16603.us.i, %rt_str_copy.exit, %if.end.16595.i, %if.end.16598.i, %for.cond.16603.preheader.lr.ph.i
+  %common.ret.op.i3 = phi i64 [ %t117222, %rt_str_copy.exit ], [ -1, %if.end.16595.i ], [ -1, %if.end.16598.i ], [ %t117164.i, %for.cond.16603.preheader.lr.ph.i ], [ %i.6613.addr.019.us.i, %for.cond.16603.us.i ], [ -1, %for.step.16601.us.i ]
+  %small.i = icmp ult ptr %common.ret.op.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %chk.i
+
+chk.i:                                            ; preds = %str__last_index_of__mangled.exit
+  %rcp.i = getelementptr i8, ptr %common.ret.op.i, i64 -16
+  %rc.i = load i64, ptr %rcp.i, align 8
+  %imm.i = icmp slt i64 %rc.i, 0
+  br i1 %imm.i, label %rt_release.exit, label %dec.i
+
+dec.i:                                            ; preds = %chk.i
+  %n.i = add nsw i64 %rc.i, -1
+  store i64 %n.i, ptr %rcp.i, align 8
+  %z.i = icmp eq i64 %n.i, 0
+  br i1 %z.i, label %drop.i, label %rt_release.exit
+
+drop.i:                                           ; preds = %dec.i
+  %dpp.i = getelementptr i8, ptr %common.ret.op.i, i64 -8
+  %dfn.i = load ptr, ptr %dpp.i, align 8
+  %has.not.i = icmp eq ptr %dfn.i, null
+  br i1 %has.not.i, label %dofree.i, label %calldrop.i
+
+calldrop.i:                                       ; preds = %drop.i
+  tail call void %dfn.i(ptr nonnull %common.ret.op.i)
+  br label %dofree.i
+
+dofree.i:                                         ; preds = %calldrop.i, %drop.i
+  tail call void @free(ptr %rcp.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %str__last_index_of__mangled.exit, %chk.i, %dec.i, %dofree.i
+  %t117234 = sub i64 %t117222, %t117224
+  %t117235 = icmp eq i64 %common.ret.op.i3, %t117234
+  br label %common.ret
+}
+
+define noundef i1 @str__equals__mangled(ptr nocapture readonly %self.arg, ptr nocapture readonly %other.arg) local_unnamed_addr {
+entry:
+  %t117237 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117239 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %other.arg)
+  %t117240.not = icmp eq i64 %t117237, %t117239
+  br i1 %t117240.not, label %for.cond.16623.preheader, label %common.ret
+
+for.cond.16623.preheader:                         ; preds = %entry
+  %t1172444 = icmp sgt i64 %t117237, 0
+  br i1 %t1172444, label %diag.ok.16628, label %common.ret
+
+common.ret:                                       ; preds = %diag.ok.16630, %for.cond.16623.preheader, %entry
+  %common.ret.op = phi i1 [ false, %entry ], [ true, %for.cond.16623.preheader ], [ %t117271.not, %diag.ok.16630 ]
+  ret i1 %common.ret.op
+
+diag.ok.16628:                                    ; preds = %for.cond.16623.preheader, %diag.ok.16630
+  %i.6628.addr.05 = phi i64 [ %t117273, %diag.ok.16630 ], [ 0, %for.cond.16623.preheader ]
+  %exitcond.not = icmp eq i64 %i.6628.addr.05, %t117237
+  br i1 %exitcond.not, label %diag.err.16629, label %diag.ok.16630
+
+diag.err.16629:                                   ; preds = %diag.ok.16628
+  %t117266 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7827, i64 169, i64 1, ptr %t117266) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16630:                                    ; preds = %diag.ok.16628
+  %t117255 = getelementptr i8, ptr %self.arg, i64 %i.6628.addr.05
+  %t117256 = load i8, ptr %t117255, align 1
+  %t117268 = getelementptr i8, ptr %other.arg, i64 %i.6628.addr.05
+  %t117269 = load i8, ptr %t117268, align 1
+  %t117271.not = icmp eq i8 %t117256, %t117269
+  %t117273 = add nuw nsw i64 %i.6628.addr.05, 1
+  %exitcond7.not = icmp ne i64 %t117273, %t117237
+  %or.cond.not = select i1 %t117271.not, i1 %exitcond7.not, i1 false
+  br i1 %or.cond.not, label %diag.ok.16628, label %common.ret
+}
+
+define noundef i1 @str__equals_ignore_case__mangled(ptr nocapture readonly %self.arg, ptr nocapture readonly %other.arg) local_unnamed_addr {
+entry:
+  %t117275 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117277 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %other.arg)
+  %t117278.not = icmp eq i64 %t117275, %t117277
+  br i1 %t117278.not, label %for.cond.16637.preheader, label %common.ret
+
+for.cond.16637.preheader:                         ; preds = %entry
+  %t11728210 = icmp sgt i64 %t117275, 0
+  br i1 %t11728210, label %diag.ok.16642, label %common.ret
+
+common.ret:                                       ; preds = %diag.ok.16644, %for.cond.16637.preheader, %entry
+  %common.ret.op = phi i1 [ false, %entry ], [ true, %for.cond.16637.preheader ], [ %t117313.not, %diag.ok.16644 ]
+  ret i1 %common.ret.op
+
+diag.ok.16642:                                    ; preds = %for.cond.16637.preheader, %diag.ok.16644
+  %i.6631.addr.011 = phi i64 [ %t117315, %diag.ok.16644 ], [ 0, %for.cond.16637.preheader ]
+  %exitcond.not = icmp eq i64 %i.6631.addr.011, %t117275
+  br i1 %exitcond.not, label %diag.err.16643, label %diag.ok.16644
+
+diag.err.16643:                                   ; preds = %diag.ok.16642
+  %t117306 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7831, i64 202, i64 1, ptr %t117306) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16644:                                    ; preds = %diag.ok.16642
+  %t117293 = getelementptr i8, ptr %self.arg, i64 %i.6631.addr.011
+  %t117294 = load i8, ptr %t117293, align 1
+  %1 = add i8 %t117294, -65
+  %or.cond.i = icmp ult i8 %1, 26
+  %t117295 = zext i8 %t117294 to i32
+  %t118642.i = add nuw nsw i32 %t117295, 32
+  %t118643.i = and i32 %t118642.i, 255
+  %common.ret.op.i = select i1 %or.cond.i, i32 %t118643.i, i32 %t117295
+  %t117308 = getelementptr i8, ptr %other.arg, i64 %i.6631.addr.011
+  %t117309 = load i8, ptr %t117308, align 1
+  %t117310 = zext i8 %t117309 to i32
+  %2 = add i8 %t117309, -65
+  %or.cond.i6 = icmp ult i8 %2, 26
+  %t118642.i7 = add nuw nsw i32 %t117310, 32
+  %t118643.i8 = and i32 %t118642.i7, 255
+  %common.ret.op.i9 = select i1 %or.cond.i6, i32 %t118643.i8, i32 %t117310
+  %t117313.not = icmp eq i32 %common.ret.op.i, %common.ret.op.i9
+  %t117315 = add nuw nsw i64 %i.6631.addr.011, 1
+  %exitcond13.not = icmp ne i64 %t117315, %t117275
+  %or.cond.not = select i1 %t117313.not, i1 %exitcond13.not, i1 false
+  br i1 %or.cond.not, label %diag.ok.16642, label %common.ret
+}
+
+define noundef ptr @str__trim_left__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %t117318 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t1173195 = icmp sgt i64 %t117318, 0
+  br i1 %t1173195, label %diag.ok.16656, label %while.end.16650
+
+diag.ok.16656:                                    ; preds = %entry, %while.body.16649
+  %start.6633.addr.06 = phi i64 [ %t117337, %while.body.16649 ], [ 0, %entry ]
+  %t117330 = getelementptr i8, ptr %self.arg, i64 %start.6633.addr.06
+  %t117331 = load i8, ptr %t117330, align 1
+  switch i8 %t117331, label %while.end.16650 [
+    i8 32, label %while.body.16649
+    i8 9, label %while.body.16649
+    i8 10, label %while.body.16649
+    i8 13, label %while.body.16649
+  ]
+
+while.body.16649:                                 ; preds = %diag.ok.16656, %diag.ok.16656, %diag.ok.16656, %diag.ok.16656
+  %t117337 = add nuw nsw i64 %start.6633.addr.06, 1
+  %exitcond.not = icmp eq i64 %t117337, %t117318
+  br i1 %exitcond.not, label %while.end.16650, label %diag.ok.16656
+
+while.end.16650:                                  ; preds = %while.body.16649, %diag.ok.16656, %entry
+  %start.6633.addr.0.lcssa = phi i64 [ 0, %entry ], [ %start.6633.addr.06, %diag.ok.16656 ], [ %t117318, %while.body.16649 ]
+  %t117342 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 %start.6633.addr.0.lcssa, i64 %t117318)
+  ret ptr %t117342
+}
+
+define noundef ptr @str__trim_right__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %t117344 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t1173466 = icmp sgt i64 %t117344, 0
+  br i1 %t1173466, label %diag.ok.16665, label %while.end.16659
+
+diag.ok.16665:                                    ; preds = %entry, %char__is_whitespace__mangled.exit
+  %end.6635.addr.07 = phi i64 [ %t117349, %char__is_whitespace__mangled.exit ], [ %t117344, %entry ]
+  %t117349 = add nsw i64 %end.6635.addr.07, -1
+  %t117358 = getelementptr i8, ptr %self.arg, i64 %t117349
+  %t117359 = load i8, ptr %t117358, align 1
+  switch i8 %t117359, label %while.end.16659 [
+    i8 32, label %char__is_whitespace__mangled.exit
+    i8 9, label %char__is_whitespace__mangled.exit
+    i8 10, label %char__is_whitespace__mangled.exit
+    i8 13, label %char__is_whitespace__mangled.exit
+  ]
+
+char__is_whitespace__mangled.exit:                ; preds = %diag.ok.16665, %diag.ok.16665, %diag.ok.16665, %diag.ok.16665
+  %t117346 = icmp ugt i64 %end.6635.addr.07, 1
+  br i1 %t117346, label %diag.ok.16665, label %while.end.16659
+
+while.end.16659:                                  ; preds = %char__is_whitespace__mangled.exit, %diag.ok.16665, %entry
+  %end.6635.addr.0.lcssa = phi i64 [ %t117344, %entry ], [ %end.6635.addr.07, %diag.ok.16665 ], [ 0, %char__is_whitespace__mangled.exit ]
+  %t117368 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 0, i64 %end.6635.addr.0.lcssa)
+  ret ptr %t117368
+}
+
+define noundef ptr @str__trim__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %t117370 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t11737316 = icmp sgt i64 %t117370, 0
+  br i1 %t11737316, label %diag.ok.16674, label %while.end.16677
+
+diag.ok.16674:                                    ; preds = %entry, %while.body.16667
+  %start.6637.addr.017 = phi i64 [ %t117391, %while.body.16667 ], [ 0, %entry ]
+  %t117384 = getelementptr i8, ptr %self.arg, i64 %start.6637.addr.017
+  %t117385 = load i8, ptr %t117384, align 1
+  switch i8 %t117385, label %while.end.16668 [
+    i8 32, label %while.body.16667
+    i8 9, label %while.body.16667
+    i8 10, label %while.body.16667
+    i8 13, label %while.body.16667
+  ]
+
+while.body.16667:                                 ; preds = %diag.ok.16674, %diag.ok.16674, %diag.ok.16674, %diag.ok.16674
+  %t117391 = add nuw nsw i64 %start.6637.addr.017, 1
+  %exitcond.not = icmp eq i64 %t117391, %t117370
+  br i1 %exitcond.not, label %while.end.16677, label %diag.ok.16674
+
+while.end.16668:                                  ; preds = %diag.ok.16674
+  %t11739419 = icmp sgt i64 %t117370, %start.6637.addr.017
+  br i1 %t11739419, label %and.rhs.16679, label %while.end.16677
+
+and.rhs.16679:                                    ; preds = %while.end.16668, %char__is_whitespace__mangled.exit12
+  %end.6638.addr.020 = phi i64 [ %t117397, %char__is_whitespace__mangled.exit12 ], [ %t117370, %while.end.16668 ]
+  %t117397 = add nsw i64 %end.6638.addr.020, -1
+  %t117399 = icmp slt i64 %end.6638.addr.020, 1
+  br i1 %t117399, label %diag.err.16682, label %diag.ok.16683
+
+diag.err.16682:                                   ; preds = %and.rhs.16679
+  %t117404 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7839, i64 204, i64 1, ptr %t117404) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16683:                                    ; preds = %and.rhs.16679
+  %t117406 = getelementptr i8, ptr %self.arg, i64 %t117397
+  %t117407 = load i8, ptr %t117406, align 1
+  switch i8 %t117407, label %while.end.16677 [
+    i8 32, label %char__is_whitespace__mangled.exit12
+    i8 9, label %char__is_whitespace__mangled.exit12
+    i8 10, label %char__is_whitespace__mangled.exit12
+    i8 13, label %char__is_whitespace__mangled.exit12
+  ]
+
+char__is_whitespace__mangled.exit12:              ; preds = %diag.ok.16683, %diag.ok.16683, %diag.ok.16683, %diag.ok.16683
+  %t117394 = icmp sgt i64 %t117397, %start.6637.addr.017
+  br i1 %t117394, label %and.rhs.16679, label %while.end.16677
+
+while.end.16677:                                  ; preds = %while.body.16667, %char__is_whitespace__mangled.exit12, %diag.ok.16683, %entry, %while.end.16668
+  %start.6637.addr.0.lcssa25 = phi i64 [ %start.6637.addr.017, %while.end.16668 ], [ 0, %entry ], [ %start.6637.addr.017, %diag.ok.16683 ], [ %start.6637.addr.017, %char__is_whitespace__mangled.exit12 ], [ %t117370, %while.body.16667 ]
+  %end.6638.addr.0.lcssa = phi i64 [ %t117370, %while.end.16668 ], [ %t117370, %entry ], [ %start.6637.addr.017, %char__is_whitespace__mangled.exit12 ], [ %end.6638.addr.020, %diag.ok.16683 ], [ %t117370, %while.body.16667 ]
+  %t117417 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 %start.6637.addr.0.lcssa25, i64 %end.6638.addr.0.lcssa)
+  ret ptr %t117417
+}
+
+define noundef ptr @str__to_lower__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %raw.i.i = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  store i8 0, ptr %obj.i.i, align 1
+  %t11742246 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t11742347 = icmp sgt i64 %t11742246, 0
+  br i1 %t11742347, label %diag.ok.16689, label %for.end.16687
+
+diag.ok.16689:                                    ; preds = %entry, %rt_release.exit20
+  %i.6641.addr.049 = phi i64 [ %t117452, %rt_release.exit20 ], [ 0, %entry ]
+  %result.6640.addr.048 = phi ptr [ %obj.i5, %rt_release.exit20 ], [ %obj.i.i, %entry ]
+  %t117435 = getelementptr i8, ptr %self.arg, i64 %i.6641.addr.049
+  %t117436 = load i8, ptr %t117435, align 1
+  %0 = add i8 %t117436, -65
+  %or.cond.i = icmp ult i8 %0, 26
+  %t118642.i = add i8 %t117436, 32
+  %common.ret.op.i = select i1 %or.cond.i, i8 %t118642.i, i8 %t117436
+  %raw.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  store i8 %common.ret.op.i, ptr %obj.i, align 1
+  %t117442 = getelementptr i8, ptr %raw.i, i64 17
+  store i8 0, ptr %t117442, align 1
+  %t117443 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6640.addr.048)
+  %t117444 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t117445 = add i64 %t117443, 17
+  %total.i = add i64 %t117445, %t117444
+  %raw.i3 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i3, align 8
+  %dp.i4 = getelementptr i8, ptr %raw.i3, i64 8
+  store ptr null, ptr %dp.i4, align 8
+  %obj.i5 = getelementptr i8, ptr %raw.i3, i64 16
+  %t117448 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i5, ptr noundef nonnull dereferenceable(1) %result.6640.addr.048)
+  %t117449 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i5, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %diag.ok.16689
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %diag.ok.16689, %dofree.i
+  %small.i6 = icmp ult ptr %result.6640.addr.048, inttoptr (i64 65536 to ptr)
+  br i1 %small.i6, label %rt_release.exit20, label %chk.i7
+
+chk.i7:                                           ; preds = %rt_release.exit
+  %rcp.i8 = getelementptr i8, ptr %result.6640.addr.048, i64 -16
+  %rc.i9 = load i64, ptr %rcp.i8, align 8
+  %imm.i10 = icmp slt i64 %rc.i9, 0
+  br i1 %imm.i10, label %rt_release.exit20, label %dec.i11
+
+dec.i11:                                          ; preds = %chk.i7
+  %n.i12 = add nsw i64 %rc.i9, -1
+  store i64 %n.i12, ptr %rcp.i8, align 8
+  %z.i13 = icmp eq i64 %n.i12, 0
+  br i1 %z.i13, label %drop.i14, label %rt_release.exit20
+
+drop.i14:                                         ; preds = %dec.i11
+  %dpp.i15 = getelementptr i8, ptr %result.6640.addr.048, i64 -8
+  %dfn.i16 = load ptr, ptr %dpp.i15, align 8
+  %has.not.i17 = icmp eq ptr %dfn.i16, null
+  br i1 %has.not.i17, label %dofree.i19, label %calldrop.i18
+
+calldrop.i18:                                     ; preds = %drop.i14
+  tail call void %dfn.i16(ptr nonnull %result.6640.addr.048)
+  br label %dofree.i19
+
+dofree.i19:                                       ; preds = %calldrop.i18, %drop.i14
+  tail call void @free(ptr %rcp.i8)
+  br label %rt_release.exit20
+
+rt_release.exit20:                                ; preds = %rt_release.exit, %chk.i7, %dec.i11, %dofree.i19
+  %t117452 = add nuw nsw i64 %i.6641.addr.049, 1
+  %t117422 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117423 = icmp slt i64 %t117452, %t117422
+  br i1 %t117423, label %diag.ok.16689, label %for.end.16687
+
+for.end.16687:                                    ; preds = %rt_release.exit20, %entry
+  %result.6640.addr.0.lcssa = phi ptr [ %obj.i.i, %entry ], [ %obj.i5, %rt_release.exit20 ]
+  %isnull.i = icmp eq ptr %result.6640.addr.0.lcssa, null
+  br i1 %isnull.i, label %rt_release.exit42, label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %for.end.16687
+  %len.i21 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6640.addr.0.lcssa)
+  %sz.i22 = add i64 %len.i21, 1
+  %total.i.i23 = add i64 %len.i21, 17
+  %raw.i.i24 = tail call ptr @malloc(i64 %total.i.i23)
+  store i64 1, ptr %raw.i.i24, align 8
+  %dp.i.i25 = getelementptr i8, ptr %raw.i.i24, i64 8
+  store ptr null, ptr %dp.i.i25, align 8
+  %obj.i.i26 = getelementptr i8, ptr %raw.i.i24, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i26, ptr nonnull align 1 %result.6640.addr.0.lcssa, i64 %sz.i22, i1 false)
+  %small.i28 = icmp ult ptr %result.6640.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i28, label %rt_release.exit42, label %chk.i29
+
+chk.i29:                                          ; preds = %rt_str_copy.exit
+  %rcp.i30 = getelementptr i8, ptr %result.6640.addr.0.lcssa, i64 -16
+  %rc.i31 = load i64, ptr %rcp.i30, align 8
+  %imm.i32 = icmp slt i64 %rc.i31, 0
+  br i1 %imm.i32, label %rt_release.exit42, label %dec.i33
+
+dec.i33:                                          ; preds = %chk.i29
+  %n.i34 = add nsw i64 %rc.i31, -1
+  store i64 %n.i34, ptr %rcp.i30, align 8
+  %z.i35 = icmp eq i64 %n.i34, 0
+  br i1 %z.i35, label %drop.i36, label %rt_release.exit42
+
+drop.i36:                                         ; preds = %dec.i33
+  %dpp.i37 = getelementptr i8, ptr %result.6640.addr.0.lcssa, i64 -8
+  %dfn.i38 = load ptr, ptr %dpp.i37, align 8
+  %has.not.i39 = icmp eq ptr %dfn.i38, null
+  br i1 %has.not.i39, label %dofree.i41, label %calldrop.i40
+
+calldrop.i40:                                     ; preds = %drop.i36
+  tail call void %dfn.i38(ptr nonnull %result.6640.addr.0.lcssa)
+  br label %dofree.i41
+
+dofree.i41:                                       ; preds = %calldrop.i40, %drop.i36
+  tail call void @free(ptr %rcp.i30)
+  br label %rt_release.exit42
+
+rt_release.exit42:                                ; preds = %for.end.16687, %rt_str_copy.exit, %chk.i29, %dec.i33, %dofree.i41
+  %common.ret.op.i2745 = phi ptr [ %obj.i.i26, %rt_str_copy.exit ], [ %obj.i.i26, %chk.i29 ], [ %obj.i.i26, %dec.i33 ], [ %obj.i.i26, %dofree.i41 ], [ null, %for.end.16687 ]
+  ret ptr %common.ret.op.i2745
+}
+
+define noundef ptr @str__to_upper__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %raw.i.i = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  store i8 0, ptr %obj.i.i, align 1
+  %t11746046 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t11746147 = icmp sgt i64 %t11746046, 0
+  br i1 %t11746147, label %diag.ok.16695, label %for.end.16693
+
+diag.ok.16695:                                    ; preds = %entry, %rt_release.exit20
+  %i.6644.addr.049 = phi i64 [ %t117490, %rt_release.exit20 ], [ 0, %entry ]
+  %result.6643.addr.048 = phi ptr [ %obj.i5, %rt_release.exit20 ], [ %obj.i.i, %entry ]
+  %t117473 = getelementptr i8, ptr %self.arg, i64 %i.6644.addr.049
+  %t117474 = load i8, ptr %t117473, align 1
+  %0 = add i8 %t117474, -97
+  %or.cond.i = icmp ult i8 %0, 26
+  %t118659.i = add i8 %t117474, -32
+  %common.ret.op.i = select i1 %or.cond.i, i8 %t118659.i, i8 %t117474
+  %raw.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  store i8 %common.ret.op.i, ptr %obj.i, align 1
+  %t117480 = getelementptr i8, ptr %raw.i, i64 17
+  store i8 0, ptr %t117480, align 1
+  %t117481 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6643.addr.048)
+  %t117482 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t117483 = add i64 %t117481, 17
+  %total.i = add i64 %t117483, %t117482
+  %raw.i3 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i3, align 8
+  %dp.i4 = getelementptr i8, ptr %raw.i3, i64 8
+  store ptr null, ptr %dp.i4, align 8
+  %obj.i5 = getelementptr i8, ptr %raw.i3, i64 16
+  %t117486 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i5, ptr noundef nonnull dereferenceable(1) %result.6643.addr.048)
+  %t117487 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i5, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %diag.ok.16695
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %diag.ok.16695, %dofree.i
+  %small.i6 = icmp ult ptr %result.6643.addr.048, inttoptr (i64 65536 to ptr)
+  br i1 %small.i6, label %rt_release.exit20, label %chk.i7
+
+chk.i7:                                           ; preds = %rt_release.exit
+  %rcp.i8 = getelementptr i8, ptr %result.6643.addr.048, i64 -16
+  %rc.i9 = load i64, ptr %rcp.i8, align 8
+  %imm.i10 = icmp slt i64 %rc.i9, 0
+  br i1 %imm.i10, label %rt_release.exit20, label %dec.i11
+
+dec.i11:                                          ; preds = %chk.i7
+  %n.i12 = add nsw i64 %rc.i9, -1
+  store i64 %n.i12, ptr %rcp.i8, align 8
+  %z.i13 = icmp eq i64 %n.i12, 0
+  br i1 %z.i13, label %drop.i14, label %rt_release.exit20
+
+drop.i14:                                         ; preds = %dec.i11
+  %dpp.i15 = getelementptr i8, ptr %result.6643.addr.048, i64 -8
+  %dfn.i16 = load ptr, ptr %dpp.i15, align 8
+  %has.not.i17 = icmp eq ptr %dfn.i16, null
+  br i1 %has.not.i17, label %dofree.i19, label %calldrop.i18
+
+calldrop.i18:                                     ; preds = %drop.i14
+  tail call void %dfn.i16(ptr nonnull %result.6643.addr.048)
+  br label %dofree.i19
+
+dofree.i19:                                       ; preds = %calldrop.i18, %drop.i14
+  tail call void @free(ptr %rcp.i8)
+  br label %rt_release.exit20
+
+rt_release.exit20:                                ; preds = %rt_release.exit, %chk.i7, %dec.i11, %dofree.i19
+  %t117490 = add nuw nsw i64 %i.6644.addr.049, 1
+  %t117460 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117461 = icmp slt i64 %t117490, %t117460
+  br i1 %t117461, label %diag.ok.16695, label %for.end.16693
+
+for.end.16693:                                    ; preds = %rt_release.exit20, %entry
+  %result.6643.addr.0.lcssa = phi ptr [ %obj.i.i, %entry ], [ %obj.i5, %rt_release.exit20 ]
+  %isnull.i = icmp eq ptr %result.6643.addr.0.lcssa, null
+  br i1 %isnull.i, label %rt_release.exit42, label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %for.end.16693
+  %len.i21 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6643.addr.0.lcssa)
+  %sz.i22 = add i64 %len.i21, 1
+  %total.i.i23 = add i64 %len.i21, 17
+  %raw.i.i24 = tail call ptr @malloc(i64 %total.i.i23)
+  store i64 1, ptr %raw.i.i24, align 8
+  %dp.i.i25 = getelementptr i8, ptr %raw.i.i24, i64 8
+  store ptr null, ptr %dp.i.i25, align 8
+  %obj.i.i26 = getelementptr i8, ptr %raw.i.i24, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i26, ptr nonnull align 1 %result.6643.addr.0.lcssa, i64 %sz.i22, i1 false)
+  %small.i28 = icmp ult ptr %result.6643.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i28, label %rt_release.exit42, label %chk.i29
+
+chk.i29:                                          ; preds = %rt_str_copy.exit
+  %rcp.i30 = getelementptr i8, ptr %result.6643.addr.0.lcssa, i64 -16
+  %rc.i31 = load i64, ptr %rcp.i30, align 8
+  %imm.i32 = icmp slt i64 %rc.i31, 0
+  br i1 %imm.i32, label %rt_release.exit42, label %dec.i33
+
+dec.i33:                                          ; preds = %chk.i29
+  %n.i34 = add nsw i64 %rc.i31, -1
+  store i64 %n.i34, ptr %rcp.i30, align 8
+  %z.i35 = icmp eq i64 %n.i34, 0
+  br i1 %z.i35, label %drop.i36, label %rt_release.exit42
+
+drop.i36:                                         ; preds = %dec.i33
+  %dpp.i37 = getelementptr i8, ptr %result.6643.addr.0.lcssa, i64 -8
+  %dfn.i38 = load ptr, ptr %dpp.i37, align 8
+  %has.not.i39 = icmp eq ptr %dfn.i38, null
+  br i1 %has.not.i39, label %dofree.i41, label %calldrop.i40
+
+calldrop.i40:                                     ; preds = %drop.i36
+  tail call void %dfn.i38(ptr nonnull %result.6643.addr.0.lcssa)
+  br label %dofree.i41
+
+dofree.i41:                                       ; preds = %calldrop.i40, %drop.i36
+  tail call void @free(ptr %rcp.i30)
+  br label %rt_release.exit42
+
+rt_release.exit42:                                ; preds = %for.end.16693, %rt_str_copy.exit, %chk.i29, %dec.i33, %dofree.i41
+  %common.ret.op.i2745 = phi ptr [ %obj.i.i26, %rt_str_copy.exit ], [ %obj.i.i26, %chk.i29 ], [ %obj.i.i26, %dec.i33 ], [ %obj.i.i26, %dofree.i41 ], [ null, %for.end.16693 ]
+  ret ptr %common.ret.op.i2745
+}
+
+define noundef ptr @str__capitalize__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %char0 = load i8, ptr %self.arg, align 1
+  %t117496 = icmp eq i8 %char0, 0
+  %raw.i.i = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  store i8 0, ptr %obj.i.i, align 1
+  br i1 %t117496, label %common.ret, label %if.end.16698
+
+common.ret:                                       ; preds = %entry, %for.end.16704, %dofree.i84, %dec.i76, %chk.i72, %rt_str_copy.exit
+  %common.ret.op = phi ptr [ %obj.i.i69, %rt_str_copy.exit ], [ %obj.i.i69, %chk.i72 ], [ %obj.i.i69, %dec.i76 ], [ %obj.i.i69, %dofree.i84 ], [ null, %for.end.16704 ], [ %obj.i.i, %entry ]
+  ret ptr %common.ret.op
+
+if.end.16698:                                     ; preds = %entry
+  %t117503 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117505 = icmp slt i64 %t117503, 1
+  br i1 %t117505, label %diag.err.16699, label %diag.ok.16700
+
+diag.err.16699:                                   ; preds = %if.end.16698
+  %t117509 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7849, i64 161, i64 1, ptr %t117509) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16700:                                    ; preds = %if.end.16698
+  %1 = add i8 %char0, -97
+  %or.cond.i = icmp ult i8 %1, 26
+  %t118659.i = add i8 %char0, -32
+  %common.ret.op.i = select i1 %or.cond.i, i8 %t118659.i, i8 %char0
+  %raw.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  store i8 %common.ret.op.i, ptr %obj.i, align 1
+  %t117518 = getelementptr i8, ptr %raw.i, i64 17
+  store i8 0, ptr %t117518, align 1
+  %t117519 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i.i)
+  %t117520 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t117521 = add i64 %t117519, 17
+  %total.i = add i64 %t117521, %t117520
+  %raw.i9 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i9, align 8
+  %dp.i10 = getelementptr i8, ptr %raw.i9, i64 8
+  store ptr null, ptr %dp.i10, align 8
+  %obj.i11 = getelementptr i8, ptr %raw.i9, i64 16
+  %t117524 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i11, ptr noundef nonnull dereferenceable(1) %obj.i.i)
+  %t117525 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i11, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %diag.ok.16700
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %diag.ok.16700, %dofree.i
+  %small.i12 = icmp ult ptr %obj.i.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i12, label %rt_release.exit26, label %dofree.i25
+
+dofree.i25:                                       ; preds = %rt_release.exit
+  tail call void @free(ptr nonnull %raw.i.i)
+  br label %rt_release.exit26
+
+rt_release.exit26:                                ; preds = %rt_release.exit, %dofree.i25
+  %t11752989 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t11753090 = icmp sgt i64 %t11752989, 1
+  br i1 %t11753090, label %diag.ok.16706, label %for.end.16704
+
+diag.ok.16706:                                    ; preds = %rt_release.exit26, %rt_release.exit63
+  %i.6647.addr.092 = phi i64 [ %t117557, %rt_release.exit63 ], [ 1, %rt_release.exit26 ]
+  %result.6646.addr.091 = phi ptr [ %obj.i33, %rt_release.exit63 ], [ %obj.i11, %rt_release.exit26 ]
+  %t117542 = getelementptr i8, ptr %self.arg, i64 %i.6647.addr.092
+  %t117543 = load i8, ptr %t117542, align 1
+  %raw.i27 = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i27, align 8
+  %dp.i28 = getelementptr i8, ptr %raw.i27, i64 8
+  store ptr null, ptr %dp.i28, align 8
+  %obj.i29 = getelementptr i8, ptr %raw.i27, i64 16
+  store i8 %t117543, ptr %obj.i29, align 1
+  %t117547 = getelementptr i8, ptr %raw.i27, i64 17
+  store i8 0, ptr %t117547, align 1
+  %t117548 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6646.addr.091)
+  %t117549 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i29)
+  %t117550 = add i64 %t117548, 17
+  %total.i30 = add i64 %t117550, %t117549
+  %raw.i31 = tail call ptr @malloc(i64 %total.i30)
+  store i64 1, ptr %raw.i31, align 8
+  %dp.i32 = getelementptr i8, ptr %raw.i31, i64 8
+  store ptr null, ptr %dp.i32, align 8
+  %obj.i33 = getelementptr i8, ptr %raw.i31, i64 16
+  %t117553 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i33, ptr noundef nonnull dereferenceable(1) %result.6646.addr.091)
+  %t117554 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i33, ptr noundef nonnull dereferenceable(1) %obj.i29)
+  %small.i34 = icmp ult ptr %obj.i29, inttoptr (i64 65536 to ptr)
+  br i1 %small.i34, label %rt_release.exit48, label %dofree.i47
+
+dofree.i47:                                       ; preds = %diag.ok.16706
+  tail call void @free(ptr nonnull %raw.i27)
+  br label %rt_release.exit48
+
+rt_release.exit48:                                ; preds = %diag.ok.16706, %dofree.i47
+  %small.i49 = icmp ult ptr %result.6646.addr.091, inttoptr (i64 65536 to ptr)
+  br i1 %small.i49, label %rt_release.exit63, label %chk.i50
+
+chk.i50:                                          ; preds = %rt_release.exit48
+  %rcp.i51 = getelementptr i8, ptr %result.6646.addr.091, i64 -16
+  %rc.i52 = load i64, ptr %rcp.i51, align 8
+  %imm.i53 = icmp slt i64 %rc.i52, 0
+  br i1 %imm.i53, label %rt_release.exit63, label %dec.i54
+
+dec.i54:                                          ; preds = %chk.i50
+  %n.i55 = add nsw i64 %rc.i52, -1
+  store i64 %n.i55, ptr %rcp.i51, align 8
+  %z.i56 = icmp eq i64 %n.i55, 0
+  br i1 %z.i56, label %drop.i57, label %rt_release.exit63
+
+drop.i57:                                         ; preds = %dec.i54
+  %dpp.i58 = getelementptr i8, ptr %result.6646.addr.091, i64 -8
+  %dfn.i59 = load ptr, ptr %dpp.i58, align 8
+  %has.not.i60 = icmp eq ptr %dfn.i59, null
+  br i1 %has.not.i60, label %dofree.i62, label %calldrop.i61
+
+calldrop.i61:                                     ; preds = %drop.i57
+  tail call void %dfn.i59(ptr nonnull %result.6646.addr.091)
+  br label %dofree.i62
+
+dofree.i62:                                       ; preds = %calldrop.i61, %drop.i57
+  tail call void @free(ptr %rcp.i51)
+  br label %rt_release.exit63
+
+rt_release.exit63:                                ; preds = %rt_release.exit48, %chk.i50, %dec.i54, %dofree.i62
+  %t117557 = add nuw nsw i64 %i.6647.addr.092, 1
+  %t117529 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117530 = icmp slt i64 %t117557, %t117529
+  br i1 %t117530, label %diag.ok.16706, label %for.end.16704
+
+for.end.16704:                                    ; preds = %rt_release.exit63, %rt_release.exit26
+  %result.6646.addr.0.lcssa = phi ptr [ %obj.i11, %rt_release.exit26 ], [ %obj.i33, %rt_release.exit63 ]
+  %isnull.i = icmp eq ptr %result.6646.addr.0.lcssa, null
+  br i1 %isnull.i, label %common.ret, label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %for.end.16704
+  %len.i64 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6646.addr.0.lcssa)
+  %sz.i65 = add i64 %len.i64, 1
+  %total.i.i66 = add i64 %len.i64, 17
+  %raw.i.i67 = tail call ptr @malloc(i64 %total.i.i66)
+  store i64 1, ptr %raw.i.i67, align 8
+  %dp.i.i68 = getelementptr i8, ptr %raw.i.i67, i64 8
+  store ptr null, ptr %dp.i.i68, align 8
+  %obj.i.i69 = getelementptr i8, ptr %raw.i.i67, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i69, ptr nonnull align 1 %result.6646.addr.0.lcssa, i64 %sz.i65, i1 false)
+  %small.i71 = icmp ult ptr %result.6646.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i71, label %common.ret, label %chk.i72
+
+chk.i72:                                          ; preds = %rt_str_copy.exit
+  %rcp.i73 = getelementptr i8, ptr %result.6646.addr.0.lcssa, i64 -16
+  %rc.i74 = load i64, ptr %rcp.i73, align 8
+  %imm.i75 = icmp slt i64 %rc.i74, 0
+  br i1 %imm.i75, label %common.ret, label %dec.i76
+
+dec.i76:                                          ; preds = %chk.i72
+  %n.i77 = add nsw i64 %rc.i74, -1
+  store i64 %n.i77, ptr %rcp.i73, align 8
+  %z.i78 = icmp eq i64 %n.i77, 0
+  br i1 %z.i78, label %drop.i79, label %common.ret
+
+drop.i79:                                         ; preds = %dec.i76
+  %dpp.i80 = getelementptr i8, ptr %result.6646.addr.0.lcssa, i64 -8
+  %dfn.i81 = load ptr, ptr %dpp.i80, align 8
+  %has.not.i82 = icmp eq ptr %dfn.i81, null
+  br i1 %has.not.i82, label %dofree.i84, label %calldrop.i83
+
+calldrop.i83:                                     ; preds = %drop.i79
+  tail call void %dfn.i81(ptr nonnull %result.6646.addr.0.lcssa)
+  br label %dofree.i84
+
+dofree.i84:                                       ; preds = %calldrop.i83, %drop.i79
+  tail call void @free(ptr %rcp.i73)
+  br label %common.ret
+}
+
+define noundef ptr @str__uncapitalize__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %char0 = load i8, ptr %self.arg, align 1
+  %t117563 = icmp eq i8 %char0, 0
+  %raw.i.i = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  store i8 0, ptr %obj.i.i, align 1
+  br i1 %t117563, label %common.ret, label %if.end.16709
+
+common.ret:                                       ; preds = %entry, %for.end.16715, %dofree.i84, %dec.i76, %chk.i72, %rt_str_copy.exit
+  %common.ret.op = phi ptr [ %obj.i.i69, %rt_str_copy.exit ], [ %obj.i.i69, %chk.i72 ], [ %obj.i.i69, %dec.i76 ], [ %obj.i.i69, %dofree.i84 ], [ null, %for.end.16715 ], [ %obj.i.i, %entry ]
+  ret ptr %common.ret.op
+
+if.end.16709:                                     ; preds = %entry
+  %t117570 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117572 = icmp slt i64 %t117570, 1
+  br i1 %t117572, label %diag.err.16710, label %diag.ok.16711
+
+diag.err.16710:                                   ; preds = %if.end.16709
+  %t117576 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7855, i64 161, i64 1, ptr %t117576) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16711:                                    ; preds = %if.end.16709
+  %1 = add i8 %char0, -65
+  %or.cond.i = icmp ult i8 %1, 26
+  %t118642.i = add i8 %char0, 32
+  %common.ret.op.i = select i1 %or.cond.i, i8 %t118642.i, i8 %char0
+  %raw.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  store i8 %common.ret.op.i, ptr %obj.i, align 1
+  %t117585 = getelementptr i8, ptr %raw.i, i64 17
+  store i8 0, ptr %t117585, align 1
+  %t117586 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i.i)
+  %t117587 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t117588 = add i64 %t117586, 17
+  %total.i = add i64 %t117588, %t117587
+  %raw.i9 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i9, align 8
+  %dp.i10 = getelementptr i8, ptr %raw.i9, i64 8
+  store ptr null, ptr %dp.i10, align 8
+  %obj.i11 = getelementptr i8, ptr %raw.i9, i64 16
+  %t117591 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i11, ptr noundef nonnull dereferenceable(1) %obj.i.i)
+  %t117592 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i11, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %diag.ok.16711
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %diag.ok.16711, %dofree.i
+  %small.i12 = icmp ult ptr %obj.i.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i12, label %rt_release.exit26, label %dofree.i25
+
+dofree.i25:                                       ; preds = %rt_release.exit
+  tail call void @free(ptr nonnull %raw.i.i)
+  br label %rt_release.exit26
+
+rt_release.exit26:                                ; preds = %rt_release.exit, %dofree.i25
+  %t11759689 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t11759790 = icmp sgt i64 %t11759689, 1
+  br i1 %t11759790, label %diag.ok.16717, label %for.end.16715
+
+diag.ok.16717:                                    ; preds = %rt_release.exit26, %rt_release.exit63
+  %i.6650.addr.092 = phi i64 [ %t117624, %rt_release.exit63 ], [ 1, %rt_release.exit26 ]
+  %result.6649.addr.091 = phi ptr [ %obj.i33, %rt_release.exit63 ], [ %obj.i11, %rt_release.exit26 ]
+  %t117609 = getelementptr i8, ptr %self.arg, i64 %i.6650.addr.092
+  %t117610 = load i8, ptr %t117609, align 1
+  %raw.i27 = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i27, align 8
+  %dp.i28 = getelementptr i8, ptr %raw.i27, i64 8
+  store ptr null, ptr %dp.i28, align 8
+  %obj.i29 = getelementptr i8, ptr %raw.i27, i64 16
+  store i8 %t117610, ptr %obj.i29, align 1
+  %t117614 = getelementptr i8, ptr %raw.i27, i64 17
+  store i8 0, ptr %t117614, align 1
+  %t117615 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6649.addr.091)
+  %t117616 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i29)
+  %t117617 = add i64 %t117615, 17
+  %total.i30 = add i64 %t117617, %t117616
+  %raw.i31 = tail call ptr @malloc(i64 %total.i30)
+  store i64 1, ptr %raw.i31, align 8
+  %dp.i32 = getelementptr i8, ptr %raw.i31, i64 8
+  store ptr null, ptr %dp.i32, align 8
+  %obj.i33 = getelementptr i8, ptr %raw.i31, i64 16
+  %t117620 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i33, ptr noundef nonnull dereferenceable(1) %result.6649.addr.091)
+  %t117621 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i33, ptr noundef nonnull dereferenceable(1) %obj.i29)
+  %small.i34 = icmp ult ptr %obj.i29, inttoptr (i64 65536 to ptr)
+  br i1 %small.i34, label %rt_release.exit48, label %dofree.i47
+
+dofree.i47:                                       ; preds = %diag.ok.16717
+  tail call void @free(ptr nonnull %raw.i27)
+  br label %rt_release.exit48
+
+rt_release.exit48:                                ; preds = %diag.ok.16717, %dofree.i47
+  %small.i49 = icmp ult ptr %result.6649.addr.091, inttoptr (i64 65536 to ptr)
+  br i1 %small.i49, label %rt_release.exit63, label %chk.i50
+
+chk.i50:                                          ; preds = %rt_release.exit48
+  %rcp.i51 = getelementptr i8, ptr %result.6649.addr.091, i64 -16
+  %rc.i52 = load i64, ptr %rcp.i51, align 8
+  %imm.i53 = icmp slt i64 %rc.i52, 0
+  br i1 %imm.i53, label %rt_release.exit63, label %dec.i54
+
+dec.i54:                                          ; preds = %chk.i50
+  %n.i55 = add nsw i64 %rc.i52, -1
+  store i64 %n.i55, ptr %rcp.i51, align 8
+  %z.i56 = icmp eq i64 %n.i55, 0
+  br i1 %z.i56, label %drop.i57, label %rt_release.exit63
+
+drop.i57:                                         ; preds = %dec.i54
+  %dpp.i58 = getelementptr i8, ptr %result.6649.addr.091, i64 -8
+  %dfn.i59 = load ptr, ptr %dpp.i58, align 8
+  %has.not.i60 = icmp eq ptr %dfn.i59, null
+  br i1 %has.not.i60, label %dofree.i62, label %calldrop.i61
+
+calldrop.i61:                                     ; preds = %drop.i57
+  tail call void %dfn.i59(ptr nonnull %result.6649.addr.091)
+  br label %dofree.i62
+
+dofree.i62:                                       ; preds = %calldrop.i61, %drop.i57
+  tail call void @free(ptr %rcp.i51)
+  br label %rt_release.exit63
+
+rt_release.exit63:                                ; preds = %rt_release.exit48, %chk.i50, %dec.i54, %dofree.i62
+  %t117624 = add nuw nsw i64 %i.6650.addr.092, 1
+  %t117596 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117597 = icmp slt i64 %t117624, %t117596
+  br i1 %t117597, label %diag.ok.16717, label %for.end.16715
+
+for.end.16715:                                    ; preds = %rt_release.exit63, %rt_release.exit26
+  %result.6649.addr.0.lcssa = phi ptr [ %obj.i11, %rt_release.exit26 ], [ %obj.i33, %rt_release.exit63 ]
+  %isnull.i = icmp eq ptr %result.6649.addr.0.lcssa, null
+  br i1 %isnull.i, label %common.ret, label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %for.end.16715
+  %len.i64 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6649.addr.0.lcssa)
+  %sz.i65 = add i64 %len.i64, 1
+  %total.i.i66 = add i64 %len.i64, 17
+  %raw.i.i67 = tail call ptr @malloc(i64 %total.i.i66)
+  store i64 1, ptr %raw.i.i67, align 8
+  %dp.i.i68 = getelementptr i8, ptr %raw.i.i67, i64 8
+  store ptr null, ptr %dp.i.i68, align 8
+  %obj.i.i69 = getelementptr i8, ptr %raw.i.i67, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i69, ptr nonnull align 1 %result.6649.addr.0.lcssa, i64 %sz.i65, i1 false)
+  %small.i71 = icmp ult ptr %result.6649.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i71, label %common.ret, label %chk.i72
+
+chk.i72:                                          ; preds = %rt_str_copy.exit
+  %rcp.i73 = getelementptr i8, ptr %result.6649.addr.0.lcssa, i64 -16
+  %rc.i74 = load i64, ptr %rcp.i73, align 8
+  %imm.i75 = icmp slt i64 %rc.i74, 0
+  br i1 %imm.i75, label %common.ret, label %dec.i76
+
+dec.i76:                                          ; preds = %chk.i72
+  %n.i77 = add nsw i64 %rc.i74, -1
+  store i64 %n.i77, ptr %rcp.i73, align 8
+  %z.i78 = icmp eq i64 %n.i77, 0
+  br i1 %z.i78, label %drop.i79, label %common.ret
+
+drop.i79:                                         ; preds = %dec.i76
+  %dpp.i80 = getelementptr i8, ptr %result.6649.addr.0.lcssa, i64 -8
+  %dfn.i81 = load ptr, ptr %dpp.i80, align 8
+  %has.not.i82 = icmp eq ptr %dfn.i81, null
+  br i1 %has.not.i82, label %dofree.i84, label %calldrop.i83
+
+calldrop.i83:                                     ; preds = %drop.i79
+  tail call void %dfn.i81(ptr nonnull %result.6649.addr.0.lcssa)
+  br label %dofree.i84
+
+dofree.i84:                                       ; preds = %calldrop.i83, %drop.i79
+  tail call void @free(ptr %rcp.i73)
+  br label %common.ret
+}
+
+define noundef ptr @str__replace_first__mangled(ptr readonly %self.arg, ptr readonly %old.arg, ptr nocapture readonly %replacement.arg) local_unnamed_addr {
+entry:
+  %isnull.i = icmp eq ptr %old.arg, null
+  br i1 %isnull.i, label %rt_str_copy.exit, label %cp.i
+
+cp.i:                                             ; preds = %entry
+  %len.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %old.arg)
+  %sz.i = add i64 %len.i, 1
+  %total.i.i = add i64 %len.i, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %old.arg, i64 %sz.i, i1 false)
+  br label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %entry, %cp.i
+  %common.ret.op.i = phi ptr [ %obj.i.i, %cp.i ], [ null, %entry ]
+  %t117098.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117100.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %common.ret.op.i)
+  %t117102.i = icmp eq i64 %t117100.i, 0
+  br i1 %t117102.i, label %str__index_of__mangled.exit, label %if.end.16571.i
+
+if.end.16571.i:                                   ; preds = %rt_str_copy.exit
+  %t117105.i = icmp sgt i64 %t117100.i, %t117098.i
+  br i1 %t117105.i, label %str__index_of__mangled.exit, label %for.cond.16575.preheader.i
+
+for.cond.16575.preheader.i:                       ; preds = %if.end.16571.i
+  %t117110.i = sub i64 %t117098.i, %t117100.i
+  %t117111.not17.i = icmp slt i64 %t117110.i, 0
+  br i1 %t117111.not17.i, label %str__index_of__mangled.exit, label %for.cond.16579.preheader.lr.ph.i
+
+for.cond.16579.preheader.lr.ph.i:                 ; preds = %for.cond.16575.preheader.i
+  %t117114.not14.i = icmp sgt i64 %t117100.i, 0
+  br i1 %t117114.not14.i, label %for.cond.16579.preheader.us.i, label %str__index_of__mangled.exit
+
+for.cond.16579.preheader.us.i:                    ; preds = %for.cond.16579.preheader.lr.ph.i, %for.step.16577.us.i
+  %i.6605.addr.018.us.i = phi i64 [ %t117149.us.i, %for.step.16577.us.i ], [ 0, %for.cond.16579.preheader.lr.ph.i ]
+  %exitcond = icmp eq i64 %i.6605.addr.018.us.i, -9223372036854775808
+  br i1 %exitcond, label %diag.err.16583.i.split, label %for.body.16580.us.i
+
+for.cond.16579.us.i:                              ; preds = %diag.ok.16586.us.i
+  %t117145.us.i = add nuw nsw i64 %j.6607.addr.015.us.i, 1
+  %exitcond.not.i = icmp eq i64 %t117145.us.i, %t117100.i
+  br i1 %exitcond.not.i, label %str__index_of__mangled.exit, label %for.body.16580.us.i
+
+for.body.16580.us.i:                              ; preds = %for.cond.16579.preheader.us.i, %for.cond.16579.us.i
+  %j.6607.addr.015.us.i = phi i64 [ %t117145.us.i, %for.cond.16579.us.i ], [ 0, %for.cond.16579.preheader.us.i ]
+  %t117118.us.i = add nuw nsw i64 %j.6607.addr.015.us.i, %i.6605.addr.018.us.i
+  %t117121.us.i.not = icmp slt i64 %t117118.us.i, %t117098.i
+  br i1 %t117121.us.i.not, label %diag.ok.16586.us.i, label %diag.err.16583.i.split
+
+diag.ok.16586.us.i:                               ; preds = %for.body.16580.us.i
+  %t117127.us.i = getelementptr i8, ptr %self.arg, i64 %t117118.us.i
+  %t117128.us.i = load i8, ptr %t117127.us.i, align 1
+  %t117140.us.i = getelementptr i8, ptr %common.ret.op.i, i64 %j.6607.addr.015.us.i
+  %t117141.us.i = load i8, ptr %t117140.us.i, align 1
+  %t117143.not.us.i = icmp eq i8 %t117128.us.i, %t117141.us.i
+  br i1 %t117143.not.us.i, label %for.cond.16579.us.i, label %for.step.16577.us.i
+
+for.step.16577.us.i:                              ; preds = %diag.ok.16586.us.i
+  %t117149.us.i = add nuw i64 %i.6605.addr.018.us.i, 1
+  %t117111.not.us.i = icmp sgt i64 %t117149.us.i, %t117110.i
+  br i1 %t117111.not.us.i, label %str__index_of__mangled.exit, label %for.cond.16579.preheader.us.i
+
+diag.err.16583.i.split:                           ; preds = %for.cond.16579.preheader.us.i, %for.body.16580.us.i
+  %t117125.i = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7817, i64 174, i64 1, ptr %t117125.i) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+str__index_of__mangled.exit:                      ; preds = %for.step.16577.us.i, %for.cond.16579.us.i, %rt_str_copy.exit, %if.end.16571.i, %for.cond.16575.preheader.i, %for.cond.16579.preheader.lr.ph.i
+  %common.ret.op.i3 = phi i64 [ 0, %rt_str_copy.exit ], [ -1, %if.end.16571.i ], [ -1, %for.cond.16575.preheader.i ], [ 0, %for.cond.16579.preheader.lr.ph.i ], [ %i.6605.addr.018.us.i, %for.cond.16579.us.i ], [ -1, %for.step.16577.us.i ]
+  %small.i = icmp ult ptr %common.ret.op.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %chk.i
+
+chk.i:                                            ; preds = %str__index_of__mangled.exit
+  %rcp.i = getelementptr i8, ptr %common.ret.op.i, i64 -16
+  %rc.i = load i64, ptr %rcp.i, align 8
+  %imm.i = icmp slt i64 %rc.i, 0
+  br i1 %imm.i, label %rt_release.exit, label %dec.i
+
+dec.i:                                            ; preds = %chk.i
+  %n.i = add nsw i64 %rc.i, -1
+  store i64 %n.i, ptr %rcp.i, align 8
+  %z.i = icmp eq i64 %n.i, 0
+  br i1 %z.i, label %drop.i, label %rt_release.exit
+
+drop.i:                                           ; preds = %dec.i
+  %dpp.i = getelementptr i8, ptr %common.ret.op.i, i64 -8
+  %dfn.i = load ptr, ptr %dpp.i, align 8
+  %has.not.i = icmp eq ptr %dfn.i, null
+  br i1 %has.not.i, label %dofree.i, label %calldrop.i
+
+calldrop.i:                                       ; preds = %drop.i
+  tail call void %dfn.i(ptr nonnull %common.ret.op.i)
+  br label %dofree.i
+
+dofree.i:                                         ; preds = %calldrop.i, %drop.i
+  tail call void @free(ptr %rcp.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %str__index_of__mangled.exit, %chk.i, %dec.i, %dofree.i
+  %t117633 = icmp slt i64 %common.ret.op.i3, 0
+  br i1 %t117633, label %if.then.16718, label %if.end.16720
+
+common.ret:                                       ; preds = %dofree.i61, %dec.i53, %chk.i49, %rt_release.exit47, %cp.i5, %if.then.16718
+  %common.ret.op = phi ptr [ %obj.i.i11, %cp.i5 ], [ null, %if.then.16718 ], [ %obj.i17, %rt_release.exit47 ], [ %obj.i17, %chk.i49 ], [ %obj.i17, %dec.i53 ], [ %obj.i17, %dofree.i61 ]
+  ret ptr %common.ret.op
+
+if.then.16718:                                    ; preds = %rt_release.exit
+  %isnull.i4 = icmp eq ptr %self.arg, null
+  br i1 %isnull.i4, label %common.ret, label %cp.i5
+
+cp.i5:                                            ; preds = %if.then.16718
+  %len.i6 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %sz.i7 = add i64 %len.i6, 1
+  %total.i.i8 = add i64 %len.i6, 17
+  %raw.i.i9 = tail call ptr @malloc(i64 %total.i.i8)
+  store i64 1, ptr %raw.i.i9, align 8
+  %dp.i.i10 = getelementptr i8, ptr %raw.i.i9, i64 8
+  store ptr null, ptr %dp.i.i10, align 8
+  %obj.i.i11 = getelementptr i8, ptr %raw.i.i9, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i11, ptr nonnull align 1 %self.arg, i64 %sz.i7, i1 false)
+  br label %common.ret
+
+if.end.16720:                                     ; preds = %rt_release.exit
+  %t117638 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 0, i64 %common.ret.op.i3)
+  %t117642 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %old.arg)
+  %t117643 = add i64 %t117642, %common.ret.op.i3
+  %t117645 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117646 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 %t117643, i64 %t117645)
+  %t117649 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %t117638)
+  %t117650 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %replacement.arg)
+  %t117651 = add i64 %t117649, 17
+  %total.i = add i64 %t117651, %t117650
+  %raw.i = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  %t117654 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i, ptr noundef nonnull dereferenceable(1) %t117638)
+  %t117655 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i, ptr noundef nonnull dereferenceable(1) %replacement.arg)
+  %t117657 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t117658 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %t117646)
+  %t117659 = add i64 %t117657, 17
+  %total.i14 = add i64 %t117659, %t117658
+  %raw.i15 = tail call ptr @malloc(i64 %total.i14)
+  store i64 1, ptr %raw.i15, align 8
+  %dp.i16 = getelementptr i8, ptr %raw.i15, i64 8
+  store ptr null, ptr %dp.i16, align 8
+  %obj.i17 = getelementptr i8, ptr %raw.i15, i64 16
+  %t117662 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i17, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t117663 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i17, ptr noundef nonnull dereferenceable(1) %t117646)
+  %small.i18 = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i18, label %rt_release.exit32, label %dofree.i31
+
+dofree.i31:                                       ; preds = %if.end.16720
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit32
+
+rt_release.exit32:                                ; preds = %if.end.16720, %dofree.i31
+  %small.i33 = icmp ult ptr %t117646, inttoptr (i64 65536 to ptr)
+  br i1 %small.i33, label %rt_release.exit47, label %chk.i34
+
+chk.i34:                                          ; preds = %rt_release.exit32
+  %rcp.i35 = getelementptr i8, ptr %t117646, i64 -16
+  %rc.i36 = load i64, ptr %rcp.i35, align 8
+  %imm.i37 = icmp slt i64 %rc.i36, 0
+  br i1 %imm.i37, label %rt_release.exit47, label %dec.i38
+
+dec.i38:                                          ; preds = %chk.i34
+  %n.i39 = add nsw i64 %rc.i36, -1
+  store i64 %n.i39, ptr %rcp.i35, align 8
+  %z.i40 = icmp eq i64 %n.i39, 0
+  br i1 %z.i40, label %drop.i41, label %rt_release.exit47
+
+drop.i41:                                         ; preds = %dec.i38
+  %dpp.i42 = getelementptr i8, ptr %t117646, i64 -8
+  %dfn.i43 = load ptr, ptr %dpp.i42, align 8
+  %has.not.i44 = icmp eq ptr %dfn.i43, null
+  br i1 %has.not.i44, label %dofree.i46, label %calldrop.i45
+
+calldrop.i45:                                     ; preds = %drop.i41
+  tail call void %dfn.i43(ptr nonnull %t117646)
+  br label %dofree.i46
+
+dofree.i46:                                       ; preds = %calldrop.i45, %drop.i41
+  tail call void @free(ptr %rcp.i35)
+  br label %rt_release.exit47
+
+rt_release.exit47:                                ; preds = %rt_release.exit32, %chk.i34, %dec.i38, %dofree.i46
+  %small.i48 = icmp ult ptr %t117638, inttoptr (i64 65536 to ptr)
+  br i1 %small.i48, label %common.ret, label %chk.i49
+
+chk.i49:                                          ; preds = %rt_release.exit47
+  %rcp.i50 = getelementptr i8, ptr %t117638, i64 -16
+  %rc.i51 = load i64, ptr %rcp.i50, align 8
+  %imm.i52 = icmp slt i64 %rc.i51, 0
+  br i1 %imm.i52, label %common.ret, label %dec.i53
+
+dec.i53:                                          ; preds = %chk.i49
+  %n.i54 = add nsw i64 %rc.i51, -1
+  store i64 %n.i54, ptr %rcp.i50, align 8
+  %z.i55 = icmp eq i64 %n.i54, 0
+  br i1 %z.i55, label %drop.i56, label %common.ret
+
+drop.i56:                                         ; preds = %dec.i53
+  %dpp.i57 = getelementptr i8, ptr %t117638, i64 -8
+  %dfn.i58 = load ptr, ptr %dpp.i57, align 8
+  %has.not.i59 = icmp eq ptr %dfn.i58, null
+  br i1 %has.not.i59, label %dofree.i61, label %calldrop.i60
+
+calldrop.i60:                                     ; preds = %drop.i56
+  tail call void %dfn.i58(ptr nonnull %t117638)
+  br label %dofree.i61
+
+dofree.i61:                                       ; preds = %calldrop.i60, %drop.i56
+  tail call void @free(ptr %rcp.i50)
+  br label %common.ret
+}
+
+define noundef ptr @str__replace_all__mangled(ptr readonly %self.arg, ptr nocapture readonly %old.arg, ptr nocapture readonly %replacement.arg) local_unnamed_addr {
+entry:
+  %t117667 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %old.arg)
+  %t117669 = icmp eq i64 %t117667, 0
+  br i1 %t117669, label %if.then.16721, label %if.end.16723
+
+common.ret:                                       ; preds = %dofree.i106, %dec.i98, %chk.i94, %rt_release.exit92, %cp.i, %if.then.16721
+  %common.ret.op = phi ptr [ %obj.i.i, %cp.i ], [ null, %if.then.16721 ], [ %obj.i41, %rt_release.exit92 ], [ %obj.i41, %chk.i94 ], [ %obj.i41, %dec.i98 ], [ %obj.i41, %dofree.i106 ]
+  ret ptr %common.ret.op
+
+if.then.16721:                                    ; preds = %entry
+  %isnull.i = icmp eq ptr %self.arg, null
+  br i1 %isnull.i, label %common.ret, label %cp.i
+
+cp.i:                                             ; preds = %if.then.16721
+  %len.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %sz.i = add i64 %len.i, 1
+  %total.i.i = add i64 %len.i, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %self.arg, i64 %sz.i, i1 false)
+  br label %common.ret
+
+if.end.16723:                                     ; preds = %entry
+  %t117673 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %raw.i = tail call dereferenceable_or_null(48) ptr @malloc(i64 48)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr @rt_drop_vec, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  %t117679 = icmp sgt i64 %t117673, 0
+  tail call void @llvm.memset.p0.i64(ptr noundef nonnull align 8 dereferenceable(32) %obj.i, i8 0, i64 32, i1 false)
+  br i1 %t117679, label %s2c.fill.16724, label %s2c.done.16727
+
+s2c.fill.16724:                                   ; preds = %if.end.16723
+  %t117678 = getelementptr i8, ptr %raw.i, i64 40
+  %t117677 = getelementptr i8, ptr %raw.i, i64 32
+  %t117676 = getelementptr i8, ptr %raw.i, i64 24
+  %t117680 = shl i64 %t117673, 3
+  %t117681 = tail call ptr @malloc(i64 %t117680)
+  store ptr %t117681, ptr %t117676, align 8
+  store i64 %t117673, ptr %t117677, align 8
+  store i64 %t117673, ptr %t117678, align 8
+  br label %s2c.body.16726
+
+s2c.body.16726:                                   ; preds = %s2c.fill.16724, %s2c.body.16726
+  %t117685.0108 = phi i64 [ 0, %s2c.fill.16724 ], [ %t117692, %s2c.body.16726 ]
+  %t117688 = getelementptr i8, ptr %self.arg, i64 %t117685.0108
+  %t117689 = load i8, ptr %t117688, align 1
+  %t117690 = zext i8 %t117689 to i64
+  %t117691 = getelementptr i64, ptr %t117681, i64 %t117685.0108
+  store i64 %t117690, ptr %t117691, align 8
+  %t117692 = add nuw nsw i64 %t117685.0108, 1
+  %exitcond.not = icmp eq i64 %t117692, %t117673
+  br i1 %exitcond.not, label %s2c.done.16727, label %s2c.body.16726
+
+s2c.done.16727:                                   ; preds = %s2c.body.16726, %if.end.16723
+  %t117772 = phi ptr [ null, %if.end.16723 ], [ %t117681, %s2c.body.16726 ]
+  %t117762 = phi i64 [ 0, %if.end.16723 ], [ %t117673, %s2c.body.16726 ]
+  %raw.i14 = tail call dereferenceable_or_null(48) ptr @malloc(i64 48)
+  store i64 1, ptr %raw.i14, align 8
+  %dp.i15 = getelementptr i8, ptr %raw.i14, i64 8
+  store ptr @rt_drop_vec, ptr %dp.i15, align 8
+  %obj.i16 = getelementptr i8, ptr %raw.i14, i64 16
+  %t117700 = icmp sgt i64 %t117667, 0
+  tail call void @llvm.memset.p0.i64(ptr noundef nonnull align 8 dereferenceable(32) %obj.i16, i8 0, i64 32, i1 false)
+  br i1 %t117700, label %s2c.fill.16728, label %s2c.done.16731
+
+s2c.fill.16728:                                   ; preds = %s2c.done.16727
+  %t117699 = getelementptr i8, ptr %raw.i14, i64 40
+  %t117698 = getelementptr i8, ptr %raw.i14, i64 32
+  %t117697 = getelementptr i8, ptr %raw.i14, i64 24
+  %t117701 = shl i64 %t117667, 3
+  %t117702 = tail call ptr @malloc(i64 %t117701)
+  store ptr %t117702, ptr %t117697, align 8
+  store i64 %t117667, ptr %t117698, align 8
+  store i64 %t117667, ptr %t117699, align 8
+  br label %s2c.body.16730
+
+s2c.body.16730:                                   ; preds = %s2c.fill.16728, %s2c.body.16730
+  %t117706.0109 = phi i64 [ 0, %s2c.fill.16728 ], [ %t117713, %s2c.body.16730 ]
+  %t117709 = getelementptr i8, ptr %old.arg, i64 %t117706.0109
+  %t117710 = load i8, ptr %t117709, align 1
+  %t117711 = zext i8 %t117710 to i64
+  %t117712 = getelementptr i64, ptr %t117702, i64 %t117706.0109
+  store i64 %t117711, ptr %t117712, align 8
+  %t117713 = add nuw nsw i64 %t117706.0109, 1
+  %exitcond120.not = icmp eq i64 %t117713, %t117667
+  br i1 %exitcond120.not, label %s2c.done.16731, label %s2c.body.16730
+
+s2c.done.16731:                                   ; preds = %s2c.body.16730, %s2c.done.16727
+  %t117815 = phi ptr [ null, %s2c.done.16727 ], [ %t117702, %s2c.body.16730 ]
+  %t117805 = phi i64 [ 0, %s2c.done.16727 ], [ %t117667, %s2c.body.16730 ]
+  %t117715 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %replacement.arg)
+  %raw.i17 = tail call dereferenceable_or_null(48) ptr @malloc(i64 48)
+  store i64 1, ptr %raw.i17, align 8
+  %dp.i18 = getelementptr i8, ptr %raw.i17, i64 8
+  store ptr @rt_drop_vec, ptr %dp.i18, align 8
+  %obj.i19 = getelementptr i8, ptr %raw.i17, i64 16
+  %t117718 = getelementptr i8, ptr %raw.i17, i64 24
+  %t117721 = icmp sgt i64 %t117715, 0
+  tail call void @llvm.memset.p0.i64(ptr noundef nonnull align 8 dereferenceable(32) %obj.i19, i8 0, i64 32, i1 false)
+  br i1 %t117721, label %s2c.fill.16732, label %s2c.done.16735
+
+s2c.fill.16732:                                   ; preds = %s2c.done.16731
+  %t117720 = getelementptr i8, ptr %raw.i17, i64 40
+  %t117719 = getelementptr i8, ptr %raw.i17, i64 32
+  %t117722 = shl i64 %t117715, 3
+  %t117723 = tail call ptr @malloc(i64 %t117722)
+  store ptr %t117723, ptr %t117718, align 8
+  store i64 %t117715, ptr %t117719, align 8
+  store i64 %t117715, ptr %t117720, align 8
+  br label %s2c.body.16734
+
+s2c.body.16734:                                   ; preds = %s2c.fill.16732, %s2c.body.16734
+  %t117727.0110 = phi i64 [ 0, %s2c.fill.16732 ], [ %t117734, %s2c.body.16734 ]
+  %t117730 = getelementptr i8, ptr %replacement.arg, i64 %t117727.0110
+  %t117731 = load i8, ptr %t117730, align 1
+  %t117732 = zext i8 %t117731 to i64
+  %t117733 = getelementptr i64, ptr %t117723, i64 %t117727.0110
+  store i64 %t117732, ptr %t117733, align 8
+  %t117734 = add nuw nsw i64 %t117727.0110, 1
+  %exitcond121.not = icmp eq i64 %t117734, %t117715
+  br i1 %exitcond121.not, label %s2c.done.16735, label %s2c.body.16734
+
+s2c.done.16735:                                   ; preds = %s2c.body.16734, %s2c.done.16731
+  %t117825 = phi i64 [ 0, %s2c.done.16731 ], [ %t117715, %s2c.body.16734 ]
+  %t117742 = icmp slt i64 %t117805, 1
+  br i1 %t117742, label %diag.err.16736, label %diag.ok.16737
+
+diag.err.16736:                                   ; preds = %s2c.done.16735
+  %t117746 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7859, i64 164, i64 1, ptr %t117746) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16737:                                    ; preds = %s2c.done.16735
+  %t117751 = load ptr, ptr %t117815, align 8
+  %small.i = icmp ult ptr %t117751, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_retain.exit, label %chk.i
+
+chk.i:                                            ; preds = %diag.ok.16737
+  %rcp.i = getelementptr i8, ptr %t117751, i64 -16
+  %rc.i = load i64, ptr %rcp.i, align 8
+  %imm.i = icmp slt i64 %rc.i, 0
+  br i1 %imm.i, label %rt_retain.exit, label %inc.i
+
+inc.i:                                            ; preds = %chk.i
+  %n.i = add nuw i64 %rc.i, 1
+  store i64 %n.i, ptr %rcp.i, align 8
+  br label %rt_retain.exit
+
+rt_retain.exit:                                   ; preds = %diag.ok.16737, %chk.i, %inc.i
+  %raw.i20 = tail call dereferenceable_or_null(48) ptr @malloc(i64 48)
+  store i64 1, ptr %raw.i20, align 8
+  %dp.i21 = getelementptr i8, ptr %raw.i20, i64 8
+  store ptr @rt_drop_vec, ptr %dp.i21, align 8
+  %obj.i22 = getelementptr i8, ptr %raw.i20, i64 16
+  %t117754 = getelementptr i8, ptr %raw.i20, i64 24
+  %t117755 = getelementptr i8, ptr %raw.i20, i64 32
+  %t117756 = getelementptr i8, ptr %raw.i20, i64 40
+  %t117759115 = icmp sgt i64 %t117762, 0
+  tail call void @llvm.memset.p0.i64(ptr noundef nonnull align 8 dereferenceable(32) %obj.i22, i8 0, i64 32, i1 false)
+  br i1 %t117759115, label %while.body.16739.lr.ph, label %while.end.16740
+
+while.body.16739.lr.ph:                           ; preds = %rt_retain.exit
+  %t117785111 = icmp sgt i64 %t117667, 1
+  %t117827 = icmp sgt i64 %t117825, 0
+  %t117847 = shl i64 %t117825, 3
+  br label %while.body.16739
+
+while.body.16739:                                 ; preds = %while.body.16739.lr.ph, %if.end.16763
+  %t117889151 = phi ptr [ null, %while.body.16739.lr.ph ], [ %t117889152, %if.end.16763 ]
+  %t117882 = phi ptr [ null, %while.body.16739.lr.ph ], [ %t117882149, %if.end.16763 ]
+  %t117880 = phi i64 [ 0, %while.body.16739.lr.ph ], [ %t117880145, %if.end.16763 ]
+  %t117878 = phi i64 [ 0, %while.body.16739.lr.ph ], [ %t117878142, %if.end.16763 ]
+  %t117843138 = phi ptr [ null, %while.body.16739.lr.ph ], [ %t117843139, %if.end.16763 ]
+  %t117835 = phi ptr [ null, %while.body.16739.lr.ph ], [ %t117835137, %if.end.16763 ]
+  %t117831 = phi i64 [ 0, %while.body.16739.lr.ph ], [ %t117831133, %if.end.16763 ]
+  %t117829 = phi i64 [ 0, %while.body.16739.lr.ph ], [ %t117829131, %if.end.16763 ]
+  %i.6667.addr.0116 = phi i64 [ 0, %while.body.16739.lr.ph ], [ %i.6667.addr.1, %if.end.16763 ]
+  %t117766.not = icmp ult i64 %i.6667.addr.0116, %t117762
+  br i1 %t117766.not, label %diag.ok.16746, label %diag.err.16745
+
+diag.err.16745:                                   ; preds = %while.body.16739
+  %t117769 = load ptr, ptr @stderr, align 8
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.7861, i64 179, i64 1, ptr %t117769) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16746:                                    ; preds = %while.body.16739
+  %t117773 = getelementptr ptr, ptr %t117772, i64 %i.6667.addr.0116
+  %t117774 = load ptr, ptr %t117773, align 8
+  %t117776 = icmp ne ptr %t117774, %t117751
+  %t117779 = add i64 %i.6667.addr.0116, %t117667
+  %t117781.not = icmp sgt i64 %t117779, %t117762
+  %or.cond = or i1 %t117776, %t117781.not
+  br i1 %or.cond, label %if.else.16762, label %for.cond.16750.preheader
+
+for.cond.16750.preheader:                         ; preds = %diag.ok.16746
+  br i1 %t117785111, label %for.body.16751.preheader, label %if.then.16761.critedge
+
+for.body.16751.preheader:                         ; preds = %for.cond.16750.preheader
+  %t117792 = icmp slt i64 %i.6667.addr.0116, -1
+  br label %for.body.16751
+
+for.cond.16750:                                   ; preds = %diag.ok.16757
+  %t117820 = add nuw nsw i64 %j.6669.addr.0112, 1
+  %exitcond122.not = icmp eq i64 %t117820, %t117667
+  br i1 %exitcond122.not, label %if.then.16761.critedge, label %for.body.16751
+
+for.body.16751:                                   ; preds = %for.body.16751.preheader, %for.cond.16750
+  %j.6669.addr.0112 = phi i64 [ %t117820, %for.cond.16750 ], [ 1, %for.body.16751.preheader ]
+  %t117789 = add nuw nsw i64 %j.6669.addr.0112, %i.6667.addr.0116
+  %t117793 = icmp sge i64 %t117789, %t117762
+  %t117794 = or i1 %t117792, %t117793
+  br i1 %t117794, label %diag.err.16754, label %diag.ok.16755
+
+diag.err.16754:                                   ; preds = %for.body.16751
+  %t117797 = load ptr, ptr @stderr, align 8
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.7863, i64 190, i64 1, ptr %t117797) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16755:                                    ; preds = %for.body.16751
+  %t117808.not = icmp slt i64 %j.6669.addr.0112, %t117805
+  br i1 %t117808.not, label %diag.ok.16757, label %diag.err.16756
+
+diag.err.16756:                                   ; preds = %diag.ok.16755
+  %t117812 = load ptr, ptr @stderr, align 8
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.7865, i64 206, i64 1, ptr %t117812) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16757:                                    ; preds = %diag.ok.16755
+  %t117801 = getelementptr ptr, ptr %t117772, i64 %t117789
+  %t117802 = load ptr, ptr %t117801, align 8
+  %t117816 = getelementptr ptr, ptr %t117815, i64 %j.6669.addr.0112
+  %t117817 = load ptr, ptr %t117816, align 8
+  %t117818.not = icmp eq ptr %t117802, %t117817
+  br i1 %t117818.not, label %for.cond.16750, label %if.else.16762
+
+if.then.16761.critedge:                           ; preds = %for.cond.16750, %for.cond.16750.preheader
+  br i1 %t117827, label %vext.do.16764, label %if.end.16763
+
+vext.do.16764:                                    ; preds = %if.then.16761.critedge
+  %t117833 = add i64 %t117829, %t117825
+  %t117834 = icmp sgt i64 %t117833, %t117831
+  br i1 %t117834, label %vext.grow.16765, label %vext.merge.16766
+
+vext.grow.16765:                                  ; preds = %vext.do.16764
+  %t117836 = shl i64 %t117831, 1
+  %t117838 = tail call i64 @llvm.smax.i64(i64 %t117833, i64 %t117836)
+  %t117840 = tail call i64 @llvm.smax.i64(i64 %t117838, i64 4)
+  %t117841 = shl i64 %t117840, 3
+  %t117842 = tail call ptr @realloc(ptr %t117835, i64 %t117841)
+  store ptr %t117842, ptr %t117754, align 8
+  store i64 %t117840, ptr %t117756, align 8
+  br label %vext.merge.16766
+
+vext.merge.16766:                                 ; preds = %vext.grow.16765, %vext.do.16764
+  %t117889150 = phi ptr [ %t117842, %vext.grow.16765 ], [ %t117889151, %vext.do.16764 ]
+  %t117882147 = phi ptr [ %t117842, %vext.grow.16765 ], [ %t117882, %vext.do.16764 ]
+  %t117880146 = phi i64 [ %t117840, %vext.grow.16765 ], [ %t117880, %vext.do.16764 ]
+  %t117843 = phi ptr [ %t117842, %vext.grow.16765 ], [ %t117843138, %vext.do.16764 ]
+  %t117831134 = phi i64 [ %t117840, %vext.grow.16765 ], [ %t117831, %vext.do.16764 ]
+  %t117845 = load ptr, ptr %t117718, align 8
+  %t117846 = getelementptr i64, ptr %t117843, i64 %t117829
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %t117846, ptr align 1 %t117845, i64 %t117847, i1 false)
+  br label %if.end.16763.sink.split
+
+if.else.16762:                                    ; preds = %diag.ok.16757, %diag.ok.16746
+  %small.i31 = icmp ult ptr %t117774, inttoptr (i64 65536 to ptr)
+  br i1 %small.i31, label %rt_retain.exit38, label %chk.i32
+
+chk.i32:                                          ; preds = %if.else.16762
+  %rcp.i33 = getelementptr i8, ptr %t117774, i64 -16
+  %rc.i34 = load i64, ptr %rcp.i33, align 8
+  %imm.i35 = icmp slt i64 %rc.i34, 0
+  br i1 %imm.i35, label %rt_retain.exit38, label %inc.i36
+
+inc.i36:                                          ; preds = %chk.i32
+  %n.i37 = add nuw i64 %rc.i34, 1
+  store i64 %n.i37, ptr %rcp.i33, align 8
+  br label %rt_retain.exit38
+
+rt_retain.exit38:                                 ; preds = %if.else.16762, %chk.i32, %inc.i36
+  %t117883.not = icmp slt i64 %t117878, %t117880
+  br i1 %t117883.not, label %vec.merge.16774, label %vec.grow.16773
+
+vec.grow.16773:                                   ; preds = %rt_retain.exit38
+  %t117884 = add i64 %t117880, 8
+  %t117885 = icmp eq i64 %t117880, 0
+  %t117886 = select i1 %t117885, i64 4, i64 %t117884
+  %t117887 = shl i64 %t117886, 3
+  %t117888 = tail call ptr @realloc(ptr %t117882, i64 %t117887)
+  store ptr %t117888, ptr %t117754, align 8
+  store i64 %t117886, ptr %t117756, align 8
+  %t117890.pre = load i64, ptr %t117755, align 8
+  br label %vec.merge.16774
+
+vec.merge.16774:                                  ; preds = %vec.grow.16773, %rt_retain.exit38
+  %t117890 = phi i64 [ %t117890.pre, %vec.grow.16773 ], [ %t117878, %rt_retain.exit38 ]
+  %t117889 = phi ptr [ %t117888, %vec.grow.16773 ], [ %t117889151, %rt_retain.exit38 ]
+  %t117880143 = phi i64 [ %t117886, %vec.grow.16773 ], [ %t117880, %rt_retain.exit38 ]
+  %t117891 = getelementptr ptr, ptr %t117889, i64 %t117890
+  store ptr %t117774, ptr %t117891, align 8
+  store i64 1, ptr %obj.i22, align 8
+  %t117892 = add i64 %t117890, 1
+  br label %if.end.16763.sink.split
+
+if.end.16763.sink.split:                          ; preds = %vec.merge.16774, %vext.merge.16766
+  %t117833.sink = phi i64 [ %t117833, %vext.merge.16766 ], [ %t117892, %vec.merge.16774 ]
+  %t117889152.ph = phi ptr [ %t117889150, %vext.merge.16766 ], [ %t117889, %vec.merge.16774 ]
+  %t117882149.ph = phi ptr [ %t117882147, %vext.merge.16766 ], [ %t117889, %vec.merge.16774 ]
+  %t117880145.ph = phi i64 [ %t117880146, %vext.merge.16766 ], [ %t117880143, %vec.merge.16774 ]
+  %t117843139.ph = phi ptr [ %t117843, %vext.merge.16766 ], [ %t117889, %vec.merge.16774 ]
+  %t117831133.ph = phi i64 [ %t117831134, %vext.merge.16766 ], [ %t117880143, %vec.merge.16774 ]
+  %t117667.pn.ph = phi i64 [ %t117667, %vext.merge.16766 ], [ 1, %vec.merge.16774 ]
+  store i64 %t117833.sink, ptr %t117755, align 8
+  br label %if.end.16763
+
+if.end.16763:                                     ; preds = %if.end.16763.sink.split, %if.then.16761.critedge
+  %t117889152 = phi ptr [ %t117889151, %if.then.16761.critedge ], [ %t117889152.ph, %if.end.16763.sink.split ]
+  %t117882149 = phi ptr [ %t117882, %if.then.16761.critedge ], [ %t117882149.ph, %if.end.16763.sink.split ]
+  %t117880145 = phi i64 [ %t117880, %if.then.16761.critedge ], [ %t117880145.ph, %if.end.16763.sink.split ]
+  %t117878142 = phi i64 [ %t117878, %if.then.16761.critedge ], [ %t117833.sink, %if.end.16763.sink.split ]
+  %t117843139 = phi ptr [ %t117843138, %if.then.16761.critedge ], [ %t117843139.ph, %if.end.16763.sink.split ]
+  %t117835137 = phi ptr [ %t117835, %if.then.16761.critedge ], [ %t117843139.ph, %if.end.16763.sink.split ]
+  %t117831133 = phi i64 [ %t117831, %if.then.16761.critedge ], [ %t117831133.ph, %if.end.16763.sink.split ]
+  %t117829131 = phi i64 [ %t117829, %if.then.16761.critedge ], [ %t117833.sink, %if.end.16763.sink.split ]
+  %t117667.pn = phi i64 [ %t117667, %if.then.16761.critedge ], [ %t117667.pn.ph, %if.end.16763.sink.split ]
+  %i.6667.addr.1 = add i64 %t117667.pn, %i.6667.addr.0116
+  %t117759 = icmp slt i64 %i.6667.addr.1, %t117762
+  br i1 %t117759, label %while.body.16739, label %while.end.16740
+
+while.end.16740:                                  ; preds = %if.end.16763, %rt_retain.exit
+  %t117899 = phi ptr [ null, %rt_retain.exit ], [ %t117889152, %if.end.16763 ]
+  %t117897 = phi i64 [ 0, %rt_retain.exit ], [ %t117878142, %if.end.16763 ]
+  %total.i = add i64 %t117897, 17
+  %raw.i39 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i39, align 8
+  %dp.i40 = getelementptr i8, ptr %raw.i39, i64 8
+  store ptr null, ptr %dp.i40, align 8
+  %obj.i41 = getelementptr i8, ptr %raw.i39, i64 16
+  %t117904117 = icmp sgt i64 %t117897, 0
+  br i1 %t117904117, label %c2s.body.16776, label %c2s.done.16777
+
+c2s.body.16776:                                   ; preds = %while.end.16740, %c2s.body.16776
+  %t117902.0118 = phi i64 [ %t117909, %c2s.body.16776 ], [ 0, %while.end.16740 ]
+  %t117905 = getelementptr i64, ptr %t117899, i64 %t117902.0118
+  %t117906 = load i64, ptr %t117905, align 8
+  %t117907 = trunc i64 %t117906 to i8
+  %t117908 = getelementptr i8, ptr %obj.i41, i64 %t117902.0118
+  store i8 %t117907, ptr %t117908, align 1
+  %t117909 = add nuw nsw i64 %t117902.0118, 1
+  %exitcond124.not = icmp eq i64 %t117909, %t117897
+  br i1 %exitcond124.not, label %c2s.done.16777, label %c2s.body.16776
+
+c2s.done.16777:                                   ; preds = %c2s.body.16776, %while.end.16740
+  %t117910 = getelementptr i8, ptr %obj.i41, i64 %t117897
+  store i8 0, ptr %t117910, align 1
+  %small.i42 = icmp ult ptr %obj.i22, inttoptr (i64 65536 to ptr)
+  br i1 %small.i42, label %rt_release.exit, label %chk.i43
+
+chk.i43:                                          ; preds = %c2s.done.16777
+  %rc.i45 = load i64, ptr %raw.i20, align 8
+  %imm.i46 = icmp slt i64 %rc.i45, 0
+  br i1 %imm.i46, label %rt_release.exit, label %dec.i
+
+dec.i:                                            ; preds = %chk.i43
+  %n.i47 = add nsw i64 %rc.i45, -1
+  store i64 %n.i47, ptr %raw.i20, align 8
+  %z.i = icmp eq i64 %n.i47, 0
+  br i1 %z.i, label %drop.i, label %rt_release.exit
+
+drop.i:                                           ; preds = %dec.i
+  %dfn.i = load ptr, ptr %dp.i21, align 8
+  %has.not.i = icmp eq ptr %dfn.i, null
+  br i1 %has.not.i, label %dofree.i, label %calldrop.i
+
+calldrop.i:                                       ; preds = %drop.i
+  tail call void %dfn.i(ptr nonnull %obj.i22)
+  br label %dofree.i
+
+dofree.i:                                         ; preds = %calldrop.i, %drop.i
+  tail call void @free(ptr nonnull %raw.i20)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %c2s.done.16777, %chk.i43, %dec.i, %dofree.i
+  br i1 %small.i, label %rt_release.exit62, label %chk.i49
+
+chk.i49:                                          ; preds = %rt_release.exit
+  %rcp.i50 = getelementptr i8, ptr %t117751, i64 -16
+  %rc.i51 = load i64, ptr %rcp.i50, align 8
+  %imm.i52 = icmp slt i64 %rc.i51, 0
+  br i1 %imm.i52, label %rt_release.exit62, label %dec.i53
+
+dec.i53:                                          ; preds = %chk.i49
+  %n.i54 = add nsw i64 %rc.i51, -1
+  store i64 %n.i54, ptr %rcp.i50, align 8
+  %z.i55 = icmp eq i64 %n.i54, 0
+  br i1 %z.i55, label %drop.i56, label %rt_release.exit62
+
+drop.i56:                                         ; preds = %dec.i53
+  %dpp.i57 = getelementptr i8, ptr %t117751, i64 -8
+  %dfn.i58 = load ptr, ptr %dpp.i57, align 8
+  %has.not.i59 = icmp eq ptr %dfn.i58, null
+  br i1 %has.not.i59, label %dofree.i61, label %calldrop.i60
+
+calldrop.i60:                                     ; preds = %drop.i56
+  tail call void %dfn.i58(ptr nonnull %t117751)
+  br label %dofree.i61
+
+dofree.i61:                                       ; preds = %calldrop.i60, %drop.i56
+  tail call void @free(ptr %rcp.i50)
+  br label %rt_release.exit62
+
+rt_release.exit62:                                ; preds = %rt_release.exit, %chk.i49, %dec.i53, %dofree.i61
+  %small.i63 = icmp ult ptr %obj.i19, inttoptr (i64 65536 to ptr)
+  br i1 %small.i63, label %rt_release.exit77, label %chk.i64
+
+chk.i64:                                          ; preds = %rt_release.exit62
+  %rc.i66 = load i64, ptr %raw.i17, align 8
+  %imm.i67 = icmp slt i64 %rc.i66, 0
+  br i1 %imm.i67, label %rt_release.exit77, label %dec.i68
+
+dec.i68:                                          ; preds = %chk.i64
+  %n.i69 = add nsw i64 %rc.i66, -1
+  store i64 %n.i69, ptr %raw.i17, align 8
+  %z.i70 = icmp eq i64 %n.i69, 0
+  br i1 %z.i70, label %drop.i71, label %rt_release.exit77
+
+drop.i71:                                         ; preds = %dec.i68
+  %dfn.i73 = load ptr, ptr %dp.i18, align 8
+  %has.not.i74 = icmp eq ptr %dfn.i73, null
+  br i1 %has.not.i74, label %dofree.i76, label %calldrop.i75
+
+calldrop.i75:                                     ; preds = %drop.i71
+  tail call void %dfn.i73(ptr nonnull %obj.i19)
+  br label %dofree.i76
+
+dofree.i76:                                       ; preds = %calldrop.i75, %drop.i71
+  tail call void @free(ptr nonnull %raw.i17)
+  br label %rt_release.exit77
+
+rt_release.exit77:                                ; preds = %rt_release.exit62, %chk.i64, %dec.i68, %dofree.i76
+  %small.i78 = icmp ult ptr %obj.i16, inttoptr (i64 65536 to ptr)
+  br i1 %small.i78, label %rt_release.exit92, label %chk.i79
+
+chk.i79:                                          ; preds = %rt_release.exit77
+  %rc.i81 = load i64, ptr %raw.i14, align 8
+  %imm.i82 = icmp slt i64 %rc.i81, 0
+  br i1 %imm.i82, label %rt_release.exit92, label %dec.i83
+
+dec.i83:                                          ; preds = %chk.i79
+  %n.i84 = add nsw i64 %rc.i81, -1
+  store i64 %n.i84, ptr %raw.i14, align 8
+  %z.i85 = icmp eq i64 %n.i84, 0
+  br i1 %z.i85, label %drop.i86, label %rt_release.exit92
+
+drop.i86:                                         ; preds = %dec.i83
+  %dfn.i88 = load ptr, ptr %dp.i15, align 8
+  %has.not.i89 = icmp eq ptr %dfn.i88, null
+  br i1 %has.not.i89, label %dofree.i91, label %calldrop.i90
+
+calldrop.i90:                                     ; preds = %drop.i86
+  tail call void %dfn.i88(ptr nonnull %obj.i16)
+  br label %dofree.i91
+
+dofree.i91:                                       ; preds = %calldrop.i90, %drop.i86
+  tail call void @free(ptr nonnull %raw.i14)
+  br label %rt_release.exit92
+
+rt_release.exit92:                                ; preds = %rt_release.exit77, %chk.i79, %dec.i83, %dofree.i91
+  %small.i93 = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i93, label %common.ret, label %chk.i94
+
+chk.i94:                                          ; preds = %rt_release.exit92
+  %rc.i96 = load i64, ptr %raw.i, align 8
+  %imm.i97 = icmp slt i64 %rc.i96, 0
+  br i1 %imm.i97, label %common.ret, label %dec.i98
+
+dec.i98:                                          ; preds = %chk.i94
+  %n.i99 = add nsw i64 %rc.i96, -1
+  store i64 %n.i99, ptr %raw.i, align 8
+  %z.i100 = icmp eq i64 %n.i99, 0
+  br i1 %z.i100, label %drop.i101, label %common.ret
+
+drop.i101:                                        ; preds = %dec.i98
+  %dfn.i103 = load ptr, ptr %dp.i, align 8
+  %has.not.i104 = icmp eq ptr %dfn.i103, null
+  br i1 %has.not.i104, label %dofree.i106, label %calldrop.i105
+
+calldrop.i105:                                    ; preds = %drop.i101
+  tail call void %dfn.i103(ptr nonnull %obj.i)
+  br label %dofree.i106
+
+dofree.i106:                                      ; preds = %calldrop.i105, %drop.i101
+  tail call void @free(ptr nonnull %raw.i)
+  br label %common.ret
+}
+
+define noundef ptr @str__split__mangled(ptr readonly %self.arg, ptr nocapture readonly %sep.arg) local_unnamed_addr {
+entry:
+  %raw.i = tail call dereferenceable_or_null(48) ptr @malloc(i64 48)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr @rt_drop_vec, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  %t117918 = getelementptr i8, ptr %raw.i, i64 24
+  %t117919 = getelementptr i8, ptr %raw.i, i64 32
+  %t117920 = getelementptr i8, ptr %raw.i, i64 40
+  tail call void @llvm.memset.p0.i64(ptr noundef nonnull align 8 dereferenceable(32) %obj.i, i8 0, i64 32, i1 false)
+  %t117922 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %sep.arg)
+  %t117924 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117926 = icmp eq i64 %t117922, 0
+  br i1 %t117926, label %if.then.16778, label %while.cond.16783.preheader
+
+while.cond.16783.preheader:                       ; preds = %entry
+  %t117952.not47 = icmp sgt i64 %t117922, %t117924
+  br i1 %t117952.not47, label %while.end.16785, label %for.cond.16786.preheader.lr.ph
+
+for.cond.16786.preheader.lr.ph:                   ; preds = %while.cond.16783.preheader
+  %t117955.not45 = icmp sgt i64 %t117922, 0
+  br i1 %t117955.not45, label %for.cond.16786.preheader.us, label %for.cond.16786.preheader
+
+for.cond.16786.preheader.us:                      ; preds = %for.cond.16786.preheader.lr.ph, %if.end.16799.us
+  %t11795050.us = phi i64 [ %t117950.us, %if.end.16799.us ], [ %t117922, %for.cond.16786.preheader.lr.ph ]
+  %i.6676.addr.049.us = phi i64 [ %i.6676.addr.1.us, %if.end.16799.us ], [ 0, %for.cond.16786.preheader.lr.ph ]
+  %start.6675.addr.048.us = phi i64 [ %start.6675.addr.1.us, %if.end.16799.us ], [ 0, %for.cond.16786.preheader.lr.ph ]
+  %t117960.us = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t117961.us = icmp slt i64 %i.6676.addr.049.us, 0
+  br label %for.body.16787.us
+
+for.cond.16786.us:                                ; preds = %diag.ok.16793.us
+  %t117986.us = add nuw nsw i64 %j.6678.addr.046.us, 1
+  %exitcond.not = icmp eq i64 %t117986.us, %t117922
+  br i1 %exitcond.not, label %for.cond.16786.if.then.16797_crit_edge.us, label %for.body.16787.us
+
+vec.grow.16800.us:                                ; preds = %for.cond.16786.if.then.16797_crit_edge.us
+  %t118000.us = add i64 %t117996.us, 8
+  %t118001.us = icmp eq i64 %t117996.us, 0
+  %t118002.us = select i1 %t118001.us, i64 4, i64 %t118000.us
+  %t118003.us = shl i64 %t118002.us, 3
+  %t118004.us = tail call ptr @realloc(ptr %t118005.us.pre, i64 %t118003.us)
+  store ptr %t118004.us, ptr %t117918, align 8
+  store i64 %t118002.us, ptr %t117920, align 8
+  %t118006.us.pre = load i64, ptr %t117919, align 8
+  br label %vec.merge.16801.us
+
+vec.merge.16801.us:                               ; preds = %vec.grow.16800.us, %for.cond.16786.if.then.16797_crit_edge.us
+  %t118006.us = phi i64 [ %t118006.us.pre, %vec.grow.16800.us ], [ %t117994.us, %for.cond.16786.if.then.16797_crit_edge.us ]
+  %t118005.us = phi ptr [ %t118004.us, %vec.grow.16800.us ], [ %t118005.us.pre, %for.cond.16786.if.then.16797_crit_edge.us ]
+  %t118007.us = getelementptr ptr, ptr %t118005.us, i64 %t118006.us
+  store ptr %t117992.us, ptr %t118007.us, align 8
+  store i64 1, ptr %obj.i, align 8
+  %t118008.us = add i64 %t118006.us, 1
+  store i64 %t118008.us, ptr %t117919, align 8
+  br label %if.end.16799.us
+
+for.body.16787.us:                                ; preds = %for.cond.16786.preheader.us, %for.cond.16786.us
+  %j.6678.addr.046.us = phi i64 [ 0, %for.cond.16786.preheader.us ], [ %t117986.us, %for.cond.16786.us ]
+  %t117959.us = add nuw nsw i64 %j.6678.addr.046.us, %i.6676.addr.049.us
+  %t117962.us = icmp sge i64 %t117959.us, %t117960.us
+  %t117963.us = or i1 %t117961.us, %t117962.us
+  br i1 %t117963.us, label %diag.err.16790, label %diag.ok.16791.us
+
+diag.ok.16791.us:                                 ; preds = %for.body.16787.us
+  %t117973.us = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %sep.arg)
+  %t117975.not.us = icmp slt i64 %j.6678.addr.046.us, %t117973.us
+  br i1 %t117975.not.us, label %diag.ok.16793.us, label %diag.err.16792
+
+diag.ok.16793.us:                                 ; preds = %diag.ok.16791.us
+  %t117968.us = getelementptr i8, ptr %self.arg, i64 %t117959.us
+  %t117969.us = load i8, ptr %t117968.us, align 1
+  %t117981.us = getelementptr i8, ptr %sep.arg, i64 %j.6678.addr.046.us
+  %t117982.us = load i8, ptr %t117981.us, align 1
+  %t117984.not.us = icmp eq i8 %t117969.us, %t117982.us
+  br i1 %t117984.not.us, label %for.cond.16786.us, label %if.else.16798.us
+
+if.else.16798.us:                                 ; preds = %diag.ok.16793.us
+  %t118014.us = add nuw i64 %i.6676.addr.049.us, 1
+  br label %if.end.16799.us
+
+if.end.16799.us:                                  ; preds = %if.else.16798.us, %vec.merge.16801.us
+  %start.6675.addr.1.us = phi i64 [ %t11795050.us, %vec.merge.16801.us ], [ %start.6675.addr.048.us, %if.else.16798.us ]
+  %i.6676.addr.1.us = phi i64 [ %t11795050.us, %vec.merge.16801.us ], [ %t118014.us, %if.else.16798.us ]
+  %t117950.us = add i64 %i.6676.addr.1.us, %t117922
+  %t117952.not.us = icmp sgt i64 %t117950.us, %t117924
+  br i1 %t117952.not.us, label %while.end.16785, label %for.cond.16786.preheader.us
+
+for.cond.16786.if.then.16797_crit_edge.us:        ; preds = %for.cond.16786.us
+  %t117992.us = tail call ptr @str__substring__mangled(ptr nonnull %self.arg, i64 %start.6675.addr.048.us, i64 %i.6676.addr.049.us)
+  %t117994.us = load i64, ptr %t117919, align 8
+  %t117996.us = load i64, ptr %t117920, align 8
+  %t117999.not.us = icmp slt i64 %t117994.us, %t117996.us
+  %t118005.us.pre = load ptr, ptr %t117918, align 8
+  br i1 %t117999.not.us, label %vec.merge.16801.us, label %vec.grow.16800.us
+
+if.then.16778:                                    ; preds = %entry
+  %isnull.i = icmp eq ptr %self.arg, null
+  br i1 %isnull.i, label %vec.merge.16782, label %cp.i
+
+cp.i:                                             ; preds = %if.then.16778
+  %sz.i = add i64 %t117924, 1
+  %total.i.i = add i64 %t117924, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %self.arg, i64 %sz.i, i1 false)
+  br label %vec.merge.16782
+
+common.ret:                                       ; preds = %chk.i21, %dec.i, %dofree.i41, %dec.i33, %chk.i29, %vec.merge.16803, %vec.merge.16782
+  ret ptr %obj.i
+
+vec.merge.16782:                                  ; preds = %if.then.16778, %cp.i
+  %common.ret.op.i = phi ptr [ %obj.i.i, %cp.i ], [ null, %if.then.16778 ]
+  %malloc = tail call dereferenceable_or_null(32) ptr @malloc(i64 32)
+  store ptr %malloc, ptr %t117918, align 8
+  store i64 4, ptr %t117920, align 8
+  store ptr %common.ret.op.i, ptr %malloc, align 8
+  store i64 1, ptr %obj.i, align 8
+  store i64 1, ptr %t117919, align 8
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %common.ret, label %dec.i
+
+dec.i:                                            ; preds = %vec.merge.16782
+  store i64 1, ptr %raw.i, align 8
+  br label %common.ret
+
+for.cond.16786.preheader:                         ; preds = %for.cond.16786.preheader.lr.ph, %vec.merge.16801
+  %t11795050 = phi i64 [ %t117950, %vec.merge.16801 ], [ %t117922, %for.cond.16786.preheader.lr.ph ]
+  %i.6676.addr.049 = phi i64 [ %t11795050, %vec.merge.16801 ], [ 0, %for.cond.16786.preheader.lr.ph ]
+  %t117992 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 %i.6676.addr.049, i64 %i.6676.addr.049)
+  %t117994 = load i64, ptr %t117919, align 8
+  %t117996 = load i64, ptr %t117920, align 8
+  %t117999.not = icmp slt i64 %t117994, %t117996
+  %t118005.pre = load ptr, ptr %t117918, align 8
+  br i1 %t117999.not, label %vec.merge.16801, label %vec.grow.16800
+
+diag.err.16790:                                   ; preds = %for.body.16787.us
+  %t117966 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7869, i64 174, i64 1, ptr %t117966) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.err.16792:                                   ; preds = %diag.ok.16791.us
+  %t117979 = load ptr, ptr @stderr, align 8
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.7871, i64 184, i64 1, ptr %t117979) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+vec.grow.16800:                                   ; preds = %for.cond.16786.preheader
+  %t118000 = add i64 %t117996, 8
+  %t118001 = icmp eq i64 %t117996, 0
+  %t118002 = select i1 %t118001, i64 4, i64 %t118000
+  %t118003 = shl i64 %t118002, 3
+  %t118004 = tail call ptr @realloc(ptr %t118005.pre, i64 %t118003)
+  store ptr %t118004, ptr %t117918, align 8
+  store i64 %t118002, ptr %t117920, align 8
+  %t118006.pre = load i64, ptr %t117919, align 8
+  br label %vec.merge.16801
+
+vec.merge.16801:                                  ; preds = %vec.grow.16800, %for.cond.16786.preheader
+  %t118006 = phi i64 [ %t118006.pre, %vec.grow.16800 ], [ %t117994, %for.cond.16786.preheader ]
+  %t118005 = phi ptr [ %t118004, %vec.grow.16800 ], [ %t118005.pre, %for.cond.16786.preheader ]
+  %t118007 = getelementptr ptr, ptr %t118005, i64 %t118006
+  store ptr %t117992, ptr %t118007, align 8
+  store i64 1, ptr %obj.i, align 8
+  %t118008 = add i64 %t118006, 1
+  store i64 %t118008, ptr %t117919, align 8
+  %t117950 = add i64 %t11795050, %t117922
+  %t117952.not = icmp sgt i64 %t117950, %t117924
+  br i1 %t117952.not, label %while.end.16785, label %for.cond.16786.preheader
+
+while.end.16785:                                  ; preds = %vec.merge.16801, %if.end.16799.us, %while.cond.16783.preheader
+  %start.6675.addr.0.lcssa = phi i64 [ 0, %while.cond.16783.preheader ], [ %start.6675.addr.1.us, %if.end.16799.us ], [ %t11795050, %vec.merge.16801 ]
+  %t118019 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 %start.6675.addr.0.lcssa, i64 %t117924)
+  %t118021 = load i64, ptr %t117919, align 8
+  %t118023 = load i64, ptr %t117920, align 8
+  %t118026.not = icmp slt i64 %t118021, %t118023
+  %t118032.pre = load ptr, ptr %t117918, align 8
+  br i1 %t118026.not, label %vec.merge.16803, label %vec.grow.16802
+
+vec.grow.16802:                                   ; preds = %while.end.16785
+  %t118027 = add i64 %t118023, 8
+  %t118028 = icmp eq i64 %t118023, 0
+  %t118029 = select i1 %t118028, i64 4, i64 %t118027
+  %t118030 = shl i64 %t118029, 3
+  %t118031 = tail call ptr @realloc(ptr %t118032.pre, i64 %t118030)
+  store ptr %t118031, ptr %t117918, align 8
+  store i64 %t118029, ptr %t117920, align 8
+  %t118033.pre = load i64, ptr %t117919, align 8
+  br label %vec.merge.16803
+
+vec.merge.16803:                                  ; preds = %vec.grow.16802, %while.end.16785
+  %t118033 = phi i64 [ %t118033.pre, %vec.grow.16802 ], [ %t118021, %while.end.16785 ]
+  %t118032 = phi ptr [ %t118031, %vec.grow.16802 ], [ %t118032.pre, %while.end.16785 ]
+  %t118034 = getelementptr ptr, ptr %t118032, i64 %t118033
+  store ptr %t118019, ptr %t118034, align 8
+  store i64 1, ptr %obj.i, align 8
+  %t118035 = add i64 %t118033, 1
+  store i64 %t118035, ptr %t117919, align 8
+  %small.i20 = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i20, label %common.ret, label %chk.i21
+
+chk.i21:                                          ; preds = %vec.merge.16803
+  %rc.i23 = load i64, ptr %raw.i, align 8
+  %imm.i24 = icmp slt i64 %rc.i23, 0
+  br i1 %imm.i24, label %common.ret, label %chk.i29
+
+chk.i29:                                          ; preds = %chk.i21
+  %n.i26 = add nuw i64 %rc.i23, 1
+  store i64 %n.i26, ptr %raw.i, align 8
+  %imm.i32 = icmp slt i64 %n.i26, 0
+  br i1 %imm.i32, label %common.ret, label %dec.i33
+
+dec.i33:                                          ; preds = %chk.i29
+  store i64 %rc.i23, ptr %raw.i, align 8
+  %z.i35 = icmp eq i64 %rc.i23, 0
+  br i1 %z.i35, label %drop.i36, label %common.ret
+
+drop.i36:                                         ; preds = %dec.i33
+  %dfn.i38 = load ptr, ptr %dp.i, align 8
+  %has.not.i39 = icmp eq ptr %dfn.i38, null
+  br i1 %has.not.i39, label %dofree.i41, label %calldrop.i40
+
+calldrop.i40:                                     ; preds = %drop.i36
+  tail call void %dfn.i38(ptr nonnull %obj.i)
+  br label %dofree.i41
+
+dofree.i41:                                       ; preds = %calldrop.i40, %drop.i36
+  tail call void @free(ptr nonnull %raw.i)
+  br label %common.ret
+}
+
+define noundef ptr @str__reverse__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %raw.i.i = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  store i8 0, ptr %obj.i.i, align 1
+  %t118041 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %i.6681.addr.046 = add i64 %t118041, -1
+  %t11804447 = icmp sgt i64 %i.6681.addr.046, -1
+  br i1 %t11804447, label %for.body.16805, label %for.end.16807
+
+for.body.16805:                                   ; preds = %entry, %rt_release.exit20
+  %i.6681.addr.049 = phi i64 [ %i.6681.addr.0, %rt_release.exit20 ], [ %i.6681.addr.046, %entry ]
+  %result.6680.addr.048 = phi ptr [ %obj.i5, %rt_release.exit20 ], [ %obj.i.i, %entry ]
+  %t118048 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118050.not = icmp slt i64 %i.6681.addr.049, %t118048
+  br i1 %t118050.not, label %diag.ok.16809, label %diag.err.16808
+
+diag.err.16808:                                   ; preds = %for.body.16805
+  %t118054 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7874, i64 158, i64 1, ptr %t118054) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16809:                                    ; preds = %for.body.16805
+  %t118056 = getelementptr i8, ptr %self.arg, i64 %i.6681.addr.049
+  %t118057 = load i8, ptr %t118056, align 1
+  %raw.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  store i8 %t118057, ptr %obj.i, align 1
+  %t118061 = getelementptr i8, ptr %raw.i, i64 17
+  store i8 0, ptr %t118061, align 1
+  %t118062 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6680.addr.048)
+  %t118063 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t118064 = add i64 %t118062, 17
+  %total.i = add i64 %t118064, %t118063
+  %raw.i3 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i3, align 8
+  %dp.i4 = getelementptr i8, ptr %raw.i3, i64 8
+  store ptr null, ptr %dp.i4, align 8
+  %obj.i5 = getelementptr i8, ptr %raw.i3, i64 16
+  %t118067 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i5, ptr noundef nonnull dereferenceable(1) %result.6680.addr.048)
+  %t118068 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i5, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %diag.ok.16809
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %diag.ok.16809, %dofree.i
+  %small.i6 = icmp ult ptr %result.6680.addr.048, inttoptr (i64 65536 to ptr)
+  br i1 %small.i6, label %rt_release.exit20, label %chk.i7
+
+chk.i7:                                           ; preds = %rt_release.exit
+  %rcp.i8 = getelementptr i8, ptr %result.6680.addr.048, i64 -16
+  %rc.i9 = load i64, ptr %rcp.i8, align 8
+  %imm.i10 = icmp slt i64 %rc.i9, 0
+  br i1 %imm.i10, label %rt_release.exit20, label %dec.i11
+
+dec.i11:                                          ; preds = %chk.i7
+  %n.i12 = add nsw i64 %rc.i9, -1
+  store i64 %n.i12, ptr %rcp.i8, align 8
+  %z.i13 = icmp eq i64 %n.i12, 0
+  br i1 %z.i13, label %drop.i14, label %rt_release.exit20
+
+drop.i14:                                         ; preds = %dec.i11
+  %dpp.i15 = getelementptr i8, ptr %result.6680.addr.048, i64 -8
+  %dfn.i16 = load ptr, ptr %dpp.i15, align 8
+  %has.not.i17 = icmp eq ptr %dfn.i16, null
+  br i1 %has.not.i17, label %dofree.i19, label %calldrop.i18
+
+calldrop.i18:                                     ; preds = %drop.i14
+  tail call void %dfn.i16(ptr nonnull %result.6680.addr.048)
+  br label %dofree.i19
+
+dofree.i19:                                       ; preds = %calldrop.i18, %drop.i14
+  tail call void @free(ptr %rcp.i8)
+  br label %rt_release.exit20
+
+rt_release.exit20:                                ; preds = %rt_release.exit, %chk.i7, %dec.i11, %dofree.i19
+  %i.6681.addr.0 = add nsw i64 %i.6681.addr.049, -1
+  %t118044 = icmp sgt i64 %i.6681.addr.049, 0
+  br i1 %t118044, label %for.body.16805, label %for.end.16807
+
+for.end.16807:                                    ; preds = %rt_release.exit20, %entry
+  %result.6680.addr.0.lcssa = phi ptr [ %obj.i.i, %entry ], [ %obj.i5, %rt_release.exit20 ]
+  %isnull.i = icmp eq ptr %result.6680.addr.0.lcssa, null
+  br i1 %isnull.i, label %rt_release.exit41, label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %for.end.16807
+  %len.i21 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6680.addr.0.lcssa)
+  %sz.i22 = add i64 %len.i21, 1
+  %total.i.i23 = add i64 %len.i21, 17
+  %raw.i.i24 = tail call ptr @malloc(i64 %total.i.i23)
+  store i64 1, ptr %raw.i.i24, align 8
+  %dp.i.i25 = getelementptr i8, ptr %raw.i.i24, i64 8
+  store ptr null, ptr %dp.i.i25, align 8
+  %obj.i.i26 = getelementptr i8, ptr %raw.i.i24, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i26, ptr nonnull align 1 %result.6680.addr.0.lcssa, i64 %sz.i22, i1 false)
+  %small.i27 = icmp ult ptr %result.6680.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i27, label %rt_release.exit41, label %chk.i28
+
+chk.i28:                                          ; preds = %rt_str_copy.exit
+  %rcp.i29 = getelementptr i8, ptr %result.6680.addr.0.lcssa, i64 -16
+  %rc.i30 = load i64, ptr %rcp.i29, align 8
+  %imm.i31 = icmp slt i64 %rc.i30, 0
+  br i1 %imm.i31, label %rt_release.exit41, label %dec.i32
+
+dec.i32:                                          ; preds = %chk.i28
+  %n.i33 = add nsw i64 %rc.i30, -1
+  store i64 %n.i33, ptr %rcp.i29, align 8
+  %z.i34 = icmp eq i64 %n.i33, 0
+  br i1 %z.i34, label %drop.i35, label %rt_release.exit41
+
+drop.i35:                                         ; preds = %dec.i32
+  %dpp.i36 = getelementptr i8, ptr %result.6680.addr.0.lcssa, i64 -8
+  %dfn.i37 = load ptr, ptr %dpp.i36, align 8
+  %has.not.i38 = icmp eq ptr %dfn.i37, null
+  br i1 %has.not.i38, label %dofree.i40, label %calldrop.i39
+
+calldrop.i39:                                     ; preds = %drop.i35
+  tail call void %dfn.i37(ptr nonnull %result.6680.addr.0.lcssa)
+  br label %dofree.i40
+
+dofree.i40:                                       ; preds = %calldrop.i39, %drop.i35
+  tail call void @free(ptr %rcp.i29)
+  br label %rt_release.exit41
+
+rt_release.exit41:                                ; preds = %for.end.16807, %rt_str_copy.exit, %chk.i28, %dec.i32, %dofree.i40
+  %common.ret.op.i44 = phi ptr [ %obj.i.i26, %rt_str_copy.exit ], [ %obj.i.i26, %chk.i28 ], [ %obj.i.i26, %dec.i32 ], [ %obj.i.i26, %dofree.i40 ], [ null, %for.end.16807 ]
+  ret ptr %common.ret.op.i44
+}
+
+define noundef ptr @str__repeat__mangled(ptr nocapture readonly %self.arg, i64 %count.arg) local_unnamed_addr {
+entry:
+  %raw.i.i = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  store i8 0, ptr %obj.i.i, align 1
+  %t118078 = icmp slt i64 %count.arg, 1
+  br i1 %t118078, label %rt_str_copy.exit, label %for.body.16814
+
+common.ret.sink.split:                            ; preds = %drop.i42, %calldrop.i46, %rt_str_copy.exit
+  %raw.i.lcssa.sink = phi ptr [ %raw.i.i, %rt_str_copy.exit ], [ %raw.i, %calldrop.i46 ], [ %raw.i, %drop.i42 ]
+  %common.ret.op.ph = phi ptr [ %obj.i.i8, %rt_str_copy.exit ], [ %obj.i.i31, %calldrop.i46 ], [ %obj.i.i31, %drop.i42 ]
+  tail call void @free(ptr nonnull %raw.i.lcssa.sink)
+  br label %common.ret
+
+common.ret:                                       ; preds = %common.ret.sink.split, %for.end.16816, %dec.i39, %chk.i35, %rt_str_copy.exit33, %rt_str_copy.exit
+  %common.ret.op = phi ptr [ %obj.i.i8, %rt_str_copy.exit ], [ %obj.i.i31, %rt_str_copy.exit33 ], [ %obj.i.i31, %chk.i35 ], [ %obj.i.i31, %dec.i39 ], [ null, %for.end.16816 ], [ %common.ret.op.ph, %common.ret.sink.split ]
+  ret ptr %common.ret.op
+
+rt_str_copy.exit:                                 ; preds = %entry
+  %len.i3 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i.i)
+  %sz.i4 = add i64 %len.i3, 1
+  %total.i.i5 = add i64 %len.i3, 17
+  %raw.i.i6 = tail call ptr @malloc(i64 %total.i.i5)
+  store i64 1, ptr %raw.i.i6, align 8
+  %dp.i.i7 = getelementptr i8, ptr %raw.i.i6, i64 8
+  store ptr null, ptr %dp.i.i7, align 8
+  %obj.i.i8 = getelementptr i8, ptr %raw.i.i6, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i8, ptr nonnull align 1 %obj.i.i, i64 %sz.i4, i1 false)
+  %small.i = icmp ult ptr %obj.i.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %common.ret, label %common.ret.sink.split
+
+for.body.16814:                                   ; preds = %entry, %rt_release.exit23
+  %i.6685.addr.056 = phi i64 [ %t118096, %rt_release.exit23 ], [ 0, %entry ]
+  %result.6684.addr.055 = phi ptr [ %obj.i, %rt_release.exit23 ], [ %obj.i.i, %entry ]
+  %t118087 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6684.addr.055)
+  %t118088 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118089 = add i64 %t118087, 17
+  %total.i = add i64 %t118089, %t118088
+  %raw.i = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  %t118092 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i, ptr noundef nonnull dereferenceable(1) %result.6684.addr.055)
+  %t118093 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i, ptr noundef nonnull dereferenceable(1) %self.arg)
+  %small.i9 = icmp ult ptr %result.6684.addr.055, inttoptr (i64 65536 to ptr)
+  br i1 %small.i9, label %rt_release.exit23, label %chk.i10
+
+chk.i10:                                          ; preds = %for.body.16814
+  %rcp.i11 = getelementptr i8, ptr %result.6684.addr.055, i64 -16
+  %rc.i12 = load i64, ptr %rcp.i11, align 8
+  %imm.i13 = icmp slt i64 %rc.i12, 0
+  br i1 %imm.i13, label %rt_release.exit23, label %dec.i14
+
+dec.i14:                                          ; preds = %chk.i10
+  %n.i15 = add nsw i64 %rc.i12, -1
+  store i64 %n.i15, ptr %rcp.i11, align 8
+  %z.i16 = icmp eq i64 %n.i15, 0
+  br i1 %z.i16, label %drop.i17, label %rt_release.exit23
+
+drop.i17:                                         ; preds = %dec.i14
+  %dpp.i18 = getelementptr i8, ptr %result.6684.addr.055, i64 -8
+  %dfn.i19 = load ptr, ptr %dpp.i18, align 8
+  %has.not.i20 = icmp eq ptr %dfn.i19, null
+  br i1 %has.not.i20, label %dofree.i22, label %calldrop.i21
+
+calldrop.i21:                                     ; preds = %drop.i17
+  tail call void %dfn.i19(ptr nonnull %result.6684.addr.055)
+  br label %dofree.i22
+
+dofree.i22:                                       ; preds = %calldrop.i21, %drop.i17
+  tail call void @free(ptr %rcp.i11)
+  br label %rt_release.exit23
+
+rt_release.exit23:                                ; preds = %for.body.16814, %chk.i10, %dec.i14, %dofree.i22
+  %t118096 = add nuw nsw i64 %i.6685.addr.056, 1
+  %exitcond.not = icmp eq i64 %t118096, %count.arg
+  br i1 %exitcond.not, label %for.end.16816, label %for.body.16814
+
+for.end.16816:                                    ; preds = %rt_release.exit23
+  %dp.i.le = getelementptr i8, ptr %raw.i, i64 8
+  %isnull.i24 = icmp eq ptr %obj.i, null
+  br i1 %isnull.i24, label %common.ret, label %rt_str_copy.exit33
+
+rt_str_copy.exit33:                               ; preds = %for.end.16816
+  %len.i26 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %sz.i27 = add i64 %len.i26, 1
+  %total.i.i28 = add i64 %len.i26, 17
+  %raw.i.i29 = tail call ptr @malloc(i64 %total.i.i28)
+  store i64 1, ptr %raw.i.i29, align 8
+  %dp.i.i30 = getelementptr i8, ptr %raw.i.i29, i64 8
+  store ptr null, ptr %dp.i.i30, align 8
+  %obj.i.i31 = getelementptr i8, ptr %raw.i.i29, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i31, ptr nonnull align 1 %obj.i, i64 %sz.i27, i1 false)
+  %small.i34 = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i34, label %common.ret, label %chk.i35
+
+chk.i35:                                          ; preds = %rt_str_copy.exit33
+  %rc.i37 = load i64, ptr %raw.i, align 8
+  %imm.i38 = icmp slt i64 %rc.i37, 0
+  br i1 %imm.i38, label %common.ret, label %dec.i39
+
+dec.i39:                                          ; preds = %chk.i35
+  %n.i40 = add nsw i64 %rc.i37, -1
+  store i64 %n.i40, ptr %raw.i, align 8
+  %z.i41 = icmp eq i64 %n.i40, 0
+  br i1 %z.i41, label %drop.i42, label %common.ret
+
+drop.i42:                                         ; preds = %dec.i39
+  %dfn.i44 = load ptr, ptr %dp.i.le, align 8
+  %has.not.i45 = icmp eq ptr %dfn.i44, null
+  br i1 %has.not.i45, label %common.ret.sink.split, label %calldrop.i46
+
+calldrop.i46:                                     ; preds = %drop.i42
+  tail call void %dfn.i44(ptr nonnull %obj.i)
+  br label %common.ret.sink.split
+}
+
+define noundef ptr @str__pad_left__mangled(ptr readonly %self.arg, i64 %length.arg, i32 %padding.arg) local_unnamed_addr {
+entry:
+  %isnull.i = icmp eq ptr %self.arg, null
+  br i1 %isnull.i, label %rt_str_copy.exit, label %cp.i
+
+cp.i:                                             ; preds = %entry
+  %len.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %sz.i = add i64 %len.i, 1
+  %total.i.i = add i64 %len.i, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %self.arg, i64 %sz.i, i1 false)
+  br label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %entry, %cp.i
+  %common.ret.op.i = phi ptr [ %obj.i.i, %cp.i ], [ null, %entry ]
+  %t11810347 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %common.ret.op.i)
+  %t11810548 = icmp slt i64 %t11810347, %length.arg
+  br i1 %t11810548, label %while.body.16818.lr.ph, label %while.end.16819
+
+while.body.16818.lr.ph:                           ; preds = %rt_str_copy.exit
+  %t118109 = trunc i32 %padding.arg to i8
+  br label %while.body.16818
+
+while.body.16818:                                 ; preds = %while.body.16818.lr.ph, %rt_release.exit18
+  %result.6689.addr.049 = phi ptr [ %common.ret.op.i, %while.body.16818.lr.ph ], [ %obj.i3, %rt_release.exit18 ]
+  %raw.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  store i8 %t118109, ptr %obj.i, align 1
+  %t118110 = getelementptr i8, ptr %raw.i, i64 17
+  store i8 0, ptr %t118110, align 1
+  %t118111 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t118112 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6689.addr.049)
+  %t118113 = add i64 %t118111, 17
+  %total.i = add i64 %t118113, %t118112
+  %raw.i1 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i1, align 8
+  %dp.i2 = getelementptr i8, ptr %raw.i1, i64 8
+  store ptr null, ptr %dp.i2, align 8
+  %obj.i3 = getelementptr i8, ptr %raw.i1, i64 16
+  %t118116 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i3, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t118117 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i3, ptr noundef nonnull dereferenceable(1) %result.6689.addr.049)
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %while.body.16818
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %while.body.16818, %dofree.i
+  %small.i4 = icmp ult ptr %result.6689.addr.049, inttoptr (i64 65536 to ptr)
+  br i1 %small.i4, label %rt_release.exit18, label %chk.i5
+
+chk.i5:                                           ; preds = %rt_release.exit
+  %rcp.i6 = getelementptr i8, ptr %result.6689.addr.049, i64 -16
+  %rc.i7 = load i64, ptr %rcp.i6, align 8
+  %imm.i8 = icmp slt i64 %rc.i7, 0
+  br i1 %imm.i8, label %rt_release.exit18, label %dec.i9
+
+dec.i9:                                           ; preds = %chk.i5
+  %n.i10 = add nsw i64 %rc.i7, -1
+  store i64 %n.i10, ptr %rcp.i6, align 8
+  %z.i11 = icmp eq i64 %n.i10, 0
+  br i1 %z.i11, label %drop.i12, label %rt_release.exit18
+
+drop.i12:                                         ; preds = %dec.i9
+  %dpp.i13 = getelementptr i8, ptr %result.6689.addr.049, i64 -8
+  %dfn.i14 = load ptr, ptr %dpp.i13, align 8
+  %has.not.i15 = icmp eq ptr %dfn.i14, null
+  br i1 %has.not.i15, label %dofree.i17, label %calldrop.i16
+
+calldrop.i16:                                     ; preds = %drop.i12
+  tail call void %dfn.i14(ptr nonnull %result.6689.addr.049)
+  br label %dofree.i17
+
+dofree.i17:                                       ; preds = %calldrop.i16, %drop.i12
+  tail call void @free(ptr %rcp.i6)
+  br label %rt_release.exit18
+
+rt_release.exit18:                                ; preds = %rt_release.exit, %chk.i5, %dec.i9, %dofree.i17
+  %t118103 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i3)
+  %t118105 = icmp slt i64 %t118103, %length.arg
+  br i1 %t118105, label %while.body.16818, label %while.end.16819
+
+while.end.16819:                                  ; preds = %rt_release.exit18, %rt_str_copy.exit
+  %result.6689.addr.0.lcssa = phi ptr [ %common.ret.op.i, %rt_str_copy.exit ], [ %obj.i3, %rt_release.exit18 ]
+  %t118103.lcssa = phi i64 [ %t11810347, %rt_str_copy.exit ], [ %t118103, %rt_release.exit18 ]
+  %isnull.i19 = icmp eq ptr %result.6689.addr.0.lcssa, null
+  br i1 %isnull.i19, label %rt_release.exit43, label %rt_str_copy.exit28
+
+rt_str_copy.exit28:                               ; preds = %while.end.16819
+  %sz.i22 = add i64 %t118103.lcssa, 1
+  %total.i.i23 = add i64 %t118103.lcssa, 17
+  %raw.i.i24 = tail call ptr @malloc(i64 %total.i.i23)
+  store i64 1, ptr %raw.i.i24, align 8
+  %dp.i.i25 = getelementptr i8, ptr %raw.i.i24, i64 8
+  store ptr null, ptr %dp.i.i25, align 8
+  %obj.i.i26 = getelementptr i8, ptr %raw.i.i24, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i26, ptr nonnull align 1 %result.6689.addr.0.lcssa, i64 %sz.i22, i1 false)
+  %small.i29 = icmp ult ptr %result.6689.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i29, label %rt_release.exit43, label %chk.i30
+
+chk.i30:                                          ; preds = %rt_str_copy.exit28
+  %rcp.i31 = getelementptr i8, ptr %result.6689.addr.0.lcssa, i64 -16
+  %rc.i32 = load i64, ptr %rcp.i31, align 8
+  %imm.i33 = icmp slt i64 %rc.i32, 0
+  br i1 %imm.i33, label %rt_release.exit43, label %dec.i34
+
+dec.i34:                                          ; preds = %chk.i30
+  %n.i35 = add nsw i64 %rc.i32, -1
+  store i64 %n.i35, ptr %rcp.i31, align 8
+  %z.i36 = icmp eq i64 %n.i35, 0
+  br i1 %z.i36, label %drop.i37, label %rt_release.exit43
+
+drop.i37:                                         ; preds = %dec.i34
+  %dpp.i38 = getelementptr i8, ptr %result.6689.addr.0.lcssa, i64 -8
+  %dfn.i39 = load ptr, ptr %dpp.i38, align 8
+  %has.not.i40 = icmp eq ptr %dfn.i39, null
+  br i1 %has.not.i40, label %dofree.i42, label %calldrop.i41
+
+calldrop.i41:                                     ; preds = %drop.i37
+  tail call void %dfn.i39(ptr nonnull %result.6689.addr.0.lcssa)
+  br label %dofree.i42
+
+dofree.i42:                                       ; preds = %calldrop.i41, %drop.i37
+  tail call void @free(ptr %rcp.i31)
+  br label %rt_release.exit43
+
+rt_release.exit43:                                ; preds = %while.end.16819, %rt_str_copy.exit28, %chk.i30, %dec.i34, %dofree.i42
+  %common.ret.op.i2746 = phi ptr [ %obj.i.i26, %rt_str_copy.exit28 ], [ %obj.i.i26, %chk.i30 ], [ %obj.i.i26, %dec.i34 ], [ %obj.i.i26, %dofree.i42 ], [ null, %while.end.16819 ]
+  ret ptr %common.ret.op.i2746
+}
+
+define noundef ptr @str__pad_right__mangled(ptr readonly %self.arg, i64 %length.arg, i32 %padding.arg) local_unnamed_addr {
+entry:
+  %isnull.i = icmp eq ptr %self.arg, null
+  br i1 %isnull.i, label %rt_str_copy.exit, label %cp.i
+
+cp.i:                                             ; preds = %entry
+  %len.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %sz.i = add i64 %len.i, 1
+  %total.i.i = add i64 %len.i, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %self.arg, i64 %sz.i, i1 false)
+  br label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %entry, %cp.i
+  %common.ret.op.i = phi ptr [ %obj.i.i, %cp.i ], [ null, %entry ]
+  %t11812547 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %common.ret.op.i)
+  %t11812748 = icmp slt i64 %t11812547, %length.arg
+  br i1 %t11812748, label %while.body.16821.lr.ph, label %while.end.16822
+
+while.body.16821.lr.ph:                           ; preds = %rt_str_copy.exit
+  %t118131 = trunc i32 %padding.arg to i8
+  br label %while.body.16821
+
+while.body.16821:                                 ; preds = %while.body.16821.lr.ph, %rt_release.exit18
+  %result.6693.addr.049 = phi ptr [ %common.ret.op.i, %while.body.16821.lr.ph ], [ %obj.i3, %rt_release.exit18 ]
+  %raw.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  store i8 %t118131, ptr %obj.i, align 1
+  %t118132 = getelementptr i8, ptr %raw.i, i64 17
+  store i8 0, ptr %t118132, align 1
+  %t118133 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6693.addr.049)
+  %t118134 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t118135 = add i64 %t118133, 17
+  %total.i = add i64 %t118135, %t118134
+  %raw.i1 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i1, align 8
+  %dp.i2 = getelementptr i8, ptr %raw.i1, i64 8
+  store ptr null, ptr %dp.i2, align 8
+  %obj.i3 = getelementptr i8, ptr %raw.i1, i64 16
+  %t118138 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i3, ptr noundef nonnull dereferenceable(1) %result.6693.addr.049)
+  %t118139 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i3, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %while.body.16821
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %while.body.16821, %dofree.i
+  %small.i4 = icmp ult ptr %result.6693.addr.049, inttoptr (i64 65536 to ptr)
+  br i1 %small.i4, label %rt_release.exit18, label %chk.i5
+
+chk.i5:                                           ; preds = %rt_release.exit
+  %rcp.i6 = getelementptr i8, ptr %result.6693.addr.049, i64 -16
+  %rc.i7 = load i64, ptr %rcp.i6, align 8
+  %imm.i8 = icmp slt i64 %rc.i7, 0
+  br i1 %imm.i8, label %rt_release.exit18, label %dec.i9
+
+dec.i9:                                           ; preds = %chk.i5
+  %n.i10 = add nsw i64 %rc.i7, -1
+  store i64 %n.i10, ptr %rcp.i6, align 8
+  %z.i11 = icmp eq i64 %n.i10, 0
+  br i1 %z.i11, label %drop.i12, label %rt_release.exit18
+
+drop.i12:                                         ; preds = %dec.i9
+  %dpp.i13 = getelementptr i8, ptr %result.6693.addr.049, i64 -8
+  %dfn.i14 = load ptr, ptr %dpp.i13, align 8
+  %has.not.i15 = icmp eq ptr %dfn.i14, null
+  br i1 %has.not.i15, label %dofree.i17, label %calldrop.i16
+
+calldrop.i16:                                     ; preds = %drop.i12
+  tail call void %dfn.i14(ptr nonnull %result.6693.addr.049)
+  br label %dofree.i17
+
+dofree.i17:                                       ; preds = %calldrop.i16, %drop.i12
+  tail call void @free(ptr %rcp.i6)
+  br label %rt_release.exit18
+
+rt_release.exit18:                                ; preds = %rt_release.exit, %chk.i5, %dec.i9, %dofree.i17
+  %t118125 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i3)
+  %t118127 = icmp slt i64 %t118125, %length.arg
+  br i1 %t118127, label %while.body.16821, label %while.end.16822
+
+while.end.16822:                                  ; preds = %rt_release.exit18, %rt_str_copy.exit
+  %result.6693.addr.0.lcssa = phi ptr [ %common.ret.op.i, %rt_str_copy.exit ], [ %obj.i3, %rt_release.exit18 ]
+  %t118125.lcssa = phi i64 [ %t11812547, %rt_str_copy.exit ], [ %t118125, %rt_release.exit18 ]
+  %isnull.i19 = icmp eq ptr %result.6693.addr.0.lcssa, null
+  br i1 %isnull.i19, label %rt_release.exit43, label %rt_str_copy.exit28
+
+rt_str_copy.exit28:                               ; preds = %while.end.16822
+  %sz.i22 = add i64 %t118125.lcssa, 1
+  %total.i.i23 = add i64 %t118125.lcssa, 17
+  %raw.i.i24 = tail call ptr @malloc(i64 %total.i.i23)
+  store i64 1, ptr %raw.i.i24, align 8
+  %dp.i.i25 = getelementptr i8, ptr %raw.i.i24, i64 8
+  store ptr null, ptr %dp.i.i25, align 8
+  %obj.i.i26 = getelementptr i8, ptr %raw.i.i24, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i26, ptr nonnull align 1 %result.6693.addr.0.lcssa, i64 %sz.i22, i1 false)
+  %small.i29 = icmp ult ptr %result.6693.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i29, label %rt_release.exit43, label %chk.i30
+
+chk.i30:                                          ; preds = %rt_str_copy.exit28
+  %rcp.i31 = getelementptr i8, ptr %result.6693.addr.0.lcssa, i64 -16
+  %rc.i32 = load i64, ptr %rcp.i31, align 8
+  %imm.i33 = icmp slt i64 %rc.i32, 0
+  br i1 %imm.i33, label %rt_release.exit43, label %dec.i34
+
+dec.i34:                                          ; preds = %chk.i30
+  %n.i35 = add nsw i64 %rc.i32, -1
+  store i64 %n.i35, ptr %rcp.i31, align 8
+  %z.i36 = icmp eq i64 %n.i35, 0
+  br i1 %z.i36, label %drop.i37, label %rt_release.exit43
+
+drop.i37:                                         ; preds = %dec.i34
+  %dpp.i38 = getelementptr i8, ptr %result.6693.addr.0.lcssa, i64 -8
+  %dfn.i39 = load ptr, ptr %dpp.i38, align 8
+  %has.not.i40 = icmp eq ptr %dfn.i39, null
+  br i1 %has.not.i40, label %dofree.i42, label %calldrop.i41
+
+calldrop.i41:                                     ; preds = %drop.i37
+  tail call void %dfn.i39(ptr nonnull %result.6693.addr.0.lcssa)
+  br label %dofree.i42
+
+dofree.i42:                                       ; preds = %calldrop.i41, %drop.i37
+  tail call void @free(ptr %rcp.i31)
+  br label %rt_release.exit43
+
+rt_release.exit43:                                ; preds = %while.end.16822, %rt_str_copy.exit28, %chk.i30, %dec.i34, %dofree.i42
+  %common.ret.op.i2746 = phi ptr [ %obj.i.i26, %rt_str_copy.exit28 ], [ %obj.i.i26, %chk.i30 ], [ %obj.i.i26, %dec.i34 ], [ %obj.i.i26, %dofree.i42 ], [ null, %while.end.16822 ]
+  ret ptr %common.ret.op.i2746
+}
+
+define noundef i1 @str__is_i64__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %t118145 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118146 = icmp eq i64 %t118145, 0
+  br i1 %t118146, label %common.ret, label %if.end.16825
+
+common.ret:                                       ; preds = %diag.ok.16845, %if.end.16836, %if.then.16834, %entry
+  %common.ret.op = phi i1 [ false, %entry ], [ false, %if.then.16834 ], [ true, %if.end.16836 ], [ %spec.select.i, %diag.ok.16845 ]
+  ret i1 %common.ret.op
+
+if.end.16825:                                     ; preds = %entry
+  %t118150 = icmp slt i64 %t118145, 1
+  br i1 %t118150, label %diag.err.16830, label %diag.ok.16831
+
+diag.err.16830:                                   ; preds = %if.end.16825
+  %t118154 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7877, i64 165, i64 1, ptr %t118154) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16831:                                    ; preds = %if.end.16825
+  %t118157 = load i8, ptr %self.arg, align 1
+  switch i8 %t118157, label %if.end.16836 [
+    i8 45, label %if.then.16834
+    i8 43, label %if.then.16834
+  ]
+
+if.then.16834:                                    ; preds = %diag.ok.16831, %diag.ok.16831
+  %t118176 = icmp eq i64 %t118145, 1
+  br i1 %t118176, label %common.ret, label %if.end.16836
+
+if.end.16836:                                     ; preds = %if.then.16834, %diag.ok.16831
+  %start.6695.addr.0 = phi i64 [ 0, %diag.ok.16831 ], [ 1, %if.then.16834 ]
+  %t1181813 = icmp ult i64 %start.6695.addr.0, %t118145
+  br i1 %t1181813, label %diag.ok.16845, label %common.ret
+
+diag.ok.16845:                                    ; preds = %if.end.16836, %diag.ok.16845
+  %i.6696.addr.04 = phi i64 [ %t118199, %diag.ok.16845 ], [ %start.6695.addr.0, %if.end.16836 ]
+  %t118192 = getelementptr i8, ptr %self.arg, i64 %i.6696.addr.04
+  %t118193 = load i8, ptr %t118192, align 1
+  %1 = add i8 %t118193, -48
+  %spec.select.i = icmp ult i8 %1, 10
+  %t118199 = add nuw i64 %i.6696.addr.04, 1
+  %exitcond.not = icmp ne i64 %t118199, %t118145
+  %or.cond.not = select i1 %spec.select.i, i1 %exitcond.not, i1 false
+  br i1 %or.cond.not, label %diag.ok.16845, label %common.ret
+}
+
+define i64 @str__to_i64__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %t118201 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118202 = icmp eq i64 %t118201, 0
+  br i1 %t118202, label %common.ret, label %if.end.16851
+
+common.ret:                                       ; preds = %diag.ok.16867, %entry, %for.end.16865
+  %common.ret.op = phi i64 [ %t118260, %for.end.16865 ], [ 0, %entry ], [ 0, %diag.ok.16867 ]
+  ret i64 %common.ret.op
+
+if.end.16851:                                     ; preds = %entry
+  %t118206 = icmp slt i64 %t118201, 1
+  br i1 %t118206, label %diag.err.16852, label %diag.ok.16858
+
+diag.err.16852:                                   ; preds = %if.end.16851
+  %t118210 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7883, i64 147, i64 1, ptr %t118210) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.16858:                                    ; preds = %if.end.16851
+  %t118213 = load i8, ptr %self.arg, align 1
+  %t118215 = icmp eq i8 %t118213, 45
+  %t118229 = icmp eq i8 %t118213, 43
+  %narrow = or i1 %t118229, %t118215
+  %spec.select6 = zext i1 %narrow to i64
+  %t11823411 = icmp ugt i64 %t118201, %spec.select6
+  br i1 %t11823411, label %diag.ok.16867, label %for.end.16865
+
+diag.ok.16867:                                    ; preds = %diag.ok.16858, %switch.lookup
+  %i.6701.addr.013 = phi i64 [ %t118257, %switch.lookup ], [ %spec.select6, %diag.ok.16858 ]
+  %result.6700.addr.012 = phi i64 [ %t118255, %switch.lookup ], [ 0, %diag.ok.16858 ]
+  %t118245 = getelementptr i8, ptr %self.arg, i64 %i.6701.addr.013
+  %t118246 = load i8, ptr %t118245, align 1
+  %switch.tableidx = add i8 %t118246, -48
+  %1 = icmp ult i8 %switch.tableidx, 10
+  br i1 %1, label %switch.lookup, label %common.ret
+
+switch.lookup:                                    ; preds = %diag.ok.16867
+  %switch.idx.cast = zext nneg i8 %switch.tableidx to i64
+  %t118253 = mul i64 %result.6700.addr.012, 10
+  %t118255 = add i64 %t118253, %switch.idx.cast
+  %t118257 = add nuw i64 %i.6701.addr.013, 1
+  %exitcond.not = icmp eq i64 %t118257, %t118201
+  br i1 %exitcond.not, label %for.end.16865, label %diag.ok.16867
+
+for.end.16865:                                    ; preds = %switch.lookup, %diag.ok.16858
+  %result.6700.addr.0.lcssa = phi i64 [ 0, %diag.ok.16858 ], [ %t118255, %switch.lookup ]
+  %2 = sub i64 0, %result.6700.addr.0.lcssa
+  %t118260 = select i1 %t118215, i64 %2, i64 %result.6700.addr.0.lcssa
+  br label %common.ret
+}
+
+; Function Attrs: nofree nounwind memory(argmem: read)
+define noundef i1 @str__is_hex__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #17 {
+entry:
+  %t118262 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118263 = icmp eq i64 %t118262, 0
+  br i1 %t118263, label %common.ret, label %if.end.16873
+
+common.ret:                                       ; preds = %for.step.16899, %switch.early.test, %for.cond.16897.preheader, %if.end.16876, %entry
+  %common.ret.op = phi i1 [ false, %entry ], [ false, %if.end.16876 ], [ true, %for.cond.16897.preheader ], [ true, %for.step.16899 ], [ false, %switch.early.test ]
+  ret i1 %common.ret.op
+
+if.end.16873:                                     ; preds = %entry
+  %t118266 = icmp sgt i64 %t118262, 1
+  br i1 %t118266, label %diag.ok.16882, label %if.end.16876
+
+diag.ok.16882:                                    ; preds = %if.end.16873
+  %t118277 = load i8, ptr %self.arg, align 1
+  %t118279 = icmp eq i8 %t118277, 48
+  br i1 %t118279, label %diag.ok.16888, label %if.end.16876
+
+diag.ok.16888:                                    ; preds = %diag.ok.16882
+  %t118289 = getelementptr i8, ptr %self.arg, i64 1
+  %t118290 = load i8, ptr %t118289, align 1
+  %0 = add i8 %t118290, -88
+  %switch.and = and i8 %0, -33
+  %switch.selectcmp = icmp eq i8 %switch.and, 0
+  %1 = select i1 %switch.selectcmp, i64 2, i64 0
+  br label %if.end.16876
+
+if.end.16876:                                     ; preds = %diag.ok.16888, %diag.ok.16882, %if.end.16873
+  %start.6704.addr.0 = phi i64 [ 0, %diag.ok.16882 ], [ 0, %if.end.16873 ], [ %1, %diag.ok.16888 ]
+  %t118311 = icmp eq i64 %start.6704.addr.0, %t118262
+  br i1 %t118311, label %common.ret, label %for.cond.16897.preheader
+
+for.cond.16897.preheader:                         ; preds = %if.end.16876
+  %t1183165 = icmp slt i64 %start.6704.addr.0, %t118262
+  br i1 %t1183165, label %diag.ok.16902, label %common.ret
+
+diag.ok.16902:                                    ; preds = %for.cond.16897.preheader, %for.step.16899
+  %i.6705.addr.06 = phi i64 [ %t118334, %for.step.16899 ], [ %start.6704.addr.0, %for.cond.16897.preheader ]
+  %t118327 = getelementptr i8, ptr %self.arg, i64 %i.6705.addr.06
+  %t118328 = load i8, ptr %t118327, align 1
+  %t118328.fr = freeze i8 %t118328
+  %2 = add i8 %t118328.fr, -48
+  %spec.select.i.i = icmp ult i8 %2, 10
+  br i1 %spec.select.i.i, label %for.step.16899, label %switch.early.test
+
+switch.early.test:                                ; preds = %diag.ok.16902
+  switch i8 %t118328.fr, label %common.ret [
+    i8 102, label %for.step.16899
+    i8 101, label %for.step.16899
+    i8 100, label %for.step.16899
+    i8 99, label %for.step.16899
+    i8 98, label %for.step.16899
+    i8 97, label %for.step.16899
+    i8 70, label %for.step.16899
+    i8 69, label %for.step.16899
+    i8 68, label %for.step.16899
+    i8 67, label %for.step.16899
+    i8 66, label %for.step.16899
+    i8 65, label %for.step.16899
+  ]
+
+for.step.16899:                                   ; preds = %switch.early.test, %switch.early.test, %switch.early.test, %switch.early.test, %switch.early.test, %switch.early.test, %switch.early.test, %switch.early.test, %switch.early.test, %switch.early.test, %switch.early.test, %switch.early.test, %diag.ok.16902
+  %t118334 = add nuw i64 %i.6705.addr.06, 1
+  %exitcond.not = icmp eq i64 %t118334, %t118262
+  br i1 %exitcond.not, label %common.ret, label %diag.ok.16902
+}
+
+; Function Attrs: nofree nounwind memory(argmem: read)
+define i64 @str__to_hex_i64__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #17 {
+entry:
+  %t118336 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118337 = icmp sgt i64 %t118336, 1
+  br i1 %t118337, label %diag.ok.16914, label %if.end.16908
+
+diag.ok.16914:                                    ; preds = %entry
+  %t118348 = load i8, ptr %self.arg, align 1
+  %t118350 = icmp eq i8 %t118348, 48
+  br i1 %t118350, label %diag.ok.16920, label %if.end.16908
+
+diag.ok.16920:                                    ; preds = %diag.ok.16914
+  %t118360 = getelementptr i8, ptr %self.arg, i64 1
+  %t118361 = load i8, ptr %t118360, align 1
+  %0 = add i8 %t118361, -88
+  %switch.and = and i8 %0, -33
+  %switch.selectcmp = icmp eq i8 %switch.and, 0
+  %1 = select i1 %switch.selectcmp, i64 2, i64 0
+  br label %if.end.16908
+
+if.end.16908:                                     ; preds = %diag.ok.16920, %diag.ok.16914, %entry
+  %start.6707.addr.0 = phi i64 [ 0, %diag.ok.16914 ], [ 0, %entry ], [ %1, %diag.ok.16920 ]
+  %t1183838 = icmp slt i64 %start.6707.addr.0, %t118336
+  br i1 %t1183838, label %diag.ok.16931, label %common.ret
+
+diag.ok.16931:                                    ; preds = %if.end.16908, %if.end.16934
+  %i.6709.addr.010 = phi i64 [ %t118406, %if.end.16934 ], [ %start.6707.addr.0, %if.end.16908 ]
+  %result.6708.addr.09 = phi i64 [ %t118404, %if.end.16934 ], [ 0, %if.end.16908 ]
+  %t118394 = getelementptr i8, ptr %self.arg, i64 %i.6709.addr.010
+  %t118395 = load i8, ptr %t118394, align 1
+  %2 = add i8 %t118395, -48
+  %or.cond.i = icmp ult i8 %2, 10
+  br i1 %or.cond.i, label %if.end.16934, label %if.end.17080.i
+
+if.end.17080.i:                                   ; preds = %diag.ok.16931
+  %3 = add i8 %t118395, -97
+  %or.cond1.i = icmp ult i8 %3, 6
+  br i1 %or.cond1.i, label %if.then.17085.i, label %if.end.17087.i
+
+if.then.17085.i:                                  ; preds = %if.end.17080.i
+  %t118711.i = add nsw i8 %t118395, -87
+  br label %if.end.16934
+
+if.end.17087.i:                                   ; preds = %if.end.17080.i
+  %4 = add i8 %t118395, -65
+  %or.cond2.i = icmp ult i8 %4, 6
+  br i1 %or.cond2.i, label %if.then.17092.i, label %common.ret
+
+if.then.17092.i:                                  ; preds = %if.end.17087.i
+  %t118727.i = add nsw i8 %t118395, -55
+  br label %if.end.16934
+
+common.ret:                                       ; preds = %if.end.16934, %if.end.17087.i, %if.end.16908
+  %common.ret.op = phi i64 [ 0, %if.end.16908 ], [ 0, %if.end.17087.i ], [ %t118404, %if.end.16934 ]
+  ret i64 %common.ret.op
+
+if.end.16934:                                     ; preds = %diag.ok.16931, %if.then.17085.i, %if.then.17092.i
+  %common.ret.op.i.ph.in = phi i8 [ %t118727.i, %if.then.17092.i ], [ %t118711.i, %if.then.17085.i ], [ %2, %diag.ok.16931 ]
+  %common.ret.op.i.ph = zext nneg i8 %common.ret.op.i.ph.in to i64
+  %t118402 = shl i64 %result.6708.addr.09, 4
+  %t118404 = add nuw nsw i64 %t118402, %common.ret.op.i.ph
+  %t118406 = add nuw i64 %i.6709.addr.010, 1
+  %exitcond.not = icmp eq i64 %t118406, %t118336
+  br i1 %exitcond.not, label %common.ret, label %diag.ok.16931
+}
+
+; Function Attrs: nofree nounwind memory(argmem: read)
+define i64 @str__count_char__mangled(ptr nocapture readonly %self.arg, i32 %target.arg) local_unnamed_addr #17 {
+entry:
+  %t118410 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t1184114 = icmp sgt i64 %t118410, 0
+  br i1 %t1184114, label %diag.ok.16940.preheader, label %for.end.16938
+
+diag.ok.16940.preheader:                          ; preds = %entry
+  %min.iters.check = icmp ult i64 %t118410, 4
+  br i1 %min.iters.check, label %diag.ok.16940.preheader9, label %vector.ph
+
+vector.ph:                                        ; preds = %diag.ok.16940.preheader
+  %n.vec = and i64 %t118410, 9223372036854775804
+  %broadcast.splatinsert = insertelement <2 x i32> poison, i32 %target.arg, i64 0
+  %broadcast.splat = shufflevector <2 x i32> %broadcast.splatinsert, <2 x i32> poison, <2 x i32> zeroinitializer
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %8, %vector.body ]
+  %vec.phi7 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %9, %vector.body ]
+  %0 = getelementptr i8, ptr %self.arg, i64 %index
+  %1 = getelementptr i8, ptr %0, i64 2
+  %wide.load = load <2 x i8>, ptr %0, align 1
+  %wide.load8 = load <2 x i8>, ptr %1, align 1
+  %2 = zext <2 x i8> %wide.load to <2 x i32>
+  %3 = zext <2 x i8> %wide.load8 to <2 x i32>
+  %4 = icmp eq <2 x i32> %broadcast.splat, %2
+  %5 = icmp eq <2 x i32> %broadcast.splat, %3
+  %6 = zext <2 x i1> %4 to <2 x i64>
+  %7 = zext <2 x i1> %5 to <2 x i64>
+  %8 = add <2 x i64> %vec.phi, %6
+  %9 = add <2 x i64> %vec.phi7, %7
+  %index.next = add nuw i64 %index, 4
+  %10 = icmp eq i64 %index.next, %n.vec
+  br i1 %10, label %middle.block, label %vector.body, !llvm.loop !85
+
+middle.block:                                     ; preds = %vector.body
+  %bin.rdx = add <2 x i64> %9, %8
+  %11 = tail call i64 @llvm.vector.reduce.add.v2i64(<2 x i64> %bin.rdx)
+  %cmp.n = icmp eq i64 %t118410, %n.vec
+  br i1 %cmp.n, label %for.end.16938, label %diag.ok.16940.preheader9
+
+diag.ok.16940.preheader9:                         ; preds = %diag.ok.16940.preheader, %middle.block
+  %i.6714.addr.06.ph = phi i64 [ 0, %diag.ok.16940.preheader ], [ %n.vec, %middle.block ]
+  %count.6713.addr.05.ph = phi i64 [ 0, %diag.ok.16940.preheader ], [ %11, %middle.block ]
+  br label %diag.ok.16940
+
+diag.ok.16940:                                    ; preds = %diag.ok.16940.preheader9, %diag.ok.16940
+  %i.6714.addr.06 = phi i64 [ %t118430, %diag.ok.16940 ], [ %i.6714.addr.06.ph, %diag.ok.16940.preheader9 ]
+  %count.6713.addr.05 = phi i64 [ %spec.select, %diag.ok.16940 ], [ %count.6713.addr.05.ph, %diag.ok.16940.preheader9 ]
+  %t118422 = getelementptr i8, ptr %self.arg, i64 %i.6714.addr.06
+  %t118423 = load i8, ptr %t118422, align 1
+  %t118424 = zext i8 %t118423 to i32
+  %t118426 = icmp eq i32 %t118424, %target.arg
+  %t118428 = zext i1 %t118426 to i64
+  %spec.select = add i64 %count.6713.addr.05, %t118428
+  %t118430 = add nuw nsw i64 %i.6714.addr.06, 1
+  %exitcond.not = icmp eq i64 %t118430, %t118410
+  br i1 %exitcond.not, label %for.end.16938, label %diag.ok.16940, !llvm.loop !86
+
+for.end.16938:                                    ; preds = %diag.ok.16940, %middle.block, %entry
+  %count.6713.addr.0.lcssa = phi i64 [ 0, %entry ], [ %11, %middle.block ], [ %spec.select, %diag.ok.16940 ]
+  ret i64 %count.6713.addr.0.lcssa
+}
+
+define i64 @str__count__mangled(ptr nocapture readonly %self.arg, ptr nocapture readonly %target.arg) local_unnamed_addr {
+entry:
+  %char0 = load i8, ptr %target.arg, align 1
+  %t118434 = icmp eq i8 %char0, 0
+  br i1 %t118434, label %common.ret, label %while.cond.16947.preheader
+
+while.cond.16947.preheader:                       ; preds = %entry
+  %t11843772 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t11843873 = icmp sgt i64 %t11843772, 0
+  br i1 %t11843873, label %rt_str_copy.exit, label %common.ret
+
+common.ret:                                       ; preds = %rt_release.exit35, %while.cond.16947.preheader, %dofree.i19, %dec.i11, %chk.i7, %if.then.16950, %entry
+  %common.ret.op = phi i64 [ 0, %entry ], [ %count.6717.addr.075, %if.then.16950 ], [ %count.6717.addr.075, %chk.i7 ], [ %count.6717.addr.075, %dec.i11 ], [ %count.6717.addr.075, %dofree.i19 ], [ 0, %while.cond.16947.preheader ], [ %t118452, %rt_release.exit35 ]
+  ret i64 %common.ret.op
+
+rt_str_copy.exit:                                 ; preds = %while.cond.16947.preheader, %rt_release.exit35
+  %t11843776 = phi i64 [ %t118437, %rt_release.exit35 ], [ %t11843772, %while.cond.16947.preheader ]
+  %count.6717.addr.075 = phi i64 [ %t118452, %rt_release.exit35 ], [ 0, %while.cond.16947.preheader ]
+  %position.6718.addr.074 = phi i64 [ %t118458, %rt_release.exit35 ], [ 0, %while.cond.16947.preheader ]
+  %t118443 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 %position.6718.addr.074, i64 %t11843776)
+  %len.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %target.arg)
+  %sz.i = add i64 %len.i, 1
+  %total.i.i = add i64 %len.i, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %target.arg, i64 %sz.i, i1 false)
+  %t117098.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %t118443)
+  %t117100.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i.i)
+  %t117102.i = icmp eq i64 %t117100.i, 0
+  br i1 %t117102.i, label %str__index_of__mangled.exit, label %if.end.16571.i
+
+if.end.16571.i:                                   ; preds = %rt_str_copy.exit
+  %t117105.i = icmp sgt i64 %t117100.i, %t117098.i
+  br i1 %t117105.i, label %str__index_of__mangled.exit, label %for.cond.16575.preheader.i
+
+for.cond.16575.preheader.i:                       ; preds = %if.end.16571.i
+  %t117110.i = sub i64 %t117098.i, %t117100.i
+  %t117111.not17.i = icmp slt i64 %t117110.i, 0
+  br i1 %t117111.not17.i, label %str__index_of__mangled.exit, label %for.cond.16579.preheader.lr.ph.i
+
+for.cond.16579.preheader.lr.ph.i:                 ; preds = %for.cond.16575.preheader.i
+  %t117114.not14.i = icmp sgt i64 %t117100.i, 0
+  br i1 %t117114.not14.i, label %for.cond.16579.preheader.us.i, label %str__index_of__mangled.exit
+
+for.cond.16579.preheader.us.i:                    ; preds = %for.cond.16579.preheader.lr.ph.i, %for.step.16577.us.i
+  %i.6605.addr.018.us.i = phi i64 [ %t117149.us.i, %for.step.16577.us.i ], [ 0, %for.cond.16579.preheader.lr.ph.i ]
+  %exitcond = icmp eq i64 %i.6605.addr.018.us.i, -9223372036854775808
+  br i1 %exitcond, label %diag.err.16583.i.split, label %for.body.16580.us.i
+
+for.cond.16579.us.i:                              ; preds = %diag.ok.16586.us.i
+  %t117145.us.i = add nuw nsw i64 %j.6607.addr.015.us.i, 1
+  %exitcond.not.i = icmp eq i64 %t117145.us.i, %t117100.i
+  br i1 %exitcond.not.i, label %str__index_of__mangled.exit, label %for.body.16580.us.i
+
+for.body.16580.us.i:                              ; preds = %for.cond.16579.preheader.us.i, %for.cond.16579.us.i
+  %j.6607.addr.015.us.i = phi i64 [ %t117145.us.i, %for.cond.16579.us.i ], [ 0, %for.cond.16579.preheader.us.i ]
+  %t117118.us.i = add nuw nsw i64 %j.6607.addr.015.us.i, %i.6605.addr.018.us.i
+  %t117121.us.i.not = icmp slt i64 %t117118.us.i, %t117098.i
+  br i1 %t117121.us.i.not, label %diag.ok.16586.us.i, label %diag.err.16583.i.split
+
+diag.ok.16586.us.i:                               ; preds = %for.body.16580.us.i
+  %t117127.us.i = getelementptr i8, ptr %t118443, i64 %t117118.us.i
+  %t117128.us.i = load i8, ptr %t117127.us.i, align 1
+  %t117140.us.i = getelementptr i8, ptr %obj.i.i, i64 %j.6607.addr.015.us.i
+  %t117141.us.i = load i8, ptr %t117140.us.i, align 1
+  %t117143.not.us.i = icmp eq i8 %t117128.us.i, %t117141.us.i
+  br i1 %t117143.not.us.i, label %for.cond.16579.us.i, label %for.step.16577.us.i
+
+for.step.16577.us.i:                              ; preds = %diag.ok.16586.us.i
+  %t117149.us.i = add nuw i64 %i.6605.addr.018.us.i, 1
+  %t117111.not.us.i = icmp sgt i64 %t117149.us.i, %t117110.i
+  br i1 %t117111.not.us.i, label %str__index_of__mangled.exit, label %for.cond.16579.preheader.us.i
+
+diag.err.16583.i.split:                           ; preds = %for.cond.16579.preheader.us.i, %for.body.16580.us.i
+  %t117125.i = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7817, i64 174, i64 1, ptr %t117125.i) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+str__index_of__mangled.exit:                      ; preds = %for.step.16577.us.i, %for.cond.16579.us.i, %rt_str_copy.exit, %if.end.16571.i, %for.cond.16575.preheader.i, %for.cond.16579.preheader.lr.ph.i
+  %common.ret.op.i5 = phi i64 [ 0, %rt_str_copy.exit ], [ -1, %if.end.16571.i ], [ -1, %for.cond.16575.preheader.i ], [ 0, %for.cond.16579.preheader.lr.ph.i ], [ %i.6605.addr.018.us.i, %for.cond.16579.us.i ], [ -1, %for.step.16577.us.i ]
+  %small.i = icmp ult ptr %obj.i.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %str__index_of__mangled.exit
+  tail call void @free(ptr nonnull %raw.i.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %str__index_of__mangled.exit, %dofree.i
+  %t118449 = icmp slt i64 %common.ret.op.i5, 0
+  br i1 %t118449, label %if.then.16950, label %if.end.16952
+
+if.then.16950:                                    ; preds = %rt_release.exit
+  %small.i6 = icmp ult ptr %t118443, inttoptr (i64 65536 to ptr)
+  br i1 %small.i6, label %common.ret, label %chk.i7
+
+chk.i7:                                           ; preds = %if.then.16950
+  %rcp.i8 = getelementptr i8, ptr %t118443, i64 -16
+  %rc.i9 = load i64, ptr %rcp.i8, align 8
+  %imm.i10 = icmp slt i64 %rc.i9, 0
+  br i1 %imm.i10, label %common.ret, label %dec.i11
+
+dec.i11:                                          ; preds = %chk.i7
+  %n.i12 = add nsw i64 %rc.i9, -1
+  store i64 %n.i12, ptr %rcp.i8, align 8
+  %z.i13 = icmp eq i64 %n.i12, 0
+  br i1 %z.i13, label %drop.i14, label %common.ret
+
+drop.i14:                                         ; preds = %dec.i11
+  %dpp.i15 = getelementptr i8, ptr %t118443, i64 -8
+  %dfn.i16 = load ptr, ptr %dpp.i15, align 8
+  %has.not.i17 = icmp eq ptr %dfn.i16, null
+  br i1 %has.not.i17, label %dofree.i19, label %calldrop.i18
+
+calldrop.i18:                                     ; preds = %drop.i14
+  tail call void %dfn.i16(ptr nonnull %t118443)
+  br label %dofree.i19
+
+dofree.i19:                                       ; preds = %calldrop.i18, %drop.i14
+  tail call void @free(ptr %rcp.i8)
+  br label %common.ret
+
+if.end.16952:                                     ; preds = %rt_release.exit
+  %t118452 = add i64 %count.6717.addr.075, 1
+  %t118456 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %target.arg)
+  %t118457 = add i64 %common.ret.op.i5, %position.6718.addr.074
+  %t118458 = add i64 %t118457, %t118456
+  %small.i21 = icmp ult ptr %t118443, inttoptr (i64 65536 to ptr)
+  br i1 %small.i21, label %rt_release.exit35, label %chk.i22
+
+chk.i22:                                          ; preds = %if.end.16952
+  %rcp.i23 = getelementptr i8, ptr %t118443, i64 -16
+  %rc.i24 = load i64, ptr %rcp.i23, align 8
+  %imm.i25 = icmp slt i64 %rc.i24, 0
+  br i1 %imm.i25, label %rt_release.exit35, label %dec.i26
+
+dec.i26:                                          ; preds = %chk.i22
+  %n.i27 = add nsw i64 %rc.i24, -1
+  store i64 %n.i27, ptr %rcp.i23, align 8
+  %z.i28 = icmp eq i64 %n.i27, 0
+  br i1 %z.i28, label %drop.i29, label %rt_release.exit35
+
+drop.i29:                                         ; preds = %dec.i26
+  %dpp.i30 = getelementptr i8, ptr %t118443, i64 -8
+  %dfn.i31 = load ptr, ptr %dpp.i30, align 8
+  %has.not.i32 = icmp eq ptr %dfn.i31, null
+  br i1 %has.not.i32, label %dofree.i34, label %calldrop.i33
+
+calldrop.i33:                                     ; preds = %drop.i29
+  tail call void %dfn.i31(ptr nonnull %t118443)
+  br label %dofree.i34
+
+dofree.i34:                                       ; preds = %calldrop.i33, %drop.i29
+  tail call void @free(ptr %rcp.i23)
+  br label %rt_release.exit35
+
+rt_release.exit35:                                ; preds = %if.end.16952, %chk.i22, %dec.i26, %dofree.i34
+  %t118437 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118438 = icmp slt i64 %t118458, %t118437
+  br i1 %t118438, label %rt_str_copy.exit, label %common.ret
+}
+
+; Function Attrs: nofree nounwind memory(argmem: read)
+define noundef i1 @str__is_blank__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #17 {
+entry:
+  %char0 = load i8, ptr %self.arg, align 1
+  %t118463 = icmp eq i8 %char0, 0
+  br i1 %t118463, label %common.ret, label %for.cond.16956.preheader
+
+for.cond.16956.preheader:                         ; preds = %entry
+  %t118466 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t1184674 = icmp sgt i64 %t118466, 0
+  br i1 %t1184674, label %diag.ok.16961, label %common.ret
+
+common.ret:                                       ; preds = %for.step.16958, %diag.ok.16961, %for.cond.16956.preheader, %entry
+  %common.ret.op = phi i1 [ true, %entry ], [ true, %for.cond.16956.preheader ], [ true, %for.step.16958 ], [ false, %diag.ok.16961 ]
+  ret i1 %common.ret.op
+
+diag.ok.16961:                                    ; preds = %for.cond.16956.preheader, %for.step.16958
+  %i.6722.addr.05 = phi i64 [ %t118485, %for.step.16958 ], [ 0, %for.cond.16956.preheader ]
+  %t118478 = getelementptr i8, ptr %self.arg, i64 %i.6722.addr.05
+  %t118479 = load i8, ptr %t118478, align 1
+  switch i8 %t118479, label %common.ret [
+    i8 32, label %for.step.16958
+    i8 9, label %for.step.16958
+    i8 10, label %for.step.16958
+    i8 13, label %for.step.16958
+  ]
+
+for.step.16958:                                   ; preds = %diag.ok.16961, %diag.ok.16961, %diag.ok.16961, %diag.ok.16961
+  %t118485 = add nuw nsw i64 %i.6722.addr.05, 1
+  %exitcond.not = icmp eq i64 %t118485, %t118466
+  br i1 %exitcond.not, label %common.ret, label %diag.ok.16961
+}
+
+define noundef ptr @str__remove_whitespace__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %raw.i.i = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  store i8 0, ptr %obj.i.i, align 1
+  %t11849047 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t11849148 = icmp sgt i64 %t11849047, 0
+  br i1 %t11849148, label %diag.ok.16970, label %for.end.16968
+
+diag.ok.16970:                                    ; preds = %entry, %for.step.16967
+  %i.6725.addr.050 = phi i64 [ %t118534, %for.step.16967 ], [ 0, %entry ]
+  %result.6724.addr.049 = phi ptr [ %result.6724.addr.1, %for.step.16967 ], [ %obj.i.i, %entry ]
+  %t118502 = getelementptr i8, ptr %self.arg, i64 %i.6725.addr.050
+  %t118503 = load i8, ptr %t118502, align 1
+  switch i8 %t118503, label %diag.ok.16975 [
+    i8 32, label %for.step.16967
+    i8 9, label %for.step.16967
+    i8 10, label %for.step.16967
+    i8 13, label %for.step.16967
+  ]
+
+diag.ok.16975:                                    ; preds = %diag.ok.16970
+  %raw.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  store i8 %t118503, ptr %obj.i, align 1
+  %t118524 = getelementptr i8, ptr %raw.i, i64 17
+  store i8 0, ptr %t118524, align 1
+  %t118525 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6724.addr.049)
+  %t118526 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t118527 = add i64 %t118525, 17
+  %total.i = add i64 %t118527, %t118526
+  %raw.i4 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i4, align 8
+  %dp.i5 = getelementptr i8, ptr %raw.i4, i64 8
+  store ptr null, ptr %dp.i5, align 8
+  %obj.i6 = getelementptr i8, ptr %raw.i4, i64 16
+  %t118530 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i6, ptr noundef nonnull dereferenceable(1) %result.6724.addr.049)
+  %t118531 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i6, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %diag.ok.16975
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %diag.ok.16975, %dofree.i
+  %small.i7 = icmp ult ptr %result.6724.addr.049, inttoptr (i64 65536 to ptr)
+  br i1 %small.i7, label %for.step.16967, label %chk.i8
+
+chk.i8:                                           ; preds = %rt_release.exit
+  %rcp.i9 = getelementptr i8, ptr %result.6724.addr.049, i64 -16
+  %rc.i10 = load i64, ptr %rcp.i9, align 8
+  %imm.i11 = icmp slt i64 %rc.i10, 0
+  br i1 %imm.i11, label %for.step.16967, label %dec.i12
+
+dec.i12:                                          ; preds = %chk.i8
+  %n.i13 = add nsw i64 %rc.i10, -1
+  store i64 %n.i13, ptr %rcp.i9, align 8
+  %z.i14 = icmp eq i64 %n.i13, 0
+  br i1 %z.i14, label %drop.i15, label %for.step.16967
+
+drop.i15:                                         ; preds = %dec.i12
+  %dpp.i16 = getelementptr i8, ptr %result.6724.addr.049, i64 -8
+  %dfn.i17 = load ptr, ptr %dpp.i16, align 8
+  %has.not.i18 = icmp eq ptr %dfn.i17, null
+  br i1 %has.not.i18, label %dofree.i20, label %calldrop.i19
+
+calldrop.i19:                                     ; preds = %drop.i15
+  tail call void %dfn.i17(ptr nonnull %result.6724.addr.049)
+  br label %dofree.i20
+
+dofree.i20:                                       ; preds = %calldrop.i19, %drop.i15
+  tail call void @free(ptr %rcp.i9)
+  br label %for.step.16967
+
+for.step.16967:                                   ; preds = %diag.ok.16970, %diag.ok.16970, %diag.ok.16970, %diag.ok.16970, %dofree.i20, %dec.i12, %chk.i8, %rt_release.exit
+  %result.6724.addr.1 = phi ptr [ %obj.i6, %rt_release.exit ], [ %obj.i6, %chk.i8 ], [ %obj.i6, %dec.i12 ], [ %obj.i6, %dofree.i20 ], [ %result.6724.addr.049, %diag.ok.16970 ], [ %result.6724.addr.049, %diag.ok.16970 ], [ %result.6724.addr.049, %diag.ok.16970 ], [ %result.6724.addr.049, %diag.ok.16970 ]
+  %t118534 = add nuw nsw i64 %i.6725.addr.050, 1
+  %t118490 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118491 = icmp slt i64 %t118534, %t118490
+  br i1 %t118491, label %diag.ok.16970, label %for.end.16968
+
+for.end.16968:                                    ; preds = %for.step.16967, %entry
+  %result.6724.addr.0.lcssa = phi ptr [ %obj.i.i, %entry ], [ %result.6724.addr.1, %for.step.16967 ]
+  %isnull.i = icmp eq ptr %result.6724.addr.0.lcssa, null
+  br i1 %isnull.i, label %rt_release.exit42, label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %for.end.16968
+  %len.i22 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6724.addr.0.lcssa)
+  %sz.i23 = add i64 %len.i22, 1
+  %total.i.i24 = add i64 %len.i22, 17
+  %raw.i.i25 = tail call ptr @malloc(i64 %total.i.i24)
+  store i64 1, ptr %raw.i.i25, align 8
+  %dp.i.i26 = getelementptr i8, ptr %raw.i.i25, i64 8
+  store ptr null, ptr %dp.i.i26, align 8
+  %obj.i.i27 = getelementptr i8, ptr %raw.i.i25, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i27, ptr nonnull align 1 %result.6724.addr.0.lcssa, i64 %sz.i23, i1 false)
+  %small.i28 = icmp ult ptr %result.6724.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i28, label %rt_release.exit42, label %chk.i29
+
+chk.i29:                                          ; preds = %rt_str_copy.exit
+  %rcp.i30 = getelementptr i8, ptr %result.6724.addr.0.lcssa, i64 -16
+  %rc.i31 = load i64, ptr %rcp.i30, align 8
+  %imm.i32 = icmp slt i64 %rc.i31, 0
+  br i1 %imm.i32, label %rt_release.exit42, label %dec.i33
+
+dec.i33:                                          ; preds = %chk.i29
+  %n.i34 = add nsw i64 %rc.i31, -1
+  store i64 %n.i34, ptr %rcp.i30, align 8
+  %z.i35 = icmp eq i64 %n.i34, 0
+  br i1 %z.i35, label %drop.i36, label %rt_release.exit42
+
+drop.i36:                                         ; preds = %dec.i33
+  %dpp.i37 = getelementptr i8, ptr %result.6724.addr.0.lcssa, i64 -8
+  %dfn.i38 = load ptr, ptr %dpp.i37, align 8
+  %has.not.i39 = icmp eq ptr %dfn.i38, null
+  br i1 %has.not.i39, label %dofree.i41, label %calldrop.i40
+
+calldrop.i40:                                     ; preds = %drop.i36
+  tail call void %dfn.i38(ptr nonnull %result.6724.addr.0.lcssa)
+  br label %dofree.i41
+
+dofree.i41:                                       ; preds = %calldrop.i40, %drop.i36
+  tail call void @free(ptr %rcp.i30)
+  br label %rt_release.exit42
+
+rt_release.exit42:                                ; preds = %for.end.16968, %rt_str_copy.exit, %chk.i29, %dec.i33, %dofree.i41
+  %common.ret.op.i46 = phi ptr [ %obj.i.i27, %rt_str_copy.exit ], [ %obj.i.i27, %chk.i29 ], [ %obj.i.i27, %dec.i33 ], [ %obj.i.i27, %dofree.i41 ], [ null, %for.end.16968 ]
+  ret ptr %common.ret.op.i46
+}
+
+define noundef ptr @str__remove_prefix__mangled(ptr readonly %self.arg, ptr readonly %prefix.arg) local_unnamed_addr {
+entry:
+  %isnull.i = icmp eq ptr %prefix.arg, null
+  br i1 %isnull.i, label %rt_str_copy.exit.thread, label %rt_str_copy.exit
+
+rt_str_copy.exit.thread:                          ; preds = %entry
+  %t11854112 = tail call i1 @str__starts_with__mangled(ptr %self.arg, ptr null)
+  br i1 %t11854112, label %if.then.16976, label %if.end.16978
+
+rt_str_copy.exit:                                 ; preds = %entry
+  %len.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %prefix.arg)
+  %sz.i = add i64 %len.i, 1
+  %total.i.i = add i64 %len.i, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %prefix.arg, i64 %sz.i, i1 false)
+  %t118541 = tail call i1 @str__starts_with__mangled(ptr %self.arg, ptr %obj.i.i)
+  %small.i = icmp ult ptr %obj.i.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %rt_str_copy.exit
+  tail call void @free(ptr nonnull %raw.i.i)
+  br i1 %t118541, label %if.then.16976, label %if.end.16978
+
+rt_release.exit:                                  ; preds = %rt_str_copy.exit
+  br i1 %t118541, label %if.then.16976, label %if.end.16978
+
+common.ret:                                       ; preds = %cp.i2, %if.end.16978, %if.then.16976
+  %common.ret.op = phi ptr [ %t118547, %if.then.16976 ], [ %obj.i.i8, %cp.i2 ], [ null, %if.end.16978 ]
+  ret ptr %common.ret.op
+
+if.then.16976:                                    ; preds = %dofree.i, %rt_str_copy.exit.thread, %rt_release.exit
+  %t118544 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %prefix.arg)
+  %t118546 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118547 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 %t118544, i64 %t118546)
+  br label %common.ret
+
+if.end.16978:                                     ; preds = %dofree.i, %rt_str_copy.exit.thread, %rt_release.exit
+  %isnull.i1 = icmp eq ptr %self.arg, null
+  br i1 %isnull.i1, label %common.ret, label %cp.i2
+
+cp.i2:                                            ; preds = %if.end.16978
+  %len.i3 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %sz.i4 = add i64 %len.i3, 1
+  %total.i.i5 = add i64 %len.i3, 17
+  %raw.i.i6 = tail call ptr @malloc(i64 %total.i.i5)
+  store i64 1, ptr %raw.i.i6, align 8
+  %dp.i.i7 = getelementptr i8, ptr %raw.i.i6, i64 8
+  store ptr null, ptr %dp.i.i7, align 8
+  %obj.i.i8 = getelementptr i8, ptr %raw.i.i6, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i8, ptr nonnull align 1 %self.arg, i64 %sz.i4, i1 false)
+  br label %common.ret
+}
+
+define noundef ptr @str__remove_suffix__mangled(ptr readonly %self.arg, ptr readonly %suffix.arg) local_unnamed_addr {
+entry:
+  %isnull.i = icmp eq ptr %suffix.arg, null
+  br i1 %isnull.i, label %rt_str_copy.exit.thread, label %rt_str_copy.exit
+
+rt_str_copy.exit.thread:                          ; preds = %entry
+  %t11855312 = tail call i1 @str__ends_with__mangled(ptr %self.arg, ptr null)
+  br i1 %t11855312, label %if.then.16979, label %if.end.16981
+
+rt_str_copy.exit:                                 ; preds = %entry
+  %len.i = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %suffix.arg)
+  %sz.i = add i64 %len.i, 1
+  %total.i.i = add i64 %len.i, 17
+  %raw.i.i = tail call ptr @malloc(i64 %total.i.i)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i, ptr nonnull align 1 %suffix.arg, i64 %sz.i, i1 false)
+  %t118553 = tail call i1 @str__ends_with__mangled(ptr %self.arg, ptr %obj.i.i)
+  %small.i = icmp ult ptr %obj.i.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %rt_str_copy.exit
+  tail call void @free(ptr nonnull %raw.i.i)
+  br i1 %t118553, label %if.then.16979, label %if.end.16981
+
+rt_release.exit:                                  ; preds = %rt_str_copy.exit
+  br i1 %t118553, label %if.then.16979, label %if.end.16981
+
+common.ret:                                       ; preds = %cp.i2, %if.end.16981, %if.then.16979
+  %common.ret.op = phi ptr [ %t118560, %if.then.16979 ], [ %obj.i.i8, %cp.i2 ], [ null, %if.end.16981 ]
+  ret ptr %common.ret.op
+
+if.then.16979:                                    ; preds = %dofree.i, %rt_str_copy.exit.thread, %rt_release.exit
+  %t118556 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %t118558 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %suffix.arg)
+  %t118559 = sub i64 %t118556, %t118558
+  %t118560 = tail call ptr @str__substring__mangled(ptr %self.arg, i64 0, i64 %t118559)
+  br label %common.ret
+
+if.end.16981:                                     ; preds = %dofree.i, %rt_str_copy.exit.thread, %rt_release.exit
+  %isnull.i1 = icmp eq ptr %self.arg, null
+  br i1 %isnull.i1, label %common.ret, label %cp.i2
+
+cp.i2:                                            ; preds = %if.end.16981
+  %len.i3 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %self.arg)
+  %sz.i4 = add i64 %len.i3, 1
+  %total.i.i5 = add i64 %len.i3, 17
+  %raw.i.i6 = tail call ptr @malloc(i64 %total.i.i5)
+  store i64 1, ptr %raw.i.i6, align 8
+  %dp.i.i7 = getelementptr i8, ptr %raw.i.i6, i64 8
+  store ptr null, ptr %dp.i.i7, align 8
+  %obj.i.i8 = getelementptr i8, ptr %raw.i.i6, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i8, ptr nonnull align 1 %self.arg, i64 %sz.i4, i1 false)
+  br label %common.ret
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i1 @char__is_digit__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118563 = load i32, ptr %self.arg, align 4
+  %t118564 = trunc i32 %t118563 to i8
+  %0 = add i8 %t118564, -48
+  %spec.select = icmp ult i8 %0, 10
+  ret i1 %spec.select
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i1 @char__is_lower__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118572 = load i32, ptr %self.arg, align 4
+  %t118573 = trunc i32 %t118572 to i8
+  %0 = add i8 %t118573, -97
+  %spec.select = icmp ult i8 %0, 26
+  ret i1 %spec.select
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i1 @char__is_upper__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118581 = load i32, ptr %self.arg, align 4
+  %t118582 = trunc i32 %t118581 to i8
+  %0 = add i8 %t118582, -65
+  %spec.select = icmp ult i8 %0, 26
+  ret i1 %spec.select
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i1 @char__is_letter__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118572.i = load i32, ptr %self.arg, align 4
+  %t118573.i = trunc i32 %t118572.i to i8
+  %0 = and i8 %t118573.i, -33
+  %1 = add i8 %0, -65
+  %t118592 = icmp ult i8 %1, 26
+  ret i1 %t118592
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i1 @char__is_alphanumeric__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118572.i.i = load i32, ptr %self.arg, align 4
+  %t118573.i.i = trunc i32 %t118572.i.i to i8
+  %0 = and i8 %t118573.i.i, -33
+  %1 = add i8 %0, -65
+  %t118592.i = icmp ult i8 %1, 26
+  %2 = add i8 %t118573.i.i, -48
+  %spec.select.i = icmp ult i8 %2, 10
+  %t118595 = select i1 %t118592.i, i1 true, i1 %spec.select.i
+  ret i1 %t118595
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define noundef i1 @char__is_whitespace__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118596 = load i32, ptr %self.arg, align 4
+  %0 = icmp ult i32 %t118596, 33
+  %switch.cast = zext nneg i32 %t118596 to i33
+  %switch.downshift = lshr i33 -4294957568, %switch.cast
+  %1 = and i33 %switch.downshift, 1
+  %switch.masked = icmp ne i33 %1, 0
+  %t118606 = select i1 %0, i1 %switch.masked, i1 false
+  ret i1 %t118606
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i1 @char__is_hex_digit__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118563.i = load i32, ptr %self.arg, align 4
+  %t118564.i = trunc i32 %t118563.i to i8
+  %0 = add i8 %t118564.i, -48
+  %spec.select.i = icmp ult i8 %0, 10
+  %1 = add i8 %t118564.i, -97
+  %or.cond = icmp ult i8 %1, 6
+  %or.cond1 = or i1 %spec.select.i, %or.cond
+  br i1 %or.cond1, label %or.end.17017, label %or.rhs.17015
+
+or.rhs.17015:                                     ; preds = %entry
+  %2 = add i8 %t118564.i, -65
+  %spec.select = icmp ult i8 %2, 6
+  br label %or.end.17017
+
+or.end.17017:                                     ; preds = %or.rhs.17015, %entry
+  %t118627 = phi i1 [ true, %entry ], [ %spec.select, %or.rhs.17015 ]
+  ret i1 %t118627
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i32 @char__to_lower__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118628 = load i32, ptr %self.arg, align 4
+  %t118629 = trunc i32 %t118628 to i8
+  %0 = add i8 %t118629, -65
+  %or.cond = icmp ult i8 %0, 26
+  %t118642 = add i32 %t118628, 32
+  %t118643 = and i32 %t118642, 255
+  %common.ret.op = select i1 %or.cond, i32 %t118643, i32 %t118628
+  ret i32 %common.ret.op
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i32 @char__to_upper__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118645 = load i32, ptr %self.arg, align 4
+  %t118646 = trunc i32 %t118645 to i8
+  %0 = add i8 %t118646, -97
+  %or.cond = icmp ult i8 %0, 26
+  %t118659 = add i32 %t118645, 224
+  %t118660 = and i32 %t118659, 255
+  %common.ret.op = select i1 %or.cond, i32 %t118660, i32 %t118645
+  ret i32 %common.ret.op
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define noundef i64 @char__to_digit__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118662 = load i32, ptr %self.arg, align 4
+  %switch.tableidx = add i32 %t118662, -48
+  %0 = icmp ult i32 %switch.tableidx, 9
+  %t118681 = icmp eq i32 %t118662, 57
+  %spec.select = select i1 %t118681, i64 9, i64 -1
+  %switch.idx.cast = zext i32 %switch.tableidx to i64
+  %common.ret.op = select i1 %0, i64 %switch.idx.cast, i64 %spec.select
+  ret i64 %common.ret.op
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define i64 @char__to_hex_digit__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118683 = load i32, ptr %self.arg, align 4
+  %t118684 = trunc i32 %t118683 to i8
+  %0 = add i8 %t118684, -48
+  %or.cond = icmp ult i8 %0, 10
+  br i1 %or.cond, label %if.then.17078, label %if.end.17080
+
+common.ret:                                       ; preds = %if.end.17087, %if.then.17092, %if.then.17085, %if.then.17078
+  %common.ret.op = phi i64 [ %t118696, %if.then.17078 ], [ %t118712, %if.then.17085 ], [ %t118728, %if.then.17092 ], [ -1, %if.end.17087 ]
+  ret i64 %common.ret.op
+
+if.then.17078:                                    ; preds = %entry
+  %t118696 = zext nneg i8 %0 to i64
+  br label %common.ret
+
+if.end.17080:                                     ; preds = %entry
+  %1 = add i8 %t118684, -97
+  %or.cond1 = icmp ult i8 %1, 6
+  br i1 %or.cond1, label %if.then.17085, label %if.end.17087
+
+if.then.17085:                                    ; preds = %if.end.17080
+  %t118711 = add nsw i8 %t118684, -87
+  %t118712 = zext nneg i8 %t118711 to i64
+  br label %common.ret
+
+if.end.17087:                                     ; preds = %if.end.17080
+  %2 = add i8 %t118684, -65
+  %or.cond2 = icmp ult i8 %2, 6
+  br i1 %or.cond2, label %if.then.17092, label %common.ret
+
+if.then.17092:                                    ; preds = %if.end.17087
+  %t118727 = add nsw i8 %t118684, -55
+  %t118728 = zext nneg i8 %t118727 to i64
+  br label %common.ret
+}
+
+define noundef ptr @i64__to_str__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr {
+entry:
+  %t118730 = load i64, ptr %self.arg, align 8
+  %t118731 = icmp eq i64 %t118730, 0
+  br i1 %t118731, label %if.then.17095, label %if.end.17097
+
+common.ret:                                       ; preds = %if.end.17106, %dofree.i70, %dec.i62, %chk.i58, %rt_str_copy.exit, %if.then.17095
+  %common.ret.op = phi ptr [ %obj.i.i, %if.then.17095 ], [ %obj.i.i55, %rt_str_copy.exit ], [ %obj.i.i55, %chk.i58 ], [ %obj.i.i55, %dec.i62 ], [ %obj.i.i55, %dofree.i70 ], [ null, %if.end.17106 ]
+  ret ptr %common.ret.op
+
+if.then.17095:                                    ; preds = %entry
+  %raw.i.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  store i16 48, ptr %obj.i.i, align 1
+  br label %common.ret
+
+if.end.17097:                                     ; preds = %entry
+  %t118736 = icmp slt i64 %t118730, 0
+  %spec.select = tail call i64 @llvm.abs.i64(i64 %t118730, i1 false)
+  %raw.i.i8 = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i8, align 8
+  %dp.i.i9 = getelementptr i8, ptr %raw.i.i8, i64 8
+  store ptr null, ptr %dp.i.i9, align 8
+  %obj.i.i10 = getelementptr i8, ptr %raw.i.i8, i64 16
+  store i8 0, ptr %obj.i.i10, align 1
+  %t11874375 = icmp sgt i64 %spec.select, 0
+  br i1 %t11874375, label %while.body.17102, label %while.end.17103
+
+while.body.17102:                                 ; preds = %if.end.17097, %rt_release.exit28
+  %result.6732.addr.077 = phi ptr [ %obj.i13, %rt_release.exit28 ], [ %obj.i.i10, %if.end.17097 ]
+  %value.6730.addr.176 = phi i64 [ %t118760, %rt_release.exit28 ], [ %spec.select, %if.end.17097 ]
+  %t118745 = urem i64 %value.6730.addr.176, 10
+  %t118760 = udiv i64 %value.6730.addr.176, 10
+  %0 = icmp ult i64 %t118745, 9
+  %switch.idx.cast = trunc i64 %t118745 to i8
+  %switch.offset = or disjoint i8 %switch.idx.cast, 48
+  %common.ret.op.i = select i1 %0, i8 %switch.offset, i8 57
+  %raw.i = tail call dereferenceable_or_null(18) ptr @malloc(i64 18)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  store i8 %common.ret.op.i, ptr %obj.i, align 1
+  %t118750 = getelementptr i8, ptr %raw.i, i64 17
+  store i8 0, ptr %t118750, align 1
+  %t118751 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t118752 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6732.addr.077)
+  %t118753 = add i64 %t118751, 17
+  %total.i = add i64 %t118753, %t118752
+  %raw.i11 = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i11, align 8
+  %dp.i12 = getelementptr i8, ptr %raw.i11, i64 8
+  store ptr null, ptr %dp.i12, align 8
+  %obj.i13 = getelementptr i8, ptr %raw.i11, i64 16
+  %t118756 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i13, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t118757 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i13, ptr noundef nonnull dereferenceable(1) %result.6732.addr.077)
+  %small.i = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %rt_release.exit, label %dofree.i
+
+dofree.i:                                         ; preds = %while.body.17102
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit
+
+rt_release.exit:                                  ; preds = %while.body.17102, %dofree.i
+  %small.i14 = icmp ult ptr %result.6732.addr.077, inttoptr (i64 65536 to ptr)
+  br i1 %small.i14, label %rt_release.exit28, label %chk.i15
+
+chk.i15:                                          ; preds = %rt_release.exit
+  %rcp.i16 = getelementptr i8, ptr %result.6732.addr.077, i64 -16
+  %rc.i17 = load i64, ptr %rcp.i16, align 8
+  %imm.i18 = icmp slt i64 %rc.i17, 0
+  br i1 %imm.i18, label %rt_release.exit28, label %dec.i19
+
+dec.i19:                                          ; preds = %chk.i15
+  %n.i20 = add nsw i64 %rc.i17, -1
+  store i64 %n.i20, ptr %rcp.i16, align 8
+  %z.i21 = icmp eq i64 %n.i20, 0
+  br i1 %z.i21, label %drop.i22, label %rt_release.exit28
+
+drop.i22:                                         ; preds = %dec.i19
+  %dpp.i23 = getelementptr i8, ptr %result.6732.addr.077, i64 -8
+  %dfn.i24 = load ptr, ptr %dpp.i23, align 8
+  %has.not.i25 = icmp eq ptr %dfn.i24, null
+  br i1 %has.not.i25, label %dofree.i27, label %calldrop.i26
+
+calldrop.i26:                                     ; preds = %drop.i22
+  tail call void %dfn.i24(ptr nonnull %result.6732.addr.077)
+  br label %dofree.i27
+
+dofree.i27:                                       ; preds = %calldrop.i26, %drop.i22
+  tail call void @free(ptr %rcp.i16)
+  br label %rt_release.exit28
+
+rt_release.exit28:                                ; preds = %rt_release.exit, %chk.i15, %dec.i19, %dofree.i27
+  %t118743.not = icmp ult i64 %value.6730.addr.176, 10
+  br i1 %t118743.not, label %while.end.17103, label %while.body.17102
+
+while.end.17103:                                  ; preds = %rt_release.exit28, %if.end.17097
+  %result.6732.addr.0.lcssa = phi ptr [ %obj.i.i10, %if.end.17097 ], [ %obj.i13, %rt_release.exit28 ]
+  br i1 %t118736, label %if.then.17104, label %if.end.17106
+
+if.then.17104:                                    ; preds = %while.end.17103
+  %t118765 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6732.addr.0.lcssa)
+  %total.i29 = add i64 %t118765, 18
+  %raw.i30 = tail call ptr @malloc(i64 %total.i29)
+  store i64 1, ptr %raw.i30, align 8
+  %dp.i31 = getelementptr i8, ptr %raw.i30, i64 8
+  store ptr null, ptr %dp.i31, align 8
+  %obj.i32 = getelementptr i8, ptr %raw.i30, i64 16
+  store i16 45, ptr %obj.i32, align 1
+  %t118770 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i32, ptr noundef nonnull dereferenceable(1) %result.6732.addr.0.lcssa)
+  %small.i35 = icmp ult ptr %result.6732.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i35, label %if.end.17106, label %chk.i36
+
+chk.i36:                                          ; preds = %if.then.17104
+  %rcp.i37 = getelementptr i8, ptr %result.6732.addr.0.lcssa, i64 -16
+  %rc.i38 = load i64, ptr %rcp.i37, align 8
+  %imm.i39 = icmp slt i64 %rc.i38, 0
+  br i1 %imm.i39, label %if.end.17106, label %dec.i40
+
+dec.i40:                                          ; preds = %chk.i36
+  %n.i41 = add nsw i64 %rc.i38, -1
+  store i64 %n.i41, ptr %rcp.i37, align 8
+  %z.i42 = icmp eq i64 %n.i41, 0
+  br i1 %z.i42, label %drop.i43, label %if.end.17106
+
+drop.i43:                                         ; preds = %dec.i40
+  %dpp.i44 = getelementptr i8, ptr %result.6732.addr.0.lcssa, i64 -8
+  %dfn.i45 = load ptr, ptr %dpp.i44, align 8
+  %has.not.i46 = icmp eq ptr %dfn.i45, null
+  br i1 %has.not.i46, label %dofree.i48, label %calldrop.i47
+
+calldrop.i47:                                     ; preds = %drop.i43
+  tail call void %dfn.i45(ptr nonnull %result.6732.addr.0.lcssa)
+  br label %dofree.i48
+
+dofree.i48:                                       ; preds = %calldrop.i47, %drop.i43
+  tail call void @free(ptr %rcp.i37)
+  br label %if.end.17106
+
+if.end.17106:                                     ; preds = %dofree.i48, %dec.i40, %chk.i36, %if.then.17104, %while.end.17103
+  %result.6732.addr.1 = phi ptr [ %result.6732.addr.0.lcssa, %while.end.17103 ], [ %obj.i32, %if.then.17104 ], [ %obj.i32, %chk.i36 ], [ %obj.i32, %dec.i40 ], [ %obj.i32, %dofree.i48 ]
+  %isnull.i = icmp eq ptr %result.6732.addr.1, null
+  br i1 %isnull.i, label %common.ret, label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %if.end.17106
+  %len.i50 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6732.addr.1)
+  %sz.i51 = add i64 %len.i50, 1
+  %total.i.i52 = add i64 %len.i50, 17
+  %raw.i.i53 = tail call ptr @malloc(i64 %total.i.i52)
+  store i64 1, ptr %raw.i.i53, align 8
+  %dp.i.i54 = getelementptr i8, ptr %raw.i.i53, i64 8
+  store ptr null, ptr %dp.i.i54, align 8
+  %obj.i.i55 = getelementptr i8, ptr %raw.i.i53, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i55, ptr nonnull align 1 %result.6732.addr.1, i64 %sz.i51, i1 false)
+  %small.i57 = icmp ult ptr %result.6732.addr.1, inttoptr (i64 65536 to ptr)
+  br i1 %small.i57, label %common.ret, label %chk.i58
+
+chk.i58:                                          ; preds = %rt_str_copy.exit
+  %rcp.i59 = getelementptr i8, ptr %result.6732.addr.1, i64 -16
+  %rc.i60 = load i64, ptr %rcp.i59, align 8
+  %imm.i61 = icmp slt i64 %rc.i60, 0
+  br i1 %imm.i61, label %common.ret, label %dec.i62
+
+dec.i62:                                          ; preds = %chk.i58
+  %n.i63 = add nsw i64 %rc.i60, -1
+  store i64 %n.i63, ptr %rcp.i59, align 8
+  %z.i64 = icmp eq i64 %n.i63, 0
+  br i1 %z.i64, label %drop.i65, label %common.ret
+
+drop.i65:                                         ; preds = %dec.i62
+  %dpp.i66 = getelementptr i8, ptr %result.6732.addr.1, i64 -8
+  %dfn.i67 = load ptr, ptr %dpp.i66, align 8
+  %has.not.i68 = icmp eq ptr %dfn.i67, null
+  br i1 %has.not.i68, label %dofree.i70, label %calldrop.i69
+
+calldrop.i69:                                     ; preds = %drop.i65
+  tail call void %dfn.i67(ptr nonnull %result.6732.addr.1)
+  br label %dofree.i70
+
+dofree.i70:                                       ; preds = %calldrop.i69, %drop.i65
+  tail call void @free(ptr %rcp.i59)
+  br label %common.ret
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define noundef i32 @i64__to_digit_char__mangled(ptr nocapture readonly %self.arg) local_unnamed_addr #11 {
+entry:
+  %t118775 = load i64, ptr %self.arg, align 8
+  %0 = icmp ult i64 %t118775, 9
+  %t118794 = icmp eq i64 %t118775, 9
+  %. = select i1 %t118794, i32 57, i32 0
+  %switch.idx.cast = trunc i64 %t118775 to i32
+  %switch.offset = add nsw i32 %switch.idx.cast, 48
+  %common.ret.op = select i1 %0, i32 %switch.offset, i32 %.
+  ret i32 %common.ret.op
+}
+
+define noundef ptr @str_vector__join__mangled(ptr nocapture readonly %self.arg, ptr nocapture readonly %separator.arg) local_unnamed_addr {
+entry:
+  %raw.i.i = tail call dereferenceable_or_null(17) ptr @malloc(i64 17)
+  store i64 1, ptr %raw.i.i, align 8
+  %dp.i.i = getelementptr i8, ptr %raw.i.i, i64 8
+  store ptr null, ptr %dp.i.i, align 8
+  %obj.i.i = getelementptr i8, ptr %raw.i.i, i64 16
+  store i8 0, ptr %obj.i.i, align 1
+  %t118799 = getelementptr i8, ptr %self.arg, i64 16
+  %t11880048 = load i64, ptr %t118799, align 8
+  %t11880149 = icmp sgt i64 %t11880048, 0
+  br i1 %t11880149, label %diag.ok.17145.peel, label %for.end.17140
+
+diag.ok.17145.peel:                               ; preds = %entry
+  %t118826 = getelementptr i8, ptr %self.arg, i64 8
+  %t118827.peel = load ptr, ptr %t118826, align 8
+  %t118829.peel = load ptr, ptr %t118827.peel, align 8
+  %t118830.peel = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i.i)
+  %t118831.peel = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %t118829.peel)
+  %t118832.peel = add i64 %t118830.peel, 17
+  %total.i4.peel = add i64 %t118832.peel, %t118831.peel
+  %raw.i5.peel = tail call ptr @malloc(i64 %total.i4.peel)
+  store i64 1, ptr %raw.i5.peel, align 8
+  %dp.i6.peel = getelementptr i8, ptr %raw.i5.peel, i64 8
+  store ptr null, ptr %dp.i6.peel, align 8
+  %obj.i7.peel = getelementptr i8, ptr %raw.i5.peel, i64 16
+  %t118835.peel = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i7.peel, ptr noundef nonnull dereferenceable(1) %obj.i.i)
+  %t118836.peel = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i7.peel, ptr noundef nonnull dereferenceable(1) %t118829.peel)
+  %small.i8.peel = icmp ult ptr %obj.i.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i8.peel, label %rt_release.exit22.peel, label %dofree.i21.peel
+
+dofree.i21.peel:                                  ; preds = %diag.ok.17145.peel
+  tail call void @free(ptr nonnull %raw.i.i)
+  br label %rt_release.exit22.peel
+
+rt_release.exit22.peel:                           ; preds = %dofree.i21.peel, %diag.ok.17145.peel
+  %t118801.peel.not = icmp eq i64 %t11880048, 1
+  br i1 %t118801.peel.not, label %for.end.17140, label %if.then.17141
+
+if.then.17141:                                    ; preds = %rt_release.exit22.peel, %rt_release.exit22
+  %t118800.pre64 = phi i64 [ %t118800.pre65, %rt_release.exit22 ], [ %t11880048, %rt_release.exit22.peel ]
+  %t118817.pre58 = phi i64 [ %t118817.pre59, %rt_release.exit22 ], [ %t11880048, %rt_release.exit22.peel ]
+  %t11880056 = phi i64 [ %t118800, %rt_release.exit22 ], [ %t11880048, %rt_release.exit22.peel ]
+  %i.6737.addr.051 = phi i64 [ %t118839, %rt_release.exit22 ], [ 1, %rt_release.exit22.peel ]
+  %result.6736.addr.050 = phi ptr [ %obj.i7, %rt_release.exit22 ], [ %obj.i7.peel, %rt_release.exit22.peel ]
+  %t118806 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6736.addr.050)
+  %t118807 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %separator.arg)
+  %t118808 = add i64 %t118806, 17
+  %total.i = add i64 %t118808, %t118807
+  %raw.i = tail call ptr @malloc(i64 %total.i)
+  store i64 1, ptr %raw.i, align 8
+  %dp.i = getelementptr i8, ptr %raw.i, i64 8
+  store ptr null, ptr %dp.i, align 8
+  %obj.i = getelementptr i8, ptr %raw.i, i64 16
+  %t118811 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i, ptr noundef nonnull dereferenceable(1) %result.6736.addr.050)
+  %t118812 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i, ptr noundef nonnull dereferenceable(1) %separator.arg)
+  %small.i = icmp ult ptr %result.6736.addr.050, inttoptr (i64 65536 to ptr)
+  br i1 %small.i, label %if.end.17143, label %chk.i
+
+chk.i:                                            ; preds = %if.then.17141
+  %rcp.i = getelementptr i8, ptr %result.6736.addr.050, i64 -16
+  %rc.i = load i64, ptr %rcp.i, align 8
+  %imm.i = icmp slt i64 %rc.i, 0
+  br i1 %imm.i, label %if.end.17143, label %dec.i
+
+dec.i:                                            ; preds = %chk.i
+  %n.i = add nsw i64 %rc.i, -1
+  store i64 %n.i, ptr %rcp.i, align 8
+  %z.i = icmp eq i64 %n.i, 0
+  br i1 %z.i, label %drop.i, label %if.end.17143
+
+drop.i:                                           ; preds = %dec.i
+  %dpp.i = getelementptr i8, ptr %result.6736.addr.050, i64 -8
+  %dfn.i = load ptr, ptr %dpp.i, align 8
+  %has.not.i = icmp eq ptr %dfn.i, null
+  br i1 %has.not.i, label %dofree.i, label %calldrop.i
+
+calldrop.i:                                       ; preds = %drop.i
+  tail call void %dfn.i(ptr nonnull %result.6736.addr.050)
+  %t118817.pre.pre = load i64, ptr %t118799, align 8
+  br label %dofree.i
+
+dofree.i:                                         ; preds = %calldrop.i, %drop.i
+  %t118800.pre62 = phi i64 [ %t118817.pre.pre, %calldrop.i ], [ %t118800.pre64, %drop.i ]
+  %t118817.pre = phi i64 [ %t118817.pre.pre, %calldrop.i ], [ %t118817.pre58, %drop.i ]
+  tail call void @free(ptr %rcp.i)
+  br label %if.end.17143
+
+if.end.17143:                                     ; preds = %dofree.i, %dec.i, %chk.i, %if.then.17141
+  %t118800.pre63 = phi i64 [ %t118800.pre64, %if.then.17141 ], [ %t118800.pre64, %chk.i ], [ %t118800.pre64, %dec.i ], [ %t118800.pre62, %dofree.i ]
+  %t118817.pre60 = phi i64 [ %t118817.pre58, %if.then.17141 ], [ %t118817.pre58, %chk.i ], [ %t118817.pre58, %dec.i ], [ %t118817.pre, %dofree.i ]
+  %t11880055 = phi i64 [ %t11880056, %if.then.17141 ], [ %t11880056, %chk.i ], [ %t11880056, %dec.i ], [ %t118817.pre, %dofree.i ]
+  %t118820.not = icmp slt i64 %i.6737.addr.051, %t11880055
+  br i1 %t118820.not, label %diag.ok.17145, label %diag.err.17144
+
+diag.err.17144:                                   ; preds = %if.end.17143
+  %t118824 = load ptr, ptr @stderr, align 8
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7918, i64 158, i64 1, ptr %t118824) #28
+  tail call void @exit(i32 1)
+  unreachable
+
+diag.ok.17145:                                    ; preds = %if.end.17143
+  %t118827 = load ptr, ptr %t118826, align 8
+  %t118828 = getelementptr ptr, ptr %t118827, i64 %i.6737.addr.051
+  %t118829 = load ptr, ptr %t118828, align 8
+  %t118830 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t118831 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %t118829)
+  %t118832 = add i64 %t118830, 17
+  %total.i4 = add i64 %t118832, %t118831
+  %raw.i5 = tail call ptr @malloc(i64 %total.i4)
+  store i64 1, ptr %raw.i5, align 8
+  %dp.i6 = getelementptr i8, ptr %raw.i5, i64 8
+  store ptr null, ptr %dp.i6, align 8
+  %obj.i7 = getelementptr i8, ptr %raw.i5, i64 16
+  %t118835 = tail call ptr @strcpy(ptr noundef nonnull dereferenceable(1) %obj.i7, ptr noundef nonnull dereferenceable(1) %obj.i)
+  %t118836 = tail call ptr @strcat(ptr noundef nonnull dereferenceable(1) %obj.i7, ptr noundef nonnull dereferenceable(1) %t118829)
+  %small.i8 = icmp ult ptr %obj.i, inttoptr (i64 65536 to ptr)
+  br i1 %small.i8, label %rt_release.exit22, label %chk.i9
+
+chk.i9:                                           ; preds = %diag.ok.17145
+  %rc.i11 = load i64, ptr %raw.i, align 8
+  %imm.i12 = icmp slt i64 %rc.i11, 0
+  br i1 %imm.i12, label %rt_release.exit22, label %dec.i13
+
+dec.i13:                                          ; preds = %chk.i9
+  %n.i14 = add nsw i64 %rc.i11, -1
+  store i64 %n.i14, ptr %raw.i, align 8
+  %z.i15 = icmp eq i64 %n.i14, 0
+  br i1 %z.i15, label %drop.i16, label %rt_release.exit22
+
+drop.i16:                                         ; preds = %dec.i13
+  %dpp.i17 = getelementptr i8, ptr %raw.i, i64 8
+  %dfn.i18 = load ptr, ptr %dpp.i17, align 8
+  %has.not.i19 = icmp eq ptr %dfn.i18, null
+  br i1 %has.not.i19, label %dofree.i21, label %calldrop.i20
+
+calldrop.i20:                                     ; preds = %drop.i16
+  tail call void %dfn.i18(ptr nonnull %obj.i)
+  %t118800.pre.pre = load i64, ptr %t118799, align 8
+  br label %dofree.i21
+
+dofree.i21:                                       ; preds = %calldrop.i20, %drop.i16
+  %t118800.pre = phi i64 [ %t118800.pre.pre, %calldrop.i20 ], [ %t118800.pre63, %drop.i16 ]
+  tail call void @free(ptr nonnull %raw.i)
+  br label %rt_release.exit22
+
+rt_release.exit22:                                ; preds = %diag.ok.17145, %chk.i9, %dec.i13, %dofree.i21
+  %t118800.pre65 = phi i64 [ %t118800.pre63, %diag.ok.17145 ], [ %t118800.pre63, %chk.i9 ], [ %t118800.pre63, %dec.i13 ], [ %t118800.pre, %dofree.i21 ]
+  %t118817.pre59 = phi i64 [ %t118817.pre60, %diag.ok.17145 ], [ %t118817.pre60, %chk.i9 ], [ %t118817.pre60, %dec.i13 ], [ %t118800.pre, %dofree.i21 ]
+  %t118800 = phi i64 [ %t11880055, %diag.ok.17145 ], [ %t11880055, %chk.i9 ], [ %t11880055, %dec.i13 ], [ %t118800.pre, %dofree.i21 ]
+  %t118839 = add nuw nsw i64 %i.6737.addr.051, 1
+  %t118801 = icmp slt i64 %t118839, %t118800
+  br i1 %t118801, label %if.then.17141, label %for.end.17140, !llvm.loop !87
+
+for.end.17140:                                    ; preds = %rt_release.exit22, %rt_release.exit22.peel, %entry
+  %result.6736.addr.0.lcssa = phi ptr [ %obj.i.i, %entry ], [ %obj.i7.peel, %rt_release.exit22.peel ], [ %obj.i7, %rt_release.exit22 ]
+  %isnull.i = icmp eq ptr %result.6736.addr.0.lcssa, null
+  br i1 %isnull.i, label %rt_release.exit43, label %rt_str_copy.exit
+
+rt_str_copy.exit:                                 ; preds = %for.end.17140
+  %len.i23 = tail call i64 @strlen(ptr noundef nonnull dereferenceable(1) %result.6736.addr.0.lcssa)
+  %sz.i24 = add i64 %len.i23, 1
+  %total.i.i25 = add i64 %len.i23, 17
+  %raw.i.i26 = tail call ptr @malloc(i64 %total.i.i25)
+  store i64 1, ptr %raw.i.i26, align 8
+  %dp.i.i27 = getelementptr i8, ptr %raw.i.i26, i64 8
+  store ptr null, ptr %dp.i.i27, align 8
+  %obj.i.i28 = getelementptr i8, ptr %raw.i.i26, i64 16
+  tail call void @llvm.memcpy.p0.p0.i64(ptr align 1 %obj.i.i28, ptr nonnull align 1 %result.6736.addr.0.lcssa, i64 %sz.i24, i1 false)
+  %small.i29 = icmp ult ptr %result.6736.addr.0.lcssa, inttoptr (i64 65536 to ptr)
+  br i1 %small.i29, label %rt_release.exit43, label %chk.i30
+
+chk.i30:                                          ; preds = %rt_str_copy.exit
+  %rcp.i31 = getelementptr i8, ptr %result.6736.addr.0.lcssa, i64 -16
+  %rc.i32 = load i64, ptr %rcp.i31, align 8
+  %imm.i33 = icmp slt i64 %rc.i32, 0
+  br i1 %imm.i33, label %rt_release.exit43, label %dec.i34
+
+dec.i34:                                          ; preds = %chk.i30
+  %n.i35 = add nsw i64 %rc.i32, -1
+  store i64 %n.i35, ptr %rcp.i31, align 8
+  %z.i36 = icmp eq i64 %n.i35, 0
+  br i1 %z.i36, label %drop.i37, label %rt_release.exit43
+
+drop.i37:                                         ; preds = %dec.i34
+  %dpp.i38 = getelementptr i8, ptr %result.6736.addr.0.lcssa, i64 -8
+  %dfn.i39 = load ptr, ptr %dpp.i38, align 8
+  %has.not.i40 = icmp eq ptr %dfn.i39, null
+  br i1 %has.not.i40, label %dofree.i42, label %calldrop.i41
+
+calldrop.i41:                                     ; preds = %drop.i37
+  tail call void %dfn.i39(ptr nonnull %result.6736.addr.0.lcssa)
+  br label %dofree.i42
+
+dofree.i42:                                       ; preds = %calldrop.i41, %drop.i37
+  tail call void @free(ptr %rcp.i31)
+  br label %rt_release.exit43
+
+rt_release.exit43:                                ; preds = %for.end.17140, %rt_str_copy.exit, %chk.i30, %dec.i34, %dofree.i42
+  %common.ret.op.i46 = phi ptr [ %obj.i.i28, %rt_str_copy.exit ], [ %obj.i.i28, %chk.i30 ], [ %obj.i.i28, %dec.i34 ], [ %obj.i.i28, %dofree.i42 ], [ null, %for.end.17140 ]
+  ret ptr %common.ret.op.i46
+}
+
 define noundef i32 @main(i32 %argc, ptr %argv) local_unnamed_addr {
 entry:
   store i32 %argc, ptr @raptor_argc, align 4
@@ -727165,3 +731628,6 @@ attributes #28 = { cold }
 !82 = distinct !{!82, !2}
 !83 = distinct !{!83, !2}
 !84 = distinct !{!84, !2}
+!85 = distinct !{!85, !4, !5}
+!86 = distinct !{!86, !5, !4}
+!87 = distinct !{!87, !2}

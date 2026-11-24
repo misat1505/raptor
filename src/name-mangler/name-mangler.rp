@@ -25,7 +25,8 @@ fn nm_mangle_method_name(str target_name, str method_name): str {
             return "str_len";
         }
     }
-    return target_name + "__" + method_name + "__mangled";
+    let safe_target_name = str_replace_all(target_name, "[]", "_vector");
+    return safe_target_name + "__" + method_name + "__mangled";
 }
 
 fn nm_mangle_program(&NameMangler nm): void {
@@ -33,7 +34,6 @@ fn nm_mangle_program(&NameMangler nm): void {
         nm_mangle_type(&nm, &nm.program.declared_types[i].value);
     }
 
-    # extend blocks on built-in types (user types were merged by the import resolver)
     for (let i = 0; i < vector_size(&nm.program.extend_blocks); i += 1) {
         let block_type = nm.program.extend_blocks[i].type.value;
         if (block_type matches Type::Unresolved) {

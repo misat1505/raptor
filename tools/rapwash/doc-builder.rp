@@ -968,31 +968,15 @@ fn builder_decl_doc(&DocBuilder builder, &Statement stmt): Doc {
 
     if (stmt matches Statement::Declaration(declaration)) {
         let var_name = declaration.identifier.value;
-        match (declaration.kind) {
-            VariableDeclarationKind::LET(let_decl) {
-                let head = "let " + var_name;
-                if (let_decl.var_type matches OptionTypeNode::Some(type_node)) {
-                    head += ": " + type_to_string(type_node.value);
-                }
-                result = builder_assign_like(
-                    &builder,
-                    Doc::Text(head + " ="),
-                    &let_decl.value.value
-                );
-            },
-            VariableDeclarationKind::TYPE(type_decl) {
-                let head = type_to_string(type_decl.var_type.value) + " " + var_name;
-                if (type_decl.value matches OptionExpressionNode::Some(expr_node)) {
-                    result = builder_assign_like(
-                        &builder,
-                        Doc::Text(head + " ="),
-                        &expr_node.value
-                    );
-                } else {
-                    result = Doc::Text(head);
-                }
-            }
+        let head = "let " + var_name;
+        if (declaration.var_type matches OptionTypeNode::Some(type_node)) {
+            head += ": " + type_to_string(type_node.value);
         }
+        result = builder_assign_like(
+            &builder,
+            Doc::Text(head + " ="),
+            &declaration.value.value
+        );
     }
 
     return result;

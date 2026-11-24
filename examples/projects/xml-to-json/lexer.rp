@@ -81,7 +81,7 @@ struct Lexer {
                 return OptionToken::None;
             },
             OptionChar::Some(ch) {
-                if (!char_is_digit(ch)) {
+                if (!ch.is_digit()) {
                     return OptionToken::None;
                 }
             }
@@ -91,14 +91,14 @@ struct Lexer {
         let number = 0;
 
         while (self.source.get_current_char() matches OptionChar::Some(ch)) {
-            if (!char_is_digit(ch)) {
+            if (!ch.is_digit()) {
                 break;
             }
 
             if (number == 0) {
-                number = char_to_digit(ch);
+                number = ch.to_digit();
             } else {
-                number = number * 10 + char_to_digit(ch);
+                number = number * 10 + ch.to_digit();
             }
 
             self.source.consume_char();
@@ -119,7 +119,7 @@ struct Lexer {
                 return OptionToken::None;
             },
             OptionChar::Some(ch) {
-                if (!char_is_letter(ch)) {
+                if (!ch.is_letter()) {
                     return OptionToken::None;
                 }
             }
@@ -148,7 +148,7 @@ struct Lexer {
 
         let token = Token {
             kind: TokenKind::Literal,
-            value: OptionTokenValue::Some(TokenValue::Str(str_trim_right(text))),
+            value: OptionTokenValue::Some(TokenValue::Str(text.trim_right())),
             position: start_position
         };
 

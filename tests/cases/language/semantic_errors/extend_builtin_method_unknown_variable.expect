@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Variable 'c' not declared."

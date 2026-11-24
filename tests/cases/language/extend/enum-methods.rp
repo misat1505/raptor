@@ -1,0 +1,33 @@
+enum Shape {
+    Circle(i64),
+    Square(i64),
+    Empty
+};
+
+
+extend Shape {
+    fn size(self): i64 {
+        match (self) {
+            Shape::Circle(r) {
+                return r;
+            },
+            Shape::Square(s) {
+                return s;
+            },
+            Shape::Empty {
+                return 0;
+            }
+        }
+    }
+
+    fn unit(): Shape {
+        return Shape::Square(1);
+    }
+};
+
+
+let c = Shape::Circle(5);
+println(c.size() as str);
+let e = Shape::Empty;
+println(e.size() as str);
+println(Shape.unit().size() as str);

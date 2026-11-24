@@ -1,0 +1,23 @@
+extend i64 {
+    fn double(self): i64 {
+        return self * 2;
+    }
+};
+
+extend i64 {
+    fn triple(self): i64 {
+        return self * 3;
+    }
+};
+
+extend i64 {
+    fn double_then_triple(self): i64 {
+        return self.double().triple();
+    }
+};
+
+
+let n = 2;
+println(n.double() as str);
+println(n.triple() as str);
+println(n.double_then_triple() as str);

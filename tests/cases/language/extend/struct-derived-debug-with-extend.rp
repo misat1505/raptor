@@ -1,0 +1,27 @@
+struct User derives Debug {
+    i64 id,
+    str name
+
+    fn get_id(self): i64 {
+        return self.id;
+    }
+};
+
+
+extend User {
+    fn get_name(self): str {
+        return self.name;
+    }
+};
+
+extend User {
+    fn default(): User {
+        return User { id: 2137, name: "Elon" };
+    }
+};
+
+
+let user = User { id: 1, name: "Bob" };
+println(user.get_id() as str);
+println(user.get_name());
+println(User.default().debug());

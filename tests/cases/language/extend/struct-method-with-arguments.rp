@@ -1,0 +1,21 @@
+struct Account {
+    i64 balance
+};
+
+
+extend Account {
+    fn deposit(self, i64 amount): i64 {
+        self.balance += amount;
+        return self.balance;
+    }
+
+    fn can_afford(self, i64 price): bool {
+        return self.balance >= price;
+    }
+};
+
+
+let a = Account { balance: 10 };
+println(a.deposit(5) as str);
+println(a.can_afford(15) as str);
+println(a.can_afford(16) as str);

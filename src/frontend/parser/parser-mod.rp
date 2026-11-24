@@ -48,4 +48,5 @@ import "./functions/function-declaration.rp";
 import "./functions/extern-function-declaration.rp";
 import "./structs/struct-declaration.rp";
 import "./enums/enum-declaration.rp";
+import "./extend/extend-block.rp";
 import "./program.rp";

@@ -1,0 +1,18 @@
+extend bool {
+    fn negate(self): bool {
+        return !self;
+    }
+};
+
+extend f64 {
+    fn half(self): f64 {
+        return self / 2.0;
+    }
+};
+
+
+let t = true;
+println(t.negate() as str);
+println(t.negate().negate() as str);
+let x = 5.0;
+println(x.half() as str);

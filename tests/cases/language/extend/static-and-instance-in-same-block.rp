@@ -1,0 +1,21 @@
+struct Temperature {
+    i64 degrees
+};
+
+
+extend Temperature {
+    fn freezing(): Temperature {
+        return Temperature { degrees: 0 };
+    }
+
+    fn warmer(self, i64 by): Temperature {
+        return Temperature { degrees: self.degrees + by };
+    }
+
+    fn show(self): str {
+        return self.degrees as str + "C";
+    }
+};
+
+
+println(Temperature.freezing().warmer(20).warmer(1).show());

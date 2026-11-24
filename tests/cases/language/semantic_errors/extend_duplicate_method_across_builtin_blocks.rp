@@ -1,0 +1,14 @@
+extend i64 {
+    fn f(self): i64 {
+        return 1;
+    }
+};
+
+extend i64 {
+    fn f(self): i64 {
+        return 2;
+    }
+};
+
+let n = 1;
+n.f();

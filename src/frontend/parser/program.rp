@@ -292,8 +292,21 @@ fn parser_parse_program(&Parser parser): ResultProgram {
     let functions: FunctionDeclarationNode[] = [];
     let extern_functions: ExternFunctionDeclarationNode[] = [];
     let declared_types: DeclaredTypeNode[] = [];
+    let extend_blocks: ExtendBlock[] = [];
 
     while (true) {
+        match (parser_parse_extend_block(&parser)) {
+            ResultOptionExtendBlock::Err(err) {
+                return ResultProgram::Err(err);
+            },
+            ResultOptionExtendBlock::Ok(option_extend_block) {
+                if (option_extend_block matches OptionExtendBlock::Some(extend_block)) {
+                    vector_push(&extend_blocks, extend_block);
+                    continue;
+                }
+            }
+        }
+
         match (parser_parse_struct_declaration(&parser)) {
             ResultOptionStructDeclarationNode::Err(err) {
                 return ResultProgram::Err(err);
@@ -447,7 +460,8 @@ fn parser_parse_program(&Parser parser): ResultProgram {
         statements: statements,
         functions: functions,
         extern_functions: extern_functions,
-        declared_types: declared_types
+        declared_types: declared_types,
+        extend_blocks: extend_blocks
     });
 }
 

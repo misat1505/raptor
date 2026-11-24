@@ -52,10 +52,10 @@ fn semantic_checker_check_for_intrinsic_method_call(
                         "Failed to resolve the type of the argument passed to method 'push'."
                     );
                 }
-            } else if (mc.field.value == "extend") {
+            } else if (mc.field.value == "ext") {
                 if (vector_size(&mc.arguments) != 1) {
                     return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Method 'extend' expects exactly 1 argument, but "
+                        "Method 'ext' expects exactly 1 argument, but "
                             + vector_size(&mc.arguments) as str
                             + " were provided."
                     );
@@ -65,7 +65,7 @@ fn semantic_checker_check_for_intrinsic_method_call(
 
                 if (argument.value.passed_by matches PassedBy::Value) {
                     return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Argument of method 'extend' must be passed by reference."
+                        "Argument of method 'ext' must be passed by reference."
                     );
                 }
 
@@ -74,7 +74,7 @@ fn semantic_checker_check_for_intrinsic_method_call(
                 if (semantic_checker_read_last(&sc, argument.span) matches ResultType::Ok(arg_type)) {
                     if (type_debug(&arg_type) != type_debug(&type)) {
                         return CheckForIntrinsicMethodCallData::ErrorInCall(
-                            "Method 'extend' expects an argument of type '"
+                            "Method 'ext' expects an argument of type '"
                                 + type_to_string(type)
                                 + "', but '"
                                 + type_to_string(arg_type)
@@ -86,7 +86,7 @@ fn semantic_checker_check_for_intrinsic_method_call(
                     return CheckForIntrinsicMethodCallData::Ok;
                 } else {
                     return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Failed to resolve the type of the argument passed to method 'extend'."
+                        "Failed to resolve the type of the argument passed to method 'ext'."
                     );
                 }
             } else if (mc.field.value == "size") {

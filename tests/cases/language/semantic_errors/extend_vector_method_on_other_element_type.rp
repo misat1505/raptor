@@ -1,0 +1,8 @@
+extend i64[] {
+    fn first(self): i64 {
+        return self[0];
+    }
+};
+
+let words = ["a"];
+words.first();

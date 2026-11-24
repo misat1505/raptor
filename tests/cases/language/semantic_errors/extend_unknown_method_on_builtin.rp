@@ -1,0 +1,8 @@
+extend i64 {
+    fn double(self): i64 {
+        return self * 2;
+    }
+};
+
+let n = 1;
+n.triple();

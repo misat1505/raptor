@@ -646,3 +646,632 @@ fn i64_vector_swap(&i64[] values, i64 a, i64 b): void {
     values[a] = values[b];
     values[b] = temp;
 }
+
+# ============================================================
+# str[]
+# ============================================================
+
+extend str[] {
+    fn is_empty(self): bool {
+        return self.size() == 0;
+    }
+
+    fn contains(self, str value): bool {
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == value) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn index_of(self, str value): i64 {
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == value) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    fn last_index_of(self, str value): i64 {
+        for (let i = self.size() - 1; i >= 0; i -= 1) {
+            if (self[i] == value) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    fn first(self): str {
+        if (self.size() == 0) {
+            return "";
+        }
+        return self[0];
+    }
+
+    fn last(self): str {
+        if (self.size() == 0) {
+            return "";
+        }
+        return self[self.size() - 1];
+    }
+
+    fn reverse(self): str[] {
+        let result: str[] = [];
+
+        for (let i = self.size() - 1; i >= 0; i -= 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    fn copy(self): str[] {
+        let result: str[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    fn remove_at(self, i64 index): str[] {
+        let result: str[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (i != index) {
+                result.push(self[i]);
+            }
+        }
+
+        return result;
+    }
+
+    fn insert_at(self, i64 index, str value): str[] {
+        let result: str[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (i == index) {
+                result.push(value);
+            }
+            result.push(self[i]);
+        }
+
+        if (index >= self.size()) {
+            result.push(value);
+        }
+
+        return result;
+    }
+
+    fn concat(self, &str[] other): str[] {
+        let result: str[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            result.push(self[i]);
+        }
+
+        for (let i = 0; i < other.size(); i += 1) {
+            result.push(other[i]);
+        }
+
+        return result;
+    }
+
+    fn take(self, i64 count): str[] {
+        let result: str[] = [];
+
+        if (count <= 0) {
+            return result;
+        }
+
+        if (count > self.size()) {
+            count = self.size();
+        }
+
+        for (let i = 0; i < count; i += 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    fn skip(self, i64 count): str[] {
+        let result: str[] = [];
+
+        if (count < 0) {
+            count = 0;
+        }
+        if (count > self.size()) {
+            count = self.size();
+        }
+
+        for (let i = count; i < self.size(); i += 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    fn slice(self, i64 start, i64 end): str[] {
+        let result: str[] = [];
+
+        if (start < 0) {
+            start = 0;
+        }
+        if (end > self.size()) {
+            end = self.size();
+        }
+
+        if (start >= end) {
+            return result;
+        }
+
+        for (let i = start; i < end; i += 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    fn join(self, str separator): str {
+        let result = "";
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (i != 0) {
+                result += separator;
+            }
+            result += self[i];
+        }
+
+        return result;
+    }
+
+    fn count(self, str value): i64 {
+        let count = 0;
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == value) {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    fn remove_value(self, str value): str[] {
+        let result: str[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] != value) {
+                result.push(self[i]);
+            }
+        }
+
+        return result;
+    }
+
+    fn distinct(self): str[] {
+        let result: str[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (!result.contains(self[i])) {
+                result.push(self[i]);
+            }
+        }
+
+        return result;
+    }
+
+    fn concat_all(self): str {
+        return self.join("");
+    }
+};
+
+# ============================================================
+# i64[]
+# ============================================================
+
+extend i64[] {
+    fn is_empty(self): bool {
+        return self.size() == 0;
+    }
+
+    fn contains(self, i64 value): bool {
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == value) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn index_of(self, i64 value): i64 {
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == value) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    fn last_index_of(self, i64 value): i64 {
+        for (let i = self.size() - 1; i >= 0; i -= 1) {
+            if (self[i] == value) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    fn first(self): i64 {
+        if (self.size() == 0) {
+            return 0;
+        }
+        return self[0];
+    }
+
+    fn last(self): i64 {
+        if (self.size() == 0) {
+            return 0;
+        }
+        return self[self.size() - 1];
+    }
+
+    fn sum(self): i64 {
+        let result = 0;
+
+        for (let i = 0; i < self.size(); i += 1) {
+            result += self[i];
+        }
+
+        return result;
+    }
+
+    fn min(self): i64 {
+        if (self.size() == 0) {
+            return 0;
+        }
+
+        let result = self[0];
+
+        for (let i = 1; i < self.size(); i += 1) {
+            if (self[i] < result) {
+                result = self[i];
+            }
+        }
+
+        return result;
+    }
+
+    fn max(self): i64 {
+        if (self.size() == 0) {
+            return 0;
+        }
+
+        let result = self[0];
+
+        for (let i = 1; i < self.size(); i += 1) {
+            if (self[i] > result) {
+                result = self[i];
+            }
+        }
+
+        return result;
+    }
+
+    fn average(self): f64 {
+        if (self.size() == 0) {
+            return 0.0;
+        }
+
+        return self.sum() as f64 / self.size() as f64;
+    }
+
+    fn reverse(self): i64[] {
+        let result: i64[] = [];
+
+        for (let i = self.size() - 1; i >= 0; i -= 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    fn copy(self): i64[] {
+        let result: i64[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    fn remove_at(self, i64 index): i64[] {
+        let result: i64[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (i != index) {
+                result.push(self[i]);
+            }
+        }
+
+        return result;
+    }
+
+    fn remove_value(self, i64 value): i64[] {
+        let result: i64[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] != value) {
+                result.push(self[i]);
+            }
+        }
+
+        return result;
+    }
+
+    fn count(self, i64 value): i64 {
+        let count = 0;
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == value) {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    fn distinct(self): i64[] {
+        let result: i64[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (!result.contains(self[i])) {
+                result.push(self[i]);
+            }
+        }
+
+        return result;
+    }
+
+    fn concat(self, &i64[] other): i64[] {
+        let result: i64[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            result.push(self[i]);
+        }
+
+        for (let i = 0; i < other.size(); i += 1) {
+            result.push(other[i]);
+        }
+
+        return result;
+    }
+
+    fn take(self, i64 count): i64[] {
+        let result: i64[] = [];
+
+        if (count <= 0) {
+            return result;
+        }
+
+        if (count > self.size()) {
+            count = self.size();
+        }
+
+        for (let i = 0; i < count; i += 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    fn skip(self, i64 count): i64[] {
+        let result: i64[] = [];
+
+        if (count < 0) {
+            count = 0;
+        }
+
+        for (let i = count; i < self.size(); i += 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    fn slice(self, i64 start, i64 end): i64[] {
+        let result: i64[] = [];
+
+        if (start < 0) {
+            start = 0;
+        }
+        if (end > self.size()) {
+            end = self.size();
+        }
+
+        if (start >= end) {
+            return result;
+        }
+
+        for (let i = start; i < end; i += 1) {
+            result.push(self[i]);
+        }
+
+        return result;
+    }
+
+    # Sorting
+    fn sort(self): i64[] {
+        let result = self.copy();
+
+        for (let i = 0; i < result.size(); i += 1) {
+            for (let j = 0; j < result.size() - i - 1; j += 1) {
+                if (result[j] > result[j + 1]) {
+                    let temp = result[j];
+                    result[j] = result[j + 1];
+                    result[j + 1] = temp;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    fn sort_desc(self): i64[] {
+        let result = self.copy();
+
+        for (let i = 0; i < result.size(); i += 1) {
+            for (let j = 0; j < result.size() - i - 1; j += 1) {
+                if (result[j] < result[j + 1]) {
+                    let temp = result[j];
+                    result[j] = result[j + 1];
+                    result[j + 1] = temp;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    # In-place
+    fn reverse_in_place(self): void {
+        let left = 0;
+        let right = self.size() - 1;
+
+        while (left < right) {
+            let temp = self[left];
+            self[left] = self[right];
+            self[right] = temp;
+
+            left += 1;
+            right -= 1;
+        }
+    }
+
+    fn swap(self, i64 a, i64 b): void {
+        if (a < 0 || b < 0) {
+            return;
+        }
+        if (a >= self.size()) {
+            return;
+        }
+        if (b >= self.size()) {
+            return;
+        }
+
+        let temp = self[a];
+        self[a] = self[b];
+        self[b] = temp;
+    }
+
+    # Static-style constructors
+    fn fill(i64 size, i64 value): i64[] {
+        let result: i64[] = [];
+
+        if (size <= 0) {
+            return result;
+        }
+
+        for (let i = 0; i < size; i += 1) {
+            result.push(value);
+        }
+
+        return result;
+    }
+
+    fn range(i64 start, i64 end): i64[] {
+        let result: i64[] = [];
+
+        for (let i = start; i < end; i += 1) {
+            result.push(i);
+        }
+
+        return result;
+    }
+
+    fn range_step(i64 start, i64 end, i64 step): i64[] {
+        let result: i64[] = [];
+
+        if (step == 0) {
+            return result;
+        }
+
+        if (step > 0) {
+            let value = start;
+
+            while (value < end) {
+                result.push(value);
+                value += step;
+            }
+        } else {
+            let value = start;
+
+            while (value > end) {
+                result.push(value);
+                value += step;
+            }
+        }
+
+        return result;
+    }
+};
+
+# ============================================================
+# bool[]
+# ============================================================
+
+extend bool[] {
+    fn contains(self, bool value): bool {
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == value) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn all(self, bool expected): bool {
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] != expected) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    fn any(self, bool expected): bool {
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == expected) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn count(self, bool value): i64 {
+        let count = 0;
+
+        for (let i = 0; i < self.size(); i += 1) {
+            if (self[i] == value) {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    fn negate(self): bool[] {
+        let result: bool[] = [];
+
+        for (let i = 0; i < self.size(); i += 1) {
+            result.push(!self[i]);
+        }
+
+        return result;
+    }
+};

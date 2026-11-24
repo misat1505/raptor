@@ -357,6 +357,41 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
         }
     }
 
+    for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
+        match (program.extend_blocks[i].type.value) {
+            Type::Unresolved(custom_type_name) {
+                for (let j = 0; j < vector_size(&program.declared_types); j += 1) {
+                    match (program.declared_types[j].value) {
+                        DeclaredType::Struct(s) {
+                            if (s.identifier.value != custom_type_name) {
+                                continue;
+                            }
+
+                            semantic_checker_struct_hover(&sc, custom_type_name, program.extend_blocks[i].type.span);
+                            semantic_checker_push_definition(
+                                &sc,
+                                program.extend_blocks[i].type.span,
+                                program.declared_types[j].span
+                            );
+                        },
+                        DeclaredType::Enum(e) {
+                            if (e.identifier.value != custom_type_name) {
+                                continue;
+                            }
+                            semantic_checker_enum_hover(&sc, custom_type_name, program.extend_blocks[i].type.span);
+                            semantic_checker_push_definition(
+                                &sc,
+                                program.extend_blocks[i].type.span,
+                                program.declared_types[j].span
+                            );
+                        }
+                    }
+                }
+            },
+            rest {}
+        }
+    }
+
     for (let i = 0; i < vector_size(&program.statements); i += 1) {
         semantic_checker_visit_statement(&sc, &program, program.statements[i]);
     }
@@ -423,7 +458,13 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
                         s.members[m].value.member_type.span
                     );
                 }
-                semantic_checker_check_type_methods(&sc, &program, &s.methods, &s.identifier);
+                semantic_checker_check_type_methods(
+                    &sc,
+                    &program,
+                    &s.methods,
+                    Type::Unresolved(s.identifier.value),
+                    s.identifier.span
+                );
             },
             DeclaredType::Enum(e) {
                 for (let m = 0; m < vector_size(&e.members); m += 1) {
@@ -431,9 +472,30 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
                         semantic_checker_resolve_type(&sc, &program, tn.value, tn.span);
                     }
                 }
-                semantic_checker_check_type_methods(&sc, &program, &e.methods, &e.identifier);
+                semantic_checker_check_type_methods(
+                    &sc,
+                    &program,
+                    &e.methods,
+                    Type::Unresolved(e.identifier.value),
+                    e.identifier.span
+                );
             }
         }
+    }
+
+    # Extend blocks on built-in types (user types were merged into their declarations).
+    for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
+        let block_type = program.extend_blocks[i].type;
+        if (block_type.value matches Type::Unresolved) {
+            continue;
+        }
+        semantic_checker_check_type_methods(
+            &sc,
+            &program,
+            &program.extend_blocks[i].methods,
+            block_type.value,
+            block_type.span
+        );
     }
 }
 
@@ -441,7 +503,8 @@ fn semantic_checker_check_type_methods(
     &SemanticChecker sc,
     &Program program,
     &TypeMethodNode[] methods,
-    &IdentifierNode instance_type
+    Type self_type,
+    Span self_span
 ): void {
     for (let i = 0; i < vector_size(&methods); i += 1) {
         let method = methods[i];
@@ -475,8 +538,8 @@ fn semantic_checker_check_type_methods(
                 semantic_checker_resolve_type(
                     &sc,
                     &program,
-                    Type::Unresolved(instance_type.value),
-                    instance_type.span
+                    self_type,
+                    self_span
                 )
             ) {
                 ResultType::Err(e) {
@@ -1489,6 +1552,79 @@ fn semantic_checker_is_method_static(&Program program, &MethodCallExpression mc)
     return OptionStr::None;
 }
 
+fn semantic_checker_find_extend_method(
+    &Program program,
+    &Type type,
+    str method_name
+): OptionTypeMethodNode {
+    let wanted = type_debug(&type);
+    for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
+        let block_type = program.extend_blocks[i].type.value;
+        if (block_type matches Type::Unresolved) {
+            continue;
+        }
+        if (type_debug(&block_type) != wanted) {
+            continue;
+        }
+        for (let j = 0; j < vector_size(&program.extend_blocks[i].methods); j += 1) {
+            if (program.extend_blocks[i].methods[j].value.identifier.value == method_name) {
+                return OptionTypeMethodNode::Some(program.extend_blocks[i].methods[j]);
+            }
+        }
+    }
+    return OptionTypeMethodNode::None;
+}
+
+fn semantic_checker_check_extend_method_call(
+    &SemanticChecker sc,
+    &Program program,
+    &Type type,
+    &MethodCallExpression mc,
+    &Span span
+): bool {
+    let found = semantic_checker_find_extend_method(&program, &type, mc.field.value);
+    if (found matches OptionTypeMethodNode::Some(method_node)) {
+        let method = method_node.value;
+        let type_name = type_to_string(type);
+
+        if (method.self_identifier matches OptionIdentifierNode::None) {
+            semantic_checker_push_error(
+                &sc,
+                semantic_checker_error_at(
+                    ErrorSeverity::HIGH,
+                    "Method '" + mc.field.value + "' on type '" + type_name + "' is a static method",
+                    span
+                )
+            );
+        }
+
+        semantic_checker_check_arguments(
+            &sc,
+            &program,
+            mc.arguments,
+            method.parameters,
+            method.identifier.value,
+            span
+        );
+
+        mc.target = MethodCallTarget::Instance(type_name);
+
+        semantic_checker_method_call_hover(&sc, type_name, &method, mc.field.span);
+        semantic_checker_push_definition(&sc, mc.field.span, method_node.span);
+
+        match (semantic_checker_resolve_type(&sc, &program, method.return_type.value, span)) {
+            ResultType::Ok(return_type) {
+                semantic_checker_set_last(&sc, return_type);
+            },
+            ResultType::Err(err) {
+                semantic_checker_push_error(&sc, err);
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
 fn semantic_checker_check_method_call(
     &SemanticChecker sc,
     &Program program,
@@ -1814,6 +1950,9 @@ fn semantic_checker_check_method_call(
                     );
                 },
                 CheckForIntrinsicMethodCallData::NoTypeMatch {
+                    if (semantic_checker_check_extend_method_call(&sc, &program, &type, &mc, &span)) {
+                        return;
+                    }
                     semantic_checker_push_error(
                         &sc,
                         semantic_checker_error_at(
@@ -1824,6 +1963,9 @@ fn semantic_checker_check_method_call(
                     );
                 },
                 CheckForIntrinsicMethodCallData::NoMethodMatchInType {
+                    if (semantic_checker_check_extend_method_call(&sc, &program, &type, &mc, &span)) {
+                        return;
+                    }
                     semantic_checker_push_error(
                         &sc,
                         semantic_checker_error_at(

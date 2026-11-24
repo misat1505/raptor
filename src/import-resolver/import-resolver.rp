@@ -38,7 +38,7 @@ fn import_resolver_new(LexerOptions lexer_options): ImportResolver {
     return ImportResolver {
         stack: [],
         visited: [],
-        lexer_options: lexer_options,
+        lexer_options,
         overlay_paths: [],
         overlay_sources: []
     };
@@ -72,7 +72,8 @@ fn import_resolver_resolve(
         statements: [],
         functions: [],
         extern_functions: [],
-        declared_types: []
+        declared_types: [],
+        extend_blocks: []
     };
 
     vector_push(&resolver.stack, normalized_entry);
@@ -88,8 +89,10 @@ fn import_resolver_resolve(
         return ResultProgram::Err(err);
     }
 
+
     # pop entry from the cycle stack (mirrors Rust `self.stack.pop()`)
     if (vector_size(&resolver.stack) > 0) {
+
         # rebuild stack without last element (no vector_pop in language)
         let new_stack: str[] = [];
         for (let i = 0; i < vector_size(&resolver.stack) - 1; i += 1) {
@@ -98,7 +101,109 @@ fn import_resolver_resolve(
         resolver.stack = new_stack;
     }
 
+    let extend_block_result = import_resolver_evaluate_extend_blocks(&merged);
+    if (extend_block_result matches ResultUnit::Err(err)) {
+        return ResultProgram::Err(err);
+    }
+
     return ResultProgram::Ok(merged);
+}
+
+fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
+    for (let i = 0; i < vector_size(&merged.extend_blocks); i += 1) {
+        let extend_block = merged.extend_blocks[i];
+
+        if (extend_block.type.value matches Type::Unresolved(custom_type_name)) {
+            let found = false;
+            for (let j = 0; j < vector_size(&merged.declared_types); j += 1) {
+                match (merged.declared_types[j].value) {
+                    DeclaredType::Enum(e) {
+                        if (e.identifier.value != custom_type_name) {
+                            continue;
+                        }
+                        let duplicate = import_resolver_check_duplicate_methods(
+                            custom_type_name,
+                            &e.methods,
+                            &extend_block.methods
+                        );
+                        if (duplicate matches ResultUnit::Err(err)) {
+                            return ResultUnit::Err(err);
+                        }
+                        vector_extend(&e.methods, &extend_block.methods);
+                        found = true;
+                        break;
+                    },
+                    DeclaredType::Struct(s) {
+                        if (s.identifier.value != custom_type_name) {
+                            continue;
+                        }
+                        let duplicate = import_resolver_check_duplicate_methods(
+                            custom_type_name,
+                            &s.methods,
+                            &extend_block.methods
+                        );
+                        if (duplicate matches ResultUnit::Err(err)) {
+                            return ResultUnit::Err(err);
+                        }
+                        vector_extend(&s.methods, &extend_block.methods);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!found) {
+                return ResultUnit::Err(parser_error_at(
+                    ErrorSeverity::HIGH,
+                    "Type '" + custom_type_name + "' not found.",
+                    extend_block.type.span
+                ));
+            }
+        } else {
+            # Built-in type: blocks stay in `merged.extend_blocks`, so make sure no earlier
+            # block extending the same type already declares one of these methods.
+            let wanted = type_debug(&extend_block.type.value);
+            for (let k = 0; k < i; k += 1) {
+                let earlier_type = merged.extend_blocks[k].type.value;
+                if (earlier_type matches Type::Unresolved) {
+                    continue;
+                }
+                if (type_debug(&earlier_type) != wanted) {
+                    continue;
+                }
+                let duplicate = import_resolver_check_duplicate_methods(
+                    type_to_string(extend_block.type.value),
+                    &merged.extend_blocks[k].methods,
+                    &extend_block.methods
+                );
+                if (duplicate matches ResultUnit::Err(err)) {
+                    return ResultUnit::Err(err);
+                }
+            }
+        }
+    }
+
+    return ResultUnit::Ok;
+}
+
+fn import_resolver_check_duplicate_methods(
+    str type_name,
+    &TypeMethodNode[] existing,
+    &TypeMethodNode[] added
+): ResultUnit {
+    for (let a = 0; a < vector_size(&added); a += 1) {
+        let name = added[a].value.identifier.value;
+        for (let e = 0; e < vector_size(&existing); e += 1) {
+            if (existing[e].value.identifier.value == name) {
+                return ResultUnit::Err(parser_error_at(
+                    ErrorSeverity::HIGH,
+                    "Redeclaration of method '" + name + "' on type '" + type_name + "'.",
+                    added[a].value.identifier.span
+                ));
+            }
+        }
+    }
+    return ResultUnit::Ok;
 }
 
 fn import_resolver_merge_program(
@@ -166,6 +271,10 @@ fn import_resolver_merge_program(
         }
     }
 
+    # for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
+    #     vector_push(&merged.extend_blocks, program.extend_blocks[i]);
+    # }
+    vector_extend(&merged.extend_blocks, &program.extend_blocks);
     return ResultUnit::Ok;
 }
 
@@ -235,7 +344,10 @@ fn import_resolver_handle_import(
 }
 
 fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_span): ResultProgram {
-    let overlay_idx = import_resolver_overlay_index(&resolver, import_resolver_normalize_path(path));
+    let overlay_idx = import_resolver_overlay_index(
+        &resolver,
+        import_resolver_normalize_path(path)
+    );
     let source = "";
     if (overlay_idx >= 0) {
         source = resolver.overlay_sources[overlay_idx];

@@ -1,0 +1,12 @@
+extend User {
+    fn get_name(self): str {
+        return self.name;
+    }
+};
+
+struct User {
+    str name
+};
+
+let u = User { name: "Bob" };
+println(u.get_name());

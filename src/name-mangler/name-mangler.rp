@@ -16,7 +16,7 @@ fn nm_mangle_method_name(str target_name, str method_name): str {
             return "vector_push";
         } else if (method_name == "size") {
             return "vector_size";
-        } else if (method_name == "extend") {
+        } else if (method_name == "ext") {
             return "vector_extend";
         }
     }
@@ -25,12 +25,28 @@ fn nm_mangle_method_name(str target_name, str method_name): str {
             return "str_len";
         }
     }
-    return target_name + "__" + method_name + "__mangled";
+    let safe_target_name = str_replace_all(target_name, "[]", "_vector");
+    return safe_target_name + "__" + method_name + "__mangled";
 }
 
 fn nm_mangle_program(&NameMangler nm): void {
     for (let i = 0; i < vector_size(&nm.program.declared_types); i += 1) {
         nm_mangle_type(&nm, &nm.program.declared_types[i].value);
+    }
+
+    for (let i = 0; i < vector_size(&nm.program.extend_blocks); i += 1) {
+        let block_type = nm.program.extend_blocks[i].type.value;
+        if (block_type matches Type::Unresolved) {
+            continue;
+        }
+        for (let j = 0; j < vector_size(&nm.program.extend_blocks[i].methods); j += 1) {
+            nm_mangle_method(
+                &nm,
+                type_to_string(block_type),
+                block_type,
+                &nm.program.extend_blocks[i].methods[j]
+            );
+        }
     }
 
     for (let i = 0; i < vector_size(&nm.program.statements); i += 1) {
@@ -48,6 +64,7 @@ fn nm_mangle_type(&NameMangler nm, &DeclaredType declared_type): void {
                 nm_mangle_method(
                     &nm,
                     struct_declaration.identifier.value,
+                    Type::Unresolved(struct_declaration.identifier.value),
                     &struct_declaration.methods[i]
                 );
             }
@@ -57,6 +74,7 @@ fn nm_mangle_type(&NameMangler nm, &DeclaredType declared_type): void {
                 nm_mangle_method(
                     &nm,
                     enum_declaration.identifier.value,
+                    Type::Unresolved(enum_declaration.identifier.value),
                     &enum_declaration.methods[i]
                 );
             }
@@ -64,13 +82,13 @@ fn nm_mangle_type(&NameMangler nm, &DeclaredType declared_type): void {
     }
 }
 
-fn nm_mangle_method(&NameMangler nm, str type_name, &TypeMethodNode method): void {
+fn nm_mangle_method(&NameMangler nm, str type_name, Type self_type, &TypeMethodNode method): void {
     let parameters: ParameterNode[] = [];
 
     if (method.value.self_identifier matches OptionIdentifierNode::Some(ident_node)) {
         let param = Parameter {
             passed_by: PassedBy::Reference,
-            parameter_type: TypeNode { value: Type::Unresolved(type_name), span: span_dummy() },
+            parameter_type: TypeNode { value: self_type, span: span_dummy() },
             identifier: ident_node
         };
         let param_node = ParameterNode { value: param, span: ident_node.span };

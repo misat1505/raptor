@@ -1,2 +1,2 @@
 compile: fail
-compile-stderr-contains: "Method 'extend' expects an argument of type 'i64[]', but 'i64' was provided."
+compile-stderr-contains: "Method 'ext' expects an argument of type 'i64[]', but 'i64' was provided."

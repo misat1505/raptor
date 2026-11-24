@@ -77,7 +77,8 @@ enum TokenCategory derives Debug {
     Rest,
     Derives,
     Matches,
-    Not
+    Not,
+    Extend
 };
 
 enum TokenValue derives Debug {
@@ -342,6 +343,9 @@ fn token_category_to_string(TokenCategory category): str {
         },
         TokenCategory::Not {
             return "not";
+        },
+        TokenCategory::Extend {
+            return "extend";
         }
     }
 }

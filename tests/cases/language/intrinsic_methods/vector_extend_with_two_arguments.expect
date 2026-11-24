@@ -1,2 +1,2 @@
 compile: fail
-compile-stderr-contains: "Method 'extend' expects exactly 1 argument, but 2 were provided."
+compile-stderr-contains: "Method 'ext' expects exactly 1 argument, but 2 were provided."

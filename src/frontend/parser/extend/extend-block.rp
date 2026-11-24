@@ -1,0 +1,108 @@
+import "../../../semantic-checker/semantic-helpers.rp";
+
+enum OptionExtendBlock {
+    Some(ExtendBlock),
+    None
+};
+
+enum ResultOptionExtendBlock {
+    Ok(OptionExtendBlock),
+    Err(ParserError)
+};
+
+fn parser_parse_extend_block(&Parser parser): ResultOptionExtendBlock {
+    let extend_consumed = parser_consume_if_matches(&parser, TokenCategory::Extend);
+
+    let has_extend = false;
+    match (extend_consumed) {
+        ResultOptionToken::Err(err) {
+            return ResultOptionExtendBlock::Err(parser_error_from_lexer_error(&err));
+        },
+        ResultOptionToken::Ok(option_extend) {
+            if (option_extend matches OptionToken::Some) {
+                has_extend = true;
+            }
+        }
+    }
+
+    if (!has_extend) {
+        return ResultOptionExtendBlock::Ok(OptionExtendBlock::None);
+    }
+
+    let type_call = parser_parse_type(&parser);
+    let type_node = TypeNode { value: Type::Void, span: parser_current_token(&parser).span };
+    let found_type = false;
+    match (type_call) {
+        ResultOptionTypeNode::Err(err) {
+            return ResultOptionExtendBlock::Err(err);
+        },
+        ResultOptionTypeNode::Ok(option_type) {
+            if (option_type matches OptionTypeNode::Some(i)) {
+                type_node = i;
+                found_type = true;
+            }
+        }
+    }
+
+    if (!found_type) {
+        return ResultOptionExtendBlock::Err(parser_create_parser_error(
+            &parser,
+            "Couldn't create type while parsing extend block declaration."
+        ));
+    }
+
+    let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
+    if (brace_open matches ResultToken::Err(err)) {
+        return ResultOptionExtendBlock::Err(err);
+    }
+
+    let methods: TypeMethodNode[] = [];
+    while (true) {
+        match (parser_parse_type_method(&parser)) {
+            ResultOptionTypeMethodNode::Err(err) {
+                return ResultOptionExtendBlock::Err(err);
+            },
+            ResultOptionTypeMethodNode::Ok(option_type_method) {
+                match (option_type_method) {
+                    OptionTypeMethodNode::Some(type_method_node) {
+                        for (let i = 0; i < vector_size(&methods); i += 1) {
+                            let method_name = methods[i].value.identifier.value;
+                            if (method_name == type_method_node.value.identifier.value) {
+                                return ResultOptionExtendBlock::Err(parser_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Redeclaration of method '"
+                                        + method_name
+                                        + "' on type '"
+                                        + type_to_string(type_node.value)
+                                        + "'.",
+                                    methods[i].value.identifier.span
+                                ));
+                            }
+                        }
+                        vector_push(&methods, type_method_node);
+                    },
+                    OptionTypeMethodNode::None {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
+    if (brace_close matches ResultToken::Err(err)) {
+        return ResultOptionExtendBlock::Err(err);
+    }
+
+    let semicolon = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    if (semicolon matches ResultToken::Err(err)) {
+        return ResultOptionExtendBlock::Err(err);
+    }
+
+    let extend_block = ExtendBlock {
+        type: type_node,
+        methods: methods
+    };
+
+    return ResultOptionExtendBlock::Ok(OptionExtendBlock::Some(extend_block));
+}

@@ -1,0 +1,8 @@
+extend i64 {
+    fn add(self, i64 other): i64 {
+        return self + other;
+    }
+};
+
+let n = 1;
+n.add("x");

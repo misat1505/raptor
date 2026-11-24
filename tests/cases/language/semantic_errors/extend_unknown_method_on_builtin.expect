@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Cannot call methods on type 'i64'."

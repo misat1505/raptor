@@ -1,0 +1,5 @@
+extend i64 {
+    fn bad(self): i64 {
+        return "text";
+    }
+};

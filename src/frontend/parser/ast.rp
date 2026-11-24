@@ -487,6 +487,11 @@ struct DeclaredTypeNode derives Debug, Clone {
     Span span
 };
 
+struct ExtendBlock derives Debug, Clone {
+    TypeNode type,
+    TypeMethodNode[] methods
+};
+
 # ==================== Program ====================
 
 # The Rust `Program` keys functions/extern_functions/declared_types by
@@ -501,7 +506,8 @@ struct Program derives Debug {
     StatementNode[] statements,
     FunctionDeclarationNode[] functions,
     ExternFunctionDeclarationNode[] extern_functions,
-    DeclaredTypeNode[] declared_types
+    DeclaredTypeNode[] declared_types,
+    ExtendBlock[] extend_blocks
 };
 
 # Vector(Box<Type>) in Rust.

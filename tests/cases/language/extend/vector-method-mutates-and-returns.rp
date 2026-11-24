@@ -1,0 +1,16 @@
+extend i64[] {
+    fn push_twice(self, i64 value): void {
+        self.push(value);
+        self.push(value);
+    }
+
+    fn last(self): i64 {
+        return self[self.size() - 1];
+    }
+};
+
+
+let numbers = [1];
+numbers.push_twice(9);
+println(numbers.size() as str);
+println(numbers.last() as str);

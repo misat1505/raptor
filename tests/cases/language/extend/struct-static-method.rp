@@ -1,0 +1,21 @@
+struct User {
+    i64 id,
+    str name
+};
+
+
+extend User {
+    fn default(): User {
+        return User { id: 2137, name: "Elon" };
+    }
+
+    fn new(i64 id, str name): User {
+        return User { id, name };
+    }
+};
+
+
+let a = User.default();
+let b = User.new(7, "Ann");
+println(a.name + " " + a.id as str);
+println(b.name + " " + b.id as str);

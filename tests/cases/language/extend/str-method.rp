@@ -1,0 +1,15 @@
+extend str {
+    fn shout(self): str {
+        return self + "!";
+    }
+
+    fn repeat_twice(self): str {
+        return self + self;
+    }
+};
+
+
+let s = "hey";
+println(s.shout());
+println(s.repeat_twice().shout());
+println(s.size() as str);

@@ -1,0 +1,9 @@
+extend i64 {
+    fn f(self): i64 {
+        return 1;
+    }
+
+    fn f(self): i64 {
+        return 2;
+    }
+};

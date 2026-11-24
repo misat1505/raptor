@@ -1,0 +1,8 @@
+extend i64 {
+    fn zero(): i64 {
+        return 0;
+    }
+};
+
+let n = 1;
+n.zero();

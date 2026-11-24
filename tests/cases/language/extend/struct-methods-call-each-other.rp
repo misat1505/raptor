@@ -1,0 +1,31 @@
+struct Counter {
+    i64 value
+
+    fn get(self): i64 {
+        return self.value;
+    }
+};
+
+
+extend Counter {
+    fn get_twice(self): i64 {
+        return self.get() * 2;
+    }
+
+    fn make(i64 value): Counter {
+        return Counter { value };
+    }
+};
+
+extend Counter {
+    fn get_four_times(self): i64 {
+        return self.get_twice() * 2;
+    }
+
+    fn make_ten(): Counter {
+        return Counter.make(10);
+    }
+};
+
+
+println(Counter.make_ten().get_four_times() as str);

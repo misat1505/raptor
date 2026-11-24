@@ -1,0 +1,15 @@
+extend char {
+    fn is_digit(self): bool {
+        return self as u8 >= '0' as u8 && self as u8 <= '9' as u8;
+    }
+};
+
+
+let a = '0';
+let b = '9';
+let c = 'x';
+println(a.is_digit() as str);
+println(b.is_digit() as str);
+println(c.is_digit() as str);
+let d = '5';
+println(d.is_digit() as str);

@@ -1,0 +1,17 @@
+struct Counter {
+    i64 value
+};
+
+
+extend Counter {
+    fn increment(self): void {
+        self.value += 1;
+    }
+};
+
+
+let c = Counter { value: 0 };
+c.increment();
+c.increment();
+c.increment();
+println(c.value as str);

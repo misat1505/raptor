@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'zero' on type 'i64' is a static method"

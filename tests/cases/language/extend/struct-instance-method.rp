@@ -1,0 +1,20 @@
+struct User {
+    i64 id,
+    str name
+};
+
+
+extend User {
+    fn get_id(self): i64 {
+        return self.id;
+    }
+
+    fn get_name(self): str {
+        return self.name;
+    }
+};
+
+
+let user = User { id: 1, name: "Bob" };
+println(user.get_id() as str);
+println(user.get_name());

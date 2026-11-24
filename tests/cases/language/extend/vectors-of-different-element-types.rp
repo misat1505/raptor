@@ -1,0 +1,25 @@
+extend i64[] {
+    fn describe(self): str {
+        return "ints";
+    }
+};
+
+extend str[] {
+    fn describe(self): str {
+        return "strings";
+    }
+};
+
+extend char[] {
+    fn describe(self): str {
+        return "chars";
+    }
+};
+
+
+let a = [1, 2];
+let b = ["a", "b"];
+let c = ['a', 'b'];
+println(a.describe());
+println(b.describe());
+println(c.describe());

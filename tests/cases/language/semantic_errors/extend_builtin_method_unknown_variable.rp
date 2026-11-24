@@ -1,0 +1,5 @@
+extend char {
+    fn is_digit(self): bool {
+        return c as u8 >= 0 as u8;
+    }
+};

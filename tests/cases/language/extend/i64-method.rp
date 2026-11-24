@@ -1,0 +1,20 @@
+extend i64 {
+    fn double(self): i64 {
+        return self * 2;
+    }
+
+    fn add(self, i64 other): i64 {
+        return self + other;
+    }
+
+    fn is_even(self): bool {
+        return self % 2 == 0;
+    }
+};
+
+
+let n = 21;
+println(n.double() as str);
+println(n.add(4) as str);
+println(n.is_even() as str);
+println(n.double().double().add(1) as str);

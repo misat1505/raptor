@@ -1,0 +1,30 @@
+struct Wrapper {
+    i64 value
+};
+
+
+extend Wrapper {
+    fn describe(self): str {
+        return "wrapper " + self.value as str;
+    }
+};
+
+extend i64 {
+    fn describe(self): str {
+        return "number " + self as str;
+    }
+};
+
+extend char {
+    fn describe(self): str {
+        return "char";
+    }
+};
+
+
+let w = Wrapper { value: 1 };
+let n = 2;
+let c = 'x';
+println(w.describe());
+println(n.describe());
+println(c.describe());

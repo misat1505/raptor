@@ -1,0 +1,20 @@
+extend str {
+    fn shout(self): str {
+        return self + "!";
+    }
+};
+
+extend i64[] {
+    fn first(self): i64 {
+        return self[0];
+    }
+};
+
+
+let s = "abc";
+println(s.size() as str);
+let v = [7];
+v.push(8);
+println(v.size() as str);
+println(v.first() as str);
+println(s.shout());

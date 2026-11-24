@@ -1,0 +1,13 @@
+struct A {
+    i64 x
+
+    fn f(self): i64 {
+        return 1;
+    }
+};
+
+extend A {
+    fn f(self): i64 {
+        return 2;
+    }
+};

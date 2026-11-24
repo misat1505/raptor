@@ -1,0 +1,8 @@
+extend char {
+    fn is_digit(self): bool {
+        return true;
+    }
+};
+
+let n = 1;
+n.is_digit();

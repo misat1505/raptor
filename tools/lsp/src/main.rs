@@ -7,8 +7,11 @@
 //! Configure the backend path with `RAPTOR_LSP_BACKEND`. If unset, the server
 //! looks for `lsp-backend` on `PATH`, then `./build/lsp-backend`.
 
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::io::Write;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -25,7 +28,7 @@ static WSL_DRIVE_URIS: AtomicBool = AtomicBool::new(false);
 
 use serde::Deserialize;
 use tempfile::NamedTempFile;
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex, Semaphore};
 use tower_lsp::jsonrpc::Result as LspResult;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
@@ -95,6 +98,9 @@ struct DefinitionInfo {
 
 struct DocumentState {
     text: String,
+    /// Hash of the text as last seen on disk (open / save). A save with the same hash
+    /// changed nothing on disk, so nothing else needs to be re-analyzed.
+    saved_hash: Option<u64>,
     analyzed_path: String,
     hovers: Vec<HoverInfo>,
     definitions: Vec<DefinitionInfo>,
@@ -110,13 +116,36 @@ struct ImportGraph {
 struct Backend {
     client: Client,
     documents: Mutex<HashMap<Url, DocumentState>>,
-    /// Newest analysis request id per document; older results are discarded.
-    latest: Mutex<HashMap<Url, u64>>,
+    /// Newest analysis request id per document; older results are discarded. It is a watch
+    /// channel so that a newer edit also *wakes* the older, still running analysis, which then
+    /// kills its backend process instead of burning CPU for a result nobody will read.
+    latest: Mutex<HashMap<Url, watch::Sender<u64>>>,
     seq: AtomicU64,
+    /// Caps concurrently running backend processes (each one is a full compiler frontend run).
+    limiter: Semaphore,
+    /// Duration of the last finished analysis (ms); drives the adaptive debounce.
+    last_analysis_ms: AtomicU64,
     /// Open file -> entrypoint (an importer, higher in the import tree) that analyzed it best.
     context_cache: Mutex<HashMap<String, String>>,
     graph: Mutex<ImportGraph>,
     workspace_roots: Mutex<Vec<String>>,
+}
+
+/// Owns the shared server state. Analyses run in spawned tasks that need `Arc<Backend>`,
+/// so the LSP handlers must return quickly and never sit on a request slot for seconds.
+struct Handle(Arc<Backend>);
+
+impl Deref for Handle {
+    type Target = Backend;
+    fn deref(&self) -> &Backend {
+        &self.0
+    }
+}
+
+fn hash_text(text: &str) -> u64 {
+    let mut h = DefaultHasher::new();
+    text.hash(&mut h);
+    h.finish()
 }
 
 fn fix_wsl_drive_prefix(path: String) -> String {
@@ -262,17 +291,42 @@ fn severity_from_str(s: &str) -> DiagnosticSeverity {
 }
 
 /// Debounce before spawning the backend (ms) and hard limit for one analysis (s).
+/// The debounce adapts: it is a third of the last analysis time, between these bounds, so a
+/// 3 s analysis of a big program is not restarted on every short pause between keystrokes.
 const DEBOUNCE_MS: u64 = 150;
+const MAX_DEBOUNCE_MS: u64 = 1000;
 const BACKEND_TIMEOUT_SECS: u64 = 15;
 /// Max backend runs per analysis: the file itself + this many minus one importers.
 const MAX_CONTEXT_ATTEMPTS: usize = 5;
 
+const SUPERSEDED: &str = "superseded by a newer edit";
+
+/// Completes once request `seq` is no longer the newest one for its document (or the document
+/// was closed).
+async fn superseded(rx: &mut watch::Receiver<u64>, seq: u64) {
+    loop {
+        if *rx.borrow_and_update() != seq {
+            return;
+        }
+        if rx.changed().await.is_err() {
+            return;
+        }
+    }
+}
+
 /// Runs the backend with `entry` as entrypoint. `overlays` are (path, text) of every open
 /// editor buffer: the backend reads those instead of the (possibly older) files on disk.
-/// Returns the payload and everything the backend wrote to stderr (your `eprintln`s).
+/// `focus` is the open file: the backend then only emits hovers / definitions located in it
+/// (for a big program that is a 10-30x smaller JSON). The run is killed as soon as a newer
+/// edit of the same document arrives. Returns the payload and everything the backend wrote to
+/// stderr (your `eprintln`s).
 async fn run_backend(
     entry: &str,
+    focus: &str,
     overlays: &[(String, String)],
+    limiter: &Semaphore,
+    mut cancel: watch::Receiver<u64>,
+    seq: u64,
 ) -> Result<(BackendPayload, String), String> {
     let bin = backend_binary();
     if !bin.exists() {
@@ -282,32 +336,44 @@ async fn run_backend(
         ));
     }
 
-    let mut cmd = Command::new(&bin);
-    let mut tmp_files: Vec<NamedTempFile> = Vec::new();
-    for (path, text) in overlays {
-        let mut tmp = NamedTempFile::with_suffix(".rp").map_err(|e| e.to_string())?;
-        tmp.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
-        tmp.flush().map_err(|e| e.to_string())?;
-        cmd.arg("--overlay").arg(path).arg(tmp.path());
-        tmp_files.push(tmp);
-    }
-    // kill_on_drop + timeout: a hanging backend can no longer block a file forever.
-    cmd.arg(entry).kill_on_drop(true);
+    let work = async {
+        let _permit = limiter.acquire().await.map_err(|e| e.to_string())?;
 
-    let output = match tokio::time::timeout(
-        Duration::from_secs(BACKEND_TIMEOUT_SECS),
-        cmd.output(),
-    )
-    .await
-    {
-        Ok(r) => r.map_err(|e| format!("failed to spawn {}: {e}", bin.display()))?,
-        Err(_) => {
-            return Err(format!(
-                "lsp-backend timed out after {BACKEND_TIMEOUT_SECS}s and was killed"
-            ))
+        let mut cmd = Command::new(&bin);
+        let mut tmp_files: Vec<NamedTempFile> = Vec::new();
+        for (path, text) in overlays {
+            let mut tmp = NamedTempFile::with_suffix(".rp").map_err(|e| e.to_string())?;
+            tmp.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
+            tmp.flush().map_err(|e| e.to_string())?;
+            cmd.arg("--overlay").arg(path).arg(tmp.path());
+            tmp_files.push(tmp);
         }
+        cmd.arg("--focus").arg(focus);
+        // kill_on_drop + timeout: a hanging backend can no longer block a file forever.
+        cmd.arg(entry).kill_on_drop(true);
+
+        let output = match tokio::time::timeout(
+            Duration::from_secs(BACKEND_TIMEOUT_SECS),
+            cmd.output(),
+        )
+        .await
+        {
+            Ok(r) => r.map_err(|e| format!("failed to spawn {}: {e}", bin.display()))?,
+            Err(_) => {
+                return Err(format!(
+                    "lsp-backend timed out after {BACKEND_TIMEOUT_SECS}s and was killed"
+                ))
+            }
+        };
+        drop(tmp_files);
+        Ok::<_, String>(output)
     };
-    drop(tmp_files);
+
+    // Dropping `work` here drops the child process future, which kills the backend.
+    let output = tokio::select! {
+        r = work => r?,
+        _ = superseded(&mut cancel, seq) => return Err(SUPERSEDED.to_string()),
+    };
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -525,6 +591,9 @@ struct Attempt {
     own_errors: usize,
     /// parser / import / io error in the open file: a different entrypoint cannot fix that.
     hard_own: bool,
+    /// Fatal macro error located in the open file. Standalone it may only mean "defined by
+    /// an importer", but under an entrypoint that is already known to work it is a typo.
+    own_macro: bool,
 }
 
 impl Attempt {
@@ -544,11 +613,12 @@ fn rate_attempt(
     result: Result<(BackendPayload, String), String>,
     elapsed_ms: u128,
 ) -> Attempt {
-    let (fatal, own_errors, hard_own) = match &result {
+    let (fatal, own_errors, hard_own, own_macro) = match &result {
         Ok((payload, _)) => {
             let mut fatal = false;
             let mut own_errors = 0;
             let mut hard_own = false;
+            let mut own_macro = false;
             for d in &payload.diagnostics {
                 if d.severity != "error" {
                     continue;
@@ -563,11 +633,14 @@ fn rate_attempt(
                     if hard_phase {
                         hard_own = true;
                     }
+                    if d.phase == "macro" {
+                        own_macro = true;
+                    }
                 }
             }
-            (fatal, own_errors, hard_own)
+            (fatal, own_errors, hard_own, own_macro)
         }
-        Err(_) => (true, 1_000_000, false),
+        Err(_) => (true, 1_000_000, false, false),
     };
     Attempt {
         entry: entry.to_string(),
@@ -577,6 +650,7 @@ fn rate_attempt(
         fatal,
         own_errors,
         hard_own,
+        own_macro,
     }
 }
 
@@ -714,7 +788,7 @@ fn identifier_completions(source: &str) -> Vec<CompletionItem> {
 }
 
 #[tower_lsp::async_trait]
-impl LanguageServer for Backend {
+impl LanguageServer for Handle {
     async fn initialize(&self, params: InitializeParams) -> LspResult<InitializeResult> {
         let mut roots: Vec<String> = Vec::new();
         if let Some(folders) = &params.workspace_folders {
@@ -768,34 +842,65 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.validate(params.text_document.uri, params.text_document.text)
-            .await;
+        let uri = params.text_document.uri;
+        let text = params.text_document.text;
+        // What the editor opened is what is on disk right now.
+        let hash = hash_text(&text);
+        self.0.validate(uri.clone(), text).await;
+        if let Some(d) = self.documents.lock().await.get_mut(&uri) {
+            d.saved_hash = Some(hash);
+        }
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         if let Some(change) = params.content_changes.into_iter().last() {
-            self.validate(params.text_document.uri, change.text).await;
+            self.0.validate(params.text_document.uri, change.text).await;
         }
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri;
-        let text = match params.text {
-            Some(t) => Some(t),
-            None => self.documents.lock().await.get(&uri).map(|d| d.text.clone()),
+        let (current, saved_hash) = {
+            let docs = self.documents.lock().await;
+            match docs.get(&uri) {
+                Some(d) => (Some(d.text.clone()), d.saved_hash),
+                None => (None, None),
+            }
         };
-        if let Some(text) = text {
-            self.validate(uri.clone(), text).await;
+        let text = match params.text {
+            Some(t) => t,
+            None => match current.clone() {
+                Some(t) => t,
+                None => return,
+            },
+        };
+        let hash = hash_text(&text);
+
+        // `did_change` already analyzed exactly this text: running the backend again would
+        // only repeat that work (the old code did it on every single save).
+        if current.as_deref() != Some(text.as_str()) {
+            self.0.validate(uri.clone(), text).await;
+        }
+
+        // Disk content did not change (e.g. a repeated Ctrl+S): other files and the import
+        // graph are exactly as they were.
+        if saved_hash == Some(hash) {
+            return;
+        }
+        if let Some(d) = self.documents.lock().await.get_mut(&uri) {
+            d.saved_hash = Some(hash);
         }
         // Imports may have changed on disk: rebuild the import graph and re-analyze the
         // other open documents too.
         self.graph.lock().await.built_at = None;
-        self.revalidate_others(&uri).await;
+        self.0.revalidate_others(&uri).await;
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         self.documents.lock().await.remove(&uri);
+        // Dropping the sender wakes (and so cancels) an analysis that is still running.
+        self.latest.lock().await.remove(&uri);
         self.context_cache
             .lock()
             .await
@@ -875,7 +980,7 @@ impl LanguageServer for Backend {
 }
 
 impl Backend {
-    async fn revalidate_others(&self, except: &Url) {
+    async fn revalidate_others(self: &Arc<Self>, except: &Url) {
         let others: Vec<(Url, String)> = self
             .documents
             .lock()
@@ -890,7 +995,22 @@ impl Backend {
     }
 
     async fn is_latest(&self, uri: &Url, seq: u64) -> bool {
-        self.latest.lock().await.get(uri).copied() == Some(seq)
+        self.latest
+            .lock()
+            .await
+            .get(uri)
+            .map(|tx| *tx.borrow() == seq)
+            .unwrap_or(false)
+    }
+
+    /// Receiver that observes newer requests for `uri` (None when the document is closed).
+    async fn subscribe(&self, uri: &Url) -> Option<watch::Receiver<u64>> {
+        self.latest.lock().await.get(uri).map(|tx| tx.subscribe())
+    }
+
+    fn debounce(&self) -> Duration {
+        let last = self.last_analysis_ms.load(Ordering::Relaxed);
+        Duration::from_millis((last / 3).clamp(DEBOUNCE_MS, MAX_DEBOUNCE_MS))
     }
 
     /// (path, text) of every open editor buffer.
@@ -946,9 +1066,19 @@ impl Backend {
         level: usize,
         open_path: &str,
         overlays: &[(String, String)],
+        cancel: &watch::Receiver<u64>,
+        seq: u64,
     ) -> Attempt {
         let started = Instant::now();
-        let result = run_backend(entry, overlays).await;
+        let result = run_backend(
+            entry,
+            open_path,
+            overlays,
+            &self.limiter,
+            cancel.clone(),
+            seq,
+        )
+        .await;
         rate_attempt(entry, level, open_path, result, started.elapsed().as_millis())
     }
 
@@ -963,6 +1093,8 @@ impl Backend {
         seq: u64,
         overlays: &[(String, String)],
     ) -> Option<(Attempt, usize)> {
+        let cancel = self.subscribe(uri).await?;
+
         // 1) entrypoint that worked last time
         let cached = self.context_cache.lock().await.get(path).cloned();
         if let Some(entry) = cached {
@@ -970,11 +1102,15 @@ impl Backend {
                 && (overlays.iter().any(|(p, _)| paths_equal(p, &entry))
                     || Path::new(&entry).exists());
             if usable {
-                let a = self.attempt(&entry, 1, path, overlays).await;
+                let a = self.attempt(&entry, 1, path, overlays, &cancel, seq).await;
                 if !self.is_latest(uri, seq).await {
                     return None;
                 }
-                if !a.fatal || a.hard_own {
+                // This entrypoint is known to work, so an error in the open file itself
+                // (a half-typed derive, a syntax error) is just an error in the file. Only
+                // a failure caused elsewhere sends us searching for another entrypoint:
+                // re-searching on every keystroke used to cost up to 5 full analyses.
+                if !a.fatal || a.hard_own || a.own_macro {
                     return Some((a, 1));
                 }
             }
@@ -982,7 +1118,7 @@ impl Backend {
         }
 
         // 2) the file on its own
-        let first = self.attempt(path, 0, path, overlays).await;
+        let first = self.attempt(path, 0, path, overlays, &cancel, seq).await;
         if !self.is_latest(uri, seq).await {
             return None;
         }
@@ -1002,7 +1138,7 @@ impl Backend {
             if !self.is_latest(uri, seq).await {
                 return None;
             }
-            let a = self.attempt(&entry, level, path, overlays).await;
+            let a = self.attempt(&entry, level, path, overlays, &cancel, seq).await;
             tried += 1;
             let clean = a.clean();
             if a.key() < best.key() {
@@ -1022,25 +1158,40 @@ impl Backend {
         Some((best, tried))
     }
 
-    async fn validate(&self, uri: Url, text: String) {
+    /// Registers the newest text of `uri` and starts the analysis in a background task, so the
+    /// LSP handler returns at once. (It used to await the whole analysis, which kept one of
+    /// the server's few request slots busy for seconds and delayed hover / completion.)
+    async fn validate(self: &Arc<Self>, uri: Url, text: String) {
         let display_path = normalize_path(&path_for_uri(&uri));
 
         // Register this request and store the newest text right away, so completion
-        // never sees older text and older analyses can be recognized as stale.
+        // never sees older text and older analyses can be recognized as stale (and killed).
         let seq = self.seq.fetch_add(1, Ordering::SeqCst) + 1;
-        self.latest.lock().await.insert(uri.clone(), seq);
+        {
+            let mut latest = self.latest.lock().await;
+            match latest.get(&uri) {
+                Some(tx) => {
+                    tx.send_replace(seq);
+                }
+                None => {
+                    let (tx, _rx) = watch::channel(seq);
+                    latest.insert(uri.clone(), tx);
+                }
+            }
+        }
         {
             let mut docs = self.documents.lock().await;
             match docs.get_mut(&uri) {
                 Some(d) => {
-                    d.text = text.clone();
+                    d.text = text;
                     d.analyzed_path = display_path.clone();
                 }
                 None => {
                     docs.insert(
                         uri.clone(),
                         DocumentState {
-                            text: text.clone(),
+                            text,
+                            saved_hash: None,
                             analyzed_path: display_path.clone(),
                             hovers: Vec::new(),
                             definitions: Vec::new(),
@@ -1050,8 +1201,13 @@ impl Backend {
             }
         }
 
+        let this = Arc::clone(self);
+        tokio::spawn(async move { this.analyze_and_publish(uri, display_path, seq).await });
+    }
+
+    async fn analyze_and_publish(&self, uri: Url, display_path: String, seq: u64) {
         // Debounce: while the user types, only the last request runs the backend.
-        tokio::time::sleep(Duration::from_millis(DEBOUNCE_MS)).await;
+        tokio::time::sleep(self.debounce()).await;
         if !self.is_latest(&uri, seq).await {
             return;
         }
@@ -1065,6 +1221,10 @@ impl Backend {
         };
         if !self.is_latest(&uri, seq).await {
             return;
+        }
+        if best.result.is_ok() {
+            self.last_analysis_ms
+                .store(best.elapsed_ms.min(u64::MAX as u128) as u64, Ordering::Relaxed);
         }
 
         let (payload, stderr) = match best.result {
@@ -1177,11 +1337,18 @@ async fn main() {
 
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let (service, socket) = LspService::new(|client| Backend {
+    // Each backend run is single-threaded and CPU-bound: leave a core for the editor.
+    let permits = std::thread::available_parallelism()
+        .map(|n| n.get().saturating_sub(1))
+        .unwrap_or(1)
+        .clamp(1, 4);
+    let (service, socket) = LspService::new(move |client| Handle(Arc::new(Backend {
         client,
         documents: Mutex::new(HashMap::new()),
         latest: Mutex::new(HashMap::new()),
         seq: AtomicU64::new(0),
+        limiter: Semaphore::new(permits),
+        last_analysis_ms: AtomicU64::new(0),
         context_cache: Mutex::new(HashMap::new()),
         graph: Mutex::new(ImportGraph {
             built_at: None,
@@ -1189,6 +1356,6 @@ async fn main() {
             importers: Arc::new(HashMap::new()),
         }),
         workspace_roots: Mutex::new(Vec::new()),
-    });
+    })));
     Server::new(stdin, stdout, socket).serve(service).await;
 }

@@ -12,8 +12,8 @@ enum ResultOptionInterfaceDeclaration {
 };
 
 fn parser_parse_interface_declaration(&Parser parser): ResultOptionInterfaceDeclaration {
-    let interface_consumed = parser_consume_if_matches(&parser, TokenCategory::Interface);
     let start_pos = parser_current_token(&parser).span.start;
+    let interface_consumed = parser_consume_if_matches(&parser, TokenCategory::Interface);
 
     let has_interface = false;
     match (interface_consumed) {

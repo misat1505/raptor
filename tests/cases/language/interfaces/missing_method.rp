@@ -1,0 +1,12 @@
+interface Shape {
+    fn area(self): i64
+    fn name(self): str
+};
+
+struct Square implements Shape {
+    i64 side
+
+    fn area(self): i64 {
+        return self.side;
+    }
+};

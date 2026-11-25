@@ -1,0 +1,11 @@
+interface Shape {
+    fn grow(self, i64): void
+};
+
+struct Square implements Shape {
+    i64 side
+
+    fn grow(self, f64 by): void {
+        self.side += by as i64;
+    }
+};

@@ -1,0 +1,3 @@
+compile: fail
+compile-stderr-contains: "Unknown type `Ghost`."
+compile-stderr-contains: "Unknown type `Phantom`."

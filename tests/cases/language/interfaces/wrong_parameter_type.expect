@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Expected 'fn grow(self, i64): void', found 'fn grow(self, f64): void'."

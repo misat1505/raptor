@@ -1,0 +1,10 @@
+interface Duplicable {
+    fn clone(self): Pair
+};
+
+struct Pair derives Clone implements Duplicable {
+    i64 a
+};
+
+let p = Pair { a: 5 };
+println(p.clone().a as str);

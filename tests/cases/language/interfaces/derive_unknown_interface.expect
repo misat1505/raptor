@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Unknown derive 'Ghost' on type 'Square'"

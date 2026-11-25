@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Type 'Square' implements unknown interface 'Ghost'."

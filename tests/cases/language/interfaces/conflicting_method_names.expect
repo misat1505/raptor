@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Method 'move' is declared by both interface 'Walker' and interface 'Swimmer', which type 'Duck' implements."

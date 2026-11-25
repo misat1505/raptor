@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Expected 'fn label(self, &str): void', found 'fn label(self, str): void'."

@@ -1,0 +1,13 @@
+interface Walker {
+    fn go(self): void
+};
+
+interface Swimmer {
+    fn go(self): void
+};
+
+enum Duck derives Walker implements Swimmer {
+    A
+
+    fn go(self): void { }
+};

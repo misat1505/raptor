@@ -1,0 +1,33 @@
+interface Named {
+    fn name(self): str
+};
+
+interface Sized {
+    fn size(self): i64
+};
+
+struct Box implements Named, Sized {
+    i64 w
+
+    fn name(self): str {
+        return "box";
+    }
+
+    fn size(self): i64 {
+        return self.w;
+    }
+};
+
+enum Color implements Named {
+    Red,
+    Blue
+
+    fn name(self): str {
+        return "color";
+    }
+};
+
+let b = Box { w: 4 };
+println(b.name() + " " + b.size() as str);
+let c = Color::Red;
+println(c.name());

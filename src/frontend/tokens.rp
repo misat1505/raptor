@@ -78,7 +78,9 @@ enum TokenCategory derives Debug {
     Derives,
     Matches,
     Not,
-    Extend
+    Extend,
+    Interface,
+    Implements
 };
 
 enum TokenValue derives Debug {
@@ -346,6 +348,12 @@ fn token_category_to_string(TokenCategory category): str {
         },
         TokenCategory::Extend {
             return "extend";
+        },
+        TokenCategory::Interface {
+            return "interface";
+        },
+        TokenCategory::Implements {
+            return "implements";
         }
     }
 }

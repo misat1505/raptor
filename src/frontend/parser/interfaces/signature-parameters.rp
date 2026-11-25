@@ -1,0 +1,125 @@
+import "../../../common/span.rp";
+import "../../tokens.rp";
+import "../ast.rp";
+import "../parser-results.rp";
+import "../core.rp";
+
+enum OptionSignatureParameterNode {
+    Some(SignatureParameterNode),
+    None
+};
+
+enum ResultOptionSignatureParameterNode {
+    Ok(OptionSignatureParameterNode),
+    Err(ParserError)
+};
+
+enum ResultSignatureParameterNodeVec {
+    Ok(SignatureParameterNode[]),
+    Err(ParserError)
+};
+
+
+fn parser_parse_signature_parameters(&Parser parser): ResultSignatureParameterNodeVec {
+    # parameters = [ parameter, { ",", parameter } ];
+    let first_call = parser_parse_signature_parameter(&parser);
+    let parameters: SignatureParameterNode[] = [];
+
+    match (first_call) {
+        ResultOptionSignatureParameterNode::Err(err) {
+            return ResultSignatureParameterNodeVec::Err(err);
+        },
+        ResultOptionSignatureParameterNode::Ok(option_first) {
+            match (option_first) {
+                OptionSignatureParameterNode::None {
+                    return ResultSignatureParameterNodeVec::Ok(parameters);
+                },
+                OptionSignatureParameterNode::Some(first) {
+                    vector_push(&parameters, first);
+                }
+            }
+        }
+    }
+
+    while (true) {
+        let comma_consumed = parser_consume_if_matches(&parser, TokenCategory::Comma);
+        let has_comma = false;
+        match (comma_consumed) {
+            ResultOptionToken::Err(err) {
+                return ResultSignatureParameterNodeVec::Err(parser_error_from_lexer_error(&err));
+            },
+            ResultOptionToken::Ok(option_comma) {
+                if (option_comma matches OptionToken::Some) {
+                    has_comma = true;
+                }
+            }
+        }
+
+        if (!has_comma) {
+            break;
+        }
+
+        let next_call = parser_parse_signature_parameter(&parser);
+        match (next_call) {
+            ResultOptionSignatureParameterNode::Err(err) {
+                return ResultSignatureParameterNodeVec::Err(err);
+            },
+            ResultOptionSignatureParameterNode::Ok(option_next) {
+                match (option_next) {
+                    OptionSignatureParameterNode::None {
+                        return ResultSignatureParameterNodeVec::Err(parser_create_parser_error(
+                            &parser,
+                            "Couldn't create signature parameter while parsing signature parameters."
+                        ));
+                    },
+                    OptionSignatureParameterNode::Some(next) {
+                        vector_push(&parameters, next);
+                    }
+                }
+            }
+        }
+    }
+
+    return ResultSignatureParameterNodeVec::Ok(parameters);
+}
+
+fn parser_parse_signature_parameter(&Parser parser): ResultOptionSignatureParameterNode {
+    # parameter = ["&"], type;
+    let start_position = parser_current_token(&parser).span.start;
+
+    let reference_consumed = parser_consume_if_matches(&parser, TokenCategory::Reference);
+    let passed_by = PassedBy::Value;
+    match (reference_consumed) {
+        ResultOptionToken::Err(err) {
+            return ResultOptionSignatureParameterNode::Err(parser_error_from_lexer_error(&err));
+        },
+        ResultOptionToken::Ok(option_reference) {
+            if (option_reference matches OptionToken::Some) {
+                passed_by = PassedBy::Reference;
+            }
+        }
+    }
+
+    let type_call = parser_parse_type(&parser);
+    match (type_call) {
+        ResultOptionTypeNode::Err(err) {
+            return ResultOptionSignatureParameterNode::Err(err);
+        },
+        ResultOptionTypeNode::Ok(option_type) {
+            match (option_type) {
+                OptionTypeNode::None {
+                    return ResultOptionSignatureParameterNode::Ok(OptionSignatureParameterNode::None);
+                },
+                OptionTypeNode::Some(type_node) {
+                    return ResultOptionSignatureParameterNode::Ok(OptionSignatureParameterNode::Some(SignatureParameterNode {
+                        value: SignatureParameter {
+                            passed_by: passed_by,
+                            parameter_type: type_node
+                        },
+                        span: span_new(start_position, type_node.span.end)
+                    }));
+                }
+            }
+        }
+    }
+}

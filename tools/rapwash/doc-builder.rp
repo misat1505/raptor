@@ -249,6 +249,9 @@ fn doc_builder_build(&DocBuilder builder): Doc {
     let imports = builder_build_imports(&builder);
     builder_push_section(&sections, &imports, &hard);
 
+    let interfaces = builder_build_interface_declarations(&builder);
+    builder_push_section(&sections, &interfaces, &blank_line);
+
     let types = builder_build_type_declarations(&builder);
     builder_push_section(&sections, &types, &blank_line);
 
@@ -337,6 +340,127 @@ fn builder_build_statements(&DocBuilder builder): Doc[] {
     return result;
 }
 
+# Line on which the last top-level item that ends before `line` ends (0 if there is none).
+# Interfaces are printed ahead of everything else, so the comments right above one must
+# not be confused with those of items printed later.
+fn builder_last_item_end_before(&DocBuilder builder, i64 line): i64 {
+    let last = 0;
+
+    for (let i = 0; i < vector_size(&builder.ast.statements); i += 1) {
+        let end_line = builder.ast.statements[i].span.end.line;
+        if (end_line < line && end_line > last) {
+            last = end_line;
+        }
+    }
+    for (let i = 0; i < vector_size(&builder.ast.functions); i += 1) {
+        let end_line = builder.ast.functions[i].span.end.line;
+        if (end_line < line && end_line > last) {
+            last = end_line;
+        }
+    }
+    for (let i = 0; i < vector_size(&builder.ast.extern_functions); i += 1) {
+        let end_line = builder.ast.extern_functions[i].span.end.line;
+        if (end_line < line && end_line > last) {
+            last = end_line;
+        }
+    }
+    for (let i = 0; i < vector_size(&builder.ast.declared_types); i += 1) {
+        let end_line = builder.ast.declared_types[i].span.end.line;
+        if (end_line < line && end_line > last) {
+            last = end_line;
+        }
+    }
+    for (let i = 0; i < vector_size(&builder.ast.interfaces); i += 1) {
+        let end_line = builder.ast.interfaces[i].span.end.line;
+        if (end_line < line && end_line > last) {
+            last = end_line;
+        }
+    }
+    for (let i = 0; i < vector_size(&builder.ast.extend_blocks); i += 1) {
+        let block = builder.ast.extend_blocks[i];
+        let end_line = block.type.span.start.line;
+        if (vector_size(&block.methods) > 0) {
+            end_line = block.methods[vector_size(&block.methods) - 1].span.end.line + 1;
+        }
+        if (end_line < line && end_line > last) {
+            last = end_line;
+        }
+    }
+
+    return last;
+}
+
+# `interface <name> { fn ...(...): T ... };` declarations. They are printed first, above
+# all type declarations, in source order.
+fn builder_build_interface_declarations(&DocBuilder builder): Doc[] {
+    let declarations: Doc[] = [];
+
+    for (let i = 0; i < vector_size(&builder.ast.interfaces); i += 1) {
+        let node = builder.ast.interfaces[i];
+        let interface_decl = node.value;
+
+        let methods: Doc[] = [];
+        for (let j = 0; j < vector_size(&interface_decl.methods_signatures); j += 1) {
+            vector_push(
+                &methods,
+                builder_method_signature_doc(&interface_decl.methods_signatures[j].value)
+            );
+        }
+
+        let parts: Doc[] = [Doc::Text("interface " + interface_decl.identifier.value)];
+        if (vector_size(&methods) == 0) {
+            vector_push(&parts, Doc::Text(" {}"));
+        } else {
+            let method_sep = Doc::HardLine;
+            vector_push(&parts, Doc::Text(" {"));
+            vector_push(
+                &parts,
+                Doc::Indent([Doc::HardLine, doc_join(&methods, &method_sep)])
+            );
+            vector_push(&parts, Doc::HardLine);
+            vector_push(&parts, Doc::Text("}"));
+        }
+        vector_push(&parts, Doc::Text(";"));
+
+        vector_push(
+            &declarations,
+            builder_with_comments(
+                &builder,
+                builder_last_item_end_before(&builder, node.span.start.line),
+                node.span.start.line,
+                node.span.end.line,
+                Doc::Concat(parts)
+            )
+        );
+    }
+
+    return declarations;
+}
+
+# `fn name(self, &T, U): R` - signature parameters are only types, they have no names.
+fn builder_method_signature_doc(&MethodSignature signature): Doc {
+    let parameters: Doc[] = [];
+
+    if (signature.self_identifier matches OptionIdentifierNode::Some(self_ident)) {
+        vector_push(&parameters, Doc::Text(self_ident.value));
+    }
+
+    for (let j = 0; j < vector_size(&signature.parameters); j += 1) {
+        let parameter = signature.parameters[j].value;
+
+        let parameter_decl = "";
+        if (parameter.passed_by matches PassedBy::Reference) {
+            parameter_decl += "&";
+        }
+        parameter_decl += type_to_string(parameter.parameter_type.value);
+
+        vector_push(&parameters, Doc::Text(parameter_decl));
+    }
+
+    let list = builder_list("fn " + signature.identifier.value + "(", ")", &parameters, false);
+    return Doc::Concat([list, Doc::Text(": " + type_to_string(signature.return_type.value))]);
+}
+
 fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
     let declarations: Doc[] = [];
     let previous_end_line = 0;
@@ -374,10 +498,19 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
                     );
                 }
 
+                let type_implementations: Doc[] = [];
+                for (let j = 0; j < vector_size(&struct_decl.implementations); j += 1) {
+                    vector_push(
+                        &type_implementations,
+                        Doc::Text(struct_decl.implementations[j].value)
+                    );
+                }
+
                 item = builder_type_decl_doc(
                     "struct",
                     struct_decl.identifier.value,
                     &type_derives,
+                    &type_implementations,
                     &members,
                     &methods
                 );
@@ -409,10 +542,19 @@ fn builder_build_type_declarations(&DocBuilder builder): Doc[] {
                     );
                 }
 
+                let type_implementations: Doc[] = [];
+                for (let j = 0; j < vector_size(&enum_decl.implementations); j += 1) {
+                    vector_push(
+                        &type_implementations,
+                        Doc::Text(enum_decl.implementations[j].value)
+                    );
+                }
+
                 item = builder_type_decl_doc(
                     "enum",
                     enum_decl.identifier.value,
                     &type_derives,
+                    &type_implementations,
                     &members,
                     &methods
                 );
@@ -528,6 +670,7 @@ fn builder_type_decl_doc(
     str keyword,
     str name,
     &Doc[] type_derives,
+    &Doc[] type_implementations,
     &Doc[] members,
     &Doc[] methods
 ): Doc {
@@ -537,6 +680,12 @@ fn builder_type_decl_doc(
         let comma = Doc::Text(", ");
         vector_push(&parts, Doc::Text(" derives "));
         vector_push(&parts, doc_join(&type_derives, &comma));
+    }
+
+    if (vector_size(&type_implementations) > 0) {
+        let comma = Doc::Text(", ");
+        vector_push(&parts, Doc::Text(" implements "));
+        vector_push(&parts, doc_join(&type_implementations, &comma));
     }
 
     if (vector_size(&members) == 0 && vector_size(&methods) == 0) {

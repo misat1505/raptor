@@ -959,6 +959,10 @@ fn lexer_keyword_category(str value): OptionTokenCategory {
         return OptionTokenCategory::Some(TokenCategory::Not);
     } else if (value == "extend") {
         return OptionTokenCategory::Some(TokenCategory::Extend);
+    } else if (value == "interface") {
+        return OptionTokenCategory::Some(TokenCategory::Interface);
+    } else if (value == "implements") {
+        return OptionTokenCategory::Some(TokenCategory::Implements);
     }
 
     return OptionTokenCategory::None;

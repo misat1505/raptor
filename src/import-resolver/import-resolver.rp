@@ -73,7 +73,8 @@ fn import_resolver_resolve(
         functions: [],
         extern_functions: [],
         declared_types: [],
-        extend_blocks: []
+        extend_blocks: [],
+        interfaces: []
     };
 
     vector_push(&resolver.stack, normalized_entry);

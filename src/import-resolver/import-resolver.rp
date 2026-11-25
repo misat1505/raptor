@@ -73,7 +73,8 @@ fn import_resolver_resolve(
         functions: [],
         extern_functions: [],
         declared_types: [],
-        extend_blocks: []
+        extend_blocks: [],
+        interfaces: []
     };
 
     vector_push(&resolver.stack, normalized_entry);
@@ -253,6 +254,16 @@ fn import_resolver_merge_program(
         vector_push(&merged.declared_types, declared_type);
     }
 
+    for (let i = 0; i < vector_size(&program.interfaces); i += 1) {
+        let interface_decl = program.interfaces[i];
+        let name = interface_decl.value.identifier.value;
+        let collision = import_resolver_check_collision(name, interface_decl.span, &merged);
+        if (collision matches ResultUnit::Err(err)) {
+            return ResultUnit::Err(err);
+        }
+        vector_push(&merged.interfaces, interface_decl);
+    }
+
     for (let i = 0; i < vector_size(&program.statements); i += 1) {
         let statement = program.statements[i];
         if (statement.value matches Statement::Import(path_node)) {
@@ -271,9 +282,6 @@ fn import_resolver_merge_program(
         }
     }
 
-    # for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
-    #     vector_push(&merged.extend_blocks, program.extend_blocks[i]);
-    # }
     vector_extend(&merged.extend_blocks, &program.extend_blocks);
     return ResultUnit::Ok;
 }
@@ -418,6 +426,17 @@ fn import_resolver_check_collision(str name, Span span, &Program merged): Result
             }
         }
         if (declared_name == name) {
+            return ResultUnit::Err(parser_error_new(
+                ErrorSeverity::HIGH,
+                "Redeclaration of '" + name + "' across imported modules.",
+                span
+            ));
+        }
+    }
+
+    for (let i = 0; i < vector_size(&merged.interfaces); i += 1) {
+        let interface_decl = merged.interfaces[i];
+        if (interface_decl.value.identifier.value == name) {
             return ResultUnit::Err(parser_error_new(
                 ErrorSeverity::HIGH,
                 "Redeclaration of '" + name + "' across imported modules.",

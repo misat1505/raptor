@@ -1,0 +1,3 @@
+struct Square derives Debug, Ghost {
+    i64 side
+};

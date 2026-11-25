@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Expected 'fn area(self): i64', found 'fn area(): i64'."

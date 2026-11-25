@@ -98,7 +98,8 @@ fn llvm_compiler_new(): LlvmCompiler {
             functions: [],
             extern_functions: [],
             declared_types: [],
-            extend_blocks: []
+            extend_blocks: [],
+            interfaces: []
         },
         local_id: 0,
         arc: true,

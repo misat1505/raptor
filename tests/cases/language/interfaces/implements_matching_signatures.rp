@@ -1,0 +1,26 @@
+interface Shape {
+    fn area(self): i64
+    fn scale(self, i64, &str): i64
+    fn unit(): i64
+};
+
+struct Square implements Shape {
+    i64 side
+
+    fn area(self): i64 {
+        return self.side * self.side;
+    }
+
+    fn scale(self, i64 factor, &str label): i64 {
+        return self.side * factor + str_len(label);
+    }
+
+    fn unit(): i64 {
+        return 1;
+    }
+};
+
+let s = Square { side: 3 };
+println(s.area() as str);
+println(s.scale(2, &"ab") as str);
+println(Square.unit() as str);

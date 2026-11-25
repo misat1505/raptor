@@ -1,0 +1,3 @@
+struct Square implements Ghost {
+    i64 side
+};

@@ -1,0 +1,15 @@
+interface Walker {
+    fn move(self): void
+};
+
+interface Swimmer {
+    fn move(self): void
+};
+
+struct Duck implements Walker, Swimmer {
+    i64 x
+
+    fn move(self): void {
+        self.x += 1;
+    }
+};

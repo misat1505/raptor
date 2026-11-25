@@ -339,6 +339,328 @@ fn semantic_checker_lookup_enum(&Program program, str name): OptionEnumDeclarati
     return OptionEnumDeclaration::None;
 }
 
+# ---------- interfaces ----------
+
+fn semantic_checker_is_builtin_derive(str name): bool {
+    return name == "Debug" || name == "Json" || name == "Clone";
+}
+
+# Index of the interface `name` in `program.interfaces`, or -1.
+fn semantic_checker_find_interface(&Program program, str name): i64 {
+    for (let i = 0; i < vector_size(&program.interfaces); i += 1) {
+        if (program.interfaces[i].value.identifier.value == name) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+fn semantic_checker_interface_hover(&SemanticChecker sc, str name, Span span): void {
+    let contents = "```raptor\ninterface " + name + "\n```";
+    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+}
+
+fn semantic_checker_param_to_string(PassedBy passed_by, Type parameter_type): str {
+    if (passed_by matches PassedBy::Reference) {
+        return "&" + type_to_string(parameter_type);
+    }
+    return type_to_string(parameter_type);
+}
+
+# `fn name(self, &T, i64): R` - parameter names are not part of a signature.
+fn semantic_checker_interface_signature_to_string(MethodSignature sig): str {
+    let text = "fn " + sig.identifier.value + "(";
+    let first = true;
+    if (sig.self_identifier matches OptionIdentifierNode::Some) {
+        text += "self";
+        first = false;
+    }
+    for (let i = 0; i < vector_size(&sig.parameters); i += 1) {
+        if (!first) {
+            text += ", ";
+        }
+        first = false;
+        let p = sig.parameters[i].value;
+        text += semantic_checker_param_to_string(p.passed_by, p.parameter_type.value);
+    }
+    return text + "): " + type_to_string(sig.return_type.value);
+}
+
+fn semantic_checker_method_signature_to_string(TypeMethod method): str {
+    let text = "fn " + method.identifier.value + "(";
+    let first = true;
+    if (method.self_identifier matches OptionIdentifierNode::Some) {
+        text += "self";
+        first = false;
+    }
+    for (let i = 0; i < vector_size(&method.parameters); i += 1) {
+        if (!first) {
+            text += ", ";
+        }
+        first = false;
+        let p = method.parameters[i].value;
+        text += semantic_checker_param_to_string(p.passed_by, p.parameter_type.value);
+    }
+    return text + "): " + type_to_string(method.return_type.value);
+}
+
+# A method satisfies a signature when everything but parameter names is identical:
+# `self`-ness, the number of parameters, how each is passed, its type, and the return type.
+fn semantic_checker_signature_matches(MethodSignature sig, TypeMethod method): bool {
+    let sig_has_self = false;
+    if (sig.self_identifier matches OptionIdentifierNode::Some) {
+        sig_has_self = true;
+    }
+    let method_has_self = false;
+    if (method.self_identifier matches OptionIdentifierNode::Some) {
+        method_has_self = true;
+    }
+    if (sig_has_self != method_has_self) {
+        return false;
+    }
+    if (vector_size(&sig.parameters) != vector_size(&method.parameters)) {
+        return false;
+    }
+    for (let i = 0; i < vector_size(&sig.parameters); i += 1) {
+        let expected = sig.parameters[i].value;
+        let actual = method.parameters[i].value;
+        let expected_by_ref = false;
+        if (expected.passed_by matches PassedBy::Reference) {
+            expected_by_ref = true;
+        }
+        let actual_by_ref = false;
+        if (actual.passed_by matches PassedBy::Reference) {
+            actual_by_ref = true;
+        }
+        if (expected_by_ref != actual_by_ref) {
+            return false;
+        }
+        if (!type_eq(expected.parameter_type.value, actual.parameter_type.value)) {
+            return false;
+        }
+    }
+    return type_eq(sig.return_type.value, method.return_type.value);
+}
+
+# Interface declarations may only mention types that exist, and must not shadow a built-in derive.
+fn semantic_checker_check_interface_declarations(&SemanticChecker sc, &Program program): void {
+    for (let i = 0; i < vector_size(&program.interfaces); i += 1) {
+        let decl = program.interfaces[i].value;
+        semantic_checker_interface_hover(&sc, decl.identifier.value, decl.identifier.span);
+
+        if (semantic_checker_is_builtin_derive(decl.identifier.value)) {
+            semantic_checker_push_error(
+                &sc,
+                semantic_checker_error_at(
+                    ErrorSeverity::HIGH,
+                    "Interface name '"
+                        + decl.identifier.value
+                        + "' conflicts with the built-in derive macro of the same name.",
+                    decl.identifier.span
+                )
+            );
+        }
+
+        for (let m = 0; m < vector_size(&decl.methods_signatures); m += 1) {
+            let sig = decl.methods_signatures[m].value;
+            # `semantic_checker_resolve_type` reports unknown types itself and records
+            # hovers / definitions for the ones that exist.
+            for (let p = 0; p < vector_size(&sig.parameters); p += 1) {
+                let param_type = sig.parameters[p].value.parameter_type;
+                semantic_checker_resolve_type(&sc, &program, param_type.value, param_type.span);
+            }
+            semantic_checker_resolve_type(
+                &sc,
+                &program,
+                sig.return_type.value,
+                sig.return_type.span
+            );
+        }
+    }
+}
+
+# Checks the interfaces a struct / enum implements, either through `implements` or by
+# `derives` naming an interface (the two are equivalent). Built-in derives (Debug, Json,
+# Clone) are macros handled by the macro expander and are skipped here.
+fn semantic_checker_check_type_interfaces(
+    &SemanticChecker sc,
+    &Program program,
+    str type_name,
+    IdentifierNode[] type_derives,
+    IdentifierNode[] type_implementations,
+    &TypeMethodNode[] methods
+): void {
+    # Interfaces the type implements: index into program.interfaces + the reference that named it.
+    let implemented: i64[] = [];
+    let references: IdentifierNode[] = [];
+
+    for (let pass = 0; pass < 2; pass += 1) {
+        let names: IdentifierNode[] = type_derives;
+        if (pass == 1) {
+            names = type_implementations;
+        }
+
+        for (let n = 0; n < vector_size(&names); n += 1) {
+            let reference = names[n];
+
+            if (pass == 0 && semantic_checker_is_builtin_derive(reference.value)) {
+                continue;
+            }
+
+            let index = semantic_checker_find_interface(&program, reference.value);
+            if (index < 0) {
+                if (pass == 0) {
+                    semantic_checker_push_error(
+                        &sc,
+                        semantic_checker_error_at(
+                            ErrorSeverity::HIGH,
+                            "Unknown derive '"
+                                + reference.value
+                                + "' on type '"
+                                + type_name
+                                + "': there is neither a built-in derive macro (Debug, Json, Clone) nor an interface with that name.",
+                            reference.span
+                        )
+                    );
+                } else {
+                    semantic_checker_push_error(
+                        &sc,
+                        semantic_checker_error_at(
+                            ErrorSeverity::HIGH,
+                            "Type '"
+                                + type_name
+                                + "' implements unknown interface '"
+                                + reference.value
+                                + "'.",
+                            reference.span
+                        )
+                    );
+                }
+                continue;
+            }
+
+            semantic_checker_interface_hover(&sc, reference.value, reference.span);
+            semantic_checker_push_definition(&sc, reference.span, program.interfaces[index].span);
+
+            let already = false;
+            for (let k = 0; k < vector_size(&implemented); k += 1) {
+                if (implemented[k] == index) {
+                    already = true;
+                }
+            }
+            if (already) {
+                semantic_checker_push_error(
+                    &sc,
+                    semantic_checker_error_at(
+                        ErrorSeverity::HIGH,
+                        "Type '"
+                            + type_name
+                            + "' already implements interface '"
+                            + reference.value
+                            + "'.",
+                        reference.span
+                    )
+                );
+                continue;
+            }
+
+            vector_push(&implemented, index);
+            vector_push(&references, reference);
+        }
+    }
+
+    for (let a = 0; a < vector_size(&implemented); a += 1) {
+        let interface_decl = program.interfaces[implemented[a]].value;
+        let interface_name = interface_decl.identifier.value;
+
+        # The same method name coming from two interfaces is ambiguous, even when both
+        # signatures are identical.
+        for (let b = 0; b < a; b += 1) {
+            let other = program.interfaces[implemented[b]].value;
+            for (let m = 0; m < vector_size(&interface_decl.methods_signatures); m += 1) {
+                let method_name = interface_decl.methods_signatures[m].value.identifier.value;
+                for (let o = 0; o < vector_size(&other.methods_signatures); o += 1) {
+                    if (other.methods_signatures[o].value.identifier.value == method_name) {
+                        semantic_checker_push_error(
+                            &sc,
+                            semantic_checker_error_at(
+                                ErrorSeverity::HIGH,
+                                "Method '"
+                                    + method_name
+                                    + "' is declared by both interface '"
+                                    + other.identifier.value
+                                    + "' and interface '"
+                                    + interface_name
+                                    + "', which type '"
+                                    + type_name
+                                    + "' implements.",
+                                references[a].span
+                            )
+                        );
+                    }
+                }
+            }
+        }
+
+        for (let m = 0; m < vector_size(&interface_decl.methods_signatures); m += 1) {
+            let sig = interface_decl.methods_signatures[m].value;
+            let expected = semantic_checker_interface_signature_to_string(sig);
+
+            let found = false;
+            for (let t = 0; t < vector_size(&methods); t += 1) {
+                let method = methods[t].value;
+                if (method.identifier.value != sig.identifier.value) {
+                    continue;
+                }
+                found = true;
+
+                if (!semantic_checker_signature_matches(sig, method)) {
+                    # Derive-generated methods carry a synthetic span without a file.
+                    let at = references[a].span;
+                    if (method.identifier.span.start.filename matches OptionStr::Some) {
+                        at = method.identifier.span;
+                    }
+                    semantic_checker_push_error(
+                        &sc,
+                        semantic_checker_error_at(
+                            ErrorSeverity::HIGH,
+                            "Method '"
+                                + sig.identifier.value
+                                + "' of type '"
+                                + type_name
+                                + "' does not match interface '"
+                                + interface_name
+                                + "'. Expected '"
+                                + expected
+                                + "', found '"
+                                + semantic_checker_method_signature_to_string(method)
+                                + "'.",
+                            at
+                        )
+                    );
+                }
+            }
+
+            if (!found) {
+                semantic_checker_push_error(
+                    &sc,
+                    semantic_checker_error_at(
+                        ErrorSeverity::HIGH,
+                        "Type '"
+                            + type_name
+                            + "' does not implement method '"
+                            + expected
+                            + "' required by interface '"
+                            + interface_name
+                            + "'.",
+                        references[a].span
+                    )
+                );
+            }
+        }
+    }
+}
+
 # ---------- program ----------
 
 fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
@@ -446,6 +768,8 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
         stack_pop_frame(&sc.stack);
     }
 
+    semantic_checker_check_interface_declarations(&sc, &program);
+
     # Validate declared types' member type references.
     for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
         match (program.declared_types[i].value) {
@@ -465,6 +789,14 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
                     Type::Unresolved(s.identifier.value),
                     s.identifier.span
                 );
+                semantic_checker_check_type_interfaces(
+                    &sc,
+                    &program,
+                    s.identifier.value,
+                    s.struct_derives,
+                    s.implementations,
+                    &s.methods
+                );
             },
             DeclaredType::Enum(e) {
                 for (let m = 0; m < vector_size(&e.members); m += 1) {
@@ -478,6 +810,14 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
                     &e.methods,
                     Type::Unresolved(e.identifier.value),
                     e.identifier.span
+                );
+                semantic_checker_check_type_interfaces(
+                    &sc,
+                    &program,
+                    e.identifier.value,
+                    e.enum_derives,
+                    e.implementations,
+                    &e.methods
                 );
             }
         }

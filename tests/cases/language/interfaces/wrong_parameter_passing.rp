@@ -1,0 +1,11 @@
+interface Shape {
+    fn label(self, &str): void
+};
+
+struct Square implements Shape {
+    i64 side
+
+    fn label(self, str text): void {
+        println(text);
+    }
+};

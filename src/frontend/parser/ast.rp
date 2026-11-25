@@ -431,6 +431,7 @@ struct StructDeclaration derives Debug, Clone {
     IdentifierNode identifier,
     StructMemberNode[] members,
     IdentifierNode[] struct_derives,
+    IdentifierNode[] implementations,
     TypeMethodNode[] methods
 };
 
@@ -453,6 +454,7 @@ struct EnumDeclaration derives Debug, Clone {
     IdentifierNode identifier,
     EnumMemberNode[] members,
     IdentifierNode[] enum_derives,
+    IdentifierNode[] implementations,
     TypeMethodNode[] methods
 };
 
@@ -476,6 +478,38 @@ struct ExtendBlock derives Debug, Clone {
     TypeMethodNode[] methods
 };
 
+struct InterfaceDeclarationNode derives Debug, Clone {
+    InterfaceDeclaration value,
+    Span span
+};
+
+struct InterfaceDeclaration derives Debug, Clone {
+    IdentifierNode identifier,
+    MethodSignatureNode[] methods_signatures
+};
+
+struct MethodSignature derives Debug, Clone {
+    IdentifierNode identifier,
+    OptionIdentifierNode self_identifier,
+    SignatureParameterNode[] parameters,
+    TypeNode return_type
+};
+
+struct MethodSignatureNode derives Debug, Clone {
+    MethodSignature value,
+    Span span
+};
+
+struct SignatureParameter derives Debug, Clone {
+    PassedBy passed_by,
+    TypeNode parameter_type
+};
+
+struct SignatureParameterNode derives Debug, Clone {
+    SignatureParameter value,
+    Span span
+};
+
 # ==================== Program ====================
 
 # The Rust `Program` keys functions/extern_functions/declared_types by
@@ -491,7 +525,8 @@ struct Program derives Debug {
     FunctionDeclarationNode[] functions,
     ExternFunctionDeclarationNode[] extern_functions,
     DeclaredTypeNode[] declared_types,
-    ExtendBlock[] extend_blocks
+    ExtendBlock[] extend_blocks,
+    InterfaceDeclarationNode[] interfaces
 };
 
 # Vector(Box<Type>) in Rust.

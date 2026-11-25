@@ -271,8 +271,21 @@ fn parser_parse_program(&Parser parser): ResultProgram {
     let extern_functions: ExternFunctionDeclarationNode[] = [];
     let declared_types: DeclaredTypeNode[] = [];
     let extend_blocks: ExtendBlock[] = [];
+    let interfaces: InterfaceDeclarationNode[] = [];
 
     while (true) {
+        match (parser_parse_interface_declaration(&parser)) {
+            ResultOptionInterfaceDeclaration::Err(err) {
+                return ResultProgram::Err(err);
+            },
+            ResultOptionInterfaceDeclaration::Ok(option_interface_declaration) {
+                if (option_interface_declaration matches OptionInterfaceDeclaration::Some(interface_declaration)) {
+                    vector_push(&interfaces, interface_declaration);
+                    continue;
+                }
+            }
+        }
+
         match (parser_parse_extend_block(&parser)) {
             ResultOptionExtendBlock::Err(err) {
                 return ResultProgram::Err(err);
@@ -439,7 +452,8 @@ fn parser_parse_program(&Parser parser): ResultProgram {
         functions: functions,
         extern_functions: extern_functions,
         declared_types: declared_types,
-        extend_blocks: extend_blocks
+        extend_blocks: extend_blocks,
+        interfaces
     });
 }
 

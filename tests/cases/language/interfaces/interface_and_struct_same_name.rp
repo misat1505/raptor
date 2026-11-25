@@ -1,0 +1,7 @@
+interface Shape {
+    fn area(self): i64
+};
+
+struct Shape {
+    i64 side
+};

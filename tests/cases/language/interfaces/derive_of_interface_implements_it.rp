@@ -1,0 +1,15 @@
+interface Describe {
+    fn describe(self): str
+};
+
+struct Item derives Debug, Describe {
+    i64 id
+
+    fn describe(self): str {
+        return "item " + self.id as str;
+    }
+};
+
+let i = Item { id: 7 };
+println(i.describe());
+println(i.debug());

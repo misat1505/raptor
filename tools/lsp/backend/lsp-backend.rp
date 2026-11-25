@@ -11,6 +11,7 @@ struct LspCli {
     str path,
     str logical_path,
     str out_path,
+    str focus,
     bool to_stdout,
     bool is_unsafe,
     str[] overlay_paths,
@@ -65,6 +66,9 @@ fn usage(): void {
             + "    --overlay <PATH> <FILE>\n"
             + "                        Use the content of FILE instead of the file at PATH, both for the\n"
             + "                        entry file and for imports (unsaved editor buffers). Repeatable.\n"
+            + "    --focus <PATH>      Emit hovers / definitions only for spans located in PATH.\n"
+            + "                        Diagnostics are never filtered. Cuts the JSON from the whole\n"
+            + "                        program (tens of MB) down to the one open file.\n"
             + "    --unsafe            Skip the semantic checker (still parse / expand)\n\n"
             + "Exit 0 always means a JSON payload was produced.\n"
     );
@@ -76,6 +80,7 @@ fn parse_cli(): LspCli {
         path: "",
         logical_path: "",
         out_path: "",
+        focus: "",
         to_stdout: true,
         is_unsafe: false,
         overlay_paths: [],
@@ -109,6 +114,15 @@ fn parse_cli(): LspCli {
                 return opts;
             }
             opts.logical_path = args[i];
+            i += 1;
+            continue;
+        }
+        if (a == "--focus") {
+            if (i >= n) {
+                fatal(a + " requires a path.");
+                return opts;
+            }
+            opts.focus = import_resolver_normalize_path(args[i]);
             i += 1;
             continue;
         }
@@ -353,6 +367,49 @@ fn overlay_index(&LspCli opts, str path): i64 {
     return -1;
 }
 
+# With `--focus`, only spans located in that file are kept (an empty file name means
+# "the analyzed file", same convention as the Rust host). The file name is normalized
+# once per distinct value, not once per span: the checker emits tens of thousands of them.
+fn focus_hovers(&LspCli opts, &HoverInfo[] src): HoverInfo[] {
+    if (str_len(opts.focus) == 0) {
+        return src;
+    }
+    let out: HoverInfo[] = [];
+    let last_file = "";
+    let last_match = false;
+    for (let i = 0; i < vector_size(&src); i += 1) {
+        let f = span_file(src[i].span);
+        if (f != last_file) {
+            last_file = f;
+            last_match = str_len(f) == 0 || import_resolver_normalize_path(f) == opts.focus;
+        }
+        if (last_match) {
+            vector_push(&out, src[i]);
+        }
+    }
+    return out;
+}
+
+fn focus_definitions(&LspCli opts, &DefinitionInfo[] src): DefinitionInfo[] {
+    if (str_len(opts.focus) == 0) {
+        return src;
+    }
+    let out: DefinitionInfo[] = [];
+    let last_file = "";
+    let last_match = false;
+    for (let i = 0; i < vector_size(&src); i += 1) {
+        let f = span_file(src[i].use_span);
+        if (f != last_file) {
+            last_file = f;
+            last_match = str_len(f) == 0 || import_resolver_normalize_path(f) == opts.focus;
+        }
+        if (last_match) {
+            vector_push(&out, src[i]);
+        }
+    }
+    return out;
+}
+
 fn analyze_and_emit(&LspCli opts): void {
     let diagnostics: LspDiagnostic[] = [];
     let hovers: HoverInfo[] = [];
@@ -429,8 +486,8 @@ fn analyze_and_emit(&LspCli opts): void {
                             }
                         }
 
-                        hovers = checker.hovers;
-                        definitions = checker.definitions;
+                        hovers = focus_hovers(&opts, &checker.hovers);
+                        definitions = focus_definitions(&opts, &checker.definitions);
                     }
 
                     emit_json(&opts, build_payload(ok, &diagnostics, &hovers, &definitions));

@@ -1,0 +1,2 @@
+compile: fail
+compile-stderr-contains: "Type 'Square' does not implement method 'fn name(self): str' required by interface 'Shape'."

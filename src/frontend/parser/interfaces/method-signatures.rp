@@ -1,0 +1,122 @@
+import "signature-parameters.rp";
+
+
+enum OptionMethodSignatureNode {
+    Some(MethodSignatureNode),
+    None
+};
+
+enum ResultOptionMethodSignatureNode {
+    Ok(OptionMethodSignatureNode),
+    Err(ParserError)
+};
+
+
+fn parser_parse_method_signature(&Parser parser): ResultOptionMethodSignatureNode {
+    let fn_consumed = parser_consume_if_matches(&parser, TokenCategory::Fn);
+
+    let fn_token = parser_current_token(&parser);
+    let has_fn = false;
+    match (fn_consumed) {
+        ResultOptionToken::Err(err) {
+            return ResultOptionMethodSignatureNode::Err(parser_error_from_lexer_error(&err));
+        },
+        ResultOptionToken::Ok(option_fn) {
+            if (option_fn matches OptionToken::Some(token)) {
+                fn_token = token;
+                has_fn = true;
+            }
+        }
+    }
+
+    if (!has_fn) {
+        return ResultOptionMethodSignatureNode::Ok(OptionMethodSignatureNode::None);
+    }
+
+    let identifier_call = parser_parse_identifier(&parser);
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) {
+            return ResultOptionMethodSignatureNode::Err(err);
+        },
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            match (option_identifier) {
+                OptionIdentifierNode::None {
+                    return ResultOptionMethodSignatureNode::Err(parser_create_parser_error(
+                        &parser,
+                        "Couldn't create identifier while parsing struct member."
+                    ));
+                },
+                OptionIdentifierNode::Some(identifier) {
+                    let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
+                    if (paren_open matches ResultToken::Err(err)) {
+                        return ResultOptionMethodSignatureNode::Err(err);
+                    }
+                    let self_node = OptionIdentifierNode::None;
+                    let current_token = parser_current_token(&parser);
+                    let has_comma_after_self = false;
+                    if (current_token.category matches TokenCategory::Identifier) {
+                        if (current_token.value matches TokenValue::String(ident)) {
+                            if (ident == "self") {
+                                self_node = OptionIdentifierNode::Some(IdentifierNode {
+                                    value: ident,
+                                    span: current_token.span
+                                });
+                                parser_next_token(&parser);
+                                let ro_comma_token = parser_consume_if_matches(
+                                    &parser,
+                                    TokenCategory::Comma
+                                );
+                                if (ro_comma_token matches ResultOptionToken::Ok(option_token)) {
+                                    if (option_token matches OptionToken::Some) {
+                                        has_comma_after_self = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    let parameters_call = parser_parse_signature_parameters(&parser);
+                    let parameters: SignatureParameterNode[] = [];
+                    match (parameters_call) {
+                        ResultSignatureParameterNodeVec::Err(err) {
+                            return ResultOptionMethodSignatureNode::Err(err);
+                        },
+                        ResultSignatureParameterNodeVec::Ok(parsed) {
+                            parameters = parsed;
+                        }
+                    }
+                    if (has_comma_after_self && vector_size(&parameters) == 0) {
+                        return ResultOptionMethodSignatureNode::Err(parser_create_parser_error(
+                            &parser,
+                            "Expected parameter after comma."
+                        ));
+                    }
+                    let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
+                    if (paren_close matches ResultToken::Err(err)) {
+                        return ResultOptionMethodSignatureNode::Err(err);
+                    }
+                    let colon = parser_consume_must_be(&parser, TokenCategory::Colon);
+                    if (colon matches ResultToken::Err(err)) {
+                        return ResultOptionMethodSignatureNode::Err(err);
+                    }
+
+                    let type_call = parser_parse_return_type(&parser);
+                    if (type_call matches ResultTypeNode::Err(err)) {
+                        return ResultOptionMethodSignatureNode::Err(err);
+                    }
+
+                    if (type_call matches ResultTypeNode::Ok(type_node)) {
+                        return ResultOptionMethodSignatureNode::Ok(OptionMethodSignatureNode::Some(MethodSignatureNode {
+                            value: MethodSignature {
+                                identifier,
+                                self_identifier: self_node,
+                                parameters,
+                                return_type: type_node
+                            },
+                            span: span_new(fn_token.span.start, type_node.span.end)
+                        }));
+                    }
+                }
+            }
+        }
+    }
+}

@@ -59,16 +59,13 @@ fn macro_expander_expand_derive_macros_of_type(
     &Program program,
     DeclaredType declared_type
 ): void {
-    let type_name = "";
     let type_derives: IdentifierNode[] = [];
 
     match (declared_type) {
         DeclaredType::Enum(enum_declaration) {
-            type_name = enum_declaration.identifier.value;
             type_derives = enum_declaration.enum_derives;
         },
         DeclaredType::Struct(struct_declaration) {
-            type_name = struct_declaration.identifier.value;
             type_derives = struct_declaration.struct_derives;
         }
     }
@@ -83,21 +80,9 @@ fn macro_expander_expand_derive_macros_of_type(
         }
 
         if (!is_supported) {
-            let available = str_join(me.supported_derives, ", ");
-            vector_push(
-                &me.errors,
-                macro_expander_error_at(
-                    ErrorSeverity::HIGH,
-                    "Use of unsupported derive macro '"
-                        + derive.value
-                        + "' on type '"
-                        + type_name
-                        + "'. Available derive macros: "
-                        + available
-                        + ".",
-                    derive.span
-                )
-            );
+            # Not a built-in derive macro. It may name a user-declared interface
+            # (`derives Shape` == `implements Shape`); the semantic checker validates
+            # that the name really refers to one and reports unknown names.
             continue;
         }
 

@@ -1,0 +1,114 @@
+import "../../../semantic-checker/semantic-helpers.rp";
+import "method-signatures.rp";
+
+enum OptionInterfaceDeclaration {
+    Some(InterfaceDeclarationNode),
+    None
+};
+
+enum ResultOptionInterfaceDeclaration {
+    Ok(OptionInterfaceDeclaration),
+    Err(ParserError)
+};
+
+fn parser_parse_interface_declaration(&Parser parser): ResultOptionInterfaceDeclaration {
+    let start_pos = parser_current_token(&parser).span.start;
+    let interface_consumed = parser_consume_if_matches(&parser, TokenCategory::Interface);
+
+    let has_interface = false;
+    match (interface_consumed) {
+        ResultOptionToken::Err(err) {
+            return ResultOptionInterfaceDeclaration::Err(parser_error_from_lexer_error(&err));
+        },
+        ResultOptionToken::Ok(option_interface) {
+            if (option_interface matches OptionToken::Some) {
+                has_interface = true;
+            }
+        }
+    }
+
+    if (!has_interface) {
+        return ResultOptionInterfaceDeclaration::Ok(OptionInterfaceDeclaration::None);
+    }
+
+    let identifier_call = parser_parse_identifier(&parser);
+    let identifier_node = IdentifierNode { value: "", span: parser_current_token(&parser).span };
+    let found_identifier = false;
+    match (identifier_call) {
+        ResultOptionIdentifierNode::Err(err) {
+            return ResultOptionInterfaceDeclaration::Err(err);
+        },
+        ResultOptionIdentifierNode::Ok(option_identifier) {
+            if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                identifier_node = i;
+                found_identifier = true;
+            }
+        }
+    }
+
+    if (!found_identifier) {
+        return ResultOptionInterfaceDeclaration::Err(parser_create_parser_error(
+            &parser,
+            "Couldn't create identifier while parsing interface declaration."
+        ));
+    }
+
+    let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
+    if (brace_open matches ResultToken::Err(err)) {
+        return ResultOptionInterfaceDeclaration::Err(err);
+    }
+
+    let methods: MethodSignatureNode[] = [];
+    while (true) {
+        match (parser_parse_method_signature(&parser)) {
+            ResultOptionMethodSignatureNode::Err(err) {
+                return ResultOptionInterfaceDeclaration::Err(err);
+            },
+            ResultOptionMethodSignatureNode::Ok(option_type_method) {
+                match (option_type_method) {
+                    OptionMethodSignatureNode::Some(type_method_node) {
+                        for (let i = 0; i < vector_size(&methods); i += 1) {
+                            let method_name = methods[i].value.identifier.value;
+                            if (method_name == type_method_node.value.identifier.value) {
+                                return ResultOptionInterfaceDeclaration::Err(parser_error_at(
+                                    ErrorSeverity::HIGH,
+                                    "Redeclaration of method '"
+                                        + method_name
+                                        + "' in interface '"
+                                        + identifier_node.value
+                                        + "'.",
+                                    methods[i].value.identifier.span
+                                ));
+                            }
+                        }
+                        vector_push(&methods, type_method_node);
+                    },
+                    OptionMethodSignatureNode::None {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
+    if (brace_close matches ResultToken::Err(err)) {
+        return ResultOptionInterfaceDeclaration::Err(err);
+    }
+
+    let end_pos = parser_current_token(&parser).span.start;
+    let semicolon = parser_consume_must_be(&parser, TokenCategory::Semicolon);
+    if (semicolon matches ResultToken::Err(err)) {
+        return ResultOptionInterfaceDeclaration::Err(err);
+    }
+
+    let node = InterfaceDeclarationNode {
+        value: InterfaceDeclaration {
+            identifier: identifier_node,
+            methods_signatures: methods
+        },
+        span: span_new(start_pos, end_pos)
+    };
+
+    return ResultOptionInterfaceDeclaration::Ok(OptionInterfaceDeclaration::Some(node));
+}

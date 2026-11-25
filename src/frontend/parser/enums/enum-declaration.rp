@@ -66,6 +66,17 @@ fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNod
         }
     }
 
+    let implementations_call = parser_parse_implements_declaration(&parser);
+    let implementations: IdentifierNode[] = [];
+    match (implementations_call) {
+        ResultIdentifierNodeVec::Err(err) {
+            return ResultOptionEnumDeclarationNode::Err(err);
+        },
+        ResultIdentifierNodeVec::Ok(parsed) {
+            implementations = parsed;
+        }
+    }
+
     let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
     if (brace_open matches ResultToken::Err(err)) {
         return ResultOptionEnumDeclarationNode::Err(err);
@@ -131,6 +142,7 @@ fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNod
                     identifier: identifier,
                     members: members,
                     enum_derives: enum_derives,
+                    implementations,
                     methods: methods
                 },
                 span: span_new(enum_token.span.start, semicolon_token.span.end)

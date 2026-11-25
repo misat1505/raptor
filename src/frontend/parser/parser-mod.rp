@@ -19,6 +19,7 @@ import "./core.rp";
 import "./misc/identifier.rp";
 import "./misc/types.rp";
 import "./misc/derive-declaration.rp";
+import "./misc/implements-declaration.rp";
 import "./expressions/literal.rp";
 import "./expressions/vector-literal.rp";
 import "./expressions/arguments.rp";

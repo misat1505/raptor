@@ -431,6 +431,7 @@ struct StructDeclaration derives Debug, Clone {
     IdentifierNode identifier,
     StructMemberNode[] members,
     IdentifierNode[] struct_derives,
+    IdentifierNode[] implementations,
     TypeMethodNode[] methods
 };
 
@@ -453,6 +454,7 @@ struct EnumDeclaration derives Debug, Clone {
     IdentifierNode identifier,
     EnumMemberNode[] members,
     IdentifierNode[] enum_derives,
+    IdentifierNode[] implementations,
     TypeMethodNode[] methods
 };
 

@@ -60,6 +60,17 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
         }
     }
 
+    let implementations_call = parser_parse_implements_declaration(&parser);
+    let implementations: IdentifierNode[] = [];
+    match (implementations_call) {
+        ResultIdentifierNodeVec::Err(err) {
+            return ResultOptionStructDeclarationNode::Err(err);
+        },
+        ResultIdentifierNodeVec::Ok(parsed) {
+            implementations = parsed;
+        }
+    }
+
     let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
     if (brace_open matches ResultToken::Err(err)) {
         return ResultOptionStructDeclarationNode::Err(err);
@@ -121,7 +132,7 @@ fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclaratio
         },
         ResultToken::Ok(semicolon_token) {
             return ResultOptionStructDeclarationNode::Ok(OptionStructDeclarationNode::Some(StructDeclarationNode {
-                value: StructDeclaration { identifier, members, struct_derives, methods },
+                value: StructDeclaration { identifier, members, struct_derives, methods, implementations },
                 span: span_new(struct_token.span.start, semicolon_token.span.end)
             }));
         }

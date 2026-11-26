@@ -377,14 +377,14 @@ fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_sp
     };
 
     let lexer = Lexer.new(&src, &options);
-    let parser_result = parser_new(lexer);
+    let parser_result = Parser.new(&lexer);
 
     match (parser_result) {
         ResultParser::Err(err) {
             return ResultProgram::Err(err);
         },
         ResultParser::Ok(parser) {
-            return parser_parse(&parser);
+            return parser.parse();
         }
     }
 }

@@ -28,6 +28,15 @@ struct Position derives Debug, Clone, Json {
         }
         return location + ":" + self.line as str + ":" + self.column as str;
     }
+
+    fn default(): Position {
+        return Position {
+            line: 0,
+            column: 0,
+            offset: 0,
+            filename: OptionStr::None
+        };
+    }
 };
 
 

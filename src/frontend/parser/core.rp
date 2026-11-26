@@ -36,6 +36,126 @@ import "./parser-results.rp";
 
 struct Parser derives Debug {
     Lexer lexer
+
+    fn new(&Lexer lexer): ResultParser {
+        let primed = lexer;
+
+        # The token stream always begins with a synthetic STX token. Just
+        # like `Lexer::new` in the Rust bootstrap compiler calls
+        # `generate_token()` twice before returning, we advance twice here:
+        # once to consume the leading STX, once more to land on the first
+        # real token, so that `parser_current_token` already has something
+        # meaningful to return as soon as the parser exists.
+        let first_result = primed.next();
+        if (first_result matches ResultOptionToken::Err(err)) {
+            return ResultParser::Err(lexer_error_to_parser_error(&err));
+        }
+
+        let second_result = primed.next();
+        if (second_result matches ResultOptionToken::Err(err)) {
+            return ResultParser::Err(lexer_error_to_parser_error(&err));
+        }
+
+        return ResultParser::Ok(Parser { lexer: primed });
+    }
+
+    # Advance to the next token. The selfhost lexer already skips comment
+    # tokens internally (`lexer_generate_token` recurses past
+    # `TokenCategory::Comment`), unlike the Rust `next_token`, which has to
+    # skip them itself - so this is a thin wrapper.
+    fn next_token(self): ResultOptionToken {
+        let result = self.lexer.next();
+
+        match (result) {
+            ResultOptionToken::Err(err) {
+                return ResultOptionToken::Err(err);
+            },
+            ResultOptionToken::Ok(option_token) {
+                return ResultOptionToken::Ok(option_token);
+            }
+        }
+    }
+
+    fn current_token(self): Token {
+        let current = self.lexer.current();
+
+        match (current) {
+            OptionToken::Some(token) {
+                return token;
+            },
+            OptionToken::None {
+                # Unreachable in practice: `parser_new` always primes the
+                # lexer before a `Parser` is handed out.
+                return Token {
+                    category: TokenCategory::ETX,
+                    value: TokenValue::Null,
+                    span: Span.default()
+                };
+            }
+        }
+    }
+
+    fn consume_must_be(self, &TokenCategory category): ResultToken {
+        let current_token = self.current_token();
+
+        # TODO: temporary workaround with debug
+        if (current_token.category.debug() == category.debug()) {
+            let advance = self.next_token();
+            if (advance matches ResultOptionToken::Err(err)) {
+                return ResultToken::Err(lexer_error_to_parser_error(&err));
+            }
+
+            return ResultToken::Ok(current_token);
+        }
+
+        return ResultToken::Err(parser_error_expected_found(
+            ErrorSeverity::HIGH,
+            "Unexpected token",
+            category.to_string(),
+            Parser.token_text(&current_token),
+            current_token.span
+        ));
+    }
+
+    fn consume_if_matches(self, &TokenCategory category): ResultOptionToken {
+        let current_token = self.current_token();
+
+        # TODO: temporary workaround with debug
+        if (current_token.category.debug() == category.debug()) {
+            let advance = self.next_token();
+            if (advance matches ResultOptionToken::Err(err)) {
+                return ResultOptionToken::Err(err);
+            }
+
+            return ResultOptionToken::Ok(OptionToken::Some(current_token));
+        }
+
+        return ResultOptionToken::Ok(OptionToken::None);
+    }
+
+    fn create_parser_error(self, str text): ParserError {
+        return parser_error_at(ErrorSeverity::HIGH, text, self.current_token().span);
+    }
+
+    fn token_text(&Token token): str {
+        match (token.value) {
+            TokenValue::F64(value) {
+                return value as str;
+            },
+            TokenValue::I64(value) {
+                return value as str;
+            },
+            TokenValue::String(value) {
+                return value;
+            },
+            TokenValue::Char(value) {
+                return value as str;
+            },
+            TokenValue::Null {
+                return token.category.to_string();
+            }
+        }
+    }
 };
 
 enum ResultParser derives Debug {
@@ -51,127 +171,4 @@ enum ResultParser derives Debug {
 # converted into an equivalent `ParserError` by hand instead.
 fn lexer_error_to_parser_error(&LexerError error): ParserError {
     return ParserError { message: error.message, level: error.level, span: error.span };
-}
-
-fn parser_new(Lexer lexer): ResultParser {
-    let primed = lexer;
-
-    # The token stream always begins with a synthetic STX token. Just
-    # like `Lexer::new` in the Rust bootstrap compiler calls
-    # `generate_token()` twice before returning, we advance twice here:
-    # once to consume the leading STX, once more to land on the first
-    # real token, so that `parser_current_token` already has something
-    # meaningful to return as soon as the parser exists.
-    let first_result = primed.next();
-    if (first_result matches ResultOptionToken::Err(err)) {
-        return ResultParser::Err(lexer_error_to_parser_error(&err));
-    }
-
-    let second_result = primed.next();
-    if (second_result matches ResultOptionToken::Err(err)) {
-        return ResultParser::Err(lexer_error_to_parser_error(&err));
-    }
-
-    return ResultParser::Ok(Parser { lexer: primed });
-}
-
-# Advance to the next token. The selfhost lexer already skips comment
-# tokens internally (`lexer_generate_token` recurses past
-# `TokenCategory::Comment`), unlike the Rust `next_token`, which has to
-# skip them itself - so this is a thin wrapper.
-fn parser_next_token(&Parser parser): ResultOptionToken {
-    let result = parser.lexer.next();
-
-    match (result) {
-        ResultOptionToken::Err(err) {
-            return ResultOptionToken::Err(err);
-        },
-        ResultOptionToken::Ok(option_token) {
-            return ResultOptionToken::Ok(option_token);
-        }
-    }
-}
-
-fn parser_current_token(&Parser parser): Token {
-    let current = parser.lexer.current();
-
-    match (current) {
-        OptionToken::Some(token) {
-            return token;
-        },
-        OptionToken::None {
-            # Unreachable in practice: `parser_new` always primes the
-            # lexer before a `Parser` is handed out.
-            return Token {
-                category: TokenCategory::ETX,
-                value: TokenValue::Null,
-                span: span_new(
-                    position_new(0, 0, 0, OptionStr::None),
-                    position_new(0, 0, 0, OptionStr::None)
-                )
-            };
-        }
-    }
-}
-
-fn parser_consume_must_be(&Parser parser, TokenCategory category): ResultToken {
-    let current_token = parser_current_token(&parser);
-
-    # TODO: temporary workaround with debug
-    if (token_category_debug(&current_token.category) == token_category_debug(&category)) {
-        let advance = parser_next_token(&parser);
-        if (advance matches ResultOptionToken::Err(err)) {
-            return ResultToken::Err(lexer_error_to_parser_error(&err));
-        }
-
-        return ResultToken::Ok(current_token);
-    }
-
-    return ResultToken::Err(parser_error_expected_found(
-        ErrorSeverity::HIGH,
-        "Unexpected token",
-        category.to_string(),
-        parser_token_text(&current_token),
-        current_token.span
-    ));
-}
-
-fn parser_consume_if_matches(&Parser parser, TokenCategory category): ResultOptionToken {
-    let current_token = parser_current_token(&parser);
-
-    # TODO: temporary workaround with debug
-    if (token_category_debug(&current_token.category) == token_category_debug(&category)) {
-        let advance = parser_next_token(&parser);
-        if (advance matches ResultOptionToken::Err(err)) {
-            return ResultOptionToken::Err(err);
-        }
-
-        return ResultOptionToken::Ok(OptionToken::Some(current_token));
-    }
-
-    return ResultOptionToken::Ok(OptionToken::None);
-}
-
-fn parser_create_parser_error(&Parser parser, str text): ParserError {
-    return parser_error_at(ErrorSeverity::HIGH, text, parser_current_token(&parser).span);
-}
-
-fn parser_token_text(&Token token): str {
-    match (token.value) {
-        TokenValue::F64(value) {
-            return value as str;
-        },
-        TokenValue::I64(value) {
-            return value as str;
-        },
-        TokenValue::String(value) {
-            return value;
-        },
-        TokenValue::Char(value) {
-            return value as str;
-        },
-        TokenValue::Null {
-            return token.category.to_string();
-        }
-    }
 }

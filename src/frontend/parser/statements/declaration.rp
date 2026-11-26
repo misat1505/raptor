@@ -5,143 +5,134 @@ import "../parser-results.rp";
 import "../core.rp";
 
 
-fn parser_parse_let_declaration(&Parser parser): ResultOptionStatementNode {
-    # let_declaration = let, identifier, [ ":", type ], "=", expression;
-    let let_consumed = parser_consume_if_matches(&parser, TokenCategory::Let);
+extend Parser {
+    fn parse_let_declaration(self): ResultOptionStatementNode {
+        # let_declaration = let, identifier, [ ":", type ], "=", expression;
+        let let_consumed = self.consume_if_matches(&TokenCategory::Let);
 
-    let let_token = parser_current_token(&parser);
-    let has_let = false;
-    match (let_consumed) {
-        ResultOptionToken::Err(err) {
-            return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
-        },
-        ResultOptionToken::Ok(option_let) {
-            if (option_let matches OptionToken::Some(token)) {
-                let_token = token;
-                has_let = true;
+        let let_token = self.current_token();
+        let has_let = false;
+        match (let_consumed) {
+            ResultOptionToken::Err(err) {
+                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
+            },
+            ResultOptionToken::Ok(option_let) {
+                if (option_let matches OptionToken::Some(token)) {
+                    let_token = token;
+                    has_let = true;
+                }
             }
         }
-    }
 
-    if (!has_let) {
-        return ResultOptionStatementNode::Ok(OptionStatementNode::None);
-    }
-
-    let identifier_call = parser_parse_identifier(&parser);
-    let identifier = IdentifierNode { value: "", span: parser_current_token(&parser).span };
-    let found_identifier = false;
-    match (identifier_call) {
-        ResultOptionIdentifierNode::Err(err) {
-            return ResultOptionStatementNode::Err(err);
-        },
-        ResultOptionIdentifierNode::Ok(option_identifier) {
-            if (option_identifier matches OptionIdentifierNode::Some(i)) {
-                identifier = i;
-                found_identifier = true;
-            }
-        }
-    }
-
-    if (!found_identifier) {
-        return ResultOptionStatementNode::Err(parser_create_parser_error(
-            &parser,
-            "Couldn't create identifier while parsing variable declaration."
-        ));
-    }
-
-    let var_type = OptionTypeNode::None;
-
-    if (parser_current_token(&parser).category matches TokenCategory::Colon) {
-        let colon_consumed = parser_consume_must_be(&parser, TokenCategory::Colon);
-        if (colon_consumed matches ResultToken::Err(err)) {
-            return ResultOptionStatementNode::Err(err);
+        if (!has_let) {
+            return ResultOptionStatementNode::Ok(OptionStatementNode::None);
         }
 
-        let type_call = parser_parse_type(&parser);
-        match (type_call) {
-            ResultOptionTypeNode::Err(err) {
+        let identifier_call = self.parse_identifier();
+        let identifier = IdentifierNode { value: "", span: self.current_token().span };
+        let found_identifier = false;
+        match (identifier_call) {
+            ResultOptionIdentifierNode::Err(err) {
                 return ResultOptionStatementNode::Err(err);
             },
-            ResultOptionTypeNode::Ok(option_type) {
-                match (option_type) {
-                    OptionTypeNode::None {
-                        return ResultOptionStatementNode::Err(parser_create_parser_error(
-                            &parser,
-                            "Couldn't create type while parsing let declaration."
+            ResultOptionIdentifierNode::Ok(option_identifier) {
+                if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                    identifier = i;
+                    found_identifier = true;
+                }
+            }
+        }
+
+        if (!found_identifier) {
+            return ResultOptionStatementNode::Err(self.create_parser_error(
+                "Couldn't create identifier while parsing variable declaration."
+            ));
+        }
+
+        let var_type = OptionTypeNode::None;
+
+        if (self.current_token().category matches TokenCategory::Colon) {
+            if (self.consume_must_be(&TokenCategory::Colon) matches ResultToken::Err(err)) {
+                return ResultOptionStatementNode::Err(err);
+            }
+
+            match (self.parse_type()) {
+                ResultOptionTypeNode::Err(err) {
+                    return ResultOptionStatementNode::Err(err);
+                },
+                ResultOptionTypeNode::Ok(option_type) {
+                    match (option_type) {
+                        OptionTypeNode::None {
+                            return ResultOptionStatementNode::Err(self.create_parser_error(
+                                "Couldn't create type while parsing let declaration."
+                            ));
+                        },
+                        OptionTypeNode::Some(t) {
+                            var_type = OptionTypeNode::Some(t);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (self.consume_must_be(&TokenCategory::Assign) matches ResultToken::Err(err)) {
+            return ResultOptionStatementNode::Err(err);
+        }
+
+        match (self.parse_expression()) {
+            ResultOptionExpressionNode::Err(err) {
+                return ResultOptionStatementNode::Err(err);
+            },
+            ResultOptionExpressionNode::Ok(option_expr) {
+                match (option_expr) {
+                    OptionExpressionNode::None {
+                        return ResultOptionStatementNode::Err(self.create_parser_error(
+                            "Couldn't parse expression while parsing variable declaration."
                         ));
                     },
-                    OptionTypeNode::Some(t) {
-                        var_type = OptionTypeNode::Some(t);
+                    OptionExpressionNode::Some(value) {
+                        return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+                            value: Statement::Declaration(DeclarationStatement {
+                                identifier: identifier,
+                                var_type: var_type,
+                                value: value
+                            }),
+                            span: Span.new(&let_token.span.start, &value.span.end)
+                        }));
                     }
                 }
             }
         }
     }
 
-    let assign_consumed = parser_consume_must_be(&parser, TokenCategory::Assign);
-    if (assign_consumed matches ResultToken::Err(err)) {
-        return ResultOptionStatementNode::Err(err);
-    }
-
-    let expr_call = parser_parse_expression(&parser);
-    match (expr_call) {
-        ResultOptionExpressionNode::Err(err) {
-            return ResultOptionStatementNode::Err(err);
-        },
-        ResultOptionExpressionNode::Ok(option_expr) {
-            match (option_expr) {
-                OptionExpressionNode::None {
-                    return ResultOptionStatementNode::Err(parser_create_parser_error(
-                        &parser,
-                        "Couldn't parse expression while parsing variable declaration."
-                    ));
-                },
-                OptionExpressionNode::Some(value) {
-                    return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
-                        value: Statement::Declaration(DeclarationStatement {
-                            identifier: identifier,
-                            var_type: var_type,
-                            value: value
-                        }),
-                        span: span_new(let_token.span.start, value.span.end)
-                    }));
-                }
-            }
-        }
-    }
-}
-
-fn parser_parse_let_variable_declaration(&Parser parser): ResultOptionStatementNode {
-    # let_variable_declaration = let, identifier, [ ":", type ], "=", expression, ";";
-    let declaration_call = parser_parse_let_declaration(&parser);
-
-    match (declaration_call) {
-        ResultOptionStatementNode::Err(err) {
-            return ResultOptionStatementNode::Err(err);
-        },
-        ResultOptionStatementNode::Ok(option_declaration) {
-            match (option_declaration) {
-                OptionStatementNode::None {
-                    return ResultOptionStatementNode::Ok(OptionStatementNode::None);
-                },
-                OptionStatementNode::Some(declaration) {
-                    let semicolon_consumed = parser_consume_must_be(
-                        &parser,
-                        TokenCategory::Semicolon
-                    );
-                    match (semicolon_consumed) {
-                        ResultToken::Err(err) {
-                            return ResultOptionStatementNode::Err(err);
-                        },
-                        ResultToken::Ok(semicolon_token) {
-                            return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
-                                value: declaration.value,
-                                span: span_new(declaration.span.start, semicolon_token.span.end)
-                            }));
+    fn parse_let_variable_declaration(self): ResultOptionStatementNode {
+        # let_variable_declaration = let, identifier, [ ":", type ], "=", expression, ";";
+        match (self.parse_let_declaration()) {
+            ResultOptionStatementNode::Err(err) {
+                return ResultOptionStatementNode::Err(err);
+            },
+            ResultOptionStatementNode::Ok(option_declaration) {
+                match (option_declaration) {
+                    OptionStatementNode::None {
+                        return ResultOptionStatementNode::Ok(OptionStatementNode::None);
+                    },
+                    OptionStatementNode::Some(declaration) {
+                        match (self.consume_must_be(
+                            &TokenCategory::Semicolon
+                        )) {
+                            ResultToken::Err(err) {
+                                return ResultOptionStatementNode::Err(err);
+                            },
+                            ResultToken::Ok(semicolon_token) {
+                                return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
+                                    value: declaration.value,
+                                    span: Span.new(&declaration.span.start, &semicolon_token.span.end)
+                                }));
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
+};

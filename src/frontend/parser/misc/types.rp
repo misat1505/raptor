@@ -6,136 +6,138 @@ import "../parser-results.rp";
 import "../core.rp";
 
 
-fn parser_parse_type(&Parser parser): ResultOptionTypeNode {
-    # type = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str" | identifier), { "[]" };
-    let token = parser_current_token(&parser);
+extend Parser {
+    fn parse_type(self): ResultOptionTypeNode {
+        # type = ("i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f64" | "bool" | "char" | "str" | identifier), { "[]" };
+        let token = self.current_token();
 
-    let result = Type::Void;
-    let matched = true;
+        let result = Type::Void;
+        let matched = true;
 
-    match (token.category) {
-        TokenCategory::Bool {
-            result = Type::Bool;
-        },
-        TokenCategory::String {
-            result = Type::Str;
-        },
-        TokenCategory::Char {
-            result = Type::Char;
-        },
-        TokenCategory::I8 {
-            result = Type::I8;
-        },
-        TokenCategory::I16 {
-            result = Type::I16;
-        },
-        TokenCategory::I32 {
-            result = Type::I32;
-        },
-        TokenCategory::I64 {
-            result = Type::I64;
-        },
-        TokenCategory::U8 {
-            result = Type::U8;
-        },
-        TokenCategory::U16 {
-            result = Type::U16;
-        },
-        TokenCategory::U32 {
-            result = Type::U32;
-        },
-        TokenCategory::U64 {
-            result = Type::U64;
-        },
-        TokenCategory::F64 {
-            result = Type::F64;
-        },
-        TokenCategory::Identifier {
-            match (token.value) {
-                TokenValue::String(name) {
-                    result = Type::Unresolved(name);
-                },
-                TokenValue::F64 {
-                    matched = false;
-                },
-                TokenValue::I64 {
-                    matched = false;
-                },
-                TokenValue::Char {
-                    matched = false;
-                },
-                TokenValue::Null {
-                    matched = false;
+        match (token.category) {
+            TokenCategory::Bool {
+                result = Type::Bool;
+            },
+            TokenCategory::String {
+                result = Type::Str;
+            },
+            TokenCategory::Char {
+                result = Type::Char;
+            },
+            TokenCategory::I8 {
+                result = Type::I8;
+            },
+            TokenCategory::I16 {
+                result = Type::I16;
+            },
+            TokenCategory::I32 {
+                result = Type::I32;
+            },
+            TokenCategory::I64 {
+                result = Type::I64;
+            },
+            TokenCategory::U8 {
+                result = Type::U8;
+            },
+            TokenCategory::U16 {
+                result = Type::U16;
+            },
+            TokenCategory::U32 {
+                result = Type::U32;
+            },
+            TokenCategory::U64 {
+                result = Type::U64;
+            },
+            TokenCategory::F64 {
+                result = Type::F64;
+            },
+            TokenCategory::Identifier {
+                match (token.value) {
+                    TokenValue::String(name) {
+                        result = Type::Unresolved(name);
+                    },
+                    TokenValue::F64 {
+                        matched = false;
+                    },
+                    TokenValue::I64 {
+                        matched = false;
+                    },
+                    TokenValue::Char {
+                        matched = false;
+                    },
+                    TokenValue::Null {
+                        matched = false;
+                    }
                 }
+            },
+            rest {
+                matched = false;
             }
-        },
-        rest {
-            matched = false;
         }
-    }
 
-    if (!matched) {
-        return ResultOptionTypeNode::Ok(OptionTypeNode::None);
-    }
+        if (!matched) {
+            return ResultOptionTypeNode::Ok(OptionTypeNode::None);
+        }
 
-    let start_position = token.span.start;
-    let end_position = token.span.end;
+        let start_position = token.span.start;
+        let end_position = token.span.end;
 
-    let advance = parser_next_token(&parser);
-    if (advance matches ResultOptionToken::Err(err)) {
-        return ResultOptionTypeNode::Err(parser_error_from_lexer_error(&err));
-    }
+        let advance = self.next_token();
+        if (advance matches ResultOptionToken::Err(err)) {
+            return ResultOptionTypeNode::Err(parser_error_from_lexer_error(&err));
+        }
 
-    while (true) {
-        if (parser_current_token(&parser).category matches TokenCategory::BracketOpen) {
-            let open_bracket = parser_consume_must_be(&parser, TokenCategory::BracketOpen);
-            if (open_bracket matches ResultToken::Err(err)) {
-                return ResultOptionTypeNode::Err(err);
+        while (true) {
+            if (self.current_token().category matches TokenCategory::BracketOpen) {
+                let open_bracket = self.consume_must_be(&TokenCategory::BracketOpen);
+                if (open_bracket matches ResultToken::Err(err)) {
+                    return ResultOptionTypeNode::Err(err);
+                }
+
+                let close_bracket = self.consume_must_be(&TokenCategory::BracketClose);
+                if (close_bracket matches ResultToken::Err(err)) {
+                    return ResultOptionTypeNode::Err(err);
+                }
+
+                result = Type::Vector(result);
+            } else {
+                break;
             }
+        }
 
-            let close_bracket = parser_consume_must_be(&parser, TokenCategory::BracketClose);
-            if (close_bracket matches ResultToken::Err(err)) {
-                return ResultOptionTypeNode::Err(err);
+        return ResultOptionTypeNode::Ok(OptionTypeNode::Some(TypeNode {
+            value: result,
+            span: Span.new(&start_position, &end_position)
+        }));
+    }
+
+    fn void_type_or_error(self): ResultTypeNode {
+        let consumed = self.consume_if_matches(&TokenCategory::Void);
+
+        let option_token = OptionToken::None;
+        match (consumed) {
+            ResultOptionToken::Err(err) {
+                return ResultTypeNode::Err(parser_error_from_lexer_error(&err));
+            },
+            ResultOptionToken::Ok(t) {
+                option_token = t;
             }
+        }
 
-            result = Type::Vector(result);
-        } else {
-            break;
+        match (option_token) {
+            OptionToken::Some(token) {
+                return ResultTypeNode::Ok(TypeNode { value: Type::Void, span: token.span });
+            },
+            OptionToken::None {
+                let current = self.current_token();
+                return ResultTypeNode::Err(parser_error_expected_found(
+                    ErrorSeverity::HIGH,
+                    "Bad return type",
+                    "'i64', 'f64', 'bool', 'str', or 'void'",
+                    current.category.to_string(),
+                    current.span
+                ));
+            }
         }
     }
-
-    return ResultOptionTypeNode::Ok(OptionTypeNode::Some(TypeNode {
-        value: result,
-        span: span_new(start_position, end_position)
-    }));
-}
-
-fn parser_void_type_or_error(&Parser parser): ResultTypeNode {
-    let consumed = parser_consume_if_matches(&parser, TokenCategory::Void);
-
-    let option_token = OptionToken::None;
-    match (consumed) {
-        ResultOptionToken::Err(err) {
-            return ResultTypeNode::Err(parser_error_from_lexer_error(&err));
-        },
-        ResultOptionToken::Ok(t) {
-            option_token = t;
-        }
-    }
-
-    match (option_token) {
-        OptionToken::Some(token) {
-            return ResultTypeNode::Ok(TypeNode { value: Type::Void, span: token.span });
-        },
-        OptionToken::None {
-            let current = parser_current_token(&parser);
-            return ResultTypeNode::Err(parser_error_expected_found(
-                ErrorSeverity::HIGH,
-                "Bad return type",
-                "'i64', 'f64', 'bool', 'str', or 'void'",
-                current.category.to_string(),
-                current.span
-            ));
-        }
-    }
-}
+};

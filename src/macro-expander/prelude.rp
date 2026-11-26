@@ -75,7 +75,7 @@ fn macro_expander_inject_prelude(&MacroExpander me, &Program program): void {
     let reader = LazyStreamReader.new(macro_expander_prelude_source(), OptionStr::Some("<prelude>"));
     let lexer = Lexer.new(&reader, &LexerOptions { max_comment_length: 500, max_identifier_length: 100 });
 
-    match (parser_new(lexer)) {
+    match (Parser.new(&lexer)) {
         ResultParser::Err(err) {
             vector_push(
                 &me.errors,
@@ -87,7 +87,7 @@ fn macro_expander_inject_prelude(&MacroExpander me, &Program program): void {
             );
         },
         ResultParser::Ok(parser) {
-            match (parser_parse(&parser)) {
+            match (parser.parse()) {
                 ResultProgram::Err(err) {
                     vector_push(
                         &me.errors,

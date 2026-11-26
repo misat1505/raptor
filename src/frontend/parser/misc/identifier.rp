@@ -5,35 +5,37 @@ import "../parser-results.rp";
 import "../core.rp";
 
 
-fn parser_parse_identifier(&Parser parser): ResultOptionIdentifierNode {
-    let consumed = parser_consume_must_be(&parser, TokenCategory::Identifier);
+extend Parser {
+    fn parse_identifier(self): ResultOptionIdentifierNode {
+        let consumed = self.consume_must_be(&TokenCategory::Identifier);
 
-    let token = Token {
-        category: TokenCategory::Identifier,
-        value: TokenValue::Null,
-        span: parser_current_token(&parser).span
-    };
-    match (consumed) {
-        ResultToken::Err {
-            return ResultOptionIdentifierNode::Ok(OptionIdentifierNode::None);
-        },
-        ResultToken::Ok(t) {
-            token = t;
+        let token = Token {
+            category: TokenCategory::Identifier,
+            value: TokenValue::Null,
+            span: self.current_token().span
+        };
+        match (consumed) {
+            ResultToken::Err {
+                return ResultOptionIdentifierNode::Ok(OptionIdentifierNode::None);
+            },
+            ResultToken::Ok(t) {
+                token = t;
+            }
         }
-    }
 
-    if (token.value matches TokenValue::String(name)) {
-        return ResultOptionIdentifierNode::Ok(OptionIdentifierNode::Some(IdentifierNode {
-            value: name,
-            span: token.span
-        }));
-    }
+        if (token.value matches TokenValue::String(name)) {
+            return ResultOptionIdentifierNode::Ok(OptionIdentifierNode::Some(IdentifierNode {
+                value: name,
+                span: token.span
+            }));
+        }
 
-    return ResultOptionIdentifierNode::Err(parser_error_expected_found(
-        ErrorSeverity::HIGH,
-        "Wrong token value type",
-        "str",
-        token.category.to_string(),
-        token.span
-    ));
-}
+        return ResultOptionIdentifierNode::Err(parser_error_expected_found(
+            ErrorSeverity::HIGH,
+            "Wrong token value type",
+            "str",
+            token.category.to_string(),
+            token.span
+        ));
+    }
+};

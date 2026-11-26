@@ -72,8 +72,14 @@ fn macro_expander_inject_prelude(&MacroExpander me, &Program program): void {
         }
     }
 
-    let reader = LazyStreamReader.new(macro_expander_prelude_source(), OptionStr::Some("<prelude>"));
-    let lexer = Lexer.new(&reader, &LexerOptions { max_comment_length: 500, max_identifier_length: 100 });
+    let reader = LazyStreamReader.new(
+        macro_expander_prelude_source(),
+        OptionStr::Some("<prelude>")
+    );
+    let lexer = Lexer.new(
+        &reader,
+        &LexerOptions { max_comment_length: 500, max_identifier_length: 100 }
+    );
 
     match (Parser.new(&lexer)) {
         ResultParser::Err(err) {
@@ -81,7 +87,8 @@ fn macro_expander_inject_prelude(&MacroExpander me, &Program program): void {
                 &me.errors,
                 macro_expander_error_at(
                     ErrorSeverity::HIGH,
-                    "Internal error: cannot parse built-in prelude: " + parser_error_get_stderr_message(&err),
+                    "Internal error: cannot parse built-in prelude: "
+                        + parser_error_get_stderr_message(&err),
                     me_span()
                 )
             );

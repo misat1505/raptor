@@ -256,7 +256,7 @@ fn macro_expander_generate_struct_clone(
     }
 
     let struct_literal = Expression::StructLiteral(StructLiteralNode {
-        value: StructLiteral { identifier: me_ident(type_name), fields: fields },
+        value: StructLiteral { identifier: me_ident(type_name), fields },
         span: me_span()
     });
     vector_push(&stmts, me_stmt(me_return_expr(struct_literal)));
@@ -376,7 +376,7 @@ fn macro_expander_generate_enum_clone(
         me_stmt(
             Statement::Match(MatchStatement {
                 expression: me_expr(me_var(variable_name)),
-                match_arms: match_arms,
+                match_arms,
                 rest_arm: OptionBlockNode::None
             })
         )
@@ -435,11 +435,11 @@ fn macro_expander_clone_expression(
             # By-value string is deep-copied by language semantics when assigned;
             # explicit identity is fine for generated clones of owned fields.
             let empty: StatementNode[] = [];
-            return CloneExpressionResult { statements: empty, expression: expression };
+            return CloneExpressionResult { statements: empty, expression };
         },
         rest {
             let empty: StatementNode[] = [];
-            return CloneExpressionResult { statements: empty, expression: expression };
+            return CloneExpressionResult { statements: empty, expression };
         }
     }
 }

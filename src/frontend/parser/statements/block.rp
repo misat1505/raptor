@@ -83,7 +83,7 @@ extend Parser {
         }
 
         return ResultOptionBlockNode::Ok(OptionBlockNode::Some(BlockNode {
-            value: Block { statements: statements },
+            value: Block { statements },
             span: Span.new(&open_brace_token.span.start, &closing_brace_token.span.end)
         }));
     }

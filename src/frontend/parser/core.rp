@@ -59,10 +59,6 @@ struct Parser derives Debug {
         return ResultParser::Ok(Parser { lexer: primed });
     }
 
-    # Advance to the next token. The selfhost lexer already skips comment
-    # tokens internally (`lexer_generate_token` recurses past
-    # `TokenCategory::Comment`), unlike the Rust `next_token`, which has to
-    # skip them itself - so this is a thin wrapper.
     fn next_token(self): ResultOptionToken {
         let result = self.lexer.next();
 
@@ -163,6 +159,11 @@ enum ResultParser derives Debug {
     Err(ParserError)
 };
 
+
+# Advance to the next token. The selfhost lexer already skips comment
+# tokens internally (`lexer_generate_token` recurses past
+# `TokenCategory::Comment`), unlike the Rust `next_token`, which has to
+# skip them itself - so this is a thin wrapper.
 
 # The lexer only ever produces `LexerError`, while every parser
 # production below produces `ParserError`. Rust papers over this with

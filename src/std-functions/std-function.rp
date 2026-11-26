@@ -45,13 +45,7 @@ fn std_function_new(
     Type return_type,
     StdTypeCheckKind type_check_kind
 ): StdFunction {
-    return StdFunction {
-        name: name,
-        params: params,
-        passed_by: passed_by,
-        return_type: return_type,
-        type_check_kind: type_check_kind
-    };
+    return StdFunction { name, params, passed_by, return_type, type_check_kind };
 }
 
 fn std_function_lookup(str name): OptionStdFunction {

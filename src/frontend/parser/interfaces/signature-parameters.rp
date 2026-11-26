@@ -4,6 +4,7 @@ import "../ast.rp";
 import "../parser-results.rp";
 import "../core.rp";
 
+
 enum OptionSignatureParameterNode {
     Some(SignatureParameterNode),
     None
@@ -45,7 +46,9 @@ extend Parser {
             let has_comma = false;
             match (self.consume_if_matches(&TokenCategory::Comma)) {
                 ResultOptionToken::Err(err) {
-                    return ResultSignatureParameterNodeVec::Err(parser_error_from_lexer_error(&err));
+                    return ResultSignatureParameterNodeVec::Err(parser_error_from_lexer_error(
+                        &err
+                    ));
                 },
                 ResultOptionToken::Ok(option_comma) {
                     if (option_comma matches OptionToken::Some) {
@@ -107,10 +110,7 @@ extend Parser {
                     },
                     OptionTypeNode::Some(type_node) {
                         return ResultOptionSignatureParameterNode::Ok(OptionSignatureParameterNode::Some(SignatureParameterNode {
-                            value: SignatureParameter {
-                                passed_by: passed_by,
-                                parameter_type: type_node
-                            },
+                            value: SignatureParameter { passed_by, parameter_type: type_node },
                             span: Span.new(&start_position, &type_node.span.end)
                         }));
                     }

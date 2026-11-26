@@ -139,11 +139,11 @@ extend Parser {
             ResultToken::Ok(semicolon_token) {
                 return ResultOptionEnumDeclarationNode::Ok(OptionEnumDeclarationNode::Some(EnumDeclarationNode {
                     value: EnumDeclaration {
-                        identifier: identifier,
-                        members: members,
-                        enum_derives: enum_derives,
+                        identifier,
+                        members,
+                        enum_derives,
                         implementations,
-                        methods: methods
+                        methods
                     },
                     span: Span.new(&enum_token.span.start, &semicolon_token.span.end)
                 }));
@@ -172,44 +172,42 @@ extend Parser {
             }
         }
 
-        while (true) {
-            if (self.current_token().category matches TokenCategory::Comma) {
-                let comma_consumed = self.consume_must_be(&TokenCategory::Comma);
-                if (comma_consumed matches ResultToken::Err(err)) {
-                    return ResultEnumMemberNodeVec::Err(err);
-                }
+        while (self.current_token().category matches TokenCategory::Comma) {
+            let comma_consumed = self.consume_must_be(&TokenCategory::Comma);
+            if (comma_consumed matches ResultToken::Err(err)) {
+                return ResultEnumMemberNodeVec::Err(err);
+            }
 
-                let next_call = self.parse_enum_member();
-                match (next_call) {
-                    ResultOptionEnumMemberNode::Err(err) {
-                        return ResultEnumMemberNodeVec::Err(err);
-                    },
-                    ResultOptionEnumMemberNode::Ok(option_next) {
-                        match (option_next) {
-                            OptionEnumMemberNode::None {
-                                return ResultEnumMemberNodeVec::Err(self.create_parser_error(
-                                    "Expected enum member after comma."
-                                ));
-                            },
-                            OptionEnumMemberNode::Some(next) {
-                                for (let i = 0; i < vector_size(&members); i += 1) {
-                                    if (members[i].value.identifier.value == next.value.identifier.value) {
-                                        return ResultEnumMemberNodeVec::Err(parser_error_at(
-                                            ErrorSeverity::HIGH,
-                                            "Redeclaration of member '"
-                                                + next.value.identifier.value
-                                                + "'.",
-                                            next.span
-                                        ));
-                                    }
+            let next_call = self.parse_enum_member();
+            match (next_call) {
+                ResultOptionEnumMemberNode::Err(err) {
+                    return ResultEnumMemberNodeVec::Err(err);
+                },
+                ResultOptionEnumMemberNode::Ok(option_next) {
+                    match (option_next) {
+                        OptionEnumMemberNode::None {
+                            return ResultEnumMemberNodeVec::Err(self.create_parser_error(
+                                "Expected enum member after comma."
+                            ));
+                        },
+                        OptionEnumMemberNode::Some(next) {
+                            for (let i = 0; i < vector_size(&members); i += 1) {
+                                if (
+                                    members[i].value.identifier.value == next.value.identifier.value
+                                ) {
+                                    return ResultEnumMemberNodeVec::Err(parser_error_at(
+                                        ErrorSeverity::HIGH,
+                                        "Redeclaration of member '"
+                                            + next.value.identifier.value
+                                            + "'.",
+                                        next.span
+                                    ));
                                 }
-                                vector_push(&members, next);
                             }
+                            vector_push(&members, next);
                         }
                     }
                 }
-            } else {
-                break;
             }
         }
 
@@ -279,7 +277,7 @@ extend Parser {
                         }
 
                         return ResultOptionEnumMemberNode::Ok(OptionEnumMemberNode::Some(EnumMemberNode {
-                            value: EnumMember { identifier: identifier, member_type: member_type },
+                            value: EnumMember { identifier, member_type },
                             span: Span.new(&identifier.span.start, &end_position)
                         }));
                     }

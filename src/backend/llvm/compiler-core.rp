@@ -139,7 +139,7 @@ fn llvm_compiler_declare_local(&LlvmCompiler c, str name, str ty): str {
     c.local_id += 1;
     let ptr = "%" + name + "." + n as str + ".addr";
     vector_push(&c.allocas, "  " + ptr + " = alloca " + ty);
-    vector_push(&c.locals, CompilerVar { name: name, ptr: ptr, ty: ty, rty: "", owned: false });
+    vector_push(&c.locals, CompilerVar { name, ptr, ty, rty: "", owned: false });
     return ptr;
 }
 
@@ -720,7 +720,7 @@ fn llvm_source_lines(&LlvmCompiler c, str path): str[] {
     if (exists_file(path)) {
         lines = str_split(read_file(path), "\n");
     }
-    vector_push(&c.sources, SourceLines { path: path, lines: lines });
+    vector_push(&c.sources, SourceLines { path, lines });
     return lines;
 }
 

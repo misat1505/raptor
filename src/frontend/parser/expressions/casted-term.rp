@@ -60,7 +60,7 @@ extend Parser {
                         return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(ExpressionNode {
                             value: Expression::Casting(CastingExpression {
                                 value: unary_term,
-                                to_type: to_type
+                                to_type
                             }),
                             span: Span.new(&unary_term.span.start, &to_type.span.end)
                         }));

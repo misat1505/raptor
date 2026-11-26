@@ -55,24 +55,20 @@ extend Parser {
 
         let switch_cases: SwitchCaseNode[] = [];
 
-        while (true) {
-            if (self.current_token().category matches TokenCategory::BraceClose) {
-                break;
-            } else {
-                match (self.parse_switch_case()) {
-                    ResultOptionSwitchCaseNode::Err(err) {
-                        return ResultOptionStatementNode::Err(err);
-                    },
-                    ResultOptionSwitchCaseNode::Ok(option_case) {
-                        match (option_case) {
-                            OptionSwitchCaseNode::None {
-                                return ResultOptionStatementNode::Err(self.create_parser_error(
-                                    "Couldn't create switch case while parsing switch statement."
-                                ));
-                            },
-                            OptionSwitchCaseNode::Some(switch_case) {
-                                switch_cases.push(switch_case);
-                            }
+        while (self.current_token().category not matches TokenCategory::BraceClose) {
+            match (self.parse_switch_case()) {
+                ResultOptionSwitchCaseNode::Err(err) {
+                    return ResultOptionStatementNode::Err(err);
+                },
+                ResultOptionSwitchCaseNode::Ok(option_case) {
+                    match (option_case) {
+                        OptionSwitchCaseNode::None {
+                            return ResultOptionStatementNode::Err(self.create_parser_error(
+                                "Couldn't create switch case while parsing switch statement."
+                            ));
+                        },
+                        OptionSwitchCaseNode::Some(switch_case) {
+                            switch_cases.push(switch_case);
                         }
                     }
                 }
@@ -205,7 +201,7 @@ extend Parser {
         }
 
         return ResultOptionSwitchExpressionNode::Ok(OptionSwitchExpressionNode::Some(SwitchExpressionNode {
-            value: SwitchExpression { expression: expression, alias: alias },
+            value: SwitchExpression { expression, alias },
             span: Span.new(&start_position, &end_position)
         }));
     }
@@ -277,7 +273,7 @@ extend Parser {
                     },
                     OptionBlockNode::Some(block) {
                         return ResultOptionSwitchCaseNode::Ok(OptionSwitchCaseNode::Some(SwitchCaseNode {
-                            value: SwitchCase { condition: condition, block: block },
+                            value: SwitchCase { condition, block },
                             span: Span.new(&paren_open_token.span.start, &block.span.end)
                         }));
                     }

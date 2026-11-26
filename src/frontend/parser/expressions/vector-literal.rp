@@ -38,32 +38,28 @@ extend Parser {
                 if (option_expression matches OptionExpressionNode::Some(first_expression)) {
                     expressions.push(first_expression);
 
-                    while (true) {
-                        if (self.current_token().category matches TokenCategory::Comma) {
-                            let comma_consumed = self.consume_must_be(&TokenCategory::Comma);
-                            if (comma_consumed matches ResultToken::Err(err)) {
-                                return ResultOptionExpressionNode::Err(err);
-                            }
+                    while (self.current_token().category matches TokenCategory::Comma) {
+                        let comma_consumed = self.consume_must_be(&TokenCategory::Comma);
+                        if (comma_consumed matches ResultToken::Err(err)) {
+                            return ResultOptionExpressionNode::Err(err);
+                        }
 
-                            match (self.parse_expression()) {
-                                ResultOptionExpressionNode::Err(err) {
-                                    return ResultOptionExpressionNode::Err(err);
-                                },
-                                ResultOptionExpressionNode::Ok(next_option_expression) {
-                                    match (next_option_expression) {
-                                        OptionExpressionNode::None {
-                                            return ResultOptionExpressionNode::Err(self.create_parser_error(
-                                                "Couldn't create expression while parsing vector literal."
-                                            ));
-                                        },
-                                        OptionExpressionNode::Some(next_expression) {
-                                            expressions.push(next_expression);
-                                        }
+                        match (self.parse_expression()) {
+                            ResultOptionExpressionNode::Err(err) {
+                                return ResultOptionExpressionNode::Err(err);
+                            },
+                            ResultOptionExpressionNode::Ok(next_option_expression) {
+                                match (next_option_expression) {
+                                    OptionExpressionNode::None {
+                                        return ResultOptionExpressionNode::Err(self.create_parser_error(
+                                            "Couldn't create expression while parsing vector literal."
+                                        ));
+                                    },
+                                    OptionExpressionNode::Some(next_expression) {
+                                        expressions.push(next_expression);
                                     }
                                 }
                             }
-                        } else {
-                            break;
                         }
                     }
                 }

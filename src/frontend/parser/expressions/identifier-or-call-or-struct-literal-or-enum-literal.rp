@@ -105,9 +105,7 @@ extend Parser {
                                 OptionExpressionNode::Some(value) {
                                     variant_value = OptionExpressionNode::Some(value);
 
-                                    match (self.consume_must_be(
-                                        &TokenCategory::ParenClose
-                                    )) {
+                                    match (self.consume_must_be(&TokenCategory::ParenClose)) {
                                         ResultToken::Err(err) {
                                             return ResultExpressionNode::Err(err);
                                         },
@@ -125,18 +123,15 @@ extend Parser {
 
         return ResultExpressionNode::Ok(ExpressionNode {
             value: Expression::EnumLiteral(EnumLiteralExpression {
-                enum_name: enum_name,
-                variant_name: variant_name,
-                variant_value: variant_value
+                enum_name,
+                variant_name,
+                variant_value
             }),
             span: Span.new(&start_position, &end_position)
         });
     }
 
-    fn parse_call_or_index_tail(
-        self,
-        &IdentifierNode identifier
-    ): ResultOptionExpressionNode {
+    fn parse_call_or_index_tail(self, &IdentifierNode identifier): ResultOptionExpressionNode {
         # call_or_index_tail = [ "(", arguments, ")" ], { access_tail };
         let start_position = identifier.span.start;
 
@@ -165,8 +160,8 @@ extend Parser {
                         },
                         ResultToken::Ok(close_token) {
                             result = Expression::FunctionCall(FunctionCallExpression {
-                                identifier: identifier,
-                                arguments: arguments
+                                identifier,
+                                arguments
                             });
                             end_position = close_token.span.end;
                         }
@@ -179,7 +174,9 @@ extend Parser {
             let current_category = self.current_token().category;
 
             if (current_category matches TokenCategory::BracketOpen) {
-                if (self.consume_must_be(&TokenCategory::BracketOpen) matches ResultToken::Err(err)) {
+                if (
+                    self.consume_must_be(&TokenCategory::BracketOpen) matches ResultToken::Err(err)
+                ) {
                     return ResultOptionExpressionNode::Err(err);
                 }
 
@@ -205,7 +202,10 @@ extend Parser {
                                     ResultToken::Ok(close_bracket_token) {
                                         let collection_node = ExpressionNode {
                                             value: result,
-                                            span: Span.new(&start_position, &index_expression.span.start)
+                                            span: Span.new(
+                                                &start_position,
+                                                &index_expression.span.start
+                                            )
                                         };
                                         result = Expression::Index(IndexExpression {
                                             collection: collection_node,
@@ -239,16 +239,24 @@ extend Parser {
                                 let ct_category_debug = current_category.debug();
                                 let paren_open_category = TokenCategory::ParenOpen;
                                 if (ct_category_debug == paren_open_category.debug()) {
-                                    if (self.consume_must_be(&TokenCategory::ParenOpen) matches ResultToken::Err(err)) {
+                                    if (
+                                        self.consume_must_be(
+                                            &TokenCategory::ParenOpen
+                                        ) matches ResultToken::Err(err)
+                                    ) {
                                         return ResultOptionExpressionNode::Err(err);
                                     }
 
                                     let arguments: ArgumentNode[] = [];
-                                    if (self.parse_arguments() matches ResultArgumentNodeVec::Ok(args)) {
+                                    if (
+                                        self.parse_arguments() matches ResultArgumentNodeVec::Ok(args)
+                                    ) {
                                         arguments = args;
                                     }
 
-                                    let paren_close_call = self.consume_must_be(&TokenCategory::ParenClose);
+                                    let paren_close_call = self.consume_must_be(
+                                        &TokenCategory::ParenClose
+                                    );
                                     if (paren_close_call matches ResultToken::Err(err)) {
                                         return ResultOptionExpressionNode::Err(err);
                                     }
@@ -259,8 +267,8 @@ extend Parser {
                                     result = Expression::MethodCall(MethodCallExpression {
                                         instance: instance_node,
                                         target: MethodCallTarget::Unresolved,
-                                        field: field,
-                                        arguments: arguments
+                                        field,
+                                        arguments
                                     });
                                     if (paren_close_call matches ResultToken::Ok(paren_close)) {
                                         end_position = paren_close.span.end;
@@ -272,7 +280,7 @@ extend Parser {
                                     };
                                     result = Expression::FieldAccess(FieldAccessExpression {
                                         instance: instance_node,
-                                        field: field
+                                        field
                                     });
                                     end_position = field.span.end;
                                 }
@@ -291,10 +299,7 @@ extend Parser {
         }));
     }
 
-    fn parse_struct_literal_tail(
-        self,
-        &IdentifierNode identifier
-    ): ResultExpressionNode {
+    fn parse_struct_literal_tail(self, &IdentifierNode identifier): ResultExpressionNode {
         # struct_literal_tail = "{", [ struct_literal_fields ], "}";
         let start_position = identifier.span.start;
 
@@ -320,7 +325,7 @@ extend Parser {
                 let whole_span = Span.new(&start_position, &close_token.span.end);
                 return ResultExpressionNode::Ok(ExpressionNode {
                     value: Expression::StructLiteral(StructLiteralNode {
-                        value: StructLiteral { identifier: identifier, fields: fields },
+                        value: StructLiteral { identifier, fields },
                         span: whole_span
                     }),
                     span: whole_span
@@ -353,7 +358,9 @@ extend Parser {
             let has_comma = false;
             match (self.consume_if_matches(&TokenCategory::Comma)) {
                 ResultOptionToken::Err(err) {
-                    return ResultStructLiteralFieldNodeVec::Err(parser_error_from_lexer_error(&err));
+                    return ResultStructLiteralFieldNodeVec::Err(parser_error_from_lexer_error(
+                        &err
+                    ));
                 },
                 ResultOptionToken::Ok(option_comma) {
                     if (option_comma matches OptionToken::Some) {
@@ -422,8 +429,8 @@ extend Parser {
                                                 OptionExpressionNode::Some(value) {
                                                     return ResultOptionStructLiteralFieldNode::Ok(OptionStructLiteralFieldNode::Some(StructLiteralFieldNode {
                                                         value: StructLiteralField {
-                                                            identifier: identifier,
-                                                            value: value
+                                                            identifier,
+                                                            value
                                                         },
                                                         span: Span.new(
                                                             &identifier.span.start,
@@ -440,7 +447,7 @@ extend Parser {
                                 let shorthand_span = identifier.span;
                                 return ResultOptionStructLiteralFieldNode::Ok(OptionStructLiteralFieldNode::Some(StructLiteralFieldNode {
                                     value: StructLiteralField {
-                                        identifier: identifier,
+                                        identifier,
                                         value: ExpressionNode {
                                             value: Expression::Variable(identifier.value),
                                             span: shorthand_span

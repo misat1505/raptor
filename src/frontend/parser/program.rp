@@ -173,7 +173,7 @@ extend Parser {
                 }
             }
         }
-        
+
         match (self.parse_let_variable_declaration()) {
             ResultOptionStatementNode::Err(err) {
                 return ResultOptionStatementNode::Err(err);
@@ -199,15 +199,6 @@ extend Parser {
         return self.parse_match_statement();
     }
 
-    # Rust's `check_name_collision` looks a name up across four `HashMap`s
-    # (user functions, built-in std functions, extern functions, declared
-    # types) in O(1). Raptor doesn't have a map type yet, so this walks the
-    # (small, whole-program) vectors we do have instead - same behavior,
-    # just O(n). The std-function registry itself is a backend/semantic
-    # concept (`get_std_functions()`) that doesn't exist on the parsing side
-    # of this project, so collisions against built-in names aren't checked
-    # here; that stays a semantic-checker concern, consistently with the
-    # rest of this parser stopping at AST creation.
     fn check_name_collision(
         str name,
         &Span span,
@@ -281,7 +272,9 @@ extend Parser {
                     return ResultProgram::Err(err);
                 },
                 ResultOptionInterfaceDeclaration::Ok(option_interface_declaration) {
-                    if (option_interface_declaration matches OptionInterfaceDeclaration::Some(interface_declaration)) {
+                    if (
+                        option_interface_declaration matches OptionInterfaceDeclaration::Some(interface_declaration)
+                    ) {
                         interfaces.push(interface_declaration);
                         continue;
                     }
@@ -305,7 +298,9 @@ extend Parser {
                     return ResultProgram::Err(err);
                 },
                 ResultOptionStructDeclarationNode::Ok(option_struct) {
-                    if (option_struct matches OptionStructDeclarationNode::Some(struct_declaration)) {
+                    if (
+                        option_struct matches OptionStructDeclarationNode::Some(struct_declaration)
+                    ) {
                         let type_name = struct_declaration.value.identifier.value;
 
                         let collision = Parser.check_name_collision(
@@ -319,11 +314,12 @@ extend Parser {
                             return ResultProgram::Err(err);
                         }
 
-                            declared_types.push(
+                        declared_types.push(
                             DeclaredTypeNode {
                                 value: DeclaredType::Struct(struct_declaration.value),
                                 span: struct_declaration.span
-                            });
+                            }
+                        );
 
                         continue;
                     }
@@ -349,11 +345,12 @@ extend Parser {
                             return ResultProgram::Err(err);
                         }
 
-                            declared_types.push(
+                        declared_types.push(
                             DeclaredTypeNode {
                                 value: DeclaredType::Enum(enum_declaration.value),
                                 span: enum_declaration.span
-                            });
+                            }
+                        );
 
                         continue;
                     }
@@ -446,17 +443,27 @@ extend Parser {
         # `Program` simply doesn't carry a resolved `types` table (see the
         # comment on `Program` in ast.rp).
         return ResultProgram::Ok(Program {
-            statements: statements,
-            functions: functions,
-            extern_functions: extern_functions,
-            declared_types: declared_types,
-            extend_blocks: extend_blocks,
+            statements,
+            functions,
+            extern_functions,
+            declared_types,
+            extend_blocks,
             interfaces
         });
     }
 
-    # Mirrors `IParser::parse`, the public entry point (`parser.parse()`).
     fn parse(self): ResultProgram {
         return self.parse_program();
     }
 };
+
+# Rust's `check_name_collision` looks a name up across four `HashMap`s
+# (user functions, built-in std functions, extern functions, declared
+# types) in O(1). Raptor doesn't have a map type yet, so this walks the
+# (small, whole-program) vectors we do have instead - same behavior,
+# just O(n). The std-function registry itself is a backend/semantic
+# concept (`get_std_functions()`) that doesn't exist on the parsing side
+# of this project, so collisions against built-in names aren't checked
+# here; that stays a semantic-checker concern, consistently with the
+# rest of this parser stopping at AST creation.
+# Mirrors `IParser::parse`, the public entry point (`parser.parse()`).

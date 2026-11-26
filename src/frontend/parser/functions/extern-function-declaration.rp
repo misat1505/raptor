@@ -6,9 +6,7 @@ import "../core.rp";
 
 
 extend Parser {
-    fn parse_extern_function_declaration(
-        self
-    ): ResultOptionExternFunctionDeclarationNode {
+    fn parse_extern_function_declaration(self): ResultOptionExternFunctionDeclarationNode {
         # extern_function_declaration = "extern", "fn", identifier, "(", parameters, ")", ":", type | "void", [ "as", identifier ] ";";
         let extern_consumed = self.consume_if_matches(&TokenCategory::Extern);
         let extern_token = self.current_token();
@@ -128,12 +126,7 @@ extend Parser {
             },
             ResultToken::Ok(semicolon_token) {
                 return ResultOptionExternFunctionDeclarationNode::Ok(OptionExternFunctionDeclarationNode::Some(ExternFunctionDeclarationNode {
-                    value: ExternFunctionDeclaration {
-                        identifier: identifier,
-                        alias: alias,
-                        parameters: parameters,
-                        return_type: return_type
-                    },
+                    value: ExternFunctionDeclaration { identifier, alias, parameters, return_type },
                     span: Span.new(&extern_token.span.start, &semicolon_token.span.end)
                 }));
             }

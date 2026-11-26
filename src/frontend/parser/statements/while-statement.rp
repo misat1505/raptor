@@ -13,8 +13,8 @@ import "../expressions/expression.rp";
 extend Parser {
     fn while_synthetic_break_block(Span span): BlockNode {
         return BlockNode {
-            value: Block { statements: [StatementNode { value: Statement::Break, span: span }] },
-            span: span
+            value: Block { statements: [StatementNode { value: Statement::Break, span }] },
+            span
         };
     }
 
@@ -76,10 +76,7 @@ extend Parser {
             },
             ResultOptionToken::Ok(option_close) {
                 if (option_close matches OptionToken::None) {
-                    return self.finish_while_matches_statement(
-                        &condition,
-                        while_token.span.start
-                    );
+                    return self.finish_while_matches_statement(&condition, while_token.span.start);
                 }
             }
         }
@@ -97,10 +94,7 @@ extend Parser {
                     },
                     OptionBlockNode::Some(block) {
                         return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
-                            value: Statement::WhileLoop(WhileLoopStatement {
-                                condition: condition,
-                                block: block
-                            }),
+                            value: Statement::WhileLoop(WhileLoopStatement { condition, block }),
                             span: Span.new(&while_token.span.start, &block.span.end)
                         }));
                     }

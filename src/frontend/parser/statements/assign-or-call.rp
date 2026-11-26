@@ -6,11 +6,6 @@ import "../core.rp";
 
 
 extend Parser {
-    # Rebuilds `identifier` followed by all of its accessors `x[0].y`) as a
-    # plain expression - mirrors the `build_access_expression` closure the
-    # Rust parser defines inline (Raptor has no closures/lambdas, so this is
-    # a named helper called from the handful of compound-assignment cases
-    # below instead).
     fn build_access_expression(
         &IdentifierNode identifier,
         &AccessorNode[] accessors
@@ -27,7 +22,7 @@ extend Parser {
             match (accessor.value) {
                 Accessor::Index(index) {
                     result = ExpressionNode {
-                        value: Expression::Index(IndexExpression { collection: result, index: index }),
+                        value: Expression::Index(IndexExpression { collection: result, index }),
                         span: accessor_span
                     };
                 },
@@ -35,7 +30,7 @@ extend Parser {
                     result = ExpressionNode {
                         value: Expression::FieldAccess(FieldAccessExpression {
                             instance: result,
-                            field: field
+                            field
                         }),
                         span: accessor_span
                     };
@@ -70,9 +65,7 @@ extend Parser {
                         return ResultOptionStatementNode::Ok(OptionStatementNode::None);
                     },
                     OptionStatementNode::Some(n) {
-                        let semicolon_consumed = self.consume_must_be(
-                            &TokenCategory::Semicolon
-                        );
+                        let semicolon_consumed = self.consume_must_be(&TokenCategory::Semicolon);
                         match (semicolon_consumed) {
                             ResultToken::Err(err) {
                                 return ResultOptionStatementNode::Err(err);
@@ -143,14 +136,15 @@ extend Parser {
                                                         return ResultOptionStatementNode::Err(err);
                                                     },
                                                     ResultToken::Ok(bracket_close_token) {
-                                                            accessors.push(
+                                                        accessors.push(
                                                             AccessorNode {
                                                                 value: Accessor::Index(index_expression),
                                                                 span: Span.new(
                                                                     &bracket_open_token.span.start,
                                                                     &bracket_close_token.span.end
                                                                 )
-                                                            });
+                                                            }
+                                                        );
                                                     }
                                                 }
                                             }
@@ -182,7 +176,9 @@ extend Parser {
                                             },
                                             OptionIdentifierNode::Some(field) {
                                                 current_category = self.current_token().category;
-                                                if (current_category matches TokenCategory::ParenOpen) {
+                                                if (
+                                                    current_category matches TokenCategory::ParenOpen
+                                                ) {
                                                     self.consume_must_be(&TokenCategory::ParenOpen);
                                                     match (self.parse_arguments()) {
                                                         ResultArgumentNodeVec::Err(err) {
@@ -191,12 +187,17 @@ extend Parser {
                                                         ResultArgumentNodeVec::Ok(args) {
                                                             is_expression_like = true;
                                                             let end_pos = field.span.end;
-                                                            match (self.consume_must_be(&TokenCategory::ParenClose)) {
+                                                            match (
+                                                                self.consume_must_be(
+                                                                    &TokenCategory::ParenClose
+                                                                )
+                                                            ) {
                                                                 ResultToken::Err(err) {
                                                                     return ResultOptionStatementNode::Err(err);
                                                                 },
                                                                 ResultToken::Ok(paren_close_token) {
-                                                                    end_pos = paren_close_token.span.end;
+                                                                    end_pos =
+                                                                        paren_close_token.span.end;
                                                                 }
                                                             }
 
@@ -206,7 +207,7 @@ extend Parser {
                                                                     span: field.span
                                                                 },
                                                                 target: MethodCallTarget::Unresolved,
-                                                                field: field,
+                                                                field,
                                                                 arguments: args
                                                             };
 
@@ -218,25 +219,27 @@ extend Parser {
                                                                 )
                                                             };
 
-                                                                accessors.push(
+                                                            accessors.push(
                                                                 AccessorNode {
                                                                     value: Accessor::MethodCall(node),
                                                                     span: Span.new(
                                                                         &dot_token.span.start,
                                                                         &end_pos
                                                                     )
-                                                                });
+                                                                }
+                                                            );
                                                         }
                                                     }
                                                 } else {
-                                                        accessors.push(
+                                                    accessors.push(
                                                         AccessorNode {
                                                             value: Accessor::Field(field),
                                                             span: span_new(
                                                                 dot_token.span.start,
                                                                 field.span.end
                                                             )
-                                                        });
+                                                        }
+                                                    );
                                                 }
                                             }
                                         }
@@ -275,11 +278,14 @@ extend Parser {
                                                 OptionExpressionNode::Some(expr) {
                                                     return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
                                                         value: Statement::Assignment(AssignmentStatement {
-                                                            identifier: identifier,
-                                                            accessors: accessors,
+                                                            identifier,
+                                                            accessors,
                                                             value: expr
                                                         }),
-                                                        span: Span.new(&identifier_start, &expr.span.end)
+                                                        span: Span.new(
+                                                            &identifier_start,
+                                                            &expr.span.end
+                                                        )
                                                     }));
                                                 }
                                             }
@@ -345,7 +351,7 @@ extend Parser {
                                                 &identifier,
                                                 &accessors
                                             );
-                                            let operands = BinaryExpression { left: left, right: rhs };
+                                            let operands = BinaryExpression { left, right: rhs };
 
                                             let combined_value = Expression::Addition(operands);
                                             match (compound_category) {
@@ -374,11 +380,14 @@ extend Parser {
 
                                             return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
                                                 value: Statement::Assignment(AssignmentStatement {
-                                                    identifier: identifier,
-                                                    accessors: accessors,
+                                                    identifier,
+                                                    accessors,
                                                     value: combined_node
                                                 }),
-                                                span: Span.new(&identifier_start, &combined_node.span.end)
+                                                span: Span.new(
+                                                    &identifier_start,
+                                                    &combined_node.span.end
+                                                )
                                             }));
                                         }
                                     }
@@ -387,10 +396,7 @@ extend Parser {
                         }
 
                         if (is_expression_like) {
-                            let expr = Parser.build_access_expression(
-                                &identifier,
-                                &accessors
-                            );
+                            let expr = Parser.build_access_expression(&identifier, &accessors);
                             return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
                                 value: Statement::Expression(expr),
                                 span: Span.new(&identifier_start, &expr.span.end)
@@ -398,9 +404,7 @@ extend Parser {
                         }
 
                         # "(" arguments ")" - function call.
-                        match (self.consume_if_matches(
-                            &TokenCategory::ParenOpen
-                        )) {
+                        match (self.consume_if_matches(&TokenCategory::ParenOpen)) {
                             ResultOptionToken::Err(err) {
                                 return ResultOptionStatementNode::Err(parser_error_from_lexer_error(
                                     &err
@@ -423,19 +427,20 @@ extend Parser {
                                         }
                                     }
 
-                                    match (self.consume_must_be(
-                                        &TokenCategory::ParenClose
-                                    )) {
+                                    match (self.consume_must_be(&TokenCategory::ParenClose)) {
                                         ResultToken::Err(err) {
                                             return ResultOptionStatementNode::Err(err);
                                         },
                                         ResultToken::Ok(close_token) {
                                             return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
                                                 value: Statement::FunctionCall(FunctionCallExpression {
-                                                    identifier: identifier,
-                                                    arguments: arguments
+                                                    identifier,
+                                                    arguments
                                                 }),
-                                                span: Span.new(&identifier_start, &close_token.span.end)
+                                                span: Span.new(
+                                                    &identifier_start,
+                                                    &close_token.span.end
+                                                )
                                             }));
                                         }
                                     }
@@ -452,3 +457,9 @@ extend Parser {
         }
     }
 };
+
+# Rebuilds `identifier` followed by all of its accessors `x[0].y`) as a
+# plain expression - mirrors the `build_access_expression` closure the
+# Rust parser defines inline (Raptor has no closures/lambdas, so this is
+# a named helper called from the handful of compound-assignment cases
+# below instead).

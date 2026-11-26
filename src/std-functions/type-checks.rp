@@ -160,9 +160,7 @@ fn std_type_check_str_to_char_vector(Type[] arg_types): ResultType {
 
     return ResultType::Err(semantic_checker_error_new(
         ErrorSeverity::HIGH,
-        "str_to_char_vector expected a str, but got '"
-            + type_to_string(arg_types[0])
-            + "'.",
+        "str_to_char_vector expected a str, but got '" + type_to_string(arg_types[0]) + "'.",
         span_dummy()
     ));
 }
@@ -185,18 +183,14 @@ fn std_type_check_char_vector_to_str(Type[] arg_types): ResultType {
         }
         return ResultType::Err(semantic_checker_error_new(
             ErrorSeverity::HIGH,
-            "char_vector_to_str expected char[], but got '"
-                + type_to_string(arg_types[0])
-                + "'.",
+            "char_vector_to_str expected char[], but got '" + type_to_string(arg_types[0]) + "'.",
             span_dummy()
         ));
     }
 
     return ResultType::Err(semantic_checker_error_new(
         ErrorSeverity::HIGH,
-        "char_vector_to_str expected a vector, but got '"
-            + type_to_string(arg_types[0])
-            + "'.",
+        "char_vector_to_str expected a vector, but got '" + type_to_string(arg_types[0]) + "'.",
         span_dummy()
     ));
 }

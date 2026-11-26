@@ -33,39 +33,35 @@ extend Parser {
             return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
         }
 
-        while (true) {
-            if (self.current_token().category matches TokenCategory::And) {
-                let advance = self.next_token();
-                if (advance matches ResultOptionToken::Err(err)) {
-                    return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
-                }
+        while (self.current_token().category matches TokenCategory::And) {
+            let advance = self.next_token();
+            if (advance matches ResultOptionToken::Err(err)) {
+                return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+            }
 
-                let found_right = false;
-                match (self.parse_relation_term()) {
-                    ResultOptionExpressionNode::Err(err) {
-                        return ResultOptionExpressionNode::Err(err);
-                    },
-                    ResultOptionExpressionNode::Ok(option_right) {
-                        if (option_right matches OptionExpressionNode::Some(right_side)) {
-                            left_side = ExpressionNode {
-                                value: Expression::Concatenation(BinaryExpression {
-                                    left: left_side,
-                                    right: right_side
-                                }),
-                                span: Span.new(&left_side.span.start, &right_side.span.end)
-                            };
-                            found_right = true;
-                        }
+            let found_right = false;
+            match (self.parse_relation_term()) {
+                ResultOptionExpressionNode::Err(err) {
+                    return ResultOptionExpressionNode::Err(err);
+                },
+                ResultOptionExpressionNode::Ok(option_right) {
+                    if (option_right matches OptionExpressionNode::Some(right_side)) {
+                        left_side = ExpressionNode {
+                            value: Expression::Concatenation(BinaryExpression {
+                                left: left_side,
+                                right: right_side
+                            }),
+                            span: Span.new(&left_side.span.start, &right_side.span.end)
+                        };
+                        found_right = true;
                     }
                 }
+            }
 
-                if (!found_right) {
-                    return ResultOptionExpressionNode::Err(self.create_parser_error(
-                        "Couldn't create relation term while parsing concatenation term."
-                    ));
-                }
-            } else {
-                break;
+            if (!found_right) {
+                return ResultOptionExpressionNode::Err(self.create_parser_error(
+                    "Couldn't create relation term while parsing concatenation term."
+                ));
             }
         }
 

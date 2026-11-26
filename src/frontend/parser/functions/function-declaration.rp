@@ -6,12 +6,6 @@ import "../core.rp";
 
 
 extend Parser {
-    # Shared by `parse_function_declaration` and
-    # `parse_extern_function_declaration`: mirrors Rust's
-    # `match self.parse_type() { Ok(Some(t)) => t, _ => self.void_type_or_error()? }`
-    # - note that this deliberately swallows any `Err` from `parse_type` too
-    # (the `_` arm), falling back to `void_type_or_error` (which produces its
-    # own, more specific error) instead of propagating it.
     fn parse_return_type(self): ResultTypeNode {
         if (self.parse_type() matches ResultOptionTypeNode::Ok(option_type)) {
             if (option_type matches OptionTypeNode::Some(t)) {
@@ -30,7 +24,9 @@ extend Parser {
         let has_fn = false;
         match (fn_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionFunctionDeclarationNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionFunctionDeclarationNode::Err(parser_error_from_lexer_error(
+                    &err
+                ));
             },
             ResultOptionToken::Ok(option_fn) {
                 if (option_fn matches OptionToken::Some(token)) {
@@ -112,10 +108,10 @@ extend Parser {
                     OptionBlockNode::Some(block) {
                         return ResultOptionFunctionDeclarationNode::Ok(OptionFunctionDeclarationNode::Some(FunctionDeclarationNode {
                             value: FunctionDeclaration {
-                                identifier: identifier,
-                                parameters: parameters,
-                                return_type: return_type,
-                                block: block
+                                identifier,
+                                parameters,
+                                return_type,
+                                block
                             },
                             span: Span.new(&fn_token.span.start, &block.span.end)
                         }));
@@ -125,3 +121,10 @@ extend Parser {
         }
     }
 };
+
+# Shared by `parse_function_declaration` and
+# `parse_extern_function_declaration`: mirrors Rust's
+# `match self.parse_type() { Ok(Some(t)) => t, _ => self.void_type_or_error()? }`
+# - note that this deliberately swallows any `Err` from `parse_type` too
+# (the `_` arm), falling back to `void_type_or_error` (which produces its
+# own, more specific error) instead of propagating it.

@@ -318,7 +318,7 @@ fn macro_expander_enum_json_block(
         me_stmt(
             Statement::Match(MatchStatement {
                 expression: me_expr(me_var("self")),
-                match_arms: match_arms,
+                match_arms,
                 rest_arm: OptionBlockNode::None
             })
         )

@@ -64,7 +64,9 @@ extend Parser {
                                     let ro_comma_token = self.consume_if_matches(
                                         &TokenCategory::Comma
                                     );
-                                    if (ro_comma_token matches ResultOptionToken::Ok(option_token)) {
+                                    if (
+                                        ro_comma_token matches ResultOptionToken::Ok(option_token)
+                                    ) {
                                         if (option_token matches OptionToken::Some) {
                                             has_comma_after_self = true;
                                         }

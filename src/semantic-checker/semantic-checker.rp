@@ -116,27 +116,27 @@ fn semantic_checker_identifier_hover(
             + " "
             + identifier.value
             + "\n```";
-    vector_push(&sc.hovers, HoverInfo { span: identifier.span, contents: contents });
+    vector_push(&sc.hovers, HoverInfo { span: identifier.span, contents });
 }
 
 fn semantic_checker_type_hover(&SemanticChecker sc, Type data_type, Span span): void {
     let contents =
         "```raptor\n" + semantic_type_prefix(data_type) + type_to_string(data_type) + "\n```";
-    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+    vector_push(&sc.hovers, HoverInfo { span, contents });
 }
 
 fn semantic_checker_push_definition(&SemanticChecker sc, Span use_span, Span def_span): void {
-    vector_push(&sc.definitions, DefinitionInfo { use_span: use_span, def_span: def_span });
+    vector_push(&sc.definitions, DefinitionInfo { use_span, def_span });
 }
 
 fn semantic_checker_struct_hover(&SemanticChecker sc, str name, Span span): void {
     let contents = "```raptor\nstruct " + name + "\n```";
-    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+    vector_push(&sc.hovers, HoverInfo { span, contents });
 }
 
 fn semantic_checker_enum_hover(&SemanticChecker sc, str name, Span span): void {
     let contents = "```raptor\nenum " + name + "\n```";
-    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+    vector_push(&sc.hovers, HoverInfo { span, contents });
 }
 
 fn semantic_checker_function_hover(
@@ -159,7 +159,7 @@ fn semantic_checker_function_hover(
     }
     sig = sig + "): " + type_to_string(ret);
     let contents = "```raptor\n" + sig + "\n```";
-    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+    vector_push(&sc.hovers, HoverInfo { span, contents });
 }
 
 fn semantic_checker_method_call_hover(
@@ -187,9 +187,8 @@ fn semantic_checker_method_call_hover(
     }
     sig = sig + "): " + type_to_string(tm.return_type.value);
     let contents = "```raptor\n" + sig + "\n```";
-    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+    vector_push(&sc.hovers, HoverInfo { span, contents });
 }
-
 
 fn semantic_checker_derive_hover(
     &SemanticChecker sc,
@@ -215,7 +214,7 @@ fn semantic_checker_derive_hover(
                 + identifier_name
                 + ".debug(self): str\n"
                 + "```";
-        vector_push(&sc.hovers, HoverInfo { span: derive.span, contents: contents });
+        vector_push(&sc.hovers, HoverInfo { span: derive.span, contents });
     } else if (derive.value == "Json") {
         let contents =
             "Generates functionality for serializing `"
@@ -233,7 +232,7 @@ fn semantic_checker_derive_hover(
                 + identifier_name
                 + ".json_encode(self): str\n"
                 + "```";
-        vector_push(&sc.hovers, HoverInfo { span: derive.span, contents: contents });
+        vector_push(&sc.hovers, HoverInfo { span: derive.span, contents });
     } else if (derive.value == "Clone") {
         let contents =
             "Generates functionality for recursively cloning `"
@@ -255,10 +254,9 @@ fn semantic_checker_derive_hover(
                 + identifier_name
                 + "\n"
                 + "```";
-        vector_push(&sc.hovers, HoverInfo { span: derive.span, contents: contents });
+        vector_push(&sc.hovers, HoverInfo { span: derive.span, contents });
     }
 }
-
 
 fn semantic_checker_resolve_type(
     &SemanticChecker sc,
@@ -357,7 +355,7 @@ fn semantic_checker_find_interface(&Program program, str name): i64 {
 
 fn semantic_checker_interface_hover(&SemanticChecker sc, str name, Span span): void {
     let contents = "```raptor\ninterface " + name + "\n```";
-    vector_push(&sc.hovers, HoverInfo { span: span, contents: contents });
+    vector_push(&sc.hovers, HoverInfo { span, contents });
 }
 
 fn semantic_checker_param_to_string(PassedBy passed_by, Type parameter_type): str {
@@ -463,6 +461,7 @@ fn semantic_checker_check_interface_declarations(&SemanticChecker sc, &Program p
 
         for (let m = 0; m < vector_size(&decl.methods_signatures); m += 1) {
             let sig = decl.methods_signatures[m].value;
+
             # `semantic_checker_resolve_type` reports unknown types itself and records
             # hovers / definitions for the ones that exist.
             for (let p = 0; p < vector_size(&sig.parameters); p += 1) {
@@ -680,37 +679,42 @@ fn semantic_checker_visit_program(&SemanticChecker sc, &Program program): void {
     }
 
     for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
-        match (program.extend_blocks[i].type.value) {
-            Type::Unresolved(custom_type_name) {
-                for (let j = 0; j < vector_size(&program.declared_types); j += 1) {
-                    match (program.declared_types[j].value) {
-                        DeclaredType::Struct(s) {
-                            if (s.identifier.value != custom_type_name) {
-                                continue;
-                            }
-
-                            semantic_checker_struct_hover(&sc, custom_type_name, program.extend_blocks[i].type.span);
-                            semantic_checker_push_definition(
-                                &sc,
-                                program.extend_blocks[i].type.span,
-                                program.declared_types[j].span
-                            );
-                        },
-                        DeclaredType::Enum(e) {
-                            if (e.identifier.value != custom_type_name) {
-                                continue;
-                            }
-                            semantic_checker_enum_hover(&sc, custom_type_name, program.extend_blocks[i].type.span);
-                            semantic_checker_push_definition(
-                                &sc,
-                                program.extend_blocks[i].type.span,
-                                program.declared_types[j].span
-                            );
+        if (program.extend_blocks[i].type.value matches Type::Unresolved(custom_type_name)) {
+            for (let j = 0; j < vector_size(&program.declared_types); j += 1) {
+                match (program.declared_types[j].value) {
+                    DeclaredType::Struct(s) {
+                        if (s.identifier.value != custom_type_name) {
+                            continue;
                         }
+
+                        semantic_checker_struct_hover(
+                            &sc,
+                            custom_type_name,
+                            program.extend_blocks[i].type.span
+                        );
+                        semantic_checker_push_definition(
+                            &sc,
+                            program.extend_blocks[i].type.span,
+                            program.declared_types[j].span
+                        );
+                    },
+                    DeclaredType::Enum(e) {
+                        if (e.identifier.value != custom_type_name) {
+                            continue;
+                        }
+                        semantic_checker_enum_hover(
+                            &sc,
+                            custom_type_name,
+                            program.extend_blocks[i].type.span
+                        );
+                        semantic_checker_push_definition(
+                            &sc,
+                            program.extend_blocks[i].type.span,
+                            program.declared_types[j].span
+                        );
                     }
                 }
-            },
-            rest {}
+            }
         }
     }
 
@@ -874,14 +878,7 @@ fn semantic_checker_check_type_methods(
         }
 
         if (method.value.self_identifier matches OptionIdentifierNode::Some(self_node)) {
-            match (
-                semantic_checker_resolve_type(
-                    &sc,
-                    &program,
-                    self_type,
-                    self_span
-                )
-            ) {
+            match (semantic_checker_resolve_type(&sc, &program, self_type, self_span)) {
                 ResultType::Err(e) {
                     semantic_checker_push_error(&sc, e);
                 },
@@ -1540,10 +1537,7 @@ fn semantic_checker_check_match(&SemanticChecker sc, &Program program, MatchStat
                                             + "\n```";
                                     vector_push(
                                         &sc.hovers,
-                                        HoverInfo {
-                                            span: arm.value.variant_name.span,
-                                            contents: contents
-                                        }
+                                        HoverInfo { span: arm.value.variant_name.span, contents }
                                     );
                                 }
                             }
@@ -1871,7 +1865,11 @@ fn semantic_checker_check_extend_method_call(
                 &sc,
                 semantic_checker_error_at(
                     ErrorSeverity::HIGH,
-                    "Method '" + mc.field.value + "' on type '" + type_name + "' is a static method",
+                    "Method '"
+                        + mc.field.value
+                        + "' on type '"
+                        + type_name
+                        + "' is a static method",
                     span
                 )
             );
@@ -1953,8 +1951,17 @@ fn semantic_checker_check_method_call(
 
                         mc.target = MethodCallTarget::Type(instance_name);
 
-                        semantic_checker_method_call_hover(&sc, instance_name, &method, mc.field.span);
-                        semantic_checker_push_definition(&sc, mc.field.span, method_definition_span);
+                        semantic_checker_method_call_hover(
+                            &sc,
+                            instance_name,
+                            &method,
+                            mc.field.span
+                        );
+                        semantic_checker_push_definition(
+                            &sc,
+                            mc.field.span,
+                            method_definition_span
+                        );
 
                         if (
                             semantic_checker_resolve_type(
@@ -2023,8 +2030,17 @@ fn semantic_checker_check_method_call(
 
                         mc.target = MethodCallTarget::Type(instance_name);
 
-                        semantic_checker_method_call_hover(&sc, instance_name, &method, mc.field.span);
-                        semantic_checker_push_definition(&sc, mc.field.span, method_definition_span);
+                        semantic_checker_method_call_hover(
+                            &sc,
+                            instance_name,
+                            &method,
+                            mc.field.span
+                        );
+                        semantic_checker_push_definition(
+                            &sc,
+                            mc.field.span,
+                            method_definition_span
+                        );
 
                         if (
                             semantic_checker_resolve_type(
@@ -2107,8 +2123,17 @@ fn semantic_checker_check_method_call(
 
                             mc.target = MethodCallTarget::Instance(instance_name);
 
-                            semantic_checker_method_call_hover(&sc, instance_name, &method, mc.field.span);
-                            semantic_checker_push_definition(&sc, mc.field.span, method_definition_span);
+                            semantic_checker_method_call_hover(
+                                &sc,
+                                instance_name,
+                                &method,
+                                mc.field.span
+                            );
+                            semantic_checker_push_definition(
+                                &sc,
+                                mc.field.span,
+                                method_definition_span
+                            );
 
                             if (
                                 semantic_checker_resolve_type(
@@ -2168,8 +2193,17 @@ fn semantic_checker_check_method_call(
 
                             mc.target = MethodCallTarget::Instance(instance_name);
 
-                            semantic_checker_method_call_hover(&sc, instance_name, &method, mc.field.span);
-                            semantic_checker_push_definition(&sc, mc.field.span, method_definition_span);
+                            semantic_checker_method_call_hover(
+                                &sc,
+                                instance_name,
+                                &method,
+                                mc.field.span
+                            );
+                            semantic_checker_push_definition(
+                                &sc,
+                                mc.field.span,
+                                method_definition_span
+                            );
 
                             semantic_checker_check_arguments(
                                 &sc,
@@ -2210,26 +2244,19 @@ fn semantic_checker_check_method_call(
                 }
             }
         } else {
-            let imc = semantic_checker_check_for_intrinsic_method_call(
-                &sc,
-                &program,
-                &type,
-                &mc
-            );
+            let imc = semantic_checker_check_for_intrinsic_method_call(&sc, &program, &type, &mc);
 
             match (imc) {
                 CheckForIntrinsicMethodCallData::ErrorInCall(message) {
                     semantic_checker_push_error(
                         &sc,
-                        semantic_checker_error_at(
-                            ErrorSeverity::HIGH,
-                            message,
-                            span
-                        )
+                        semantic_checker_error_at(ErrorSeverity::HIGH, message, span)
                     );
                 },
                 CheckForIntrinsicMethodCallData::NoTypeMatch {
-                    if (semantic_checker_check_extend_method_call(&sc, &program, &type, &mc, &span)) {
+                    if (
+                        semantic_checker_check_extend_method_call(&sc, &program, &type, &mc, &span)
+                    ) {
                         return;
                     }
                     semantic_checker_push_error(
@@ -2242,14 +2269,20 @@ fn semantic_checker_check_method_call(
                     );
                 },
                 CheckForIntrinsicMethodCallData::NoMethodMatchInType {
-                    if (semantic_checker_check_extend_method_call(&sc, &program, &type, &mc, &span)) {
+                    if (
+                        semantic_checker_check_extend_method_call(&sc, &program, &type, &mc, &span)
+                    ) {
                         return;
                     }
                     semantic_checker_push_error(
                         &sc,
                         semantic_checker_error_at(
                             ErrorSeverity::HIGH,
-                            "Method '" + mc.field.value + "' not found on type '" + type_to_string(type) + "'.",
+                            "Method '"
+                                + mc.field.value
+                                + "' not found on type '"
+                                + type_to_string(type)
+                                + "'.",
                             span
                         )
                     );
@@ -2299,7 +2332,7 @@ fn semantic_checker_visit_variable(&SemanticChecker sc, str name, Span span): vo
         },
         OptionType::Some(t) {
             stack_mark_used(&sc.stack, name);
-            semantic_checker_identifier_hover(&sc, t, IdentifierNode { value: name, span: span });
+            semantic_checker_identifier_hover(&sc, t, IdentifierNode { value: name, span });
             if (
                 stack_get_variable_declaration_span(
                     &sc.stack,
@@ -2749,10 +2782,7 @@ fn semantic_checker_check_enum_literal(
                             + el.variant_name.value
                             + payload_txt
                             + "\n```";
-                    vector_push(
-                        &sc.hovers,
-                        HoverInfo { span: el.variant_name.span, contents: contents }
-                    );
+                    vector_push(&sc.hovers, HoverInfo { span: el.variant_name.span, contents });
                 }
             }
 

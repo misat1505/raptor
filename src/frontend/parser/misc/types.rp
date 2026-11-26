@@ -87,22 +87,18 @@ extend Parser {
             return ResultOptionTypeNode::Err(parser_error_from_lexer_error(&err));
         }
 
-        while (true) {
-            if (self.current_token().category matches TokenCategory::BracketOpen) {
-                let open_bracket = self.consume_must_be(&TokenCategory::BracketOpen);
-                if (open_bracket matches ResultToken::Err(err)) {
-                    return ResultOptionTypeNode::Err(err);
-                }
-
-                let close_bracket = self.consume_must_be(&TokenCategory::BracketClose);
-                if (close_bracket matches ResultToken::Err(err)) {
-                    return ResultOptionTypeNode::Err(err);
-                }
-
-                result = Type::Vector(result);
-            } else {
-                break;
+        while (self.current_token().category matches TokenCategory::BracketOpen) {
+            let open_bracket = self.consume_must_be(&TokenCategory::BracketOpen);
+            if (open_bracket matches ResultToken::Err(err)) {
+                return ResultOptionTypeNode::Err(err);
             }
+
+            let close_bracket = self.consume_must_be(&TokenCategory::BracketClose);
+            if (close_bracket matches ResultToken::Err(err)) {
+                return ResultOptionTypeNode::Err(err);
+            }
+
+            result = Type::Vector(result);
         }
 
         return ResultOptionTypeNode::Ok(OptionTypeNode::Some(TypeNode {

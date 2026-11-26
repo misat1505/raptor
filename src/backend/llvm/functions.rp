@@ -80,7 +80,7 @@ fn llvm_compile_function_body(&LlvmCompiler c, FunctionDeclarationNode f): void 
                 CompilerVar {
                     name: p.value.identifier.value,
                     ptr: "%" + p.value.identifier.value + ".arg",
-                    ty: ty,
+                    ty,
                     rty: llvm_type_rname(p.value.parameter_type.value),
                     owned: false
                 }

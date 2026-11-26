@@ -1,5 +1,6 @@
 import "../../../semantic-checker/semantic-helpers.rp";
 
+
 enum OptionExtendBlock {
     Some(ExtendBlock),
     None
@@ -100,10 +101,7 @@ extend Parser {
             return ResultOptionExtendBlock::Err(err);
         }
 
-        let extend_block = ExtendBlock {
-            type: type_node,
-            methods: methods
-        };
+        let extend_block = ExtendBlock { type: type_node, methods };
 
         return ResultOptionExtendBlock::Ok(OptionExtendBlock::Some(extend_block));
     }

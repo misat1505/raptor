@@ -1,6 +1,7 @@
 import "../../../semantic-checker/semantic-helpers.rp";
 import "method-signatures.rp";
 
+
 enum OptionInterfaceDeclaration {
     Some(InterfaceDeclarationNode),
     None
@@ -10,6 +11,7 @@ enum ResultOptionInterfaceDeclaration {
     Ok(OptionInterfaceDeclaration),
     Err(ParserError)
 };
+
 
 extend Parser {
     fn parse_interface_declaration(self): ResultOptionInterfaceDeclaration {

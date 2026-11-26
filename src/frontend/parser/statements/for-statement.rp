@@ -115,10 +115,10 @@ extend Parser {
                     OptionBlockNode::Some(block) {
                         return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
                             value: Statement::ForLoop(ForLoopStatement {
-                                declaration: declaration,
-                                condition: condition,
-                                assignment: assignment,
-                                block: block
+                                declaration,
+                                condition,
+                                assignment,
+                                block
                             }),
                             span: Span.new(&for_token.span.start, &block.span.end)
                         }));

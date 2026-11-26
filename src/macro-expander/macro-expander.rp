@@ -30,6 +30,47 @@ enum ExpansionStrategy {
     MethodBased
 };
 
+# Not a built-in derive macro. It may name a user-declared interface
+# (`derives Shape` == `implements Shape`); the semantic checker validates
+# that the name really refers to one and reports unknown names.
+
+# ============================================================
+# StringBuilder-based code generation (shared by Debug and Json).
+#
+# Derives no longer build a result with `+` / `+=` (a new allocation per
+# piece). They append to a `StringBuilder` instead. For every derive there
+# are two function/method pairs:
+#
+#   fn user_debug_sb(&User self, &StringBuilder sb): StringBuilder   (function based)
+#   fn user_debug(&User self): str                                   (wrapper)
+#   User.debug_sb(self, &StringBuilder sb): StringBuilder            (method based)
+#   User.debug(self): str                                            (wrapper)
+#
+# Nested derived types call the `_sb` variant of their dependency, so the
+# whole value is written into one builder. Types that only provide a
+# hand-written `debug()` / `x_debug()` are used through a fallback.
+# ============================================================
+
+# Collects the statements of one block. Adjacent literal pieces are merged
+# into a single `sb.push_str(&"...")` call.
+struct SbEmit {
+    StatementNode[] stmts,
+    str pending
+};
+
+# What differs between derives when a single value is written.
+struct SbFormat {
+    str derive_name,
+    str plain_method,
+    str sb_method,
+    str fn_suffix,
+    str char_quote,
+    str vector_separator,
+    str nested_vector_literal,
+    bool nest_vectors,
+    str unprintable_literal
+};
+
 
 fn macro_expander_new(): MacroExpander {
     return MacroExpander { supported_derives: ["Debug", "Json", "Clone"], errors: [] };
@@ -80,9 +121,6 @@ fn macro_expander_expand_derive_macros_of_type(
         }
 
         if (!is_supported) {
-            # Not a built-in derive macro. It may name a user-declared interface
-            # (`derives Shape` == `implements Shape`); the semantic checker validates
-            # that the name really refers to one and reports unknown names.
             continue;
         }
 
@@ -204,23 +242,23 @@ fn me_span(): Span {
 }
 
 fn me_ident(str value): IdentifierNode {
-    return IdentifierNode { value: value, span: me_span() };
+    return IdentifierNode { value, span: me_span() };
 }
 
 fn me_expr(Expression value): ExpressionNode {
-    return ExpressionNode { value: value, span: me_span() };
+    return ExpressionNode { value, span: me_span() };
 }
 
 fn me_stmt(Statement value): StatementNode {
-    return StatementNode { value: value, span: me_span() };
+    return StatementNode { value, span: me_span() };
 }
 
 fn me_type(Type value): TypeNode {
-    return TypeNode { value: value, span: me_span() };
+    return TypeNode { value, span: me_span() };
 }
 
 fn me_block(StatementNode[] statements): BlockNode {
-    return BlockNode { value: Block { statements: statements }, span: me_span() };
+    return BlockNode { value: Block { statements }, span: me_span() };
 }
 
 fn me_str_lit(str s): Expression {
@@ -310,7 +348,7 @@ fn me_return_expr(Expression e): Statement {
 fn me_let(str name, Expression value, OptionTypeNode var_type): Statement {
     return Statement::Declaration(DeclarationStatement {
         identifier: me_ident(name),
-        var_type: var_type,
+        var_type,
         value: me_expr(value)
     });
 }
@@ -403,43 +441,6 @@ fn me_function_exists(&Program program, str name): bool {
     return false;
 }
 
-# ============================================================
-# StringBuilder-based code generation (shared by Debug and Json).
-#
-# Derives no longer build a result with `+` / `+=` (a new allocation per
-# piece). They append to a `StringBuilder` instead. For every derive there
-# are two function/method pairs:
-#
-#   fn user_debug_sb(&User self, &StringBuilder sb): StringBuilder   (function based)
-#   fn user_debug(&User self): str                                   (wrapper)
-#   User.debug_sb(self, &StringBuilder sb): StringBuilder            (method based)
-#   User.debug(self): str                                            (wrapper)
-#
-# Nested derived types call the `_sb` variant of their dependency, so the
-# whole value is written into one builder. Types that only provide a
-# hand-written `debug()` / `x_debug()` are used through a fallback.
-# ============================================================
-
-# Collects the statements of one block. Adjacent literal pieces are merged
-# into a single `sb.push_str(&"...")` call.
-struct SbEmit {
-    StatementNode[] stmts,
-    str pending
-};
-
-# What differs between derives when a single value is written.
-struct SbFormat {
-    str derive_name,
-    str plain_method,
-    str sb_method,
-    str fn_suffix,
-    str char_quote,
-    str vector_separator,
-    str nested_vector_literal,
-    bool nest_vectors,
-    str unprintable_literal
-};
-
 fn me_sb_format_debug(): SbFormat {
     return SbFormat {
         derive_name: "Debug",
@@ -494,10 +495,7 @@ fn sb_emit_finish(&SbEmit e): StatementNode[] {
 }
 
 fn me_arg(Expression value, PassedBy passed_by): ArgumentNode {
-    return ArgumentNode {
-        value: Argument { value: me_expr(value), passed_by: passed_by },
-        span: me_span()
-    };
+    return ArgumentNode { value: Argument { value: me_expr(value), passed_by }, span: me_span() };
 }
 
 fn me_method_call_expr(Expression instance, str method_name, ArgumentNode[] arguments): Expression {
@@ -505,22 +503,23 @@ fn me_method_call_expr(Expression instance, str method_name, ArgumentNode[] argu
         instance: me_expr(instance),
         target: MethodCallTarget::Unresolved,
         field: me_ident(method_name),
-        arguments: arguments
+        arguments
     });
 }
 
 fn me_function_call_stmt(str fn_name, ArgumentNode[] arguments): StatementNode {
-    return me_stmt(Statement::FunctionCall(FunctionCallExpression {
-        identifier: me_ident(fn_name),
-        arguments: arguments
-    }));
+    return me_stmt(
+        Statement::FunctionCall(FunctionCallExpression { identifier: me_ident(fn_name), arguments })
+    );
 }
 
 # sb.push_str(&value);
 fn me_sb_push_str_stmt(Expression value): StatementNode {
-    return me_stmt(Statement::Expression(me_expr(
-        me_method_call_expr(me_var("sb"), "push_str", [me_arg(value, PassedBy::Reference)])
-    )));
+    return me_stmt(
+        Statement::Expression(me_expr(
+            me_method_call_expr(me_var("sb"), "push_str", [me_arg(value, PassedBy::Reference)])
+        ))
+    );
 }
 
 # sb.push_char(value);
@@ -529,15 +528,19 @@ fn me_sb_push_char_stmt(Expression value): StatementNode {
         left: me_expr(value),
         right: me_expr(Expression::Literal(Literal::Char('\0')))
     });
-    let push_char = me_stmt(Statement::Expression(me_expr(
-        me_method_call_expr(me_var("sb"), "push_char", [me_arg(value, PassedBy::Value)])
-    )));
+    let push_char = me_stmt(
+        Statement::Expression(me_expr(
+            me_method_call_expr(me_var("sb"), "push_char", [me_arg(value, PassedBy::Value)])
+        ))
+    );
 
-    return me_stmt(Statement::Conditional(ConditionalStatement {
-        condition: me_expr(is_nul),
-        if_block: me_block([me_sb_push_str_stmt(me_str_lit("\\0"))]),
-        else_block: OptionBlockNode::Some(me_block([push_char]))
-    }));
+    return me_stmt(
+        Statement::Conditional(ConditionalStatement {
+            condition: me_expr(is_nul),
+            if_block: me_block([me_sb_push_str_stmt(me_str_lit("\\0"))]),
+            else_block: OptionBlockNode::Some(me_block([push_char]))
+        })
+    );
 }
 
 fn me_type_has_method(&Program program, str type_name, str method_name): bool {
@@ -712,9 +715,15 @@ fn me_sb_emit_dependency(
     } else if (mode == 1) {
         sb_emit_stmt(
             &e,
-            me_stmt(Statement::Expression(me_expr(
-                me_method_call_expr(expression, f.sb_method, [me_arg(me_var("sb"), PassedBy::Reference)])
-            )))
+            me_stmt(
+                Statement::Expression(me_expr(
+                    me_method_call_expr(
+                        expression,
+                        f.sb_method,
+                        [me_arg(me_var("sb"), PassedBy::Reference)]
+                    )
+                ))
+            )
         );
     } else {
         let temp = ctx + "_dep";
@@ -740,6 +749,7 @@ fn me_sb_emit_vector(
     let index_variable = ctx + "_i";
 
     sb_emit_lit(&e, "[");
+
     # Bind the vector to a temp so it can be indexed in the loop.
     sb_emit_stmt(&e, me_stmt(me_let(vector_variable, expression, OptionTypeNode::None)));
     sb_emit_stmt(&e, me_stmt(me_let(index_variable, me_i64_lit(0), OptionTypeNode::None)));
@@ -747,11 +757,13 @@ fn me_sb_emit_vector(
     let body = sb_emit_new();
     sb_emit_stmt(
         &body,
-        me_stmt(Statement::Conditional(ConditionalStatement {
-            condition: me_expr(me_less(me_i64_lit(0), me_var(index_variable))),
-            if_block: me_block([me_sb_push_str_stmt(me_str_lit(f.vector_separator))]),
-            else_block: OptionBlockNode::None
-        }))
+        me_stmt(
+            Statement::Conditional(ConditionalStatement {
+                condition: me_expr(me_less(me_i64_lit(0), me_var(index_variable))),
+                if_block: me_block([me_sb_push_str_stmt(me_str_lit(f.vector_separator))]),
+                else_block: OptionBlockNode::None
+            })
+        )
     );
     me_sb_emit_value(
         &program,
@@ -770,12 +782,17 @@ fn me_sb_emit_vector(
 
     sb_emit_stmt(
         &e,
-        me_stmt(Statement::WhileLoop(WhileLoopStatement {
-            condition: me_expr(
-                me_less(me_var(index_variable), me_call_ref("vector_size", me_var(vector_variable)))
-            ),
-            block: me_block(sb_emit_finish(&body))
-        }))
+        me_stmt(
+            Statement::WhileLoop(WhileLoopStatement {
+                condition: me_expr(
+                    me_less(
+                        me_var(index_variable),
+                        me_call_ref("vector_size", me_var(vector_variable))
+                    )
+                ),
+                block: me_block(sb_emit_finish(&body))
+            })
+        )
     );
     sb_emit_lit(&e, "]");
 }
@@ -790,11 +807,9 @@ fn me_sb_type(): TypeNode {
 
 # let sb = StringBuilder.new();
 fn me_sb_new_stmt(): StatementNode {
-    return me_stmt(me_let(
-        "sb",
-        me_method_call_expr(me_var("StringBuilder"), "new", []),
-        OptionTypeNode::None
-    ));
+    return me_stmt(
+        me_let("sb", me_method_call_expr(me_var("StringBuilder"), "new", []), OptionTypeNode::None)
+    );
 }
 
 # return sb.to_string();
@@ -835,14 +850,19 @@ fn me_sb_install(
             identifier: me_ident(snake + f.fn_suffix),
             parameters: [me_param_ref(type_name, "self")],
             return_type: me_type(Type::Str),
-            block: me_block([
-                me_sb_new_stmt(),
-                me_function_call_stmt(
-                    sb_fn_name,
-                    [me_arg(me_var("self"), PassedBy::Reference), me_arg(me_var("sb"), PassedBy::Reference)]
-                ),
-                me_sb_return_string_stmt()
-            ])
+            block: me_block(
+                [
+                    me_sb_new_stmt(),
+                    me_function_call_stmt(
+                        sb_fn_name,
+                        [
+                            me_arg(me_var("self"), PassedBy::Reference),
+                            me_arg(me_var("sb"), PassedBy::Reference)
+                        ]
+                    ),
+                    me_sb_return_string_stmt()
+                ]
+            )
         },
         derive_span
     );
@@ -861,17 +881,21 @@ fn me_sb_install(
         self_identifier: OptionIdentifierNode::Some(me_ident("self")),
         parameters: [],
         return_type: me_type(Type::Str),
-        block: me_block([
-            me_sb_new_stmt(),
-            me_stmt(Statement::Expression(me_expr(
-                me_method_call_expr(
-                    me_var("self"),
-                    f.sb_method,
-                    [me_arg(me_var("sb"), PassedBy::Reference)]
-                )
-            ))),
-            me_sb_return_string_stmt()
-        ])
+        block: me_block(
+            [
+                me_sb_new_stmt(),
+                me_stmt(
+                    Statement::Expression(me_expr(
+                        me_method_call_expr(
+                            me_var("self"),
+                            f.sb_method,
+                            [me_arg(me_var("sb"), PassedBy::Reference)]
+                        )
+                    ))
+                ),
+                me_sb_return_string_stmt()
+            ]
+        )
     };
     macro_expander_insert_method(&me, &declared_type, &plain_method, derive_span);
 }

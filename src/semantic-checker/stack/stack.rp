@@ -42,13 +42,13 @@ fn stack_new(): StaticCheckerStack {
     let frames: StackFrame[] = [];
     let frame = stack_frame_new();
     vector_push(&frames, frame);
-    return StaticCheckerStack { frames: frames };
+    return StaticCheckerStack { frames };
 }
 
 fn stack_frame_new(): StackFrame {
     let scopes: Scope[] = [];
     vector_push(&scopes, Scope { variables: [] });
-    return StackFrame { scopes: scopes, breakable_count: 0, continuable_count: 0 };
+    return StackFrame { scopes, breakable_count: 0, continuable_count: 0 };
 }
 
 fn stack_push_frame(&StaticCheckerStack stack): void {
@@ -147,7 +147,7 @@ fn stack_declare_variable(&StaticCheckerStack stack, str name, Type ty, Span spa
         }
     }
 
-    vector_push(&scope.variables, VariableInfo { name: name, ty: ty, span: span, used: false });
+    vector_push(&scope.variables, VariableInfo { name, ty, span, used: false });
     frame.scopes[scope_idx] = scope;
     stack_set_current_frame(&stack, frame);
     return ResultSem::Ok;

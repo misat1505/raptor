@@ -81,7 +81,7 @@ enum TokenCategory derives Debug {
     Extend,
     Interface,
     Implements
-    
+
     fn to_string(self): str {
         match (self) {
             TokenCategory::Greater {
@@ -338,4 +338,3 @@ struct Token derives Debug {
     TokenValue value,
     Span span
 };
-

@@ -132,7 +132,13 @@ extend Parser {
             },
             ResultToken::Ok(semicolon_token) {
                 return ResultOptionStructDeclarationNode::Ok(OptionStructDeclarationNode::Some(StructDeclarationNode {
-                    value: StructDeclaration { identifier, members, struct_derives, methods, implementations },
+                    value: StructDeclaration {
+                        identifier,
+                        members,
+                        struct_derives,
+                        methods,
+                        implementations
+                    },
                     span: Span.new(&struct_token.span.start, &semicolon_token.span.end)
                 }));
             }
@@ -178,7 +184,9 @@ extend Parser {
                         },
                         OptionStructMemberNode::Some(next) {
                             for (let i = 0; i < vector_size(&members); i += 1) {
-                                if (members[i].value.identifier.value == next.value.identifier.value) {
+                                if (
+                                    members[i].value.identifier.value == next.value.identifier.value
+                                ) {
                                     return ResultStructMemberNodeVec::Err(parser_error_at(
                                         ErrorSeverity::HIGH,
                                         "Redeclaration of member '"
@@ -297,7 +305,9 @@ extend Parser {
                                     let ro_comma_token = self.consume_if_matches(
                                         &TokenCategory::Comma
                                     );
-                                    if (ro_comma_token matches ResultOptionToken::Ok(option_token)) {
+                                    if (
+                                        ro_comma_token matches ResultOptionToken::Ok(option_token)
+                                    ) {
                                         if (option_token matches OptionToken::Some) {
                                             has_comma_after_self = true;
                                         }
@@ -340,7 +350,9 @@ extend Parser {
                                 return ResultOptionTypeMethodNode::Err(err);
                             }
 
-                            if (stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)) {
+                            if (
+                                stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)
+                            ) {
                                 if (option_block_node matches OptionBlockNode::None) {
                                     return ResultOptionTypeMethodNode::Err(self.create_parser_error(
                                         "Couldn't create type while parsing type method."

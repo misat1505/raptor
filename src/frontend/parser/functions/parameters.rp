@@ -113,11 +113,7 @@ extend Parser {
                     },
                     OptionIdentifierNode::Some(identifier) {
                         return ResultOptionParameterNode::Ok(OptionParameterNode::Some(ParameterNode {
-                            value: Parameter {
-                                passed_by: passed_by,
-                                parameter_type: parameter_type,
-                                identifier: identifier
-                            },
+                            value: Parameter { passed_by, parameter_type, identifier },
                             span: Span.new(&start_position, &identifier.span.end)
                         }));
                     }

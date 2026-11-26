@@ -93,9 +93,9 @@ extend Parser {
                     OptionExpressionNode::Some(value) {
                         return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
                             value: Statement::Declaration(DeclarationStatement {
-                                identifier: identifier,
-                                var_type: var_type,
-                                value: value
+                                identifier,
+                                var_type,
+                                value
                             }),
                             span: Span.new(&let_token.span.start, &value.span.end)
                         }));
@@ -117,16 +117,17 @@ extend Parser {
                         return ResultOptionStatementNode::Ok(OptionStatementNode::None);
                     },
                     OptionStatementNode::Some(declaration) {
-                        match (self.consume_must_be(
-                            &TokenCategory::Semicolon
-                        )) {
+                        match (self.consume_must_be(&TokenCategory::Semicolon)) {
                             ResultToken::Err(err) {
                                 return ResultOptionStatementNode::Err(err);
                             },
                             ResultToken::Ok(semicolon_token) {
                                 return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
                                     value: declaration.value,
-                                    span: Span.new(&declaration.span.start, &semicolon_token.span.end)
+                                    span: Span.new(
+                                        &declaration.span.start,
+                                        &semicolon_token.span.end
+                                    )
                                 }));
                             }
                         }

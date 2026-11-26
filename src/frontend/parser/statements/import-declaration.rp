@@ -29,10 +29,7 @@ extend Parser {
         }
 
         let literal_call = self.parse_literal();
-        let import_literal = LiteralNode {
-            value: Literal::True,
-            span: self.current_token().span
-        };
+        let import_literal = LiteralNode { value: Literal::True, span: self.current_token().span };
         let found_literal = false;
         match (literal_call) {
             ResultOptionLiteralNode::Err(err) {

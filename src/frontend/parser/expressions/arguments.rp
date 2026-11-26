@@ -93,7 +93,7 @@ extend Parser {
                     },
                     OptionExpressionNode::Some(expression) {
                         return ResultOptionArgumentNode::Ok(OptionArgumentNode::Some(ArgumentNode {
-                            value: Argument { value: expression, passed_by: passed_by },
+                            value: Argument { value: expression, passed_by },
                             span: Span.new(&start_position, &expression.span.end)
                         }));
                     }

@@ -103,11 +103,7 @@ extend Parser {
             },
             ResultToken::Ok(close_token) {
                 return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
-                    value: Statement::Match(MatchStatement {
-                        expression: expression,
-                        match_arms: match_arms,
-                        rest_arm: rest_arm
-                    }),
+                    value: Statement::Match(MatchStatement { expression, match_arms, rest_arm }),
                     span: Span.new(&match_token.span.start, &close_token.span.end)
                 }));
             }
@@ -253,9 +249,11 @@ extend Parser {
                         }
                     }
 
-                    if (self.consume_must_be(
-                        &TokenCategory::ParenClose
-                    ) matches ResultToken::Err(err)) {
+                    if (
+                        self.consume_must_be(
+                            &TokenCategory::ParenClose
+                        ) matches ResultToken::Err(err)
+                    ) {
                         return ResultOptionMatchArmNode::Err(err);
                     }
                 }
@@ -275,12 +273,7 @@ extend Parser {
                     },
                     OptionBlockNode::Some(block) {
                         return ResultOptionMatchArmNode::Ok(OptionMatchArmNode::Some(MatchArmNode {
-                            value: MatchArm {
-                                enum_name: enum_name,
-                                variant_name: variant_name,
-                                variant_value: variant_value,
-                                block: block
-                            },
+                            value: MatchArm { enum_name, variant_name, variant_value, block },
                             span: Span.new(&start_position, &block.span.end)
                         }));
                     }
@@ -289,8 +282,6 @@ extend Parser {
         }
     }
 
-    # Used by if/while "matches" sugar - a match arm whose block is still empty
-    # (filled in by the caller afterwards).
     fn parse_match_arm_without_block(self): ResultOptionMatchArmNode {
         # match_arm = identifier, "::", identifier, [ "(", identifier, ")" ];
         let start_position = self.current_token().span.start;
@@ -366,9 +357,7 @@ extend Parser {
                         }
                     }
 
-                    match (self.consume_must_be(
-                        &TokenCategory::ParenClose
-                    )) {
+                    match (self.consume_must_be(&TokenCategory::ParenClose)) {
                         ResultToken::Err(err) {
                             return ResultOptionMatchArmNode::Err(err);
                         },
@@ -384,9 +373,9 @@ extend Parser {
 
         return ResultOptionMatchArmNode::Ok(OptionMatchArmNode::Some(MatchArmNode {
             value: MatchArm {
-                enum_name: enum_name,
-                variant_name: variant_name,
-                variant_value: variant_value,
+                enum_name,
+                variant_name,
+                variant_value,
                 block: BlockNode { value: Block { statements: [] }, span: whole_span }
             },
             span: whole_span
@@ -402,3 +391,6 @@ extend Parser {
         return self.parse_statement_block();
     }
 };
+
+# Used by if/while "matches" sugar - a match arm whose block is still empty
+# (filled in by the caller afterwards).

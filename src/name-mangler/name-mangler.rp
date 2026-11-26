@@ -7,7 +7,7 @@ struct NameMangler {
 
 
 fn name_mangler_new(&Program program): NameMangler {
-    return NameMangler { program: program };
+    return NameMangler { program };
 }
 
 fn nm_mangle_method_name(str target_name, str method_name): str {
@@ -103,7 +103,7 @@ fn nm_mangle_method(&NameMangler nm, str type_name, Type self_type, &TypeMethodN
 
     let function_declaration = FunctionDeclaration {
         identifier: IdentifierNode { value: mangled_name, span: span_dummy() },
-        parameters: parameters,
+        parameters,
         return_type: method.value.return_type,
         block: method.value.block
     };

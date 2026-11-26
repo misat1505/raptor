@@ -119,7 +119,7 @@ extend Parser {
 
         return ResultOptionStatementNode::Ok(OptionStatementNode::Some(StatementNode {
             value: Statement::Conditional(ConditionalStatement {
-                condition: condition,
+                condition,
                 if_block: true_block,
                 else_block: false_block
             }),

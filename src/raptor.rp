@@ -487,7 +487,7 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
 
 fn parse_source(str source, str path, LexerOptions lexer_options): ResultProgram {
     let src = LazyStreamReader.new(source, OptionStr::Some(path));
-    let lexer = lexer_new(src, lexer_options);
+    let lexer = Lexer.new(&src, &lexer_options);
     match (parser_new(lexer)) {
         ResultParser::Err(err) {
             return ResultProgram::Err(err);

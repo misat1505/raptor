@@ -133,7 +133,7 @@ fn parser_void_type_or_error(&Parser parser): ResultTypeNode {
                 ErrorSeverity::HIGH,
                 "Bad return type",
                 "'i64', 'f64', 'bool', 'str', or 'void'",
-                token_category_to_string(current.category),
+                current.category.to_string(),
                 current.span
             ));
         }

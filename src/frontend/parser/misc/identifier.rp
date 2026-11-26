@@ -33,7 +33,7 @@ fn parser_parse_identifier(&Parser parser): ResultOptionIdentifierNode {
         ErrorSeverity::HIGH,
         "Wrong token value type",
         "str",
-        token_category_to_string(token.category),
+        token.category.to_string(),
         token.span
     ));
 }

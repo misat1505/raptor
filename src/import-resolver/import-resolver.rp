@@ -376,7 +376,7 @@ fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_sp
         max_identifier_length: resolver.lexer_options.max_identifier_length
     };
 
-    let lexer = lexer_new(src, options);
+    let lexer = Lexer.new(&src, &options);
     let parser_result = parser_new(lexer);
 
     match (parser_result) {

@@ -62,12 +62,12 @@ fn parser_new(Lexer lexer): ResultParser {
     # once to consume the leading STX, once more to land on the first
     # real token, so that `parser_current_token` already has something
     # meaningful to return as soon as the parser exists.
-    let first_result = lexer_next(&primed);
+    let first_result = primed.next();
     if (first_result matches ResultOptionToken::Err(err)) {
         return ResultParser::Err(lexer_error_to_parser_error(&err));
     }
 
-    let second_result = lexer_next(&primed);
+    let second_result = primed.next();
     if (second_result matches ResultOptionToken::Err(err)) {
         return ResultParser::Err(lexer_error_to_parser_error(&err));
     }
@@ -80,7 +80,7 @@ fn parser_new(Lexer lexer): ResultParser {
 # `TokenCategory::Comment`), unlike the Rust `next_token`, which has to
 # skip them itself - so this is a thin wrapper.
 fn parser_next_token(&Parser parser): ResultOptionToken {
-    let result = lexer_next(&parser.lexer);
+    let result = parser.lexer.next();
 
     match (result) {
         ResultOptionToken::Err(err) {
@@ -93,7 +93,7 @@ fn parser_next_token(&Parser parser): ResultOptionToken {
 }
 
 fn parser_current_token(&Parser parser): Token {
-    let current = lexer_current(&parser.lexer);
+    let current = parser.lexer.current();
 
     match (current) {
         OptionToken::Some(token) {
@@ -130,7 +130,7 @@ fn parser_consume_must_be(&Parser parser, TokenCategory category): ResultToken {
     return ResultToken::Err(parser_error_expected_found(
         ErrorSeverity::HIGH,
         "Unexpected token",
-        token_category_to_string(category),
+        category.to_string(),
         parser_token_text(&current_token),
         current_token.span
     ));
@@ -171,7 +171,7 @@ fn parser_token_text(&Token token): str {
             return value as str;
         },
         TokenValue::Null {
-            return token_category_to_string(token.category);
+            return token.category.to_string();
         }
     }
 }

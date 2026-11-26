@@ -48,7 +48,7 @@ extend Parser {
 
             let advance = self.next_token();
             if (advance matches ResultOptionToken::Err(err)) {
-                return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionExpressionNode::Err(ParserError.from_lexer(&err));
             }
 
             let found_right = false;
@@ -74,7 +74,7 @@ extend Parser {
             }
 
             if (!found_right) {
-                return ResultOptionExpressionNode::Err(self.create_parser_error(
+                return ResultOptionExpressionNode::Err(self.emit_error(
                     "Couldn't create multiplicative term while parsing additive term."
                 ));
             }

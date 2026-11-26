@@ -24,9 +24,7 @@ extend Parser {
         let has_fn = false;
         match (fn_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionFunctionDeclarationNode::Err(parser_error_from_lexer_error(
-                    &err
-                ));
+                return ResultOptionFunctionDeclarationNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_fn) {
                 if (option_fn matches OptionToken::Some(token)) {
@@ -56,7 +54,7 @@ extend Parser {
         }
 
         if (!found_identifier) {
-            return ResultOptionFunctionDeclarationNode::Err(self.create_parser_error(
+            return ResultOptionFunctionDeclarationNode::Err(self.emit_error(
                 "Couldn't create identifier while parsing function declaration."
             ));
         }
@@ -101,7 +99,7 @@ extend Parser {
             ResultOptionBlockNode::Ok(option_block) {
                 match (option_block) {
                     OptionBlockNode::None {
-                        return ResultOptionFunctionDeclarationNode::Err(self.create_parser_error(
+                        return ResultOptionFunctionDeclarationNode::Err(self.emit_error(
                             "Couldn't create statement block while parsing function declaration."
                         ));
                     },

@@ -14,7 +14,7 @@ extend Parser {
         let has_match = false;
         match (match_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_match) {
                 if (option_match matches OptionToken::Some(token)) {
@@ -51,18 +51,16 @@ extend Parser {
         }
 
         if (!found_expression) {
-            return ResultOptionStatementNode::Err(self.create_parser_error(
+            return ResultOptionStatementNode::Err(self.emit_error(
                 "Expected an expression after 'match ('."
             ));
         }
 
-        let paren_close = self.consume_must_be(&TokenCategory::ParenClose);
-        if (paren_close matches ResultToken::Err(err)) {
+        if (self.consume_must_be(&TokenCategory::ParenClose) matches ResultToken::Err(err)) {
             return ResultOptionStatementNode::Err(err);
         }
 
-        let brace_open = self.consume_must_be(&TokenCategory::BraceOpen);
-        if (brace_open matches ResultToken::Err(err)) {
+        if (self.consume_must_be(&TokenCategory::BraceOpen) matches ResultToken::Err(err)) {
             return ResultOptionStatementNode::Err(err);
         }
 
@@ -85,7 +83,7 @@ extend Parser {
                 ResultOptionBlockNode::Ok(option_rest) {
                     match (option_rest) {
                         OptionBlockNode::None {
-                            return ResultOptionStatementNode::Err(self.create_parser_error(
+                            return ResultOptionStatementNode::Err(self.emit_error(
                                 "Expected a block after 'rest'."
                             ));
                         },
@@ -128,9 +126,7 @@ extend Parser {
             ResultOptionMatchArmNode::Ok(option_first) {
                 match (option_first) {
                     OptionMatchArmNode::None {
-                        return ResultMatchArmNodeVec::Err(self.create_parser_error(
-                            "Expected a match arm."
-                        ));
+                        return ResultMatchArmNodeVec::Err(self.emit_error("Expected a match arm."));
                     },
                     OptionMatchArmNode::Some(first_arm) {
                         match_arms.push(first_arm);
@@ -160,7 +156,7 @@ extend Parser {
                 ResultOptionMatchArmNode::Ok(option_next) {
                     match (option_next) {
                         OptionMatchArmNode::None {
-                            return ResultMatchArmNodeVec::Err(self.create_parser_error(
+                            return ResultMatchArmNodeVec::Err(self.emit_error(
                                 "Expected a match arm after ','."
                             ));
                         },
@@ -218,7 +214,7 @@ extend Parser {
         }
 
         if (!found_variant_name) {
-            return ResultOptionMatchArmNode::Err(self.create_parser_error(
+            return ResultOptionMatchArmNode::Err(self.emit_error(
                 "Expected an enum variant name in match arm."
             ));
         }
@@ -227,7 +223,7 @@ extend Parser {
 
         match (self.consume_if_matches(&TokenCategory::ParenOpen)) {
             ResultOptionToken::Err(err) {
-                return ResultOptionMatchArmNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionMatchArmNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_paren) {
                 if (option_paren matches OptionToken::Some) {
@@ -238,7 +234,7 @@ extend Parser {
                         ResultOptionIdentifierNode::Ok(option_value) {
                             match (option_value) {
                                 OptionIdentifierNode::None {
-                                    return ResultOptionMatchArmNode::Err(self.create_parser_error(
+                                    return ResultOptionMatchArmNode::Err(self.emit_error(
                                         "Expected an identifier inside match arm."
                                     ));
                                 },
@@ -267,7 +263,7 @@ extend Parser {
             ResultOptionBlockNode::Ok(option_block) {
                 match (option_block) {
                     OptionBlockNode::None {
-                        return ResultOptionMatchArmNode::Err(self.create_parser_error(
+                        return ResultOptionMatchArmNode::Err(self.emit_error(
                             "Expected a block after match arm."
                         ));
                     },
@@ -325,7 +321,7 @@ extend Parser {
         }
 
         if (!found_variant_name) {
-            return ResultOptionMatchArmNode::Err(self.create_parser_error(
+            return ResultOptionMatchArmNode::Err(self.emit_error(
                 "Expected an enum variant name in match arm."
             ));
         }
@@ -335,7 +331,7 @@ extend Parser {
 
         match (self.consume_if_matches(&TokenCategory::ParenOpen)) {
             ResultOptionToken::Err(err) {
-                return ResultOptionMatchArmNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionMatchArmNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_paren) {
                 if (option_paren matches OptionToken::Some) {
@@ -346,7 +342,7 @@ extend Parser {
                         ResultOptionIdentifierNode::Ok(option_value) {
                             match (option_value) {
                                 OptionIdentifierNode::None {
-                                    return ResultOptionMatchArmNode::Err(self.create_parser_error(
+                                    return ResultOptionMatchArmNode::Err(self.emit_error(
                                         "Expected an identifier inside match arm."
                                     ));
                                 },

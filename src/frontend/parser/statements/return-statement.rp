@@ -14,7 +14,7 @@ extend Parser {
         let has_return = false;
         match (return_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_return) {
                 if (option_return matches OptionToken::Some(token)) {

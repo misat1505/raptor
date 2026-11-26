@@ -14,7 +14,7 @@ extend Parser {
         let has_break = false;
         match (break_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_break) {
                 if (option_break matches OptionToken::Some(token)) {

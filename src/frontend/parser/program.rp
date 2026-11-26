@@ -208,7 +208,7 @@ extend Parser {
     ): ResultUnit {
         for (let i = 0; i < functions.size(); i += 1) {
             if (functions[i].value.identifier.value == name) {
-                return ResultUnit::Err(parser_error_new(
+                return ResultUnit::Err(ParserError.new(
                     ErrorSeverity::HIGH,
                     "Redeclaration of '" + name + "'.",
                     span
@@ -224,7 +224,7 @@ extend Parser {
             }
 
             if (effective_name == name) {
-                return ResultUnit::Err(parser_error_new(
+                return ResultUnit::Err(ParserError.new(
                     ErrorSeverity::HIGH,
                     "Redeclaration of '" + name + "'.",
                     span
@@ -244,7 +244,7 @@ extend Parser {
             }
 
             if (declared_name == name) {
-                return ResultUnit::Err(parser_error_new(
+                return ResultUnit::Err(ParserError.new(
                     ErrorSeverity::HIGH,
                     "Redeclaration of '" + name + "'.",
                     span

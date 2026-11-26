@@ -31,7 +31,7 @@ extend Parser {
             let has_comma = false;
             match (self.consume_if_matches(&TokenCategory::Comma)) {
                 ResultOptionToken::Err(err) {
-                    return ResultArgumentNodeVec::Err(parser_error_from_lexer_error(&err));
+                    return ResultArgumentNodeVec::Err(ParserError.from_lexer(&err));
                 },
                 ResultOptionToken::Ok(option_comma) {
                     if (option_comma matches OptionToken::Some) {
@@ -51,7 +51,7 @@ extend Parser {
                 ResultOptionArgumentNode::Ok(option_next) {
                     match (option_next) {
                         OptionArgumentNode::None {
-                            return ResultArgumentNodeVec::Err(self.create_parser_error(
+                            return ResultArgumentNodeVec::Err(self.emit_error(
                                 "Couldn't create argument while parsing arguments."
                             ));
                         },
@@ -73,7 +73,7 @@ extend Parser {
         let passed_by = PassedBy::Value;
         match (self.consume_if_matches(&TokenCategory::Reference)) {
             ResultOptionToken::Err(err) {
-                return ResultOptionArgumentNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionArgumentNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_reference) {
                 if (option_reference matches OptionToken::Some) {

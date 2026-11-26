@@ -105,7 +105,7 @@ extend Parser {
         }
 
         if (self.next_token() matches ResultOptionToken::Err(err)) {
-            return ResultOptionLiteralNode::Err(parser_error_from_lexer_error(&err));
+            return ResultOptionLiteralNode::Err(ParserError.from_lexer(&err));
         }
 
         return ResultOptionLiteralNode::Ok(OptionLiteralNode::Some(LiteralNode {

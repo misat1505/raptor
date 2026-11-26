@@ -20,7 +20,7 @@ extend Parser {
         let has_fn = false;
         match (fn_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionMethodSignatureNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionMethodSignatureNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_fn) {
                 if (option_fn matches OptionToken::Some(token)) {
@@ -41,7 +41,7 @@ extend Parser {
             ResultOptionIdentifierNode::Ok(option_identifier) {
                 match (option_identifier) {
                     OptionIdentifierNode::None {
-                        return ResultOptionMethodSignatureNode::Err(self.create_parser_error(
+                        return ResultOptionMethodSignatureNode::Err(self.emit_error(
                             "Couldn't create identifier while parsing struct member."
                         ));
                     },
@@ -84,7 +84,7 @@ extend Parser {
                             }
                         }
                         if (has_comma_after_self && parameters.size() == 0) {
-                            return ResultOptionMethodSignatureNode::Err(self.create_parser_error(
+                            return ResultOptionMethodSignatureNode::Err(self.emit_error(
                                 "Expected parameter after comma."
                             ));
                         }

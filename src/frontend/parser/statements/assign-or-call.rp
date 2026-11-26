@@ -123,7 +123,7 @@ extend Parser {
                                     ResultOptionExpressionNode::Ok(option_index) {
                                         match (option_index) {
                                             OptionExpressionNode::None {
-                                                return ResultOptionStatementNode::Err(self.create_parser_error(
+                                                return ResultOptionStatementNode::Err(self.emit_error(
                                                     "Expected an expression inside '[]' index."
                                                 ));
                                             },
@@ -170,7 +170,7 @@ extend Parser {
                                     ResultOptionIdentifierNode::Ok(option_field) {
                                         match (option_field) {
                                             OptionIdentifierNode::None {
-                                                return ResultOptionStatementNode::Err(self.create_parser_error(
+                                                return ResultOptionStatementNode::Err(self.emit_error(
                                                     "Expected an identifier after '.'."
                                                 ));
                                             },
@@ -253,14 +253,12 @@ extend Parser {
                         # "=" - plain assignment.
                         match (self.consume_if_matches(&TokenCategory::Assign)) {
                             ResultOptionToken::Err(err) {
-                                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(
-                                    &err
-                                ));
+                                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
                             },
                             ResultOptionToken::Ok(option_assign) {
                                 if (option_assign matches OptionToken::Some) {
                                     if (is_expression_like) {
-                                        return ResultOptionStatementNode::Err(self.create_parser_error(
+                                        return ResultOptionStatementNode::Err(self.emit_error(
                                             "Cannot assign a value to expression like statement."
                                         ));
                                     }
@@ -271,7 +269,7 @@ extend Parser {
                                         ResultOptionExpressionNode::Ok(option_expr) {
                                             match (option_expr) {
                                                 OptionExpressionNode::None {
-                                                    return ResultOptionStatementNode::Err(self.create_parser_error(
+                                                    return ResultOptionStatementNode::Err(self.emit_error(
                                                         "Couldn't create expression while parsing assignment."
                                                     ));
                                                 },
@@ -326,7 +324,7 @@ extend Parser {
 
                         if (has_compound) {
                             if (is_expression_like) {
-                                return ResultOptionStatementNode::Err(self.create_parser_error(
+                                return ResultOptionStatementNode::Err(self.emit_error(
                                     "Cannot assign a value to expression like statement."
                                 ));
                             }
@@ -342,7 +340,7 @@ extend Parser {
                                 ResultOptionExpressionNode::Ok(option_rhs) {
                                     match (option_rhs) {
                                         OptionExpressionNode::None {
-                                            return ResultOptionStatementNode::Err(self.create_parser_error(
+                                            return ResultOptionStatementNode::Err(self.emit_error(
                                                 "Couldn't create expression while parsing assignment."
                                             ));
                                         },
@@ -406,14 +404,12 @@ extend Parser {
                         # "(" arguments ")" - function call.
                         match (self.consume_if_matches(&TokenCategory::ParenOpen)) {
                             ResultOptionToken::Err(err) {
-                                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(
-                                    &err
-                                ));
+                                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
                             },
                             ResultOptionToken::Ok(option_paren) {
                                 if (option_paren matches OptionToken::Some) {
                                     if (accessors.size() > 0) {
-                                        return ResultOptionStatementNode::Err(self.create_parser_error(
+                                        return ResultOptionStatementNode::Err(self.emit_error(
                                             "Can't parse method call as statement."
                                         ));
                                     }
@@ -448,7 +444,7 @@ extend Parser {
                             }
                         }
 
-                        return ResultOptionStatementNode::Err(self.create_parser_error(
+                        return ResultOptionStatementNode::Err(self.emit_error(
                             "Couldn't create assignment or call."
                         ));
                     }

@@ -45,7 +45,7 @@ extend Parser {
             let operator_category = self.current_token().category;
 
             if (self.next_token() matches ResultOptionToken::Err(err)) {
-                return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionExpressionNode::Err(ParserError.from_lexer(&err));
             }
 
             let found_right = false;
@@ -82,7 +82,7 @@ extend Parser {
             }
 
             if (!found_right) {
-                return ResultOptionExpressionNode::Err(self.create_parser_error(
+                return ResultOptionExpressionNode::Err(self.emit_error(
                     "Couldn't create casted term while parsing multiplicative term."
                 ));
             }

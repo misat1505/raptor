@@ -78,7 +78,7 @@ struct Lexer derives Debug {
 
         let span = Span { start, end };
 
-        return lexer_error_at(ErrorSeverity::HIGH, message, span);
+        return LexerError.at(ErrorSeverity::HIGH, message, span);
     }
 
     fn next(self): ResultOptionToken {
@@ -371,7 +371,7 @@ struct Lexer derives Debug {
 
             let span = Span { start, end };
 
-            let warning = lexer_error_at(ErrorSeverity::LOW, "Expected '|'", span);
+            let warning = LexerError.at(ErrorSeverity::LOW, "Expected '|'", span);
 
             println(warning.message);
         }
@@ -553,7 +553,7 @@ struct Lexer derives Debug {
                 if (escaped != '\0' || next_char == '0') {
                     created_string += escaped;
                 } else {
-                    let warning = lexer_error_at(
+                    let warning = LexerError.at(
                         ErrorSeverity::LOW,
                         "Invalid escape symbol detected '\\" + next_char + "'",
                         self.current_span()
@@ -571,7 +571,7 @@ struct Lexer derives Debug {
 
                 let span = Span { start, end };
 
-                let warning = lexer_error_at(ErrorSeverity::LOW, "String not closed", span);
+                let warning = LexerError.at(ErrorSeverity::LOW, "String not closed", span);
 
                 println(warning.message);
 

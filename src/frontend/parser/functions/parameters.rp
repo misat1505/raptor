@@ -30,7 +30,7 @@ extend Parser {
             let has_comma = false;
             match (self.consume_if_matches(&TokenCategory::Comma)) {
                 ResultOptionToken::Err(err) {
-                    return ResultParameterNodeVec::Err(parser_error_from_lexer_error(&err));
+                    return ResultParameterNodeVec::Err(ParserError.from_lexer(&err));
                 },
                 ResultOptionToken::Ok(option_comma) {
                     if (option_comma matches OptionToken::Some) {
@@ -50,7 +50,7 @@ extend Parser {
                 ResultOptionParameterNode::Ok(option_next) {
                     match (option_next) {
                         OptionParameterNode::None {
-                            return ResultParameterNodeVec::Err(self.create_parser_error(
+                            return ResultParameterNodeVec::Err(self.emit_error(
                                 "Couldn't create parameter while parsing parameters."
                             ));
                         },
@@ -72,7 +72,7 @@ extend Parser {
         let passed_by = PassedBy::Value;
         match (self.consume_if_matches(&TokenCategory::Reference)) {
             ResultOptionToken::Err(err) {
-                return ResultOptionParameterNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionParameterNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_reference) {
                 if (option_reference matches OptionToken::Some) {
@@ -107,7 +107,7 @@ extend Parser {
             ResultOptionIdentifierNode::Ok(option_identifier) {
                 match (option_identifier) {
                     OptionIdentifierNode::None {
-                        return ResultOptionParameterNode::Err(self.create_parser_error(
+                        return ResultOptionParameterNode::Err(self.emit_error(
                             "Couldn't create identifier while parsing parameter."
                         ));
                     },

@@ -14,9 +14,7 @@ extend Parser {
         let has_extern = false;
         match (extern_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionExternFunctionDeclarationNode::Err(parser_error_from_lexer_error(
-                    &err
-                ));
+                return ResultOptionExternFunctionDeclarationNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_extern) {
                 if (option_extern matches OptionToken::Some(token)) {
@@ -50,7 +48,7 @@ extend Parser {
         }
 
         if (!found_identifier) {
-            return ResultOptionExternFunctionDeclarationNode::Err(self.create_parser_error(
+            return ResultOptionExternFunctionDeclarationNode::Err(self.emit_error(
                 "Couldn't create identifier while parsing extern function declaration."
             ));
         }
@@ -93,9 +91,7 @@ extend Parser {
         let alias = OptionIdentifierNode::None;
         match (self.consume_if_matches(&TokenCategory::As)) {
             ResultOptionToken::Err(err) {
-                return ResultOptionExternFunctionDeclarationNode::Err(parser_error_from_lexer_error(
-                    &err
-                ));
+                return ResultOptionExternFunctionDeclarationNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_as) {
                 if (option_as matches OptionToken::Some) {
@@ -106,7 +102,7 @@ extend Parser {
                         ResultOptionIdentifierNode::Ok(option_alias) {
                             match (option_alias) {
                                 OptionIdentifierNode::None {
-                                    return ResultOptionExternFunctionDeclarationNode::Err(self.create_parser_error(
+                                    return ResultOptionExternFunctionDeclarationNode::Err(self.emit_error(
                                         "Expected identifier after 'as' in extern function declaration."
                                     ));
                                 },

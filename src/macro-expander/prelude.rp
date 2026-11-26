@@ -87,8 +87,7 @@ fn macro_expander_inject_prelude(&MacroExpander me, &Program program): void {
                 &me.errors,
                 macro_expander_error_at(
                     ErrorSeverity::HIGH,
-                    "Internal error: cannot parse built-in prelude: "
-                        + parser_error_get_stderr_message(&err),
+                    "Internal error: cannot parse built-in prelude: " + err.get_stderr_message(),
                     me_span()
                 )
             );
@@ -101,7 +100,7 @@ fn macro_expander_inject_prelude(&MacroExpander me, &Program program): void {
                         macro_expander_error_at(
                             ErrorSeverity::HIGH,
                             "Internal error: cannot parse built-in prelude: "
-                                + parser_error_get_stderr_message(&err),
+                                + err.get_stderr_message(),
                             me_span()
                         )
                     );

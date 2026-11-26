@@ -21,7 +21,7 @@ extend Parser {
         let has_interface = false;
         match (interface_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionInterfaceDeclaration::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionInterfaceDeclaration::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_interface) {
                 if (option_interface matches OptionToken::Some) {
@@ -50,7 +50,7 @@ extend Parser {
         }
 
         if (!found_identifier) {
-            return ResultOptionInterfaceDeclaration::Err(self.create_parser_error(
+            return ResultOptionInterfaceDeclaration::Err(self.emit_error(
                 "Couldn't create identifier while parsing interface declaration."
             ));
         }
@@ -72,7 +72,7 @@ extend Parser {
                             for (let i = 0; i < methods.size(); i += 1) {
                                 let method_name = methods[i].value.identifier.value;
                                 if (method_name == type_method_node.value.identifier.value) {
-                                    return ResultOptionInterfaceDeclaration::Err(parser_error_at(
+                                    return ResultOptionInterfaceDeclaration::Err(ParserError.at(
                                         ErrorSeverity::HIGH,
                                         "Redeclaration of method '"
                                             + method_name

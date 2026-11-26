@@ -14,7 +14,7 @@ extend Parser {
         let has_let = false;
         match (let_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_let) {
                 if (option_let matches OptionToken::Some(token)) {
@@ -44,7 +44,7 @@ extend Parser {
         }
 
         if (!found_identifier) {
-            return ResultOptionStatementNode::Err(self.create_parser_error(
+            return ResultOptionStatementNode::Err(self.emit_error(
                 "Couldn't create identifier while parsing variable declaration."
             ));
         }
@@ -63,7 +63,7 @@ extend Parser {
                 ResultOptionTypeNode::Ok(option_type) {
                     match (option_type) {
                         OptionTypeNode::None {
-                            return ResultOptionStatementNode::Err(self.create_parser_error(
+                            return ResultOptionStatementNode::Err(self.emit_error(
                                 "Couldn't create type while parsing let declaration."
                             ));
                         },
@@ -86,7 +86,7 @@ extend Parser {
             ResultOptionExpressionNode::Ok(option_expr) {
                 match (option_expr) {
                     OptionExpressionNode::None {
-                        return ResultOptionStatementNode::Err(self.create_parser_error(
+                        return ResultOptionStatementNode::Err(self.emit_error(
                             "Couldn't parse expression while parsing variable declaration."
                         ));
                     },

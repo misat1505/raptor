@@ -28,7 +28,7 @@ extend Parser {
         let has_while = false;
         match (while_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_while) {
                 if (option_while matches OptionToken::Some(token)) {
@@ -65,14 +65,14 @@ extend Parser {
         }
 
         if (!found_condition) {
-            return ResultOptionStatementNode::Err(self.create_parser_error(
+            return ResultOptionStatementNode::Err(self.emit_error(
                 "Couldn't create expression while parsing while statement."
             ));
         }
 
         match (self.consume_if_matches(&TokenCategory::ParenClose)) {
             ResultOptionToken::Err(err) {
-                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_close) {
                 if (option_close matches OptionToken::None) {
@@ -88,7 +88,7 @@ extend Parser {
             ResultOptionBlockNode::Ok(option_block) {
                 match (option_block) {
                     OptionBlockNode::None {
-                        return ResultOptionStatementNode::Err(self.create_parser_error(
+                        return ResultOptionStatementNode::Err(self.emit_error(
                             "Couldn't create statement block while parsing while statement."
                         ));
                     },
@@ -111,7 +111,7 @@ extend Parser {
         let is_negating = false;
         match (self.consume_if_matches(&TokenCategory::Not)) {
             ResultOptionToken::Err(err) {
-                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_not) {
                 if (option_not matches OptionToken::Some) {
@@ -148,7 +148,7 @@ extend Parser {
         }
 
         if (!found_arm) {
-            return ResultOptionStatementNode::Err(self.create_parser_error(
+            return ResultOptionStatementNode::Err(self.emit_error(
                 "Couldn't create match arm while parsing while-matches statement."
             ));
         }
@@ -173,14 +173,14 @@ extend Parser {
         }
 
         if (!found_body) {
-            return ResultOptionStatementNode::Err(self.create_parser_error(
+            return ResultOptionStatementNode::Err(self.emit_error(
                 "Couldn't create statement block while parsing while-matches statement."
             ));
         }
 
         if (is_negating) {
             if (arm.value.variant_value matches OptionIdentifierNode::Some(var_val)) {
-                return ResultOptionStatementNode::Err(parser_error_at(
+                return ResultOptionStatementNode::Err(ParserError.at(
                     ErrorSeverity::HIGH,
                     "Cannot take the inner value of enum variant in while-not-matches statement.",
                     var_val.span

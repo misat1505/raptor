@@ -726,7 +726,7 @@ fn llvm_source_lines(&LlvmCompiler c, str path): str[] {
 
 # Same text as generic_error_stderr_message, without re-reading the file.
 fn llvm_diag_text(&LlvmCompiler c, str message, ErrorSeverity level, Span span): str {
-    let text = error_severity_to_string(level) + ": " + message;
+    let text = level.to_string() + ": " + message;
     match (span.start.filename) {
         OptionStr::None {
             return text;

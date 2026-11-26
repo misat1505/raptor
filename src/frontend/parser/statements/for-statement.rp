@@ -14,7 +14,7 @@ extend Parser {
         let has_for = false;
         match (for_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionStatementNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionStatementNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_for) {
                 if (option_for matches OptionToken::Some(token)) {
@@ -67,7 +67,7 @@ extend Parser {
         }
 
         if (!found_condition) {
-            return ResultOptionStatementNode::Err(self.create_parser_error(
+            return ResultOptionStatementNode::Err(self.emit_error(
                 "Couldn't create expression while parsing for statement."
             ));
         }
@@ -85,7 +85,7 @@ extend Parser {
                 ResultOptionStatementNode::Ok(option_assignment) {
                     match (option_assignment) {
                         OptionStatementNode::None {
-                            return ResultOptionStatementNode::Err(self.create_parser_error(
+                            return ResultOptionStatementNode::Err(self.emit_error(
                                 "Couldn't create assignment or call while parsing for statement."
                             ));
                         },
@@ -108,7 +108,7 @@ extend Parser {
             ResultOptionBlockNode::Ok(option_block) {
                 match (option_block) {
                     OptionBlockNode::None {
-                        return ResultOptionStatementNode::Err(self.create_parser_error(
+                        return ResultOptionStatementNode::Err(self.emit_error(
                             "Couldn't create statement block while parsing for statement."
                         ));
                     },

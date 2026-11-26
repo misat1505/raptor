@@ -84,7 +84,7 @@ extend Parser {
 
         let advance = self.next_token();
         if (advance matches ResultOptionToken::Err(err)) {
-            return ResultOptionTypeNode::Err(parser_error_from_lexer_error(&err));
+            return ResultOptionTypeNode::Err(ParserError.from_lexer(&err));
         }
 
         while (self.current_token().category matches TokenCategory::BracketOpen) {
@@ -113,7 +113,7 @@ extend Parser {
         let option_token = OptionToken::None;
         match (consumed) {
             ResultOptionToken::Err(err) {
-                return ResultTypeNode::Err(parser_error_from_lexer_error(&err));
+                return ResultTypeNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(t) {
                 option_token = t;
@@ -126,7 +126,7 @@ extend Parser {
             },
             OptionToken::None {
                 let current = self.current_token();
-                return ResultTypeNode::Err(parser_error_expected_found(
+                return ResultTypeNode::Err(ParserError.expected_found(
                     ErrorSeverity::HIGH,
                     "Bad return type",
                     "'i64', 'f64', 'bool', 'str', or 'void'",

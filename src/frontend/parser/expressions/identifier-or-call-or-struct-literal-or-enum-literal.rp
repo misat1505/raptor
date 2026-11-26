@@ -77,9 +77,7 @@ extend Parser {
         }
 
         if (!found_variant_name) {
-            return ResultExpressionNode::Err(self.create_parser_error(
-                "Expected an identifier after '::'."
-            ));
+            return ResultExpressionNode::Err(self.emit_error("Expected an identifier after '::'."));
         }
 
         let variant_value = OptionExpressionNode::None;
@@ -87,7 +85,7 @@ extend Parser {
 
         match (self.consume_if_matches(&TokenCategory::ParenOpen)) {
             ResultOptionToken::Err(err) {
-                return ResultExpressionNode::Err(parser_error_from_lexer_error(&err));
+                return ResultExpressionNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_paren) {
                 if (option_paren matches OptionToken::Some) {
@@ -98,7 +96,7 @@ extend Parser {
                         ResultOptionExpressionNode::Ok(option_value) {
                             match (option_value) {
                                 OptionExpressionNode::None {
-                                    return ResultExpressionNode::Err(self.create_parser_error(
+                                    return ResultExpressionNode::Err(self.emit_error(
                                         "Expected an expression in enum variant value."
                                     ));
                                 },
@@ -140,7 +138,7 @@ extend Parser {
 
         match (self.consume_if_matches(&TokenCategory::ParenOpen)) {
             ResultOptionToken::Err(err) {
-                return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionExpressionNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_paren) {
                 if (option_paren matches OptionToken::Some) {
@@ -187,7 +185,7 @@ extend Parser {
                     ResultOptionExpressionNode::Ok(option_index) {
                         match (option_index) {
                             OptionExpressionNode::None {
-                                return ResultOptionExpressionNode::Err(self.create_parser_error(
+                                return ResultOptionExpressionNode::Err(self.emit_error(
                                     "Expected an expression inside '[]' index."
                                 ));
                             },
@@ -230,7 +228,7 @@ extend Parser {
                     ResultOptionIdentifierNode::Ok(option_field) {
                         match (option_field) {
                             OptionIdentifierNode::None {
-                                return ResultOptionExpressionNode::Err(self.create_parser_error(
+                                return ResultOptionExpressionNode::Err(self.emit_error(
                                     "Expected an identifier after '.'."
                                 ));
                             },
@@ -358,9 +356,7 @@ extend Parser {
             let has_comma = false;
             match (self.consume_if_matches(&TokenCategory::Comma)) {
                 ResultOptionToken::Err(err) {
-                    return ResultStructLiteralFieldNodeVec::Err(parser_error_from_lexer_error(
-                        &err
-                    ));
+                    return ResultStructLiteralFieldNodeVec::Err(ParserError.from_lexer(&err));
                 },
                 ResultOptionToken::Ok(option_comma) {
                     if (option_comma matches OptionToken::Some) {
@@ -380,7 +376,7 @@ extend Parser {
                 ResultOptionStructLiteralFieldNode::Ok(option_next) {
                     match (option_next) {
                         OptionStructLiteralFieldNode::None {
-                            return ResultStructLiteralFieldNodeVec::Err(self.create_parser_error(
+                            return ResultStructLiteralFieldNodeVec::Err(self.emit_error(
                                 "Expected struct literal field after comma."
                             ));
                         },
@@ -409,7 +405,7 @@ extend Parser {
                     OptionIdentifierNode::Some(identifier) {
                         match (self.consume_if_matches(&TokenCategory::Colon)) {
                             ResultOptionToken::Err(err) {
-                                return ResultOptionStructLiteralFieldNode::Err(parser_error_from_lexer_error(
+                                return ResultOptionStructLiteralFieldNode::Err(ParserError.from_lexer(
                                     &err
                                 ));
                             },
@@ -422,7 +418,7 @@ extend Parser {
                                         ResultOptionExpressionNode::Ok(option_value) {
                                             match (option_value) {
                                                 OptionExpressionNode::None {
-                                                    return ResultOptionStructLiteralFieldNode::Err(self.create_parser_error(
+                                                    return ResultOptionStructLiteralFieldNode::Err(self.emit_error(
                                                         "Expected expression after ':' in struct literal field."
                                                     ));
                                                 },

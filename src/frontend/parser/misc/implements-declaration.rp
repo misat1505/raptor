@@ -13,7 +13,7 @@ extend Parser {
         let has_implements_keyword = OptionToken::None;
         match (consumed_derives_keyword) {
             ResultOptionToken::Err(err) {
-                return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));
+                return ResultIdentifierNodeVec::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(t) {
                 has_implements_keyword = t;
@@ -36,7 +36,7 @@ extend Parser {
                         type_implementations.push(identifier);
                     },
                     OptionIdentifierNode::None {
-                        return ResultIdentifierNodeVec::Err(self.create_parser_error(
+                        return ResultIdentifierNodeVec::Err(self.emit_error(
                             "Couldn't create identifier while parsing implements declaration."
                         ));
                     }
@@ -49,7 +49,7 @@ extend Parser {
             let has_comma = OptionToken::None;
             match (comma) {
                 ResultOptionToken::Err(err) {
-                    return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));
+                    return ResultIdentifierNodeVec::Err(ParserError.from_lexer(&err));
                 },
                 ResultOptionToken::Ok(t) {
                     has_comma = t;
@@ -70,7 +70,7 @@ extend Parser {
                             type_implementations.push(identifier);
                         },
                         OptionIdentifierNode::None {
-                            return ResultIdentifierNodeVec::Err(self.create_parser_error(
+                            return ResultIdentifierNodeVec::Err(self.emit_error(
                                 "Couldn't create identifier while parsing derive declaration."
                             ));
                         }

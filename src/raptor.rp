@@ -611,7 +611,7 @@ fn stage_imports(
     let resolver = import_resolver_new(lexer_options);
     match (import_resolver_resolve(&resolver, opts.path, &program)) {
         ResultProgram::Err(err) {
-            eprintln(parser_error_get_stderr_message(&err));
+            eprintln(err.get_stderr_message());
             return 1;
         },
         ResultProgram::Ok(merged) {
@@ -638,7 +638,7 @@ fn run(CliOptions opts): i64 {
     t = now_ms();
     match (parse_source(source, opts.path, lexer_options)) {
         ResultProgram::Err(err) {
-            eprintln(parser_error_get_stderr_message(&err));
+            eprintln(err.get_stderr_message());
             return 1;
         },
         ResultProgram::Ok(program) {

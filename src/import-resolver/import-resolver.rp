@@ -152,7 +152,7 @@ fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
             }
 
             if (!found) {
-                return ResultUnit::Err(parser_error_at(
+                return ResultUnit::Err(ParserError.at(
                     ErrorSeverity::HIGH,
                     "Type '" + custom_type_name + "' not found.",
                     extend_block.type.span
@@ -194,7 +194,7 @@ fn import_resolver_check_duplicate_methods(
         let name = added[a].value.identifier.value;
         for (let e = 0; e < vector_size(&existing); e += 1) {
             if (existing[e].value.identifier.value == name) {
-                return ResultUnit::Err(parser_error_at(
+                return ResultUnit::Err(ParserError.at(
                     ErrorSeverity::HIGH,
                     "Redeclaration of method '" + name + "' on type '" + type_name + "'.",
                     added[a].value.identifier.span
@@ -305,7 +305,7 @@ fn import_resolver_handle_import(
             }
             cycle_chain += resolver.stack[i];
         }
-        return ResultUnit::Err(parser_error_new(
+        return ResultUnit::Err(ParserError.new(
             ErrorSeverity::HIGH,
             "Cyclic import detected:\n    " + cycle_chain + "\n    ↓\n    " + resolved + "\n\n",
             span
@@ -359,7 +359,7 @@ fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_sp
         source = resolver.overlay_sources[overlay_idx];
     } else {
         if (!exists_file(path)) {
-            return ResultProgram::Err(parser_error_new(
+            return ResultProgram::Err(ParserError.new(
                 ErrorSeverity::HIGH,
                 "File '" + path + "' not found.",
                 import_span
@@ -390,7 +390,7 @@ fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_sp
 fn import_resolver_check_collision(str name, Span span, &Program merged): ResultUnit {
     for (let i = 0; i < vector_size(&merged.functions); i += 1) {
         if (merged.functions[i].value.identifier.value == name) {
-            return ResultUnit::Err(parser_error_new(
+            return ResultUnit::Err(ParserError.new(
                 ErrorSeverity::HIGH,
                 "Redeclaration of '" + name + "' across imported modules.",
                 span
@@ -405,7 +405,7 @@ fn import_resolver_check_collision(str name, Span span, &Program merged): Result
             effective_name = alias.value;
         }
         if (effective_name == name) {
-            return ResultUnit::Err(parser_error_new(
+            return ResultUnit::Err(ParserError.new(
                 ErrorSeverity::HIGH,
                 "Redeclaration of '" + name + "' across imported modules.",
                 span
@@ -424,7 +424,7 @@ fn import_resolver_check_collision(str name, Span span, &Program merged): Result
             }
         }
         if (declared_name == name) {
-            return ResultUnit::Err(parser_error_new(
+            return ResultUnit::Err(ParserError.new(
                 ErrorSeverity::HIGH,
                 "Redeclaration of '" + name + "' across imported modules.",
                 span
@@ -435,7 +435,7 @@ fn import_resolver_check_collision(str name, Span span, &Program merged): Result
     for (let i = 0; i < vector_size(&merged.interfaces); i += 1) {
         let interface_decl = merged.interfaces[i];
         if (interface_decl.value.identifier.value == name) {
-            return ResultUnit::Err(parser_error_new(
+            return ResultUnit::Err(ParserError.new(
                 ErrorSeverity::HIGH,
                 "Redeclaration of '" + name + "' across imported modules.",
                 span

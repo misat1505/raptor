@@ -30,7 +30,7 @@ extend Parser {
             }));
         }
 
-        return ResultOptionIdentifierNode::Err(parser_error_expected_found(
+        return ResultOptionIdentifierNode::Err(ParserError.expected_found(
             ErrorSeverity::HIGH,
             "Wrong token value type",
             "str",

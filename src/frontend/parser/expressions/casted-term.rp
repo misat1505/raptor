@@ -36,7 +36,7 @@ extend Parser {
 
         match (self.consume_if_matches(&TokenCategory::As)) {
             ResultOptionToken::Err(err) {
-                return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionExpressionNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_as) {
                 if (option_as matches OptionToken::None) {
@@ -52,7 +52,7 @@ extend Parser {
             ResultOptionTypeNode::Ok(option_type) {
                 match (option_type) {
                     OptionTypeNode::None {
-                        return ResultOptionExpressionNode::Err(self.create_parser_error(
+                        return ResultOptionExpressionNode::Err(self.emit_error(
                             "Couldn't parse type."
                         ));
                     },

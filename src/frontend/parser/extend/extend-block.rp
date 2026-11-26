@@ -19,7 +19,7 @@ extend Parser {
         let has_extend = false;
         match (extend_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionExtendBlock::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionExtendBlock::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_extend) {
                 if (option_extend matches OptionToken::Some) {
@@ -48,7 +48,7 @@ extend Parser {
         }
 
         if (!found_type) {
-            return ResultOptionExtendBlock::Err(self.create_parser_error(
+            return ResultOptionExtendBlock::Err(self.emit_error(
                 "Couldn't create type while parsing extend block declaration."
             ));
         }
@@ -70,7 +70,7 @@ extend Parser {
                             for (let i = 0; i < methods.size(); i += 1) {
                                 let method_name = methods[i].value.identifier.value;
                                 if (method_name == type_method_node.value.identifier.value) {
-                                    return ResultOptionExtendBlock::Err(parser_error_at(
+                                    return ResultOptionExtendBlock::Err(ParserError.at(
                                         ErrorSeverity::HIGH,
                                         "Redeclaration of method '"
                                             + method_name

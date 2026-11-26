@@ -28,7 +28,7 @@ extend Parser {
         let has_open_brace = false;
         match (open_brace_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionBlockNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionBlockNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_brace) {
                 if (option_brace matches OptionToken::Some(token)) {
@@ -49,7 +49,7 @@ extend Parser {
             let closed = false;
             match (self.consume_if_matches(&TokenCategory::BraceClose)) {
                 ResultOptionToken::Err(err) {
-                    return ResultOptionBlockNode::Err(parser_error_from_lexer_error(&err));
+                    return ResultOptionBlockNode::Err(ParserError.from_lexer(&err));
                 },
                 ResultOptionToken::Ok(option_close) {
                     if (option_close matches OptionToken::Some(close_token)) {
@@ -70,7 +70,7 @@ extend Parser {
                 ResultOptionStatementNode::Ok(option_statement) {
                     match (option_statement) {
                         OptionStatementNode::None {
-                            return ResultOptionBlockNode::Err(self.create_parser_error(
+                            return ResultOptionBlockNode::Err(self.emit_error(
                                 "Couldn't create statement while parsing statement block."
                             ));
                         },

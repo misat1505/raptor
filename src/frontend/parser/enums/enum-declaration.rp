@@ -17,7 +17,7 @@ extend Parser {
         let has_enum = false;
         match (enum_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionEnumDeclarationNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionEnumDeclarationNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_enum) {
                 if (option_enum matches OptionToken::Some(token)) {
@@ -50,7 +50,7 @@ extend Parser {
         # create identifier while parsing struct declaration" message as
         # struct_declaration.rs (looks like a copy/paste artifact upstream).
         if (!found_identifier) {
-            return ResultOptionEnumDeclarationNode::Err(self.create_parser_error(
+            return ResultOptionEnumDeclarationNode::Err(self.emit_error(
                 "Couldn't create identifier while parsing struct declaration."
             ));
         }
@@ -102,10 +102,10 @@ extend Parser {
                 ResultOptionTypeMethodNode::Ok(option_type_method) {
                     match (option_type_method) {
                         OptionTypeMethodNode::Some(type_method_node) {
-                            for (let i = 0; i < vector_size(&methods); i += 1) {
+                            for (let i = 0; i < methods.size(); i += 1) {
                                 let method_name = methods[i].value.identifier.value;
                                 if (method_name == type_method_node.value.identifier.value) {
-                                    return ResultOptionEnumDeclarationNode::Err(parser_error_at(
+                                    return ResultOptionEnumDeclarationNode::Err(ParserError.at(
                                         ErrorSeverity::HIGH,
                                         "Redeclaration of method '"
                                             + method_name
@@ -166,7 +166,7 @@ extend Parser {
                         return ResultEnumMemberNodeVec::Ok(members);
                     },
                     OptionEnumMemberNode::Some(first) {
-                        vector_push(&members, first);
+                        members.push(first);
                     }
                 }
             }
@@ -186,16 +186,16 @@ extend Parser {
                 ResultOptionEnumMemberNode::Ok(option_next) {
                     match (option_next) {
                         OptionEnumMemberNode::None {
-                            return ResultEnumMemberNodeVec::Err(self.create_parser_error(
+                            return ResultEnumMemberNodeVec::Err(self.emit_error(
                                 "Expected enum member after comma."
                             ));
                         },
                         OptionEnumMemberNode::Some(next) {
-                            for (let i = 0; i < vector_size(&members); i += 1) {
+                            for (let i = 0; i < members.size(); i += 1) {
                                 if (
                                     members[i].value.identifier.value == next.value.identifier.value
                                 ) {
-                                    return ResultEnumMemberNodeVec::Err(parser_error_at(
+                                    return ResultEnumMemberNodeVec::Err(ParserError.at(
                                         ErrorSeverity::HIGH,
                                         "Redeclaration of member '"
                                             + next.value.identifier.value
@@ -204,7 +204,7 @@ extend Parser {
                                     ));
                                 }
                             }
-                            vector_push(&members, next);
+                            members.push(next);
                         }
                     }
                 }
@@ -236,7 +236,7 @@ extend Parser {
                         );
                         match (paren_open_consumed) {
                             ResultOptionToken::Err(err) {
-                                return ResultOptionEnumMemberNode::Err(parser_error_from_lexer_error(
+                                return ResultOptionEnumMemberNode::Err(ParserError.from_lexer(
                                     &err
                                 ));
                             },
@@ -250,7 +250,7 @@ extend Parser {
                                         ResultOptionTypeNode::Ok(option_type) {
                                             match (option_type) {
                                                 OptionTypeNode::None {
-                                                    return ResultOptionEnumMemberNode::Err(self.create_parser_error(
+                                                    return ResultOptionEnumMemberNode::Err(self.emit_error(
                                                         "Couldn't create type while parsing enum member declaration."
                                                     ));
                                                 },

@@ -14,7 +14,7 @@ extend Parser {
         let has_struct = false;
         match (struct_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionStructDeclarationNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionStructDeclarationNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_struct) {
                 if (option_struct matches OptionToken::Some(token)) {
@@ -44,7 +44,7 @@ extend Parser {
         }
 
         if (!found_identifier) {
-            return ResultOptionStructDeclarationNode::Err(self.create_parser_error(
+            return ResultOptionStructDeclarationNode::Err(self.emit_error(
                 "Couldn't create identifier while parsing struct declaration."
             ));
         }
@@ -99,7 +99,7 @@ extend Parser {
                             for (let i = 0; i < methods.size(); i += 1) {
                                 let method_name = methods[i].value.identifier.value;
                                 if (method_name == type_method_node.value.identifier.value) {
-                                    return ResultOptionStructDeclarationNode::Err(parser_error_at(
+                                    return ResultOptionStructDeclarationNode::Err(ParserError.at(
                                         ErrorSeverity::HIGH,
                                         "Redeclaration of method '"
                                             + method_name
@@ -178,16 +178,16 @@ extend Parser {
                 ResultOptionStructMemberNode::Ok(option_next) {
                     match (option_next) {
                         OptionStructMemberNode::None {
-                            return ResultStructMemberNodeVec::Err(self.create_parser_error(
+                            return ResultStructMemberNodeVec::Err(self.emit_error(
                                 "Expected struct member after comma."
                             ));
                         },
                         OptionStructMemberNode::Some(next) {
-                            for (let i = 0; i < vector_size(&members); i += 1) {
+                            for (let i = 0; i < members.size(); i += 1) {
                                 if (
                                     members[i].value.identifier.value == next.value.identifier.value
                                 ) {
-                                    return ResultStructMemberNodeVec::Err(parser_error_at(
+                                    return ResultStructMemberNodeVec::Err(ParserError.at(
                                         ErrorSeverity::HIGH,
                                         "Redeclaration of member '"
                                             + next.value.identifier.value
@@ -235,7 +235,7 @@ extend Parser {
             ResultOptionIdentifierNode::Ok(option_identifier) {
                 match (option_identifier) {
                     OptionIdentifierNode::None {
-                        return ResultOptionStructMemberNode::Err(self.create_parser_error(
+                        return ResultOptionStructMemberNode::Err(self.emit_error(
                             "Couldn't create identifier while parsing struct member."
                         ));
                     },
@@ -260,7 +260,7 @@ extend Parser {
         let has_fn = false;
         match (fn_consumed) {
             ResultOptionToken::Err(err) {
-                return ResultOptionTypeMethodNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionTypeMethodNode::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(option_fn) {
                 if (option_fn matches OptionToken::Some(token)) {
@@ -282,7 +282,7 @@ extend Parser {
             ResultOptionIdentifierNode::Ok(option_identifier) {
                 match (option_identifier) {
                     OptionIdentifierNode::None {
-                        return ResultOptionTypeMethodNode::Err(self.create_parser_error(
+                        return ResultOptionTypeMethodNode::Err(self.emit_error(
                             "Couldn't create identifier while parsing struct member."
                         ));
                     },
@@ -326,7 +326,7 @@ extend Parser {
                             }
                         }
                         if (has_comma_after_self && parameters.size() == 0) {
-                            return ResultOptionTypeMethodNode::Err(self.create_parser_error(
+                            return ResultOptionTypeMethodNode::Err(self.emit_error(
                                 "Expected parameter after comma."
                             ));
                         }
@@ -354,7 +354,7 @@ extend Parser {
                                 stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)
                             ) {
                                 if (option_block_node matches OptionBlockNode::None) {
-                                    return ResultOptionTypeMethodNode::Err(self.create_parser_error(
+                                    return ResultOptionTypeMethodNode::Err(self.emit_error(
                                         "Couldn't create type while parsing type method."
                                     ));
                                 }

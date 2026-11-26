@@ -63,7 +63,7 @@ extend Parser {
         }
 
         if (self.next_token() matches ResultOptionToken::Err(err)) {
-            return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+            return ResultOptionExpressionNode::Err(ParserError.from_lexer(&err));
         }
 
         let right_call = self.parse_additive_term();
@@ -86,7 +86,7 @@ extend Parser {
         }
 
         if (!found_right) {
-            return ResultOptionExpressionNode::Err(self.create_parser_error(
+            return ResultOptionExpressionNode::Err(self.emit_error(
                 "Couldn't create additive term while parsing relation term."
             ));
         }
@@ -121,7 +121,7 @@ extend Parser {
         }
 
         if (!matched_operator) {
-            return ResultOptionExpressionNode::Err(self.create_parser_error(
+            return ResultOptionExpressionNode::Err(self.emit_error(
                 "Couldn't create additive term while parsing relation term."
             ));
         }

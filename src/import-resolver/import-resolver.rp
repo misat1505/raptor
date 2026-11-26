@@ -369,7 +369,7 @@ fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_sp
         }
         source = read_file(path);
     }
-    let src = lazy_stream_reader_new(source, OptionStr::Some(path));
+    let src = LazyStreamReader.new(source, OptionStr::Some(path));
 
     let options = LexerOptions {
         max_comment_length: resolver.lexer_options.max_comment_length,

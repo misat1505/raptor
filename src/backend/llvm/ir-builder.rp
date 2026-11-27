@@ -9,144 +9,255 @@ struct IrBuilder {
     i64 tmp_id,
     i64 str_id,
     i64 label_id
-};
 
+    fn new(): IrBuilder {
+        return IrBuilder { header: [], lines: [], globals: [], tmp_id: 0, str_id: 0, label_id: 0 };
+    }
 
-fn ir_builder_new(): IrBuilder {
-    return IrBuilder { header: [], lines: [], globals: [], tmp_id: 0, str_id: 0, label_id: 0 };
-}
+    fn emit_header(self, str line): void {
+        self.header.push(line);
+    }
 
-fn ir_emit_header(&IrBuilder b, str line): void {
-    vector_push(&b.header, line);
-}
+    fn emit(self, str line): void {
+        self.lines.push(line);
+    }
 
-fn ir_emit(&IrBuilder b, str line): void {
-    vector_push(&b.lines, line);
-}
+    fn emit_global(self, str line): void {
+        self.globals.push(line);
+    }
 
-fn ir_emit_global(&IrBuilder b, str line): void {
-    vector_push(&b.globals, line);
-}
+    fn tmp(self): str {
+        let name = "%t" + self.tmp_id as str;
+        self.tmp_id += 1;
+        return name;
+    }
 
-fn ir_tmp(&IrBuilder b): str {
-    let name = "%t" + b.tmp_id as str;
-    b.tmp_id += 1;
-    return name;
-}
+    fn label(self, str prefix): str {
+        let name = prefix + "." + self.label_id as str;
+        self.label_id += 1;
+        return name;
+    }
 
-fn ir_label(&IrBuilder b, str prefix): str {
-    let name = prefix + "." + b.label_id as str;
-    b.label_id += 1;
-    return name;
-}
+    fn escape_cstr(str value): str {
+        let escaped = "";
+        for (let i = 0; i < str_len(value); i += 1) {
+            let c = value[i];
+            if (c == '\\') {
+                escaped += "\\\\";
+            } else if (c == '\"') {
+                escaped += "\\22";
+            } else if (c == '\n') {
+                escaped += "\\0A";
+            } else if (c == '\0') {
+                escaped += "\\00";
+            } else {
+                escaped += c;
+            }
+        }
+        return escaped;
+    }
 
-# Escapes `value` for use inside an LLVM `c"..."` string constant.
-fn ir_escape_cstr(str value): str {
-    let escaped = "";
-    for (let i = 0; i < str_len(value); i += 1) {
-        let c = value[i];
-        if (c == '\\') {
-            escaped += "\\\\";
-        } else if (c == '\"') {
-            escaped += "\\22";
-        } else if (c == '\n') {
-            escaped += "\\0A";
-        } else if (c == '\0') {
-            escaped += "\\00";
-        } else {
-            escaped += c;
+    fn cstr_global(self, str value): str {
+        let name = "@.str." + self.str_id as str;
+        self.str_id += 1;
+        let n = str_len(value) + 1;
+        self.emit_global(
+            name
+                + " = private unnamed_addr constant ["
+                + n as str
+                + " x i8] c\""
+                + IrBuilder.escape_cstr(value)
+                + "\\00\""
+        );
+        return name;
+    }
+
+    fn managed_str_global(self, str value): str {
+        let name = "@.mstr." + self.str_id as str;
+        self.str_id += 1;
+        let n = str_len(value) + 1;
+        self.emit_global(
+            name
+                + " = private constant { i64, i64, ["
+                + n as str
+                + " x i8] } { i64 -1, i64 0, ["
+                + n as str
+                + " x i8] c\""
+                + IrBuilder.escape_cstr(value)
+                + "\\00\" }"
+        );
+        return name;
+    }
+
+    fn join_lines(&str[] parts): str {
+        let cur: str[] = [];
+        for (let i = 0; i < vector_size(&parts); i += 1) {
+            vector_push(&cur, parts[i] + "\n");
+        }
+        if (vector_size(&cur) == 0) {
+            return "";
+        }
+        while (vector_size(&cur) > 1) {
+            let next: str[] = [];
+            let n = vector_size(&cur);
+            let i = 0;
+            while (i < n) {
+                if (i + 1 < n) {
+                    vector_push(&next, cur[i] + cur[i + 1]);
+                } else {
+                    vector_push(&next, cur[i]);
+                }
+                i += 2;
+            }
+            cur = next;
+        }
+        return cur[0];
+    }
+
+    fn finish(self): str {
+        let parts: str[] = [];
+        for (let i = 0; i < vector_size(&self.header); i += 1) {
+            vector_push(&parts, self.header[i]);
+        }
+        if (vector_size(&self.header) > 0) {
+            vector_push(&parts, "");
+        }
+        for (let i = 0; i < vector_size(&self.globals); i += 1) {
+            vector_push(&parts, self.globals[i]);
+        }
+        if (vector_size(&self.globals) > 0) {
+            vector_push(&parts, "");
+        }
+        for (let i = 0; i < vector_size(&self.lines); i += 1) {
+            vector_push(&parts, self.lines[i]);
+        }
+        return IrBuilder.join_lines(&parts);
+    }
+
+    fn emit_arc_runtime(self): void {
+        let rt: str[] = [
+            "; --- ARC runtime ---",
+            "; retain/release ignore null and any value below 64 KiB: those are never",
+            "; heap pointers, only small integers that the backend typed as `ptr`.",
+            "define ptr @rt_alloc(i64 %size, ptr %drop) {",
+            "entry:",
+            "  %total = add i64 %size, 16",
+            "  %raw = call ptr @malloc(i64 %total)",
+            "  store i64 1, ptr %raw",
+            "  %dp = getelementptr i8, ptr %raw, i64 8",
+            "  store ptr %drop, ptr %dp",
+            "  %obj = getelementptr i8, ptr %raw, i64 16",
+            "  ret ptr %obj",
+            "}",
+            "",
+            "define void @rt_retain(ptr %p) {",
+            "entry:",
+            "  %addr = ptrtoint ptr %p to i64",
+            "  %small = icmp ult i64 %addr, 65536",
+            "  br i1 %small, label %done, label %chk",
+            "chk:",
+            "  %rcp = getelementptr i8, ptr %p, i64 -16",
+            "  %rc = load i64, ptr %rcp",
+            "  %imm = icmp slt i64 %rc, 0",
+            "  br i1 %imm, label %done, label %inc",
+            "inc:",
+            "  %n = add i64 %rc, 1",
+            "  store i64 %n, ptr %rcp",
+            "  br label %done",
+            "done:",
+            "  ret void",
+            "}",
+            "",
+            "define void @rt_release(ptr %p) {",
+            "entry:",
+            "  %addr = ptrtoint ptr %p to i64",
+            "  %small = icmp ult i64 %addr, 65536",
+            "  br i1 %small, label %done, label %chk",
+            "chk:",
+            "  %rcp = getelementptr i8, ptr %p, i64 -16",
+            "  %rc = load i64, ptr %rcp",
+            "  %imm = icmp slt i64 %rc, 0",
+            "  br i1 %imm, label %done, label %dec",
+            "dec:",
+            "  %n = sub i64 %rc, 1",
+            "  store i64 %n, ptr %rcp",
+            "  %z = icmp eq i64 %n, 0",
+            "  br i1 %z, label %drop, label %done",
+            "drop:",
+            "  %dpp = getelementptr i8, ptr %p, i64 -8",
+            "  %dfn = load ptr, ptr %dpp",
+            "  %has = icmp ne ptr %dfn, null",
+            "  br i1 %has, label %calldrop, label %dofree",
+            "calldrop:",
+            "  call void %dfn(ptr %p)",
+            "  br label %dofree",
+            "dofree:",
+            "  call void @free(ptr %rcp)",
+            "  br label %done",
+            "done:",
+            "  ret void",
+            "}",
+            "",
+            "; vector: { i64 elems_are_managed, ptr data, i64 len, i64 cap }",
+            "define void @rt_drop_vec(ptr %v) {",
+            "entry:",
+            "  %flag = load i64, ptr %v",
+            "  %dpp = getelementptr i8, ptr %v, i64 8",
+            "  %data = load ptr, ptr %dpp",
+            "  %lp = getelementptr i8, ptr %v, i64 16",
+            "  %len = load i64, ptr %lp",
+            "  %idx = alloca i64",
+            "  store i64 0, ptr %idx",
+            "  %managed = icmp ne i64 %flag, 0",
+            "  br i1 %managed, label %cond, label %fin",
+            "cond:",
+            "  %i = load i64, ptr %idx",
+            "  %c = icmp slt i64 %i, %len",
+            "  br i1 %c, label %body, label %fin",
+            "body:",
+            "  %slot = getelementptr ptr, ptr %data, i64 %i",
+            "  %el = load ptr, ptr %slot",
+            "  call void @rt_release(ptr %el)",
+            "  %nx = add i64 %i, 1",
+            "  store i64 %nx, ptr %idx",
+            "  br label %cond",
+            "fin:",
+            "  call void @free(ptr %data)",
+            "  ret void",
+            "}",
+            "",
+            "; copy of a foreign C string (extern returns, ...) as a managed string",
+            "define ptr @rt_adopt_cstr(ptr %s) {",
+            "entry:",
+            "  %isnull = icmp eq ptr %s, null",
+            "  br i1 %isnull, label %nul, label %cp",
+            "nul:",
+            "  ret ptr null",
+            "cp:",
+            "  %len = call i64 @strlen(ptr %s)",
+            "  %sz = add i64 %len, 1",
+            "  %buf = call ptr @rt_alloc(i64 %sz, ptr null)",
+            "  %r = call ptr @memcpy(ptr %buf, ptr %s, i64 %sz)",
+            "  ret ptr %buf",
+            "}",
+            ""
+        ];
+        for (let i = 0; i < vector_size(&rt); i += 1) {
+            self.emit(rt[i]);
         }
     }
-    return escaped;
-}
+};
 
+# Escapes `value` for use inside an LLVM `c"..."` string constant.
 # Plain NUL-terminated constant (printf formats, fopen modes, ...). Never handed
 # to user code, so it carries no ARC header.
-fn ir_cstr_global(&IrBuilder b, str value): str {
-    let name = "@.str." + b.str_id as str;
-    b.str_id += 1;
-    let n = str_len(value) + 1;
-    ir_emit_global(
-        &b,
-        name
-            + " = private unnamed_addr constant ["
-            + n as str
-            + " x i8] c\""
-            + ir_escape_cstr(value)
-            + "\\00\""
-    );
-    return name;
-}
-
 # String literal as seen by user code in ARC mode: { rc, drop, chars }.
 # rc = -1 marks it immortal, so rt_retain / rt_release ignore it. The value
 # handed to user code points at `chars`, i.e. it is still a plain char*.
-fn ir_managed_str_global(&IrBuilder b, str value): str {
-    let name = "@.mstr." + b.str_id as str;
-    b.str_id += 1;
-    let n = str_len(value) + 1;
-    ir_emit_global(
-        &b,
-        name
-            + " = private constant { i64, i64, ["
-            + n as str
-            + " x i8] } { i64 -1, i64 0, ["
-            + n as str
-            + " x i8] c\""
-            + ir_escape_cstr(value)
-            + "\\00\" }"
-    );
-    return name;
-}
-
 # Joins `parts` (each followed by "\n") with a balanced pairwise merge.
 #
 # A plain `out += line` loop copies the whole accumulated string for every line:
 # O(n^2) bytes allocated. The self-hosted backend emits raw C strings and never
 # frees them, so for a multi-megabyte module that exhausts memory. Merging in
 # pairs copies each byte only O(log n) times.
-fn ir_join_lines(&str[] parts): str {
-    let cur: str[] = [];
-    for (let i = 0; i < vector_size(&parts); i += 1) {
-        vector_push(&cur, parts[i] + "\n");
-    }
-    if (vector_size(&cur) == 0) {
-        return "";
-    }
-    while (vector_size(&cur) > 1) {
-        let next: str[] = [];
-        let n = vector_size(&cur);
-        let i = 0;
-        while (i < n) {
-            if (i + 1 < n) {
-                vector_push(&next, cur[i] + cur[i + 1]);
-            } else {
-                vector_push(&next, cur[i]);
-            }
-            i += 2;
-        }
-        cur = next;
-    }
-    return cur[0];
-}
-
 # Order required by LLVM: header → globals → body
-fn ir_finish(&IrBuilder b): str {
-    let parts: str[] = [];
-    for (let i = 0; i < vector_size(&b.header); i += 1) {
-        vector_push(&parts, b.header[i]);
-    }
-    if (vector_size(&b.header) > 0) {
-        vector_push(&parts, "");
-    }
-    for (let i = 0; i < vector_size(&b.globals); i += 1) {
-        vector_push(&parts, b.globals[i]);
-    }
-    if (vector_size(&b.globals) > 0) {
-        vector_push(&parts, "");
-    }
-    for (let i = 0; i < vector_size(&b.lines); i += 1) {
-        vector_push(&parts, b.lines[i]);
-    }
-    return ir_join_lines(&parts);
-}

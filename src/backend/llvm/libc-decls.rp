@@ -1,82 +1,84 @@
 import "./ir-builder.rp";
 
 
-fn ir_emit_libc_declarations(&IrBuilder b): void {
-    ir_emit(&b, "; --- libc / runtime declarations (mirrors LibcFunctions) ---");
-    ir_emit(&b, "declare i32 @printf(ptr, ...)");
-    ir_emit(&b, "declare i32 @fflush(ptr)");
-    ir_emit(&b, "declare i32 @snprintf(ptr, i64, ptr, ...)");
-    ir_emit(&b, "declare i32 @fprintf(ptr, ptr, ...)");
-    ir_emit(&b, "declare i32 @strcmp(ptr, ptr)");
-    ir_emit(&b, "declare i64 @strlen(ptr)");
-    ir_emit(&b, "declare ptr @strcpy(ptr, ptr)");
-    ir_emit(&b, "declare ptr @strcat(ptr, ptr)");
-    ir_emit(&b, "declare ptr @malloc(i64)");
-    ir_emit(&b, "declare void @free(ptr)");
-    ir_emit(&b, "declare i64 @atoll(ptr)");
-    ir_emit(&b, "declare double @atof(ptr)");
-    ir_emit(&b, "declare ptr @realloc(ptr, i64)");
-    ir_emit(&b, "declare ptr @memcpy(ptr, ptr, i64)");
-    ir_emit(&b, "declare i32 @usleep(i32)");
-    ir_emit(&b, "declare void @exit(i32)");
-    ir_emit(&b, "declare ptr @fopen(ptr, ptr)");
-    ir_emit(&b, "declare i32 @fclose(ptr)");
-    ir_emit(&b, "declare i64 @fread(ptr, i64, i64, ptr)");
-    ir_emit(&b, "declare i64 @fwrite(ptr, i64, i64, ptr)");
-    ir_emit(&b, "declare i32 @fseek(ptr, i64, i32)");
-    ir_emit(&b, "declare i64 @ftell(ptr)");
-    ir_emit(&b, "declare i32 @remove(ptr)");
-    ir_emit(&b, "declare i32 @access(ptr, i32)");
-    ir_emit(&b, "declare i64 @read(i32, ptr, i64)");
-    ir_emit(&b, "declare i32 @socket(i32, i32, i32)");
-    ir_emit(&b, "declare i32 @bind(i32, ptr, i32)");
-    ir_emit(&b, "declare i32 @listen(i32, i32)");
-    ir_emit(&b, "declare i32 @accept(i32, ptr, ptr)");
-    ir_emit(&b, "declare i64 @recv(i32, ptr, i64, i32)");
-    ir_emit(&b, "declare i64 @send(i32, ptr, i64, i32)");
-    ir_emit(&b, "declare i32 @close(i32)");
-    ir_emit(&b, "declare i32 @connect(i32, ptr, i32)");
-    ir_emit(&b, "declare i32 @inet_addr(ptr)");
-    ir_emit(&b, "declare ptr @fgets(ptr, i32, ptr)");
-    ir_emit(&b, "@stdin = external global ptr");
-    ir_emit(&b, "@stderr = external global ptr");
-    ir_emit(&b, "");
+extend IrBuilder {
+    fn emit_libc_declarations(self): void {
+        self.emit("; --- libc / runtime declarations (mirrors LibcFunctions) ---");
+        self.emit("declare i32 @printf(ptr, ...)");
+        self.emit("declare i32 @fflush(ptr)");
+        self.emit("declare i32 @snprintf(ptr, i64, ptr, ...)");
+        self.emit("declare i32 @fprintf(ptr, ptr, ...)");
+        self.emit("declare i32 @strcmp(ptr, ptr)");
+        self.emit("declare i64 @strlen(ptr)");
+        self.emit("declare ptr @strcpy(ptr, ptr)");
+        self.emit("declare ptr @strcat(ptr, ptr)");
+        self.emit("declare ptr @malloc(i64)");
+        self.emit("declare void @free(ptr)");
+        self.emit("declare i64 @atoll(ptr)");
+        self.emit("declare double @atof(ptr)");
+        self.emit("declare ptr @realloc(ptr, i64)");
+        self.emit("declare ptr @memcpy(ptr, ptr, i64)");
+        self.emit("declare i32 @usleep(i32)");
+        self.emit("declare void @exit(i32)");
+        self.emit("declare ptr @fopen(ptr, ptr)");
+        self.emit("declare i32 @fclose(ptr)");
+        self.emit("declare i64 @fread(ptr, i64, i64, ptr)");
+        self.emit("declare i64 @fwrite(ptr, i64, i64, ptr)");
+        self.emit("declare i32 @fseek(ptr, i64, i32)");
+        self.emit("declare i64 @ftell(ptr)");
+        self.emit("declare i32 @remove(ptr)");
+        self.emit("declare i32 @access(ptr, i32)");
+        self.emit("declare i64 @read(i32, ptr, i64)");
+        self.emit("declare i32 @socket(i32, i32, i32)");
+        self.emit("declare i32 @bind(i32, ptr, i32)");
+        self.emit("declare i32 @listen(i32, i32)");
+        self.emit("declare i32 @accept(i32, ptr, ptr)");
+        self.emit("declare i64 @recv(i32, ptr, i64, i32)");
+        self.emit("declare i64 @send(i32, ptr, i64, i32)");
+        self.emit("declare i32 @close(i32)");
+        self.emit("declare i32 @connect(i32, ptr, i32)");
+        self.emit("declare i32 @inet_addr(ptr)");
+        self.emit("declare ptr @fgets(ptr, i32, ptr)");
+        self.emit("@stdin = external global ptr");
+        self.emit("@stderr = external global ptr");
+        self.emit("");
 
-    # CLI globals (mirrors declare_main_function raptor_argc/argv)
-    ir_emit(&b, "@raptor_argc = internal global i32 0");
-    ir_emit(&b, "@raptor_argv = internal global ptr null");
-    ir_emit(&b, "");
-}
+        # CLI globals (mirrors declare_main_function raptor_argc/argv)
+        self.emit("@raptor_argc = internal global i32 0");
+        self.emit("@raptor_argv = internal global ptr null");
+        self.emit("");
+    }
 
-# llvm.{s,u}{add,sub,mul}.with.overflow.iN - only needed when an overflow
-# policy other than `ignore` is active.
-fn ir_emit_overflow_intrinsics(&IrBuilder b): void {
-    let widths: str[] = ["i8", "i16", "i32", "i64"];
-    let ops: str[] = ["add", "sub", "mul"];
-    for (let w = 0; w < vector_size(&widths); w += 1) {
-        for (let o = 0; o < vector_size(&ops); o += 1) {
-            for (let k = 0; k < 2; k += 1) {
-                let sign = "s";
-                if (k == 1) {
-                    sign = "u";
+    fn emit_overflow_intrinsics(self): void {
+        let widths: str[] = ["i8", "i16", "i32", "i64"];
+        let ops: str[] = ["add", "sub", "mul"];
+        for (let w = 0; w < vector_size(&widths); w += 1) {
+            for (let o = 0; o < vector_size(&ops); o += 1) {
+                for (let k = 0; k < 2; k += 1) {
+                    let sign = "s";
+                    if (k == 1) {
+                        sign = "u";
+                    }
+                    let ty = widths[w];
+                    self.emit(
+                        "declare { "
+                            + ty
+                            + ", i1 } @llvm."
+                            + sign
+                            + ops[o]
+                            + ".with.overflow."
+                            + ty
+                            + "("
+                            + ty
+                            + ", "
+                            + ty
+                            + ")"
+                    );
                 }
-                let ty = widths[w];
-                ir_emit(
-                    &b,
-                    "declare { "
-                        + ty
-                        + ", i1 } @llvm."
-                        + sign
-                        + ops[o]
-                        + ".with.overflow."
-                        + ty
-                        + "("
-                        + ty
-                        + ", "
-                        + ty
-                        + ")"
-                );
             }
         }
     }
-}
+};
+
+# llvm.{s,u}{add,sub,mul}.with.overflow.iN - only needed when an overflow
+# policy other than `ignore` is active.

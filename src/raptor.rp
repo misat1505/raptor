@@ -400,12 +400,12 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
 
     let t = now_ms();
     let cg_errors: str[] = [];
-    let ir = llvm_compiler_generate(&program, opts.memory == "arc", opts.overflow, &cg_errors);
+    let ir = LLVMIRCodegen.generate(&program, opts.memory == "arc", opts.overflow, &cg_errors);
     if (vector_size(&cg_errors) > 0) {
         report_diagnostics(cg_errors);
         return 1;
     }
-    phase_done(&opts, "Compiler", t);
+    phase_done(&opts, "LLVM IR Codegen", t);
 
     if (str_len(opts.opt_level) > 0) {
         t = now_ms();
@@ -534,7 +534,7 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
                 return 1;
             }
         }
-        phase_done(&opts, "Semantic checker", t);
+        phase_done(&opts, "Semantic Checker", t);
     }
 
     let name_mangler_time = now_ms();

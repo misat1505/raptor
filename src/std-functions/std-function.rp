@@ -20,30 +20,14 @@ struct StdFunction {
     PassedBy[] passed_by,
     Type return_type,
     StdTypeCheckKind type_check_kind
-};
 
-enum OptionStdFunction {
-    Some(StdFunction),
-    None
-};
-
-
-fn std_function_new(
-    str name,
-    Type[] params,
-    PassedBy[] passed_by,
-    Type return_type,
-    StdTypeCheckKind type_check_kind
-): StdFunction {
-    return StdFunction { name, params, passed_by, return_type, type_check_kind };
-}
-
-fn std_function_lookup(str name): OptionStdFunction {
-    let all = get_std_functions();
-    for (let i = 0; i < vector_size(&all); i += 1) {
-        if (all[i].name == name) {
-            return OptionStdFunction::Some(all[i]);
-        }
+    fn new(
+        str name,
+        Type[] params,
+        PassedBy[] passed_by,
+        Type return_type,
+        StdTypeCheckKind type_check_kind
+    ): StdFunction {
+        return StdFunction { name, params, passed_by, return_type, type_check_kind };
     }
-    return OptionStdFunction::None;
-}
+};

@@ -2,247 +2,337 @@ import "../frontend/parser/ast.rp";
 import "./std-function.rp";
 
 
-fn get_std_functions(): StdFunction[] {
-    let out: StdFunction[] = [];
-    let empty_type_vector: Type[] = [];
-    let empty_passedby_vector: PassedBy[] = [];
+enum OptionStdFunction {
+    Some(StdFunction),
+    None
+};
 
-    # --- io ---
-    vector_push(
-        &out,
-        std_function_new(
-            "print",
-            [Type::Str],
-            [PassedBy::Value],
-            Type::Void,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "println",
-            [Type::Str],
-            [PassedBy::Value],
-            Type::Void,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new("input", [Type::Str], [PassedBy::Value], Type::Str, StdTypeCheckKind::None)
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "cli_args",
-            empty_type_vector,
-            empty_passedby_vector,
-            Type::Vector(Type::Str),
-            StdTypeCheckKind::None
-        )
-    );
+struct StdFunctionRegistry {
+    StdFunction[] std_funtions
 
-    # --- files ---
-    vector_push(
-        &out,
-        std_function_new(
-            "read_file",
-            [Type::Str],
-            [PassedBy::Value],
-            Type::Str,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "write_file",
-            [Type::Str, Type::Str],
-            [PassedBy::Value, PassedBy::Value],
-            Type::Void,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "append_file",
-            [Type::Str, Type::Str],
-            [PassedBy::Value, PassedBy::Value],
-            Type::Void,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "delete_file",
-            [Type::Str],
-            [PassedBy::Value],
-            Type::Void,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "exists_file",
-            [Type::Str],
-            [PassedBy::Value],
-            Type::Bool,
-            StdTypeCheckKind::None
-        )
-    );
+    fn lookup(self, str name): OptionStdFunction {
+        for (let i = 0; i < self.std_funtions.size(); i += 1) {
+            if (self.std_funtions[i].name == name) {
+                return OptionStdFunction::Some(self.std_funtions[i]);
+            }
+        }
+        return OptionStdFunction::None;
+    }
 
-    # --- vectors (custom type_check) ---
-    # params placeholders: Vector(Void) / Void mean "checked by type_check_kind"
-    vector_push(
-        &out,
-        std_function_new(
-            "vector_push",
-            [Type::Vector(Type::Void), Type::Void],
-            [PassedBy::Reference, PassedBy::Value],
-            Type::Void,
-            StdTypeCheckKind::VectorPush
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "vector_size",
-            [Type::Vector(Type::Void)],
-            [PassedBy::Reference],
-            Type::I64,
-            StdTypeCheckKind::VectorSize
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "vector_stringify",
-            [Type::Vector(Type::Void)],
-            [PassedBy::Value],
-            Type::Str,
-            StdTypeCheckKind::VectorStringify
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "vector_extend",
-            [Type::Vector(Type::Void), Type::Vector(Type::Void)],
-            [PassedBy::Reference, PassedBy::Reference],
-            Type::Void,
-            StdTypeCheckKind::VectorExtend
-        )
-    );
+    fn new(): StdFunctionRegistry {
+        let functions = [
+            StdFunction.new(
+                "print",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "println",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "input",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Str,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new("cli_args", [], [], Type::Vector(Type::Str), StdTypeCheckKind::None),
+            StdFunction.new(
+                "read_file",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Str,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "write_file",
+                [Type::Str, Type::Str],
+                [PassedBy::Value, PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "append_file",
+                [Type::Str, Type::Str],
+                [PassedBy::Value, PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "delete_file",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "exists_file",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Bool,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "vector_push",
+                [Type::Vector(Type::Void), Type::Void],
+                [PassedBy::Reference, PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::VectorPush
+            ),
+            StdFunction.new(
+                "vector_size",
+                [Type::Vector(Type::Void)],
+                [PassedBy::Reference],
+                Type::I64,
+                StdTypeCheckKind::VectorSize
+            ),
+            StdFunction.new(
+                "vector_stringify",
+                [Type::Vector(Type::Void)],
+                [PassedBy::Value],
+                Type::Str,
+                StdTypeCheckKind::VectorStringify
+            ),
+            StdFunction.new(
+                "vector_extend",
+                [Type::Vector(Type::Void), Type::Vector(Type::Void)],
+                [PassedBy::Reference, PassedBy::Reference],
+                Type::Void,
+                StdTypeCheckKind::VectorExtend
+            ),
+            StdFunction.new(
+                "str_len",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::I64,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "str_to_char_vector",
+                [Type::Str],
+                [PassedBy::Reference],
+                Type::Vector(Type::Char),
+                StdTypeCheckKind::StrToCharVector
+            ),
+            StdFunction.new(
+                "char_vector_to_str",
+                [Type::Vector(Type::Char)],
+                [PassedBy::Reference],
+                Type::Str,
+                StdTypeCheckKind::CharVectorToStr
+            ),
+            StdFunction.new(
+                "sleep_ms",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_listen",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::I64,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_accept",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::I64,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_connect",
+                [Type::Str, Type::I64],
+                [PassedBy::Value, PassedBy::Value],
+                Type::I64,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_read",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::Str,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_write",
+                [Type::I64, Type::Str],
+                [PassedBy::Value, PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_close",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "print",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "println",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "input",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Str,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new("cli_args", [], [], Type::Vector(Type::Str), StdTypeCheckKind::None),
+            StdFunction.new(
+                "read_file",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Str,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "write_file",
+                [Type::Str, Type::Str],
+                [PassedBy::Value, PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "append_file",
+                [Type::Str, Type::Str],
+                [PassedBy::Value, PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "delete_file",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "exists_file",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::Bool,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "vector_push",
+                [Type::Vector(Type::Void), Type::Void],
+                [PassedBy::Reference, PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::VectorPush
+            ),
+            StdFunction.new(
+                "vector_size",
+                [Type::Vector(Type::Void)],
+                [PassedBy::Reference],
+                Type::I64,
+                StdTypeCheckKind::VectorSize
+            ),
+            StdFunction.new(
+                "vector_stringify",
+                [Type::Vector(Type::Void)],
+                [PassedBy::Value],
+                Type::Str,
+                StdTypeCheckKind::VectorStringify
+            ),
+            StdFunction.new(
+                "vector_extend",
+                [Type::Vector(Type::Void), Type::Vector(Type::Void)],
+                [PassedBy::Reference, PassedBy::Reference],
+                Type::Void,
+                StdTypeCheckKind::VectorExtend
+            ),
+            StdFunction.new(
+                "str_len",
+                [Type::Str],
+                [PassedBy::Value],
+                Type::I64,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "str_to_char_vector",
+                [Type::Str],
+                [PassedBy::Reference],
+                Type::Vector(Type::Char),
+                StdTypeCheckKind::StrToCharVector
+            ),
+            StdFunction.new(
+                "char_vector_to_str",
+                [Type::Vector(Type::Char)],
+                [PassedBy::Reference],
+                Type::Str,
+                StdTypeCheckKind::CharVectorToStr
+            ),
+            StdFunction.new(
+                "sleep_ms",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_listen",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::I64,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_accept",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::I64,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_connect",
+                [Type::Str, Type::I64],
+                [PassedBy::Value, PassedBy::Value],
+                Type::I64,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_read",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::Str,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_write",
+                [Type::I64, Type::Str],
+                [PassedBy::Value, PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            ),
+            StdFunction.new(
+                "tcp_close",
+                [Type::I64],
+                [PassedBy::Value],
+                Type::Void,
+                StdTypeCheckKind::None
+            )
+        ];
 
-    # --- strings ---
-    vector_push(
-        &out,
-        std_function_new(
-            "str_len",
-            [Type::Str],
-            [PassedBy::Value],
-            Type::I64,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "str_to_char_vector",
-            [Type::Str],
-            [PassedBy::Reference],
-            Type::Vector(Type::Char),
-            StdTypeCheckKind::StrToCharVector
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "char_vector_to_str",
-            [Type::Vector(Type::Char)],
-            [PassedBy::Reference],
-            Type::Str,
-            StdTypeCheckKind::CharVectorToStr
-        )
-    );
-
-    # --- time ---
-    vector_push(
-        &out,
-        std_function_new(
-            "sleep_ms",
-            [Type::I64],
-            [PassedBy::Value],
-            Type::Void,
-            StdTypeCheckKind::None
-        )
-    );
-
-    # --- network ---
-    vector_push(
-        &out,
-        std_function_new(
-            "tcp_listen",
-            [Type::I64],
-            [PassedBy::Value],
-            Type::I64,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "tcp_accept",
-            [Type::I64],
-            [PassedBy::Value],
-            Type::I64,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "tcp_connect",
-            [Type::Str, Type::I64],
-            [PassedBy::Value, PassedBy::Value],
-            Type::I64,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "tcp_read",
-            [Type::I64],
-            [PassedBy::Value],
-            Type::Str,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "tcp_write",
-            [Type::I64, Type::Str],
-            [PassedBy::Value, PassedBy::Value],
-            Type::Void,
-            StdTypeCheckKind::None
-        )
-    );
-    vector_push(
-        &out,
-        std_function_new(
-            "tcp_close",
-            [Type::I64],
-            [PassedBy::Value],
-            Type::Void,
-            StdTypeCheckKind::None
-        )
-    );
-
-    return out;
-}
+        return StdFunctionRegistry { std_funtions: functions };
+    }
+};

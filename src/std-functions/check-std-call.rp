@@ -37,7 +37,7 @@ extend SemanticChecker {
         }
         for (let i = 0; i < n; i += 1) {
             if (std_fn.passed_by[i] matches PassedBy::Reference) {
-                if (!is_valid_reference_expression(arg_expressions[i])) {
+                if (!SemanticChecker.is_valid_reference_expression(arg_expressions[i])) {
                     return ResultType::Err(SemanticCheckerError.new(
                         ErrorSeverity::HIGH,
                         "Parameter "
@@ -51,24 +51,23 @@ extend SemanticChecker {
             }
         }
 
-        return std_run_type_check(std_fn, collected_arg_types, span);
+        return StdTypeChecker.run_type_check(std_fn, collected_arg_types, span);
     }
-};
 
-
-fn is_valid_reference_expression(Expression expression): bool {
-    match (expression) {
-        Expression::Variable {
-            return true;
-        },
-        Expression::Index(idx) {
-            return is_valid_reference_expression(idx.collection.value);
-        },
-        Expression::FieldAccess(fa) {
-            return is_valid_reference_expression(fa.instance.value);
-        },
-        rest {
-            return false;
+    fn is_valid_reference_expression(Expression expression): bool {
+        match (expression) {
+            Expression::Variable {
+                return true;
+            },
+            Expression::Index(idx) {
+                return SemanticChecker.is_valid_reference_expression(idx.collection.value);
+            },
+            Expression::FieldAccess(fa) {
+                return SemanticChecker.is_valid_reference_expression(fa.instance.value);
+            },
+            rest {
+                return false;
+            }
         }
     }
-}
+};

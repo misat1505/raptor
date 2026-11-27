@@ -60,7 +60,7 @@ extend SemanticChecker {
                     self.visit_expression(&program, argument.value.value);
 
                     if (self.read_last(argument.span) matches ResultType::Ok(arg_type)) {
-                        if (type_debug(&arg_type) != type_debug(&type)) {
+                        if (arg_type.debug() != type.debug()) {
                             return CheckForIntrinsicMethodCallData::ErrorInCall("Method 'ext' expects an argument of type '"
                                 + type.to_string()
                                 + "', but '"

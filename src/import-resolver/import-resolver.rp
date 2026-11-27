@@ -1,17 +1,3 @@
-# ============================================================
-# Mirrors `src/import_resolver/mod.rs`.
-#
-# Resolves `import "..."` statements relative to the importing file,
-# detects cyclic imports, caches already-merged modules (`visited`),
-# and merges every reachable module into a single `Program` AST.
-#
-# Differences forced by the selfhost language surface (see parser):
-#   - no HashMap / no std_functions registry / no resolve_declared_types
-#     (those are semantic-checker concerns; Program keeps flat vectors)
-#   - struct methods are free functions with an `import_resolver_` prefix
-#   - path normalization is pure string work (no OS path API)
-# ============================================================
-
 import "../common/errors.rp";
 import "../common/span.rp";
 import "../../stdlib/string.rp";
@@ -23,522 +9,492 @@ import "../frontend/parser/core.rp";
 import "../frontend/parser/program.rp";
 
 
-# `overlay_*`: in-memory sources that take precedence over files on disk (used by the
-# LSP backend for unsaved editor buffers). Paths are stored normalized.
 struct ImportResolver {
     str[] stack,
     str[] visited,
     LexerOptions lexer_options,
     str[] overlay_paths,
     str[] overlay_sources
-};
 
+    fn new(&LexerOptions lexer_options): ImportResolver {
+        return ImportResolver {
+            stack: [],
+            visited: [],
+            lexer_options,
+            overlay_paths: [],
+            overlay_sources: []
+        };
+    }
 
-fn import_resolver_new(LexerOptions lexer_options): ImportResolver {
-    return ImportResolver {
-        stack: [],
-        visited: [],
-        lexer_options,
-        overlay_paths: [],
-        overlay_sources: []
-    };
-}
+    fn add_overlay(self, str path, str source): void {
+        self.overlay_paths.push(ImportResolver.normalize_path(path));
+        self.overlay_sources.push(source);
+    }
 
-# Register `source` as the content of `path` (instead of reading it from disk).
-fn import_resolver_add_overlay(&ImportResolver resolver, str path, str source): void {
-    vector_push(&resolver.overlay_paths, import_resolver_normalize_path(path));
-    vector_push(&resolver.overlay_sources, source);
-}
-
-fn import_resolver_overlay_index(&ImportResolver resolver, str path): i64 {
-    for (let i = 0; i < vector_size(&resolver.overlay_paths); i += 1) {
-        if (resolver.overlay_paths[i] == path) {
-            return i;
+    fn overlay_index(self, str path): i64 {
+        for (let i = 0; i < self.overlay_paths.size(); i += 1) {
+            if (self.overlay_paths[i] == path) {
+                return i;
+            }
         }
-    }
-    return -1;
-}
-
-# Public entry: merge `entry_program` (already parsed from `entry_path`)
-# with every file reachable through its import graph.
-fn import_resolver_resolve(
-    &ImportResolver resolver,
-    str entry_path,
-    &Program entry_program
-): ResultProgram {
-    let normalized_entry = import_resolver_normalize_path(entry_path);
-
-    let merged = Program {
-        statements: [],
-        functions: [],
-        extern_functions: [],
-        declared_types: [],
-        extend_blocks: [],
-        interfaces: []
-    };
-
-    vector_push(&resolver.stack, normalized_entry);
-    vector_push(&resolver.visited, normalized_entry);
-
-    let merge_result = import_resolver_merge_program(
-        &resolver,
-        normalized_entry,
-        &entry_program,
-        &merged
-    );
-    if (merge_result matches ResultUnit::Err(err)) {
-        return ResultProgram::Err(err);
+        return -1;
     }
 
-    # pop entry from the cycle stack (mirrors Rust `self.stack.pop()`)
-    if (vector_size(&resolver.stack) > 0) {
-        # rebuild stack without last element (no vector_pop in language)
-        let new_stack: str[] = [];
-        for (let i = 0; i < vector_size(&resolver.stack) - 1; i += 1) {
-            vector_push(&new_stack, resolver.stack[i]);
+    fn resolve(self, str entry_path, &Program entry_program): ResultProgram {
+        let normalized_entry = ImportResolver.normalize_path(entry_path);
+
+        let merged = Program {
+            statements: [],
+            functions: [],
+            extern_functions: [],
+            declared_types: [],
+            extend_blocks: [],
+            interfaces: []
+        };
+
+        self.stack.push(normalized_entry);
+        self.visited.push(normalized_entry);
+
+        let merge_result = self.merge_program(normalized_entry, &entry_program, &merged);
+        if (merge_result matches ResultUnit::Err(err)) {
+            return ResultProgram::Err(err);
         }
-        resolver.stack = new_stack;
+
+        # pop entry from the cycle stack (mirrors Rust `self.stack.pop()`)
+        if (self.stack.size() > 0) {
+            # rebuild stack without last element (no vector_pop in language)
+            let new_stack: str[] = [];
+            for (let i = 0; i < self.stack.size() - 1; i += 1) {
+                vector_push(&new_stack, self.stack[i]);
+            }
+            self.stack = new_stack;
+        }
+
+        let extend_block_result = ImportResolver.evaluate_extend_blocks(&merged);
+        if (extend_block_result matches ResultUnit::Err(err)) {
+            return ResultProgram::Err(err);
+        }
+
+        return ResultProgram::Ok(merged);
     }
 
-    let extend_block_result = import_resolver_evaluate_extend_blocks(&merged);
-    if (extend_block_result matches ResultUnit::Err(err)) {
-        return ResultProgram::Err(err);
-    }
+    fn evaluate_extend_blocks(&Program merged): ResultUnit {
+        for (let i = 0; i < merged.extend_blocks.size(); i += 1) {
+            let extend_block = merged.extend_blocks[i];
 
-    return ResultProgram::Ok(merged);
-}
+            if (extend_block.type.value matches Type::Unresolved(custom_type_name)) {
+                let found = false;
+                for (let j = 0; j < merged.declared_types.size(); j += 1) {
+                    match (merged.declared_types[j].value) {
+                        DeclaredType::Enum(e) {
+                            if (e.identifier.value != custom_type_name) {
+                                continue;
+                            }
+                            let duplicate = ImportResolver.check_duplicate_methods(
+                                custom_type_name,
+                                &e.methods,
+                                &extend_block.methods
+                            );
+                            if (duplicate matches ResultUnit::Err(err)) {
+                                return ResultUnit::Err(err);
+                            }
+                            e.methods.ext(&extend_block.methods);
+                            found = true;
+                            break;
+                        },
+                        DeclaredType::Struct(s) {
+                            if (s.identifier.value != custom_type_name) {
+                                continue;
+                            }
+                            let duplicate = ImportResolver.check_duplicate_methods(
+                                custom_type_name,
+                                &s.methods,
+                                &extend_block.methods
+                            );
+                            if (duplicate matches ResultUnit::Err(err)) {
+                                return ResultUnit::Err(err);
+                            }
+                            s.methods.ext(&extend_block.methods);
+                            found = true;
+                            break;
+                        }
+                    }
+                }
 
-fn import_resolver_evaluate_extend_blocks(&Program merged): ResultUnit {
-    for (let i = 0; i < vector_size(&merged.extend_blocks); i += 1) {
-        let extend_block = merged.extend_blocks[i];
-
-        if (extend_block.type.value matches Type::Unresolved(custom_type_name)) {
-            let found = false;
-            for (let j = 0; j < vector_size(&merged.declared_types); j += 1) {
-                match (merged.declared_types[j].value) {
-                    DeclaredType::Enum(e) {
-                        if (e.identifier.value != custom_type_name) {
-                            continue;
-                        }
-                        let duplicate = import_resolver_check_duplicate_methods(
-                            custom_type_name,
-                            &e.methods,
-                            &extend_block.methods
-                        );
-                        if (duplicate matches ResultUnit::Err(err)) {
-                            return ResultUnit::Err(err);
-                        }
-                        vector_extend(&e.methods, &extend_block.methods);
-                        found = true;
-                        break;
-                    },
-                    DeclaredType::Struct(s) {
-                        if (s.identifier.value != custom_type_name) {
-                            continue;
-                        }
-                        let duplicate = import_resolver_check_duplicate_methods(
-                            custom_type_name,
-                            &s.methods,
-                            &extend_block.methods
-                        );
-                        if (duplicate matches ResultUnit::Err(err)) {
-                            return ResultUnit::Err(err);
-                        }
-                        vector_extend(&s.methods, &extend_block.methods);
-                        found = true;
-                        break;
+                if (!found) {
+                    return ResultUnit::Err(ParserError.at(
+                        ErrorSeverity::HIGH,
+                        "Type '" + custom_type_name + "' not found.",
+                        extend_block.type.span
+                    ));
+                }
+            } else {
+                # Built-in type: blocks stay in `merged.extend_blocks`, so make sure no earlier
+                # block extending the same type already declares one of these methods.
+                let wanted = extend_block.type.value.debug();
+                for (let k = 0; k < i; k += 1) {
+                    let earlier_type = merged.extend_blocks[k].type.value;
+                    if (earlier_type matches Type::Unresolved) {
+                        continue;
+                    }
+                    if (earlier_type.debug() != wanted) {
+                        continue;
+                    }
+                    let duplicate = ImportResolver.check_duplicate_methods(
+                        extend_block.type.value.to_string(),
+                        &merged.extend_blocks[k].methods,
+                        &extend_block.methods
+                    );
+                    if (duplicate matches ResultUnit::Err(err)) {
+                        return ResultUnit::Err(err);
                     }
                 }
             }
-
-            if (!found) {
-                return ResultUnit::Err(ParserError.at(
-                    ErrorSeverity::HIGH,
-                    "Type '" + custom_type_name + "' not found.",
-                    extend_block.type.span
-                ));
-            }
-        } else {
-            # Built-in type: blocks stay in `merged.extend_blocks`, so make sure no earlier
-            # block extending the same type already declares one of these methods.
-            let wanted = type_debug(&extend_block.type.value);
-            for (let k = 0; k < i; k += 1) {
-                let earlier_type = merged.extend_blocks[k].type.value;
-                if (earlier_type matches Type::Unresolved) {
-                    continue;
-                }
-                if (type_debug(&earlier_type) != wanted) {
-                    continue;
-                }
-                let duplicate = import_resolver_check_duplicate_methods(
-                    type_to_string(extend_block.type.value),
-                    &merged.extend_blocks[k].methods,
-                    &extend_block.methods
-                );
-                if (duplicate matches ResultUnit::Err(err)) {
-                    return ResultUnit::Err(err);
-                }
-            }
         }
-    }
 
-    return ResultUnit::Ok;
-}
-
-fn import_resolver_check_duplicate_methods(
-    str type_name,
-    &TypeMethodNode[] existing,
-    &TypeMethodNode[] added
-): ResultUnit {
-    for (let a = 0; a < vector_size(&added); a += 1) {
-        let name = added[a].value.identifier.value;
-        for (let e = 0; e < vector_size(&existing); e += 1) {
-            if (existing[e].value.identifier.value == name) {
-                return ResultUnit::Err(ParserError.at(
-                    ErrorSeverity::HIGH,
-                    "Redeclaration of method '" + name + "' on type '" + type_name + "'.",
-                    added[a].value.identifier.span
-                ));
-            }
-        }
-    }
-    return ResultUnit::Ok;
-}
-
-fn import_resolver_merge_program(
-    &ImportResolver resolver,
-    str current_path,
-    &Program program,
-    &Program merged
-): ResultUnit {
-    for (let i = 0; i < vector_size(&program.functions); i += 1) {
-        let function = program.functions[i];
-        let name = function.value.identifier.value;
-        let collision = import_resolver_check_collision(name, function.span, &merged);
-        if (collision matches ResultUnit::Err(err)) {
-            return ResultUnit::Err(err);
-        }
-        vector_push(&merged.functions, function);
-    }
-
-    for (let i = 0; i < vector_size(&program.extern_functions); i += 1) {
-        let extern_function = program.extern_functions[i];
-        let name = extern_function.value.identifier.value;
-        if (extern_function.value.alias matches OptionIdentifierNode::Some(alias)) {
-            name = alias.value;
-        }
-        let collision = import_resolver_check_collision(name, extern_function.span, &merged);
-        if (collision matches ResultUnit::Err(err)) {
-            return ResultUnit::Err(err);
-        }
-        vector_push(&merged.extern_functions, extern_function);
-    }
-
-    for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
-        let declared_type = program.declared_types[i];
-        let name = "";
-        match (declared_type.value) {
-            DeclaredType::Struct(struct_declaration) {
-                name = struct_declaration.identifier.value;
-            },
-            DeclaredType::Enum(enum_declaration) {
-                name = enum_declaration.identifier.value;
-            }
-        }
-        let collision = import_resolver_check_collision(name, declared_type.span, &merged);
-        if (collision matches ResultUnit::Err(err)) {
-            return ResultUnit::Err(err);
-        }
-        vector_push(&merged.declared_types, declared_type);
-    }
-
-    for (let i = 0; i < vector_size(&program.interfaces); i += 1) {
-        let interface_decl = program.interfaces[i];
-        let name = interface_decl.value.identifier.value;
-        let collision = import_resolver_check_collision(name, interface_decl.span, &merged);
-        if (collision matches ResultUnit::Err(err)) {
-            return ResultUnit::Err(err);
-        }
-        vector_push(&merged.interfaces, interface_decl);
-    }
-
-    for (let i = 0; i < vector_size(&program.statements); i += 1) {
-        let statement = program.statements[i];
-        if (statement.value matches Statement::Import(path_node)) {
-            let import_result = import_resolver_handle_import(
-                &resolver,
-                current_path,
-                path_node.value,
-                statement.span,
-                &merged
-            );
-            if (import_result matches ResultUnit::Err(err)) {
-                return ResultUnit::Err(err);
-            }
-        } else {
-            vector_push(&merged.statements, statement);
-        }
-    }
-
-    vector_extend(&merged.extend_blocks, &program.extend_blocks);
-    return ResultUnit::Ok;
-}
-
-fn import_resolver_handle_import(
-    &ImportResolver resolver,
-    str current_path,
-    str import_path,
-    Span span,
-    &Program merged
-): ResultUnit {
-    let base_dir = import_resolver_path_parent(current_path);
-    let joined = import_resolver_path_join(base_dir, import_path);
-    let resolved = import_resolver_normalize_path(joined);
-
-    # Cycle detection: path already on the resolution stack.
-    let cycle_pos = import_resolver_stack_index(&resolver, resolved);
-    if (cycle_pos >= 0) {
-        let cycle_chain = "";
-        for (let i = cycle_pos; i < vector_size(&resolver.stack); i += 1) {
-            if (i != cycle_pos) {
-                cycle_chain += "\n    ↓\n    ";
-            }
-            cycle_chain += resolver.stack[i];
-        }
-        return ResultUnit::Err(ParserError.new(
-            ErrorSeverity::HIGH,
-            "Cyclic import detected:\n    " + cycle_chain + "\n    ↓\n    " + resolved + "\n\n",
-            span
-        ));
-    }
-
-    # Cache: already fully merged — skip (diamond imports).
-    if (import_resolver_visited_contains(&resolver, resolved)) {
         return ResultUnit::Ok;
     }
 
-    let sub_result = import_resolver_parse_file(&resolver, resolved, span);
-    match (sub_result) {
-        ResultProgram::Err(err) {
-            return ResultUnit::Err(err);
-        },
-        ResultProgram::Ok(sub_program) {
-            vector_push(&resolver.stack, resolved);
-            vector_push(&resolver.visited, resolved);
+    fn check_duplicate_methods(
+        str type_name,
+        &TypeMethodNode[] existing,
+        &TypeMethodNode[] added
+    ): ResultUnit {
+        for (let a = 0; a < added.size(); a += 1) {
+            let name = added[a].value.identifier.value;
+            for (let e = 0; e < existing.size(); e += 1) {
+                if (existing[e].value.identifier.value == name) {
+                    return ResultUnit::Err(ParserError.at(
+                        ErrorSeverity::HIGH,
+                        "Redeclaration of method '" + name + "' on type '" + type_name + "'.",
+                        added[a].value.identifier.span
+                    ));
+                }
+            }
+        }
+        return ResultUnit::Ok;
+    }
 
-            let merge_result = import_resolver_merge_program(
-                &resolver,
-                resolved,
-                &sub_program,
-                &merged
-            );
-            if (merge_result matches ResultUnit::Err(err)) {
+    fn merge_program(self, str current_path, &Program program, &Program merged): ResultUnit {
+        for (let i = 0; i < program.functions.size(); i += 1) {
+            let function = program.functions[i];
+            let name = function.value.identifier.value;
+            let collision = ImportResolver.check_collision(name, function.span, &merged);
+            if (collision matches ResultUnit::Err(err)) {
                 return ResultUnit::Err(err);
             }
+            merged.functions.push(function);
+        }
 
-            if (vector_size(&resolver.stack) > 0) {
-                let new_stack: str[] = [];
-                for (let i = 0; i < vector_size(&resolver.stack) - 1; i += 1) {
-                    vector_push(&new_stack, resolver.stack[i]);
+        for (let i = 0; i < program.extern_functions.size(); i += 1) {
+            let extern_function = program.extern_functions[i];
+            let name = extern_function.value.identifier.value;
+            if (extern_function.value.alias matches OptionIdentifierNode::Some(alias)) {
+                name = alias.value;
+            }
+            let collision = ImportResolver.check_collision(name, extern_function.span, &merged);
+            if (collision matches ResultUnit::Err(err)) {
+                return ResultUnit::Err(err);
+            }
+            merged.extern_functions.push(extern_function);
+        }
+
+        for (let i = 0; i < program.declared_types.size(); i += 1) {
+            let declared_type = program.declared_types[i];
+            let name = "";
+            match (declared_type.value) {
+                DeclaredType::Struct(struct_declaration) {
+                    name = struct_declaration.identifier.value;
+                },
+                DeclaredType::Enum(enum_declaration) {
+                    name = enum_declaration.identifier.value;
                 }
-                resolver.stack = new_stack;
+            }
+            let collision = ImportResolver.check_collision(name, declared_type.span, &merged);
+            if (collision matches ResultUnit::Err(err)) {
+                return ResultUnit::Err(err);
+            }
+            merged.declared_types.push(declared_type);
+        }
+
+        for (let i = 0; i < program.interfaces.size(); i += 1) {
+            let interface_decl = program.interfaces[i];
+            let name = interface_decl.value.identifier.value;
+            let collision = ImportResolver.check_collision(name, interface_decl.span, &merged);
+            if (collision matches ResultUnit::Err(err)) {
+                return ResultUnit::Err(err);
+            }
+            merged.interfaces.push(interface_decl);
+        }
+
+        for (let i = 0; i < program.statements.size(); i += 1) {
+            let statement = program.statements[i];
+            if (statement.value matches Statement::Import(path_node)) {
+                let import_result = self.handle_import(
+                    current_path,
+                    path_node.value,
+                    statement.span,
+                    &merged
+                );
+                if (import_result matches ResultUnit::Err(err)) {
+                    return ResultUnit::Err(err);
+                }
+            } else {
+                merged.statements.push(statement);
             }
         }
+
+        merged.extend_blocks.ext(&program.extend_blocks);
+        return ResultUnit::Ok;
     }
 
-    return ResultUnit::Ok;
-}
+    fn handle_import(
+        self,
+        str current_path,
+        str import_path,
+        Span span,
+        &Program merged
+    ): ResultUnit {
+        let base_dir = ImportResolver.path_parent(current_path);
+        let joined = ImportResolver.path_join(base_dir, import_path);
+        let resolved = ImportResolver.normalize_path(joined);
 
-fn import_resolver_parse_file(&ImportResolver resolver, str path, Span import_span): ResultProgram {
-    let overlay_idx = import_resolver_overlay_index(
-        &resolver,
-        import_resolver_normalize_path(path)
-    );
-    let source = "";
-    if (overlay_idx >= 0) {
-        source = resolver.overlay_sources[overlay_idx];
-    } else {
-        if (!exists_file(path)) {
-            return ResultProgram::Err(ParserError.new(
-                ErrorSeverity::HIGH,
-                "File '" + path + "' not found.",
-                import_span
-            ));
-        }
-        source = read_file(path);
-    }
-    let src = LazyStreamReader.new(source, OptionStr::Some(path));
-
-    let options = LexerOptions {
-        max_comment_length: resolver.lexer_options.max_comment_length,
-        max_identifier_length: resolver.lexer_options.max_identifier_length
-    };
-
-    let lexer = Lexer.new(&src, &options);
-    let parser_result = Parser.new(&lexer);
-
-    match (parser_result) {
-        ResultParser::Err(err) {
-            return ResultProgram::Err(err);
-        },
-        ResultParser::Ok(parser) {
-            return parser.parse();
-        }
-    }
-}
-
-fn import_resolver_check_collision(str name, Span span, &Program merged): ResultUnit {
-    for (let i = 0; i < vector_size(&merged.functions); i += 1) {
-        if (merged.functions[i].value.identifier.value == name) {
+        # Cycle detection: path already on the resolution stack.
+        let cycle_pos = self.stack_index(resolved);
+        if (cycle_pos >= 0) {
+            let cycle_chain = "";
+            for (let i = cycle_pos; i < self.stack.size(); i += 1) {
+                if (i != cycle_pos) {
+                    cycle_chain += "\n    ↓\n    ";
+                }
+                cycle_chain += self.stack[i];
+            }
             return ResultUnit::Err(ParserError.new(
                 ErrorSeverity::HIGH,
-                "Redeclaration of '" + name + "' across imported modules.",
+                "Cyclic import detected:\n    "
+                    + cycle_chain
+                    + "\n    ↓\n    "
+                    + resolved
+                    + "\n\n",
                 span
             ));
         }
-    }
 
-    for (let i = 0; i < vector_size(&merged.extern_functions); i += 1) {
-        let declaration = merged.extern_functions[i];
-        let effective_name = declaration.value.identifier.value;
-        if (declaration.value.alias matches OptionIdentifierNode::Some(alias)) {
-            effective_name = alias.value;
+        # Cache: already fully merged — skip (diamond imports).
+        if (self.visited_contains(resolved)) {
+            return ResultUnit::Ok;
         }
-        if (effective_name == name) {
-            return ResultUnit::Err(ParserError.new(
-                ErrorSeverity::HIGH,
-                "Redeclaration of '" + name + "' across imported modules.",
-                span
-            ));
-        }
-    }
 
-    for (let i = 0; i < vector_size(&merged.declared_types); i += 1) {
-        let declared_name = "";
-        match (merged.declared_types[i].value) {
-            DeclaredType::Struct(struct_declaration) {
-                declared_name = struct_declaration.identifier.value;
+        let sub_result = self.parse_file(resolved, span);
+        match (sub_result) {
+            ResultProgram::Err(err) {
+                return ResultUnit::Err(err);
             },
-            DeclaredType::Enum(enum_declaration) {
-                declared_name = enum_declaration.identifier.value;
-            }
-        }
-        if (declared_name == name) {
-            return ResultUnit::Err(ParserError.new(
-                ErrorSeverity::HIGH,
-                "Redeclaration of '" + name + "' across imported modules.",
-                span
-            ));
-        }
-    }
+            ResultProgram::Ok(sub_program) {
+                self.stack.push(resolved);
+                self.visited.push(resolved);
 
-    for (let i = 0; i < vector_size(&merged.interfaces); i += 1) {
-        let interface_decl = merged.interfaces[i];
-        if (interface_decl.value.identifier.value == name) {
-            return ResultUnit::Err(ParserError.new(
-                ErrorSeverity::HIGH,
-                "Redeclaration of '" + name + "' across imported modules.",
-                span
-            ));
-        }
-    }
-
-    return ResultUnit::Ok;
-}
-
-# ---------- path helpers (string-only mirror of Rust normalize_path) ----------
-
-fn import_resolver_normalize_path(str path): str {
-    if (str_len(path) == 0) {
-        return path;
-    }
-
-    let is_absolute = str_starts_with(path, "/");
-    let parts = str_split(path, "/");
-    let stack: str[] = [];
-
-    for (let i = 0; i < vector_size(&parts); i += 1) {
-        let part = parts[i];
-        if (str_len(part) == 0) {} else if (part == ".") {} else if (part == "..") {
-            if (vector_size(&stack) > 0) {
-                let new_stack: str[] = [];
-                for (let j = 0; j < vector_size(&stack) - 1; j += 1) {
-                    vector_push(&new_stack, stack[j]);
+                let merge_result = self.merge_program(resolved, &sub_program, &merged);
+                if (merge_result matches ResultUnit::Err(err)) {
+                    return ResultUnit::Err(err);
                 }
-                stack = new_stack;
+
+                if (self.stack.size() > 0) {
+                    let new_stack: str[] = [];
+                    for (let i = 0; i < self.stack.size() - 1; i += 1) {
+                        new_stack.push(self.stack[i]);
+                    }
+                    self.stack = new_stack;
+                }
             }
+        }
+
+        return ResultUnit::Ok;
+    }
+
+    fn parse_file(self, str path, Span import_span): ResultProgram {
+        let overlay_idx = self.overlay_index(ImportResolver.normalize_path(path));
+        let source = "";
+        if (overlay_idx >= 0) {
+            source = self.overlay_sources[overlay_idx];
         } else {
-            vector_push(&stack, part);
+            if (!exists_file(path)) {
+                return ResultProgram::Err(ParserError.new(
+                    ErrorSeverity::HIGH,
+                    "File '" + path + "' not found.",
+                    import_span
+                ));
+            }
+            source = read_file(path);
+        }
+        let src = LazyStreamReader.new(source, OptionStr::Some(path));
+
+        let options = LexerOptions {
+            max_comment_length: self.lexer_options.max_comment_length,
+            max_identifier_length: self.lexer_options.max_identifier_length
+        };
+
+        let lexer = Lexer.new(&src, &options);
+        let parser_result = Parser.new(&lexer);
+
+        match (parser_result) {
+            ResultParser::Err(err) {
+                return ResultProgram::Err(err);
+            },
+            ResultParser::Ok(parser) {
+                return parser.parse();
+            }
         }
     }
 
-    if (vector_size(&stack) == 0) {
-        if (is_absolute) {
+    fn check_collision(str name, Span span, &Program merged): ResultUnit {
+        for (let i = 0; i < merged.functions.size(); i += 1) {
+            if (merged.functions[i].value.identifier.value == name) {
+                return ResultUnit::Err(ParserError.new(
+                    ErrorSeverity::HIGH,
+                    "Redeclaration of '" + name + "' across imported modules.",
+                    span
+                ));
+            }
+        }
+
+        for (let i = 0; i < merged.extern_functions.size(); i += 1) {
+            let declaration = merged.extern_functions[i];
+            let effective_name = declaration.value.identifier.value;
+            if (declaration.value.alias matches OptionIdentifierNode::Some(alias)) {
+                effective_name = alias.value;
+            }
+            if (effective_name == name) {
+                return ResultUnit::Err(ParserError.new(
+                    ErrorSeverity::HIGH,
+                    "Redeclaration of '" + name + "' across imported modules.",
+                    span
+                ));
+            }
+        }
+
+        for (let i = 0; i < merged.declared_types.size(); i += 1) {
+            let declared_name = "";
+            match (merged.declared_types[i].value) {
+                DeclaredType::Struct(struct_declaration) {
+                    declared_name = struct_declaration.identifier.value;
+                },
+                DeclaredType::Enum(enum_declaration) {
+                    declared_name = enum_declaration.identifier.value;
+                }
+            }
+            if (declared_name == name) {
+                return ResultUnit::Err(ParserError.new(
+                    ErrorSeverity::HIGH,
+                    "Redeclaration of '" + name + "' across imported modules.",
+                    span
+                ));
+            }
+        }
+
+        for (let i = 0; i < merged.interfaces.size(); i += 1) {
+            let interface_decl = merged.interfaces[i];
+            if (interface_decl.value.identifier.value == name) {
+                return ResultUnit::Err(ParserError.new(
+                    ErrorSeverity::HIGH,
+                    "Redeclaration of '" + name + "' across imported modules.",
+                    span
+                ));
+            }
+        }
+
+        return ResultUnit::Ok;
+    }
+
+    fn normalize_path(str path): str {
+        if (path.size() == 0) {
+            return path;
+        }
+
+        let is_absolute = path.starts_with("/");
+        let parts = path.split("/");
+        let stack: str[] = [];
+
+        for (let i = 0; i < parts.size(); i += 1) {
+            let part = parts[i];
+            if (part.size() == 0) {} else if (part == ".") {} else if (part == "..") {
+                if (stack.size() > 0) {
+                    let new_stack: str[] = [];
+                    for (let j = 0; j < stack.size() - 1; j += 1) {
+                        new_stack.push(stack[j]);
+                    }
+                    stack = new_stack;
+                }
+            } else {
+                stack.push(part);
+            }
+        }
+
+        if (stack.size() == 0) {
+            if (is_absolute) {
+                return "/";
+            }
+            return ".";
+        }
+
+        let result = "";
+        for (let i = 0; i < stack.size(); i += 1) {
+            if (i == 0) {
+                if (is_absolute) {
+                    result = "/" + stack[i];
+                } else {
+                    result = stack[i];
+                }
+            } else {
+                result += "/" + stack[i];
+            }
+        }
+        return result;
+    }
+
+    fn path_parent(str path): str {
+        let normalized = ImportResolver.normalize_path(path);
+        let idx = str_last_index_of_char(normalized, '/');
+        if (idx < 0) {
+            return ".";
+        }
+        if (idx == 0) {
             return "/";
         }
-        return ".";
+        return normalized.substring(0, idx);
     }
 
-    let result = "";
-    for (let i = 0; i < vector_size(&stack); i += 1) {
-        if (i == 0) {
-            if (is_absolute) {
-                result = "/" + stack[i];
-            } else {
-                result = stack[i];
+    fn path_join(str base_dir, str relative): str {
+        if (relative.size() == 0) {
+            return base_dir;
+        }
+        if (relative.starts_with("/")) {
+            return relative;
+        }
+        if (base_dir.size() == 0 || base_dir == ".") {
+            return relative;
+        }
+        if (base_dir.ends_with("/")) {
+            return base_dir + relative;
+        }
+        return base_dir + "/" + relative;
+    }
+
+    fn visited_contains(self, str path): bool {
+        for (let i = 0; i < self.visited.size(); i += 1) {
+            if (self.visited[i] == path) {
+                return true;
             }
-        } else {
-            result += "/" + stack[i];
         }
+        return false;
     }
-    return result;
-}
 
-fn import_resolver_path_parent(str path): str {
-    let normalized = import_resolver_normalize_path(path);
-    let idx = str_last_index_of_char(normalized, '/');
-    if (idx < 0) {
-        return ".";
-    }
-    if (idx == 0) {
-        return "/";
-    }
-    return str_substring(normalized, 0, idx);
-}
-
-fn import_resolver_path_join(str base_dir, str relative): str {
-    if (str_len(relative) == 0) {
-        return base_dir;
-    }
-    if (str_starts_with(relative, "/")) {
-        return relative;
-    }
-    if (str_len(base_dir) == 0 || base_dir == ".") {
-        return relative;
-    }
-    if (str_ends_with(base_dir, "/")) {
-        return base_dir + relative;
-    }
-    return base_dir + "/" + relative;
-}
-
-fn import_resolver_visited_contains(&ImportResolver resolver, str path): bool {
-    for (let i = 0; i < vector_size(&resolver.visited); i += 1) {
-        if (resolver.visited[i] == path) {
-            return true;
+    fn stack_index(self, str path): i64 {
+        for (let i = 0; i < self.stack.size(); i += 1) {
+            if (self.stack[i] == path) {
+                return i;
+            }
         }
+        return -1;
     }
-    return false;
-}
-
-fn import_resolver_stack_index(&ImportResolver resolver, str path): i64 {
-    for (let i = 0; i < vector_size(&resolver.stack); i += 1) {
-        if (resolver.stack[i] == path) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-# empty segment from leading / trailing / double slash
-# CurDir — skip
+};

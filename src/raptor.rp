@@ -608,8 +608,8 @@ fn stage_imports(
     f64 total_started
 ): i64 {
     let t = now_ms();
-    let resolver = import_resolver_new(lexer_options);
-    match (import_resolver_resolve(&resolver, opts.path, &program)) {
+    let resolver = ImportResolver.new(&lexer_options);
+    match (resolver.resolve(opts.path, &program)) {
         ResultProgram::Err(err) {
             eprintln(err.get_stderr_message());
             return 1;

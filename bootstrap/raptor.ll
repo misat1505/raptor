@@ -2830,11 +2830,11 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.7238 = private unnamed_addr constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"{\22\00" }
 @.mstr.7239 = private unnamed_addr constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"\22:\00" }
 @.mstr.7241 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"sb\00" }
-@.str.7243 = private unnamed_addr constant [219 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:59:50\0A\0A  59 |             vector_push(&new_frames, self.frames[i]);\0A     |                                                  \1B[1;31m^\1B[0m\0A\00"
-@.str.7245 = private unnamed_addr constant [230 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:65:28\0A\0A  65 |         return self.frames[vector_size(&self.frames) - 1];\0A     |                            \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
-@.str.7247 = private unnamed_addr constant [224 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:69:21\0A\0A  69 |         self.frames[vector_size(&self.frames) - 1] = frame;\0A     |                     \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
-@.str.7249 = private unnamed_addr constant [242 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:84:33\0A\0A  84 |         let last = frame.scopes[vector_size(&frame.scopes) - 1];\0A     |                                 \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
-@.str.7251 = private unnamed_addr constant [221 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:87:51\0A\0A  87 |             vector_push(&new_scopes, frame.scopes[i]);\0A     |                                                   \1B[1;31m^\1B[0m\0A\00"
+@.str.7243 = private unnamed_addr constant [201 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:59:41\0A\0A  59 |             new_frames.push(self.frames[i]);\0A     |                                         \1B[1;31m^\1B[0m\0A\00"
+@.str.7245 = private unnamed_addr constant [216 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:65:28\0A\0A  65 |         return self.frames[self.frames.size() - 1];\0A     |                            \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
+@.str.7247 = private unnamed_addr constant [210 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:69:21\0A\0A  69 |         self.frames[self.frames.size() - 1] = frame;\0A     |                     \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
+@.str.7249 = private unnamed_addr constant [228 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:84:33\0A\0A  84 |         let last = frame.scopes[frame.scopes.size() - 1];\0A     |                                 \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
+@.str.7251 = private unnamed_addr constant [203 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:87:42\0A\0A  87 |             new_scopes.push(frame.scopes[i]);\0A     |                                          \1B[1;31m^\1B[0m\0A\00"
 @.str.7253 = private unnamed_addr constant [203 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:133:34\0A\0A 133 |         let scope = frame.scopes[scope_idx];\0A     |                                  \1B[1;31m^^^^^^^^^\1B[0m\0A\00"
 @.mstr.7257 = private unnamed_addr constant { i64, i64, [28 x i8] } { i64 -1, i64 0, [28 x i8] c"Cannot redeclare variable '\00" }
 @.str.7259 = private unnamed_addr constant [187 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:146:22\0A\0A 146 |         frame.scopes[scope_idx] = scope;\0A     |                      \1B[1;31m^^^^^^^^^\1B[0m\0A\00"
@@ -2846,7 +2846,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.7287 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"Cannot assign '\00" }
 @.mstr.7288 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"' to variable '\00" }
 @.mstr.7289 = private unnamed_addr constant { i64, i64, [37 x i8] } { i64 -1, i64 0, [37 x i8] c"' which was previously declared as '\00" }
-@.str.7293 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:231:34\0A\0A 231 |         let scope = frame.scopes[vector_size(&frame.scopes) - 1];\0A     |                                  \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
+@.str.7293 = private unnamed_addr constant [231 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/stack/stack.rp:231:34\0A\0A 231 |         let scope = frame.scopes[frame.scopes.size() - 1];\0A     |                                  \1B[1;31m^^^^^^^^^^^^^^^^^^^^^^^\1B[0m\0A\00"
 @.mstr.7299 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"Cannot perform \00" }
 @.mstr.7300 = private unnamed_addr constant { i64, i64, [26 x i8] } { i64 -1, i64 0, [26 x i8] c" between values of type '\00" }
 @.mstr.7303 = private unnamed_addr constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"addition\00" }
@@ -2985,49 +2985,49 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.7662 = private unnamed_addr constant { i64, i64, [18 x i8] } { i64 -1, i64 0, [18 x i8] c"' is not an enum.\00" }
 @.mstr.7665 = private unnamed_addr constant { i64, i64, [17 x i8] } { i64 -1, i64 0, [17 x i8] c"Match arm enum '\00" }
 @.mstr.7666 = private unnamed_addr constant { i64, i64, [29 x i8] } { i64 -1, i64 0, [29 x i8] c"' does not match scrutinee '\00" }
-@.str.7670 = private unnamed_addr constant [277 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1388:72\0A\0A 1388 |                                                 program.declared_types[di].span\0A      |                                                                        \1B[1;31m^^\1B[0m\0A\00"
-@.str.7674 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1404:56\0A\0A 1404 |                                             ed.members[vv].span\0A      |                                                        \1B[1;31m^^\1B[0m\0A\00"
-@.str.7677 = private unnamed_addr constant [292 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1408:56\0A\0A 1408 |                                             ed.members[vv].value.member_type matches OptionTypeNode::Some(ptn)\0A      |                                                        \1B[1;31m^^\1B[0m\0A\00"
-@.str.7688 = private unnamed_addr constant [272 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1441:45\0A\0A 1441 |                                             match (ed.members[v].value.member_type) {\0A      |                                             \1B[1;31m^\1B[0m\0A\00"
+@.str.7670 = private unnamed_addr constant [277 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1384:72\0A\0A 1384 |                                                 program.declared_types[di].span\0A      |                                                                        \1B[1;31m^^\1B[0m\0A\00"
+@.str.7674 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1400:56\0A\0A 1400 |                                             ed.members[vv].span\0A      |                                                        \1B[1;31m^^\1B[0m\0A\00"
+@.str.7677 = private unnamed_addr constant [292 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1404:56\0A\0A 1404 |                                             ed.members[vv].value.member_type matches OptionTypeNode::Some(ptn)\0A      |                                                        \1B[1;31m^^\1B[0m\0A\00"
+@.str.7688 = private unnamed_addr constant [272 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1437:45\0A\0A 1437 |                                             match (ed.members[v].value.member_type) {\0A      |                                             \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7690 = private unnamed_addr constant { i64, i64, [10 x i8] } { i64 -1, i64 0, [10 x i8] c"Variant '\00" }
 @.mstr.7691 = private unnamed_addr constant { i64, i64, [26 x i8] } { i64 -1, i64 0, [26 x i8] c"' has no payload to bind.\00" }
 @.mstr.7700 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c", \00" }
 @.mstr.7702 = private unnamed_addr constant { i64, i64, [34 x i8] } { i64 -1, i64 0, [34 x i8] c"Match is non-exhaustive: missing \00" }
 @.mstr.7704 = private unnamed_addr constant { i64, i64, [40 x i8] } { i64 -1, i64 0, [40 x i8] c"Match requires an enum scrutinee, got '\00" }
-@.str.7706 = private unnamed_addr constant [184 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1544:9\0A\0A 1544 |         match (expression.value) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.7706 = private unnamed_addr constant [184 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1540:9\0A\0A 1540 |         match (expression.value) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7720 = private constant { i64, i64, [6 x i8] } { i64 -1, i64 0, [6 x i8] c"logic\00" }
-@.str.7721 = private unnamed_addr constant [211 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1592:17\0A\0A 1592 |                 match (self.read_last(inner.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.7723 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1597:25\0A\0A 1597 |                         match (TypeALU.boolean_negation(t, expression.span)) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
-@.str.7725 = private unnamed_addr constant [211 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1610:17\0A\0A 1610 |                 match (self.read_last(inner.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.7727 = private unnamed_addr constant [248 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1615:25\0A\0A 1615 |                         match (TypeALU.arithmetic_negation(t, expression.span)) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
-@.str.7729 = private unnamed_addr constant [213 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1628:17\0A\0A 1628 |                 match (self.read_last(c.value.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.7731 = private unnamed_addr constant [261 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1633:25\0A\0A 1633 |                         match (self.resolve_type(&program, c.to_type.value, c.to_type.span)) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
-@.str.7733 = private unnamed_addr constant [262 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1638:33\0A\0A 1638 |                                 match (TypeALU.cast(from_ty, to_ty, expression.span)) {\0A      |                                 \1B[1;31m^\1B[0m\0A\00"
-@.str.7737 = private unnamed_addr constant [216 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1678:17\0A\0A 1678 |                 match (program.declared_types[i].value) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.7741 = private unnamed_addr constant [282 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1706:68\0A\0A 1706 |             for (let j = 0; j < vector_size(&program.extend_blocks[i].methods); j += 1) {\0A      |                                                                    \1B[1;31m^\1B[0m\0A\00"
-@.str.7754 = private unnamed_addr constant [236 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1754:13\0A\0A 1754 |             match (self.resolve_type(&program, method.return_type.value, span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.7758 = private unnamed_addr constant [216 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1772:17\0A\0A 1772 |                 match (program.declared_types[i].value) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.7762 = private unnamed_addr constant [302 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1780:85\0A\0A 1780 |                             let method_definition_span = struct_declaration.methods[j].span;\0A      |                                                                                     \1B[1;31m^\1B[0m\0A\00"
-@.str.7772 = private unnamed_addr constant [298 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1846:83\0A\0A 1846 |                             let method_definition_span = enum_declaration.methods[j].span;\0A      |                                                                                   \1B[1;31m^\1B[0m\0A\00"
+@.str.7721 = private unnamed_addr constant [211 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1588:17\0A\0A 1588 |                 match (self.read_last(inner.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7723 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1593:25\0A\0A 1593 |                         match (TypeALU.boolean_negation(t, expression.span)) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
+@.str.7725 = private unnamed_addr constant [211 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1606:17\0A\0A 1606 |                 match (self.read_last(inner.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7727 = private unnamed_addr constant [248 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1611:25\0A\0A 1611 |                         match (TypeALU.arithmetic_negation(t, expression.span)) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
+@.str.7729 = private unnamed_addr constant [213 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1624:17\0A\0A 1624 |                 match (self.read_last(c.value.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7731 = private unnamed_addr constant [261 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1629:25\0A\0A 1629 |                         match (self.resolve_type(&program, c.to_type.value, c.to_type.span)) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
+@.str.7733 = private unnamed_addr constant [262 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1634:33\0A\0A 1634 |                                 match (TypeALU.cast(from_ty, to_ty, expression.span)) {\0A      |                                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7737 = private unnamed_addr constant [216 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1674:17\0A\0A 1674 |                 match (program.declared_types[i].value) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7741 = private unnamed_addr constant [262 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1702:55\0A\0A 1702 |             for (let j = 0; j < program.extend_blocks[i].methods.size(); j += 1) {\0A      |                                                       \1B[1;31m^\1B[0m\0A\00"
+@.str.7754 = private unnamed_addr constant [236 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1750:13\0A\0A 1750 |             match (self.resolve_type(&program, method.return_type.value, span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.7758 = private unnamed_addr constant [216 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1768:17\0A\0A 1768 |                 match (program.declared_types[i].value) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7762 = private unnamed_addr constant [302 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1776:85\0A\0A 1776 |                             let method_definition_span = struct_declaration.methods[j].span;\0A      |                                                                                     \1B[1;31m^\1B[0m\0A\00"
+@.str.7772 = private unnamed_addr constant [298 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1842:83\0A\0A 1842 |                             let method_definition_span = enum_declaration.methods[j].span;\0A      |                                                                                   \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7776 = private unnamed_addr constant { i64, i64, [25 x i8] } { i64 -1, i64 0, [25 x i8] c"' is not a static method\00" }
-@.str.7782 = private unnamed_addr constant [224 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1918:21\0A\0A 1918 |                     match (program.declared_types[i].value) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
-@.str.7786 = private unnamed_addr constant [310 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1926:89\0A\0A 1926 |                                 let method_definition_span = struct_declaration.methods[j].span;\0A      |                                                                                         \1B[1;31m^\1B[0m\0A\00"
-@.str.7796 = private unnamed_addr constant [306 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1992:87\0A\0A 1992 |                                 let method_definition_span = enum_declaration.methods[j].span;\0A      |                                                                                       \1B[1;31m^\1B[0m\0A\00"
+@.str.7782 = private unnamed_addr constant [224 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:1914:21\0A\0A 1914 |                     match (program.declared_types[i].value) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.7786 = private unnamed_addr constant [310 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1922:89\0A\0A 1922 |                                 let method_definition_span = struct_declaration.methods[j].span;\0A      |                                                                                         \1B[1;31m^\1B[0m\0A\00"
+@.str.7796 = private unnamed_addr constant [306 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:1988:87\0A\0A 1988 |                                 let method_definition_span = enum_declaration.methods[j].span;\0A      |                                                                                       \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7799 = private constant { i64, i64, [12 x i8] } { i64 -1, i64 0, [12 x i8] c"' on type '\00" }
 @.mstr.7800 = private unnamed_addr constant { i64, i64, [21 x i8] } { i64 -1, i64 0, [21 x i8] c"' is a static method\00" }
 @.mstr.7801 = private constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"Method '\00" }
 @.mstr.7802 = private unnamed_addr constant { i64, i64, [26 x i8] } { i64 -1, i64 0, [26 x i8] c"' doesn't exist on type '\00" }
-@.str.7804 = private unnamed_addr constant [188 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2056:17\0A\0A 2056 |                 match (imc) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7804 = private unnamed_addr constant [188 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2052:17\0A\0A 2052 |                 match (imc) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7806 = private constant { i64, i64, [30 x i8] } { i64 -1, i64 0, [30 x i8] c"Cannot call methods on type '\00" }
 @.mstr.7807 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"'.\00" }
 @.mstr.7809 = private constant { i64, i64, [22 x i8] } { i64 -1, i64 0, [22 x i8] c"' not found on type '\00" }
 @.mstr.7810 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"'.\00" }
-@.str.7811 = private unnamed_addr constant [171 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2099:9\0A\0A 2099 |         match (lit) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
-@.str.7813 = private unnamed_addr constant [197 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2122:9\0A\0A 2122 |         match (self.stack.get_variable(name)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.7811 = private unnamed_addr constant [171 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2095:9\0A\0A 2095 |         match (lit) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.7813 = private unnamed_addr constant [197 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2118:9\0A\0A 2118 |         match (self.stack.get_variable(name)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7815 = private unnamed_addr constant { i64, i64, [11 x i8] } { i64 -1, i64 0, [11 x i8] c"Variable '\00" }
 @.mstr.7816 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"' not declared.\00" }
-@.str.7817 = private unnamed_addr constant [197 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2149:9\0A\0A 2149 |         match (self.read_last(bin.left.span)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
-@.str.7819 = private unnamed_addr constant [215 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2156:17\0A\0A 2156 |                 match (self.read_last(bin.right.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7817 = private unnamed_addr constant [197 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2145:9\0A\0A 2145 |         match (self.read_last(bin.left.span)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.7819 = private unnamed_addr constant [215 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2152:17\0A\0A 2152 |                 match (self.read_last(bin.right.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7821 = private unnamed_addr constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"internal\00" }
 @.mstr.7822 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"add\00" }
 @.mstr.7823 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"sub\00" }
@@ -3035,89 +3035,89 @@ target triple = "x86_64-unknown-linux-gnu"
 @.mstr.7825 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"div\00" }
 @.mstr.7826 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"mod\00" }
 @.mstr.7827 = private constant { i64, i64, [4 x i8] } { i64 -1, i64 0, [4 x i8] c"cmp\00" }
-@.str.7829 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2183:25\0A\0A 2183 |                         match (result) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
-@.str.7831 = private unnamed_addr constant [200 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2199:9\0A\0A 2199 |         match (self.read_last(fa.instance.span)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
-@.str.7833 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2205:21\0A\0A 2205 |                     match (SemanticChecker.lookup_struct(&program, struct_name)) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
-@.str.7841 = private unnamed_addr constant [222 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2220:37\0A\0A 2220 |                                     match (\0A      |                                     \1B[1;31m^\1B[0m\0A\00"
-@.str.7843 = private unnamed_addr constant [266 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2234:59\0A\0A 2234 |                                                 s.members[m].value.identifier.span\0A      |                                                           \1B[1;31m^\1B[0m\0A\00"
+@.str.7829 = private unnamed_addr constant [207 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2179:25\0A\0A 2179 |                         match (result) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
+@.str.7831 = private unnamed_addr constant [200 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2195:9\0A\0A 2195 |         match (self.read_last(fa.instance.span)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.7833 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2201:21\0A\0A 2201 |                     match (SemanticChecker.lookup_struct(&program, struct_name)) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.7841 = private unnamed_addr constant [222 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2216:37\0A\0A 2216 |                                     match (\0A      |                                     \1B[1;31m^\1B[0m\0A\00"
+@.str.7843 = private unnamed_addr constant [266 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2230:59\0A\0A 2230 |                                                 s.members[m].value.identifier.span\0A      |                                                           \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7848 = private unnamed_addr constant { i64, i64, [30 x i8] } { i64 -1, i64 0, [30 x i8] c"Cannot access field on type '\00" }
-@.str.7850 = private unnamed_addr constant [203 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2271:9\0A\0A 2271 |         match (self.read_last(idx.collection.span)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
-@.str.7852 = private unnamed_addr constant [215 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2277:17\0A\0A 2277 |                 match (self.read_last(idx.index.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7850 = private unnamed_addr constant [203 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2267:9\0A\0A 2267 |         match (self.read_last(idx.collection.span)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.7852 = private unnamed_addr constant [215 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2273:17\0A\0A 2273 |                 match (self.read_last(idx.index.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7854 = private unnamed_addr constant { i64, i64, [35 x i8] } { i64 -1, i64 0, [35 x i8] c"Array index must be of type `i64`.\00" }
 @.mstr.7855 = private unnamed_addr constant { i64, i64, [20 x i8] } { i64 -1, i64 0, [20 x i8] c"Cannot index type '\00" }
-@.str.7857 = private unnamed_addr constant [228 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2319:50\0A\0A 2319 |         self.visit_expression(&program, elements[0]);\0A      |                                                  \1B[1;31m^\1B[0m\0A\00"
-@.str.7859 = private unnamed_addr constant [215 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2320:40\0A\0A 2320 |         match (self.read_last(elements[0].span)) {\0A      |                                        \1B[1;31m^\1B[0m\0A\00"
-@.str.7861 = private unnamed_addr constant [200 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2320:9\0A\0A 2320 |         match (self.read_last(elements[0].span)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
-@.str.7865 = private unnamed_addr constant [239 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2327:52\0A\0A 2327 |                     match (self.read_last(elements[i].span)) {\0A      |                                                    \1B[1;31m^\1B[0m\0A\00"
-@.str.7867 = private unnamed_addr constant [225 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2327:21\0A\0A 2327 |                     match (self.read_last(elements[i].span)) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.7857 = private unnamed_addr constant [228 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2315:50\0A\0A 2315 |         self.visit_expression(&program, elements[0]);\0A      |                                                  \1B[1;31m^\1B[0m\0A\00"
+@.str.7859 = private unnamed_addr constant [215 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2316:40\0A\0A 2316 |         match (self.read_last(elements[0].span)) {\0A      |                                        \1B[1;31m^\1B[0m\0A\00"
+@.str.7861 = private unnamed_addr constant [200 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2316:9\0A\0A 2316 |         match (self.read_last(elements[0].span)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.7865 = private unnamed_addr constant [239 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2323:52\0A\0A 2323 |                     match (self.read_last(elements[i].span)) {\0A      |                                                    \1B[1;31m^\1B[0m\0A\00"
+@.str.7867 = private unnamed_addr constant [225 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2323:21\0A\0A 2323 |                     match (self.read_last(elements[i].span)) {\0A      |                     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7869 = private unnamed_addr constant { i64, i64, [49 x i8] } { i64 -1, i64 0, [49 x i8] c"Vector literal elements must have the same type.\00" }
-@.str.7870 = private unnamed_addr constant [231 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2339:50\0A\0A 2339 |                                         elements[i].span\0A      |                                                  \1B[1;31m^\1B[0m\0A\00"
-@.str.7872 = private unnamed_addr constant [220 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2353:9\0A\0A 2353 |         match (SemanticChecker.lookup_struct(&program, struct_name)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.7870 = private unnamed_addr constant [231 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2335:50\0A\0A 2335 |                                         elements[i].span\0A      |                                                  \1B[1;31m^\1B[0m\0A\00"
+@.str.7872 = private unnamed_addr constant [220 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2349:9\0A\0A 2349 |         match (SemanticChecker.lookup_struct(&program, struct_name)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7874 = private unnamed_addr constant { i64, i64, [17 x i8] } { i64 -1, i64 0, [17 x i8] c"Unknown struct '\00" }
-@.str.7878 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2369:56\0A\0A 2369 |                                 program.declared_types[di].span\0A      |                                                        \1B[1;31m^^\1B[0m\0A\00"
+@.str.7878 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2365:56\0A\0A 2365 |                                 program.declared_types[di].span\0A      |                                                        \1B[1;31m^^\1B[0m\0A\00"
 @.mstr.7885 = private unnamed_addr constant { i64, i64, [31 x i8] } { i64 -1, i64 0, [31 x i8] c"` is specified more than once.\00" }
 @.mstr.7890 = private unnamed_addr constant { i64, i64, [9 x i8] } { i64 -1, i64 0, [9 x i8] c"Struct '\00" }
 @.mstr.7891 = private unnamed_addr constant { i64, i64, [17 x i8] } { i64 -1, i64 0, [17 x i8] c"' has no field '\00" }
-@.str.7893 = private unnamed_addr constant [239 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2410:25\0A\0A 2410 |                         match (self.read_last(field.value.value.span)) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
-@.str.7895 = private unnamed_addr constant [266 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2415:33\0A\0A 2415 |                                 match (self.resolve_type(&program, expected, field.span)) {\0A      |                                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7893 = private unnamed_addr constant [239 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2406:25\0A\0A 2406 |                         match (self.read_last(field.value.value.span)) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
+@.str.7895 = private unnamed_addr constant [266 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2411:33\0A\0A 2411 |                                 match (self.resolve_type(&program, expected, field.span)) {\0A      |                                 \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7897 = private unnamed_addr constant { i64, i64, [32 x i8] } { i64 -1, i64 0, [32 x i8] c"Cannot assign a value of type `\00" }
 @.mstr.7898 = private unnamed_addr constant { i64, i64, [13 x i8] } { i64 -1, i64 0, [13 x i8] c"` to field `\00" }
 @.mstr.7899 = private unnamed_addr constant { i64, i64, [14 x i8] } { i64 -1, i64 0, [14 x i8] c"` of struct `\00" }
 @.mstr.7905 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"Missing field `\00" }
 @.mstr.7906 = private unnamed_addr constant { i64, i64, [29 x i8] } { i64 -1, i64 0, [29 x i8] c"` in initializer of struct `\00" }
 @.mstr.7907 = private unnamed_addr constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"`.\00" }
-@.str.7908 = private unnamed_addr constant [216 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2472:9\0A\0A 2472 |         match (SemanticChecker.lookup_enum(&program, enum_name)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
+@.str.7908 = private unnamed_addr constant [216 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2468:9\0A\0A 2468 |         match (SemanticChecker.lookup_enum(&program, enum_name)) {\0A      |         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7910 = private unnamed_addr constant { i64, i64, [15 x i8] } { i64 -1, i64 0, [15 x i8] c"Unknown enum '\00" }
 @.mstr.7916 = private unnamed_addr constant { i64, i64, [18 x i8] } { i64 -1, i64 0, [18 x i8] c"Unknown variant '\00" }
 @.mstr.7917 = private unnamed_addr constant { i64, i64, [12 x i8] } { i64 -1, i64 0, [12 x i8] c"' on enum '\00" }
-@.str.7921 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2511:56\0A\0A 2511 |                                 program.declared_types[di].span\0A      |                                                        \1B[1;31m^^\1B[0m\0A\00"
-@.str.7925 = private unnamed_addr constant [293 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2519:79\0A\0A 2519 |                         self.push_definition(el.variant_name.span, ed.members[mi].span);\0A      |                                                                               \1B[1;31m^^\1B[0m\0A\00"
-@.str.7928 = private unnamed_addr constant [263 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2521:40\0A\0A 2521 |                         if (ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)) {\0A      |                                        \1B[1;31m^^\1B[0m\0A\00"
+@.str.7921 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2507:56\0A\0A 2507 |                                 program.declared_types[di].span\0A      |                                                        \1B[1;31m^^\1B[0m\0A\00"
+@.str.7925 = private unnamed_addr constant [293 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2515:79\0A\0A 2515 |                         self.push_definition(el.variant_name.span, ed.members[mi].span);\0A      |                                                                               \1B[1;31m^^\1B[0m\0A\00"
+@.str.7928 = private unnamed_addr constant [263 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2517:40\0A\0A 2517 |                         if (ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)) {\0A      |                                        \1B[1;31m^^\1B[0m\0A\00"
 @.mstr.7932 = private unnamed_addr constant { i64, i64, [16 x i8] } { i64 -1, i64 0, [16 x i8] c"```raptor\0Aenum \00" }
 @.mstr.7933 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"::\00" }
 @.mstr.7934 = private unnamed_addr constant { i64, i64, [5 x i8] } { i64 -1, i64 0, [5 x i8] c"\0A```\00" }
-@.str.7935 = private unnamed_addr constant [201 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2538:17\0A\0A 2538 |                 match (expected_payload) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.7937 = private unnamed_addr constant [217 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2540:25\0A\0A 2540 |                         match (el.variant_value) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
+@.str.7935 = private unnamed_addr constant [201 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2534:17\0A\0A 2534 |                 match (expected_payload) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7937 = private unnamed_addr constant [217 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2536:25\0A\0A 2536 |                         match (el.variant_value) {\0A      |                         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7941 = private unnamed_addr constant { i64, i64, [27 x i8] } { i64 -1, i64 0, [27 x i8] c"' expected value of type '\00" }
-@.str.7943 = private unnamed_addr constant [242 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2558:33\0A\0A 2558 |                                 match (self.read_last(expr.span)) {\0A      |                                 \1B[1;31m^\1B[0m\0A\00"
-@.str.7945 = private unnamed_addr constant [281 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2563:41\0A\0A 2563 |                                         match (self.resolve_type(&program, tn.value, expr.span)) {\0A      |                                         \1B[1;31m^\1B[0m\0A\00"
+@.str.7943 = private unnamed_addr constant [242 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2554:33\0A\0A 2554 |                                 match (self.read_last(expr.span)) {\0A      |                                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7945 = private unnamed_addr constant [281 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2559:41\0A\0A 2559 |                                         match (self.resolve_type(&program, tn.value, expr.span)) {\0A      |                                         \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7949 = private constant { i64, i64, [26 x i8] } { i64 -1, i64 0, [26 x i8] c"' expects value of type '\00" }
 @.mstr.7951 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"'.\00" }
-@.str.7952 = private unnamed_addr constant [234 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2595:29\0A\0A 2595 |                             match (self.read_last(expr.span)) {\0A      |                             \1B[1;31m^\1B[0m\0A\00"
+@.str.7952 = private unnamed_addr constant [234 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2591:29\0A\0A 2591 |                             match (self.read_last(expr.span)) {\0A      |                             \1B[1;31m^\1B[0m\0A\00"
 @.mstr.7954 = private constant { i64, i64, [7 x i8] } { i64 -1, i64 0, [7 x i8] c"Enum '\00" }
 @.mstr.7955 = private constant { i64, i64, [12 x i8] } { i64 -1, i64 0, [12 x i8] c"' variant '\00" }
 @.mstr.7956 = private unnamed_addr constant { i64, i64, [39 x i8] } { i64 -1, i64 0, [39 x i8] c"' doesn't expect any value. Provided '\00" }
-@.str.7960 = private unnamed_addr constant [290 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2630:78\0A\0A 2630 |                 found_fn = OptionFunctionDeclaration::Some(program.functions[i].value);\0A      |                                                                              \1B[1;31m^\1B[0m\0A\00"
-@.str.7966 = private unnamed_addr constant [236 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2655:43\0A\0A 2655 |                         program.functions[fi].value.identifier.span\0A      |                                           \1B[1;31m^^\1B[0m\0A\00"
-@.str.7968 = private unnamed_addr constant [247 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2660:13\0A\0A 2660 |             match (self.resolve_type(&program, fd.return_type.value, fd.return_type.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.7974 = private unnamed_addr constant [276 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2690:51\0A\0A 2690 |                 if (self.read_last(call.arguments[i].value.value.span) matches ResultType::Err(e)) {\0A      |                                                   \1B[1;31m^\1B[0m\0A\00"
-@.str.7976 = private unnamed_addr constant [222 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2694:13\0A\0A 2694 |             match (self.resolve_type(&program, extern_ret, span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.7980 = private unnamed_addr constant [255 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2713:54\0A\0A 2713 |                 match (self.read_last(call.arguments[i].value.value.span)) {\0A      |                                                      \1B[1;31m^\1B[0m\0A\00"
-@.str.7982 = private unnamed_addr constant [235 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2713:17\0A\0A 2713 |                 match (self.read_last(call.arguments[i].value.value.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.7984 = private unnamed_addr constant [232 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2719:45\0A\0A 2719 |                             &call.arguments[i].value.passed_by\0A      |                                             \1B[1;31m^\1B[0m\0A\00"
-@.str.7986 = private unnamed_addr constant [298 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2721:85\0A\0A 2721 |                         let parameter_passed_by = passed_by_debug(&std_fn.passed_by[i]);\0A      |                                                                                     \1B[1;31m^\1B[0m\0A\00"
-@.str.7992 = private unnamed_addr constant [235 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2734:52\0A\0A 2734 |                                     call.arguments[i].span\0A      |                                                    \1B[1;31m^\1B[0m\0A\00"
-@.str.7994 = private unnamed_addr constant [258 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2741:56\0A\0A 2741 |                 vector_push(&arg_exprs, call.arguments[i].value.value.value);\0A      |                                                        \1B[1;31m^\1B[0m\0A\00"
-@.str.7996 = private unnamed_addr constant [245 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2742:56\0A\0A 2742 |                 vector_push(&arg_spans, call.arguments[i].span);\0A      |                                                        \1B[1;31m^\1B[0m\0A\00"
-@.str.7998 = private unnamed_addr constant [182 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2746:17\0A\0A 2746 |                 match (\0A      |                 \1B[1;31m^\1B[0m\0A\00"
-@.str.8002 = private unnamed_addr constant [268 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2763:47\0A\0A 2763 |             if (self.read_last(call.arguments[i].value.value.span) matches ResultType::Err(e)) {\0A      |                                               \1B[1;31m^\1B[0m\0A\00"
+@.str.7960 = private unnamed_addr constant [290 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2626:78\0A\0A 2626 |                 found_fn = OptionFunctionDeclaration::Some(program.functions[i].value);\0A      |                                                                              \1B[1;31m^\1B[0m\0A\00"
+@.str.7966 = private unnamed_addr constant [236 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2651:43\0A\0A 2651 |                         program.functions[fi].value.identifier.span\0A      |                                           \1B[1;31m^^\1B[0m\0A\00"
+@.str.7968 = private unnamed_addr constant [247 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2656:13\0A\0A 2656 |             match (self.resolve_type(&program, fd.return_type.value, fd.return_type.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.7974 = private unnamed_addr constant [276 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2686:51\0A\0A 2686 |                 if (self.read_last(call.arguments[i].value.value.span) matches ResultType::Err(e)) {\0A      |                                                   \1B[1;31m^\1B[0m\0A\00"
+@.str.7976 = private unnamed_addr constant [222 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2690:13\0A\0A 2690 |             match (self.resolve_type(&program, extern_ret, span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.7980 = private unnamed_addr constant [255 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2709:54\0A\0A 2709 |                 match (self.read_last(call.arguments[i].value.value.span)) {\0A      |                                                      \1B[1;31m^\1B[0m\0A\00"
+@.str.7982 = private unnamed_addr constant [235 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2709:17\0A\0A 2709 |                 match (self.read_last(call.arguments[i].value.value.span)) {\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.7984 = private unnamed_addr constant [232 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2715:45\0A\0A 2715 |                             &call.arguments[i].value.passed_by\0A      |                                             \1B[1;31m^\1B[0m\0A\00"
+@.str.7986 = private unnamed_addr constant [298 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2717:85\0A\0A 2717 |                         let parameter_passed_by = passed_by_debug(&std_fn.passed_by[i]);\0A      |                                                                                     \1B[1;31m^\1B[0m\0A\00"
+@.str.7992 = private unnamed_addr constant [235 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2730:52\0A\0A 2730 |                                     call.arguments[i].span\0A      |                                                    \1B[1;31m^\1B[0m\0A\00"
+@.str.7994 = private unnamed_addr constant [240 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2737:47\0A\0A 2737 |                 arg_exprs.push(call.arguments[i].value.value.value);\0A      |                                               \1B[1;31m^\1B[0m\0A\00"
+@.str.7996 = private unnamed_addr constant [227 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2738:47\0A\0A 2738 |                 arg_spans.push(call.arguments[i].span);\0A      |                                               \1B[1;31m^\1B[0m\0A\00"
+@.str.7998 = private unnamed_addr constant [182 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2742:17\0A\0A 2742 |                 match (\0A      |                 \1B[1;31m^\1B[0m\0A\00"
+@.str.8002 = private unnamed_addr constant [268 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2759:47\0A\0A 2759 |             if (self.read_last(call.arguments[i].value.value.span) matches ResultType::Err(e)) {\0A      |                                               \1B[1;31m^\1B[0m\0A\00"
 @.mstr.8004 = private unnamed_addr constant { i64, i64, [19 x i8] } { i64 -1, i64 0, [19 x i8] c"Unknown function '\00" }
 @.mstr.8006 = private unnamed_addr constant { i64, i64, [11 x i8] } { i64 -1, i64 0, [11 x i8] c"Function '\00" }
 @.mstr.8007 = private unnamed_addr constant { i64, i64, [11 x i8] } { i64 -1, i64 0, [11 x i8] c"' expects \00" }
-@.str.8012 = private unnamed_addr constant [250 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2802:55\0A\0A 2802 |             self.visit_expression(&program, arguments[i].value.value);\0A      |                                                       \1B[1;31m^\1B[0m\0A\00"
-@.str.8014 = private unnamed_addr constant [237 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2804:45\0A\0A 2804 |             match (self.read_last(arguments[i].value.value.span)) {\0A      |                                             \1B[1;31m^\1B[0m\0A\00"
-@.str.8016 = private unnamed_addr constant [222 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2804:13\0A\0A 2804 |             match (self.read_last(arguments[i].value.value.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
-@.str.8018 = private unnamed_addr constant [234 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2812:40\0A\0A 2812 |                             parameters[i].value.parameter_type.value,\0A      |                                        \1B[1;31m^\1B[0m\0A\00"
-@.str.8022 = private unnamed_addr constant [190 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2809:21\0A\0A 2809 |                     match (\0A      |                     \1B[1;31m^\1B[0m\0A\00"
+@.str.8012 = private unnamed_addr constant [250 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2798:55\0A\0A 2798 |             self.visit_expression(&program, arguments[i].value.value);\0A      |                                                       \1B[1;31m^\1B[0m\0A\00"
+@.str.8014 = private unnamed_addr constant [237 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2800:45\0A\0A 2800 |             match (self.read_last(arguments[i].value.value.span)) {\0A      |                                             \1B[1;31m^\1B[0m\0A\00"
+@.str.8016 = private unnamed_addr constant [222 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2800:13\0A\0A 2800 |             match (self.read_last(arguments[i].value.value.span)) {\0A      |             \1B[1;31m^\1B[0m\0A\00"
+@.str.8018 = private unnamed_addr constant [234 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2808:40\0A\0A 2808 |                             parameters[i].value.parameter_type.value,\0A      |                                        \1B[1;31m^\1B[0m\0A\00"
+@.str.8022 = private unnamed_addr constant [190 x i8] c"\1B[1;31merror\1B[0m: Non-exhaustive match: no arm matched.\0A  --> src/semantic-checker/semantic-checker.rp:2805:21\0A\0A 2805 |                     match (\0A      |                     \1B[1;31m^\1B[0m\0A\00"
 @.mstr.8024 = private unnamed_addr constant { i64, i64, [36 x i8] } { i64 -1, i64 0, [36 x i8] c"Argument type mismatch in call to '\00" }
 @.mstr.8025 = private constant { i64, i64, [3 x i8] } { i64 -1, i64 0, [3 x i8] c"'.\00" }
-@.str.8026 = private unnamed_addr constant [233 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2827:51\0A\0A 2827 |                                         arguments[i].span\0A      |                                                   \1B[1;31m^\1B[0m\0A\00"
-@.str.8028 = private unnamed_addr constant [279 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2832:64\0A\0A 2832 |                             let argument_passed_by = arguments[i].value.passed_by.debug();\0A      |                                                                \1B[1;31m^\1B[0m\0A\00"
-@.str.8030 = private unnamed_addr constant [283 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2833:66\0A\0A 2833 |                             let parameter_passed_by = parameters[i].value.passed_by.debug();\0A      |                                                                  \1B[1;31m^\1B[0m\0A\00"
+@.str.8026 = private unnamed_addr constant [233 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2823:51\0A\0A 2823 |                                         arguments[i].span\0A      |                                                   \1B[1;31m^\1B[0m\0A\00"
+@.str.8028 = private unnamed_addr constant [279 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2828:64\0A\0A 2828 |                             let argument_passed_by = arguments[i].value.passed_by.debug();\0A      |                                                                \1B[1;31m^\1B[0m\0A\00"
+@.str.8030 = private unnamed_addr constant [283 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2829:66\0A\0A 2829 |                             let parameter_passed_by = parameters[i].value.passed_by.debug();\0A      |                                                                  \1B[1;31m^\1B[0m\0A\00"
 @.mstr.8032 = private unnamed_addr constant { i64, i64, [44 x i8] } { i64 -1, i64 0, [44 x i8] c"Argument passing mode mismatch in call to '\00" }
 @.mstr.8033 = private unnamed_addr constant { i64, i64, [13 x i8] } { i64 -1, i64 0, [13 x i8] c"': expected \00" }
 @.mstr.8034 = private unnamed_addr constant { i64, i64, [7 x i8] } { i64 -1, i64 0, [7 x i8] c", got \00" }
-@.str.8036 = private unnamed_addr constant [233 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2846:51\0A\0A 2846 |                                         arguments[i].span\0A      |                                                   \1B[1;31m^\1B[0m\0A\00"
+@.str.8036 = private unnamed_addr constant [233 x i8] c"\1B[1;31merror\1B[0m: Index out of bounds.\0A  --> src/semantic-checker/semantic-checker.rp:2842:51\0A\0A 2842 |                                         arguments[i].span\0A      |                                                   \1B[1;31m^\1B[0m\0A\00"
 @.mstr.8038 = private unnamed_addr constant { i64, i64, [37 x i8] } { i64 -1, i64 0, [37 x i8] c"Invalid usage of built-in function '\00" }
 @.mstr.8039 = private unnamed_addr constant { i64, i64, [13 x i8] } { i64 -1, i64 0, [13 x i8] c"'. Expected \00" }
 @.mstr.8041 = private unnamed_addr constant { i64, i64, [19 x i8] } { i64 -1, i64 0, [19 x i8] c" argument(s), got \00" }
@@ -610961,7 +610961,7 @@ for.body.14944:                                   ; preds = %if.end.14942, %vec.
 
 diag.err.14947:                                   ; preds = %for.body.14944
   %t104799 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7243, i64 218, i64 1, ptr %t104799) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7243, i64 200, i64 1, ptr %t104799) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611100,7 +611100,7 @@ entry:
 
 diag.err.14951:                                   ; preds = %entry
   %t104844 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611153,7 +611153,7 @@ rt_retain.exit:                                   ; preds = %entry, %chk.i, %inc
 
 diag.err.14953:                                   ; preds = %rt_retain.exit
   %t104867 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 223, i64 1, ptr %t104867) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 209, i64 1, ptr %t104867) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611208,7 +611208,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611324,7 +611324,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i16, %copy.st
 
 diag.err.14953.i:                                 ; preds = %rt_retain.exit.i
   %t104867.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 223, i64 1, ptr %t104867.i) #29
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 209, i64 1, ptr %t104867.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611435,7 +611435,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611516,7 +611516,7 @@ if.end.14959:                                     ; preds = %StaticCheckerStack_
 
 diag.err.14960:                                   ; preds = %if.end.14959
   %t104939 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.7249, i64 241, i64 1, ptr %t104939) #29
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.7249, i64 227, i64 1, ptr %t104939) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611567,7 +611567,7 @@ for.body.14963:                                   ; preds = %rt_retain.exit31, %
 
 diag.err.14966:                                   ; preds = %for.body.14963
   %t104970 = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.7251, i64 220, i64 1, ptr %t104970) #29
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.7251, i64 202, i64 1, ptr %t104970) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611728,7 +611728,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i79, %chk.i.i
 
 diag.err.14953.i:                                 ; preds = %rt_retain.exit.i
   %t104867.i = load ptr, ptr @stderr, align 8
-  %5 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 223, i64 1, ptr %t104867.i) #29
+  %5 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 209, i64 1, ptr %t104867.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611900,7 +611900,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -611977,7 +611977,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i13, %copy.st
 
 diag.err.14953.i:                                 ; preds = %rt_retain.exit.i
   %t104867.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 223, i64 1, ptr %t104867.i) #29
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 209, i64 1, ptr %t104867.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -612088,7 +612088,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -612173,7 +612173,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i13, %copy.st
 
 diag.err.14953.i:                                 ; preds = %rt_retain.exit.i
   %t104867.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 223, i64 1, ptr %t104867.i) #29
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 209, i64 1, ptr %t104867.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -612284,7 +612284,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -612361,7 +612361,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i13, %copy.st
 
 diag.err.14953.i:                                 ; preds = %rt_retain.exit.i
   %t104867.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 223, i64 1, ptr %t104867.i) #29
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 209, i64 1, ptr %t104867.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -612472,7 +612472,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -612557,7 +612557,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i13, %copy.st
 
 diag.err.14953.i:                                 ; preds = %rt_retain.exit.i
   %t104867.i = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 223, i64 1, ptr %t104867.i) #29
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 209, i64 1, ptr %t104867.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -612668,7 +612668,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -612740,7 +612740,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -612812,7 +612812,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -613390,7 +613390,7 @@ rt_retain.exit.i193:                              ; preds = %inc.i.i191, %copy.s
 
 diag.err.14953.i:                                 ; preds = %rt_retain.exit.i193
   %t104867.i = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 223, i64 1, ptr %t104867.i) #29
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 209, i64 1, ptr %t104867.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -613527,7 +613527,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -613787,7 +613787,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -614047,7 +614047,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -614266,7 +614266,7 @@ rt_retain.exit.i:                                 ; preds = %inc.i.i34, %copy.st
 
 diag.err.14953.i:                                 ; preds = %rt_retain.exit.i
   %t104867.i = load ptr, ptr @stderr, align 8
-  %4 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 223, i64 1, ptr %t104867.i) #29
+  %4 = tail call i64 @fwrite(ptr nonnull @.str.7247, i64 209, i64 1, ptr %t104867.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -614449,7 +614449,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -615465,7 +615465,7 @@ entry:
 
 diag.err.14951.i:                                 ; preds = %entry
   %t104844.i = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -615546,7 +615546,7 @@ if.end.15066:                                     ; preds = %StaticCheckerStack_
 
 diag.err.15067:                                   ; preds = %if.end.15066
   %t105730 = load ptr, ptr @stderr, align 8
-  %2 = tail call i64 @fwrite(ptr nonnull @.str.7293, i64 244, i64 1, ptr %t105730) #29
+  %2 = tail call i64 @fwrite(ptr nonnull @.str.7293, i64 230, i64 1, ptr %t105730) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -643280,7 +643280,7 @@ match.arm.15913:                                  ; preds = %entry
 
 diag.err.14951.i.i:                               ; preds = %match.arm.15913
   %t104844.i.i = load ptr, ptr @stderr, align 8
-  %1 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i.i) #29
+  %1 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i.i) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -643614,7 +643614,7 @@ match.arm.15914:                                  ; preds = %entry
 
 diag.err.14951.i.i587:                            ; preds = %match.arm.15914
   %t104844.i.i588 = load ptr, ptr @stderr, align 8
-  %3 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 229, i64 1, ptr %t104844.i.i588) #29
+  %3 = tail call i64 @fwrite(ptr nonnull @.str.7245, i64 215, i64 1, ptr %t104844.i.i588) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -668542,7 +668542,7 @@ match.end.16438:                                  ; preds = %dofree.i126, %dec.i
 
 define noundef ptr @SemanticChecker__find_extend_method__mangled(ptr nocapture readonly %program.arg, ptr nocapture readonly %type.arg, ptr nocapture readonly %method_name.arg) local_unnamed_addr {
 entry:
-  %t114291 = tail call ptr @type_debug(ptr %type.arg)
+  %t114291 = tail call ptr @Type__debug__mangled(ptr %type.arg)
   %t114294 = getelementptr i8, ptr %program.arg, i64 32
   %t114295131 = load ptr, ptr %t114294, align 8
   %t114296132 = getelementptr i8, ptr %t114295131, i64 16
@@ -668603,7 +668603,7 @@ drop.i:                                           ; preds = %dec.i
   br i1 %has.not.i, label %for.step.16464.sink.split, label %for.step.16464.sink.split.sink.split
 
 match.end.16468:                                  ; preds = %rt_retain.exit.thread, %rt_retain.exit
-  %t114327 = tail call ptr @type_debug(ptr nonnull %t114319)
+  %t114327 = tail call ptr @Type__debug__mangled(ptr nonnull %t114319)
   %t114330 = tail call i32 @strcmp(ptr noundef nonnull dereferenceable(1) %t114327, ptr noundef nonnull dereferenceable(1) %t114291)
   %t114329.not = icmp eq i32 %t114330, 0
   %small.i15 = icmp ult ptr %t114327, inttoptr (i64 65536 to ptr)
@@ -668701,7 +668701,7 @@ drop.i38:                                         ; preds = %dec.i35
 
 diag.err.16479:                                   ; preds = %for.cond.16475.preheader
   %t114344 = load ptr, ptr @stderr, align 8
-  %0 = tail call i64 @fwrite(ptr nonnull @.str.7741, i64 281, i64 1, ptr %t114344) #29
+  %0 = tail call i64 @fwrite(ptr nonnull @.str.7741, i64 261, i64 1, ptr %t114344) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -701792,7 +701792,7 @@ rt_release.exit2059:                              ; preds = %match.end.17138, %c
 
 diag.err.17157:                                   ; preds = %rt_release.exit2059
   %t118934 = load ptr, ptr @stderr, align 8
-  %10 = tail call i64 @fwrite(ptr nonnull @.str.7994, i64 257, i64 1, ptr %t118934) #29
+  %10 = tail call i64 @fwrite(ptr nonnull @.str.7994, i64 239, i64 1, ptr %t118934) #29
   tail call void @exit(i32 1)
   unreachable
 
@@ -701852,7 +701852,7 @@ vec.merge.17160:                                  ; preds = %vec.grow.17159, %rt
 
 diag.err.17161:                                   ; preds = %vec.merge.17160
   %t118974 = load ptr, ptr @stderr, align 8
-  %11 = tail call i64 @fwrite(ptr nonnull @.str.7996, i64 244, i64 1, ptr %t118974) #29
+  %11 = tail call i64 @fwrite(ptr nonnull @.str.7996, i64 226, i64 1, ptr %t118974) #29
   tail call void @exit(i32 1)
   unreachable
 

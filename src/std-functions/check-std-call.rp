@@ -23,15 +23,15 @@ extend SemanticChecker {
     ): ResultType {
         # Arity for fixed signatures (custom checkers re-check arity themselves).
         if (std_fn.type_check_kind matches StdTypeCheckKind::None) {
-            if (vector_size(&collected_arg_types) != vector_size(&std_fn.params)) {
+            if (collected_arg_types.size() != std_fn.params.size()) {
                 return ResultType::Err(SemanticCheckerError.new(
                     ErrorSeverity::HIGH,
                     "Invalid usage of built-in function '"
                         + std_fn.name
                         + "'. Expected "
-                        + vector_size(&std_fn.params) as str
+                        + std_fn.params.size() as str
                         + " argument(s), got "
-                        + vector_size(&collected_arg_types) as str
+                        + collected_arg_types.size() as str
                         + ".",
                     span
                 ));
@@ -39,9 +39,9 @@ extend SemanticChecker {
         }
 
         # Passed-by reference constraints
-        let n = vector_size(&std_fn.passed_by);
-        if (vector_size(&arg_expressions) < n) {
-            n = vector_size(&arg_expressions);
+        let n = std_fn.passed_by.size();
+        if (arg_expressions.size() < n) {
+            n = arg_expressions.size();
         }
         for (let i = 0; i < n; i += 1) {
             if (std_fn.passed_by[i] matches PassedBy::Reference) {

@@ -1,5 +1,3 @@
-# Shared helpers for the selfhost semantic checker.
-
 import "../common/errors.rp";
 import "../common/span.rp";
 import "../frontend/parser/ast.rp";

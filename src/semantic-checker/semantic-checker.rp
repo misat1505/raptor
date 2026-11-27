@@ -67,7 +67,7 @@ struct SemanticChecker {
     }
 
     fn push_error(self, SemanticCheckerError err): void {
-        vector_push(&self.errors, err);
+        self.errors.push(err);
     }
 
     fn read_last(self, Span span): ResultType {
@@ -108,7 +108,7 @@ struct SemanticChecker {
                 + " "
                 + identifier.value
                 + "\n```";
-        vector_push(&self.hovers, HoverInfo { span: identifier.span, contents });
+        self.hovers.push(HoverInfo { span: identifier.span, contents });
     }
 
     fn type_hover(self, Type data_type, Span span): void {
@@ -117,26 +117,26 @@ struct SemanticChecker {
                 + SemanticChecker.type_prefix(data_type)
                 + data_type.to_string()
                 + "\n```";
-        vector_push(&self.hovers, HoverInfo { span, contents });
+        self.hovers.push(HoverInfo { span, contents });
     }
 
     fn push_definition(self, Span use_span, Span def_span): void {
-        vector_push(&self.definitions, DefinitionInfo { use_span, def_span });
+        self.definitions.push(DefinitionInfo { use_span, def_span });
     }
 
     fn struct_hover(self, str name, Span span): void {
         let contents = "```raptor\nstruct " + name + "\n```";
-        vector_push(&self.hovers, HoverInfo { span, contents });
+        self.hovers.push(HoverInfo { span, contents });
     }
 
     fn enum_hover(self, str name, Span span): void {
         let contents = "```raptor\nenum " + name + "\n```";
-        vector_push(&self.hovers, HoverInfo { span, contents });
+        self.hovers.push(HoverInfo { span, contents });
     }
 
     fn function_hover(self, str name, ParameterNode[] params, Type ret, Span span): void {
         let sig = "fn " + name + "(";
-        for (let i = 0; i < vector_size(&params); i += 1) {
+        for (let i = 0; i < params.size(); i += 1) {
             if (i > 0) {
                 sig = sig + ", ";
             }
@@ -148,18 +148,18 @@ struct SemanticChecker {
         }
         sig = sig + "): " + ret.to_string();
         let contents = "```raptor\n" + sig + "\n```";
-        vector_push(&self.hovers, HoverInfo { span, contents });
+        self.hovers.push(HoverInfo { span, contents });
     }
 
     fn method_call_hover(self, str instance, &TypeMethod tm, Span span): void {
         let sig = "fn " + instance + '.' + tm.identifier.value + "(";
         if (tm.self_identifier matches OptionIdentifierNode::Some) {
             sig += "self";
-            if (vector_size(&tm.parameters) > 0) {
+            if (tm.parameters.size() > 0) {
                 sig += ", ";
             }
         }
-        for (let i = 0; i < vector_size(&tm.parameters); i += 1) {
+        for (let i = 0; i < tm.parameters.size(); i += 1) {
             if (i > 0) {
                 sig = sig + ", ";
             }
@@ -171,7 +171,7 @@ struct SemanticChecker {
         }
         sig = sig + "): " + tm.return_type.value.to_string();
         let contents = "```raptor\n" + sig + "\n```";
-        vector_push(&self.hovers, HoverInfo { span, contents });
+        self.hovers.push(HoverInfo { span, contents });
     }
 
     fn derive_hover(self, str identifier_name, IdentifierNode derive): void {
@@ -194,7 +194,7 @@ struct SemanticChecker {
                     + identifier_name
                     + ".debug(self): str\n"
                     + "```";
-            vector_push(&self.hovers, HoverInfo { span: derive.span, contents });
+            self.hovers.push(HoverInfo { span: derive.span, contents });
         } else if (derive.value == "Json") {
             let contents =
                 "Generates functionality for serializing `"
@@ -212,7 +212,7 @@ struct SemanticChecker {
                     + identifier_name
                     + ".json_encode(self): str\n"
                     + "```";
-            vector_push(&self.hovers, HoverInfo { span: derive.span, contents });
+            self.hovers.push(HoverInfo { span: derive.span, contents });
         } else if (derive.value == "Clone") {
             let contents =
                 "Generates functionality for recursively cloning `"
@@ -234,14 +234,14 @@ struct SemanticChecker {
                     + identifier_name
                     + "\n"
                     + "```";
-            vector_push(&self.hovers, HoverInfo { span: derive.span, contents });
+            self.hovers.push(HoverInfo { span: derive.span, contents });
         }
     }
 
     fn resolve_type(self, &Program program, Type ty, Span span): ResultType {
         match (ty) {
             Type::Unresolved(name) {
-                for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+                for (let i = 0; i < program.declared_types.size(); i += 1) {
                     let dt = program.declared_types[i].value;
                     let n = "";
                     match (dt) {
@@ -291,7 +291,7 @@ struct SemanticChecker {
     }
 
     fn lookup_struct(&Program program, str name): OptionStructDeclaration {
-        for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+        for (let i = 0; i < program.declared_types.size(); i += 1) {
             if (program.declared_types[i].value matches DeclaredType::Struct(s)) {
                 if (s.identifier.value == name) {
                     return OptionStructDeclaration::Some(s);
@@ -302,7 +302,7 @@ struct SemanticChecker {
     }
 
     fn lookup_enum(&Program program, str name): OptionEnumDeclaration {
-        for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+        for (let i = 0; i < program.declared_types.size(); i += 1) {
             if (program.declared_types[i].value matches DeclaredType::Enum(e)) {
                 if (e.identifier.value == name) {
                     return OptionEnumDeclaration::Some(e);
@@ -317,7 +317,7 @@ struct SemanticChecker {
     }
 
     fn find_interface(&Program program, str name): i64 {
-        for (let i = 0; i < vector_size(&program.interfaces); i += 1) {
+        for (let i = 0; i < program.interfaces.size(); i += 1) {
             if (program.interfaces[i].value.identifier.value == name) {
                 return i;
             }
@@ -327,7 +327,7 @@ struct SemanticChecker {
 
     fn interface_hover(self, str name, Span span): void {
         let contents = "```raptor\ninterface " + name + "\n```";
-        vector_push(&self.hovers, HoverInfo { span, contents });
+        self.hovers.push(HoverInfo { span, contents });
     }
 
     fn param_to_string(PassedBy passed_by, Type parameter_type): str {
@@ -344,7 +344,7 @@ struct SemanticChecker {
             text += "self";
             first = false;
         }
-        for (let i = 0; i < vector_size(&sig.parameters); i += 1) {
+        for (let i = 0; i < sig.parameters.size(); i += 1) {
             if (!first) {
                 text += ", ";
             }
@@ -362,7 +362,7 @@ struct SemanticChecker {
             text += "self";
             first = false;
         }
-        for (let i = 0; i < vector_size(&method.parameters); i += 1) {
+        for (let i = 0; i < method.parameters.size(); i += 1) {
             if (!first) {
                 text += ", ";
             }
@@ -385,10 +385,10 @@ struct SemanticChecker {
         if (sig_has_self != method_has_self) {
             return false;
         }
-        if (vector_size(&sig.parameters) != vector_size(&method.parameters)) {
+        if (sig.parameters.size() != method.parameters.size()) {
             return false;
         }
-        for (let i = 0; i < vector_size(&sig.parameters); i += 1) {
+        for (let i = 0; i < sig.parameters.size(); i += 1) {
             let expected = sig.parameters[i].value;
             let actual = method.parameters[i].value;
             let expected_by_ref = false;
@@ -410,7 +410,7 @@ struct SemanticChecker {
     }
 
     fn check_interface_declarations(self, &Program program): void {
-        for (let i = 0; i < vector_size(&program.interfaces); i += 1) {
+        for (let i = 0; i < program.interfaces.size(); i += 1) {
             let decl = program.interfaces[i].value;
             self.interface_hover(decl.identifier.value, decl.identifier.span);
 
@@ -426,12 +426,12 @@ struct SemanticChecker {
                 );
             }
 
-            for (let m = 0; m < vector_size(&decl.methods_signatures); m += 1) {
+            for (let m = 0; m < decl.methods_signatures.size(); m += 1) {
                 let sig = decl.methods_signatures[m].value;
 
                 # `self.resolve_type` reports unknown types itself and records
                 # hovers / definitions for the ones that exist.
-                for (let p = 0; p < vector_size(&sig.parameters); p += 1) {
+                for (let p = 0; p < sig.parameters.size(); p += 1) {
                     let param_type = sig.parameters[p].value.parameter_type;
                     self.resolve_type(&program, param_type.value, param_type.span);
                 }
@@ -458,7 +458,7 @@ struct SemanticChecker {
                 names = type_implementations;
             }
 
-            for (let n = 0; n < vector_size(&names); n += 1) {
+            for (let n = 0; n < names.size(); n += 1) {
                 let reference = names[n];
 
                 if (pass == 0 && SemanticChecker.is_builtin_derive(reference.value)) {
@@ -499,7 +499,7 @@ struct SemanticChecker {
                 self.push_definition(reference.span, program.interfaces[index].span);
 
                 let already = false;
-                for (let k = 0; k < vector_size(&implemented); k += 1) {
+                for (let k = 0; k < implemented.size(); k += 1) {
                     if (implemented[k] == index) {
                         already = true;
                     }
@@ -519,12 +519,12 @@ struct SemanticChecker {
                     continue;
                 }
 
-                vector_push(&implemented, index);
-                vector_push(&references, reference);
+                implemented.push(index);
+                references.push(reference);
             }
         }
 
-        for (let a = 0; a < vector_size(&implemented); a += 1) {
+        for (let a = 0; a < implemented.size(); a += 1) {
             let interface_decl = program.interfaces[implemented[a]].value;
             let interface_name = interface_decl.identifier.value;
 
@@ -532,9 +532,9 @@ struct SemanticChecker {
             # signatures are identical.
             for (let b = 0; b < a; b += 1) {
                 let other = program.interfaces[implemented[b]].value;
-                for (let m = 0; m < vector_size(&interface_decl.methods_signatures); m += 1) {
+                for (let m = 0; m < interface_decl.methods_signatures.size(); m += 1) {
                     let method_name = interface_decl.methods_signatures[m].value.identifier.value;
-                    for (let o = 0; o < vector_size(&other.methods_signatures); o += 1) {
+                    for (let o = 0; o < other.methods_signatures.size(); o += 1) {
                         if (other.methods_signatures[o].value.identifier.value == method_name) {
                             self.push_error(
                                 SemanticCheckerError.at(
@@ -556,12 +556,12 @@ struct SemanticChecker {
                 }
             }
 
-            for (let m = 0; m < vector_size(&interface_decl.methods_signatures); m += 1) {
+            for (let m = 0; m < interface_decl.methods_signatures.size(); m += 1) {
                 let sig = interface_decl.methods_signatures[m].value;
                 let expected = SemanticChecker.interface_signature_to_string(sig);
 
                 let found = false;
-                for (let t = 0; t < vector_size(&methods); t += 1) {
+                for (let t = 0; t < methods.size(); t += 1) {
                     let method = methods[t].value;
                     if (method.identifier.value != sig.identifier.value) {
                         continue;
@@ -614,24 +614,24 @@ struct SemanticChecker {
     }
 
     fn visit_program(self, &Program program): void {
-        for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+        for (let i = 0; i < program.declared_types.size(); i += 1) {
             match (program.declared_types[i].value) {
                 DeclaredType::Struct(s) {
-                    for (let d = 0; d < vector_size(&s.struct_derives); d += 1) {
+                    for (let d = 0; d < s.struct_derives.size(); d += 1) {
                         self.derive_hover(s.identifier.value, s.struct_derives[d]);
                     }
                 },
                 DeclaredType::Enum(e) {
-                    for (let d = 0; d < vector_size(&e.enum_derives); d += 1) {
+                    for (let d = 0; d < e.enum_derives.size(); d += 1) {
                         self.derive_hover(e.identifier.value, e.enum_derives[d]);
                     }
                 }
             }
         }
 
-        for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
+        for (let i = 0; i < program.extend_blocks.size(); i += 1) {
             if (program.extend_blocks[i].type.value matches Type::Unresolved(custom_type_name)) {
-                for (let j = 0; j < vector_size(&program.declared_types); j += 1) {
+                for (let j = 0; j < program.declared_types.size(); j += 1) {
                     match (program.declared_types[j].value) {
                         DeclaredType::Struct(s) {
                             if (s.identifier.value != custom_type_name) {
@@ -659,12 +659,12 @@ struct SemanticChecker {
             }
         }
 
-        for (let i = 0; i < vector_size(&program.statements); i += 1) {
+        for (let i = 0; i < program.statements.size(); i += 1) {
             self.visit_statement(&program, program.statements[i]);
         }
         self.unused_warn();
 
-        for (let i = 0; i < vector_size(&program.functions); i += 1) {
+        for (let i = 0; i < program.functions.size(); i += 1) {
             let function = program.functions[i];
             self.stack.push_frame();
 
@@ -681,7 +681,7 @@ struct SemanticChecker {
                 self.current_function = OptionFunctionDeclaration::Some(fd);
             }
 
-            for (let p = 0; p < vector_size(&function.value.parameters); p += 1) {
+            for (let p = 0; p < function.value.parameters.size(); p += 1) {
                 let param = function.value.parameters[p];
                 if (
                     self.resolve_type(
@@ -713,10 +713,10 @@ struct SemanticChecker {
         self.check_interface_declarations(&program);
 
         # Validate declared types' member type references.
-        for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+        for (let i = 0; i < program.declared_types.size(); i += 1) {
             match (program.declared_types[i].value) {
                 DeclaredType::Struct(s) {
-                    for (let m = 0; m < vector_size(&s.members); m += 1) {
+                    for (let m = 0; m < s.members.size(); m += 1) {
                         self.resolve_type(
                             &program,
                             s.members[m].value.member_type.value,
@@ -738,7 +738,7 @@ struct SemanticChecker {
                     );
                 },
                 DeclaredType::Enum(e) {
-                    for (let m = 0; m < vector_size(&e.members); m += 1) {
+                    for (let m = 0; m < e.members.size(); m += 1) {
                         if (e.members[m].value.member_type matches OptionTypeNode::Some(tn)) {
                             self.resolve_type(&program, tn.value, tn.span);
                         }
@@ -761,7 +761,7 @@ struct SemanticChecker {
         }
 
         # Extend blocks on built-in types (user types were merged into their declarations).
-        for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
+        for (let i = 0; i < program.extend_blocks.size(); i += 1) {
             let block_type = program.extend_blocks[i].type;
             if (block_type.value matches Type::Unresolved) {
                 continue;
@@ -782,7 +782,7 @@ struct SemanticChecker {
         Type self_type,
         Span self_span
     ): void {
-        for (let i = 0; i < vector_size(&methods); i += 1) {
+        for (let i = 0; i < methods.size(); i += 1) {
             let method = methods[i];
             self.stack.push_frame();
 
@@ -829,7 +829,7 @@ struct SemanticChecker {
                 }
             }
 
-            for (let p = 0; p < vector_size(&method.value.parameters); p += 1) {
+            for (let p = 0; p < method.value.parameters.size(); p += 1) {
                 let param = method.value.parameters[p];
 
                 match (
@@ -868,7 +868,7 @@ struct SemanticChecker {
 
     fn unused_warn(self): void {
         let unused = self.stack.unused_in_last_scope();
-        for (let i = 0; i < vector_size(&unused); i += 1) {
+        for (let i = 0; i < unused.size(); i += 1) {
             self.push_error(
                 SemanticCheckerError.at(
                     ErrorSeverity::LOW,
@@ -881,7 +881,7 @@ struct SemanticChecker {
 
     fn visit_block(self, &Program program, BlockNode block): void {
         self.stack.push_scope();
-        for (let i = 0; i < vector_size(&block.value.statements); i += 1) {
+        for (let i = 0; i < block.value.statements.size(); i += 1) {
             self.visit_statement(&program, block.value.statements[i]);
         }
         self.unused_warn();
@@ -1018,7 +1018,7 @@ struct SemanticChecker {
             },
             OptionType::Some(base_ty) {
                 let current = base_ty;
-                for (let i = 0; i < vector_size(&assign.accessors); i += 1) {
+                for (let i = 0; i < assign.accessors.size(); i += 1) {
                     self.stack.mark_used(assign.identifier.value);
                     match (assign.accessors[i].value) {
                         Accessor::MethodCall {},
@@ -1076,7 +1076,7 @@ struct SemanticChecker {
                                     },
                                     OptionStructDeclaration::Some(s) {
                                         let found = false;
-                                        for (let m = 0; m < vector_size(&s.members); m += 1) {
+                                        for (let m = 0; m < s.members.size(); m += 1) {
                                             if (
                                                 s.members[m].value.identifier.value == field.value
                                             ) {
@@ -1122,7 +1122,7 @@ struct SemanticChecker {
                         self.push_error(e);
                     },
                     ResultType::Ok(value_ty) {
-                        if (vector_size(&assign.accessors) == 0) {
+                        if (assign.accessors.size() == 0) {
                             if (
                                 self.stack.assign_variable(
                                     assign.identifier.value,
@@ -1286,7 +1286,7 @@ struct SemanticChecker {
     }
 
     fn check_switch(self, &Program program, SwitchStatement sw): void {
-        for (let i = 0; i < vector_size(&sw.expressions); i += 1) {
+        for (let i = 0; i < sw.expressions.size(); i += 1) {
             self.visit_expression(&program, sw.expressions[i].value.expression);
             match (self.read_last(sw.expressions[i].value.expression.span)) {
                 ResultType::Err(e) {
@@ -1315,7 +1315,7 @@ struct SemanticChecker {
             }
         }
         self.stack.enter_breakable();
-        for (let i = 0; i < vector_size(&sw.cases); i += 1) {
+        for (let i = 0; i < sw.cases.size(); i += 1) {
             self.visit_expression(&program, sw.cases[i].value.condition);
             match (self.read_last(sw.cases[i].value.condition.span)) {
                 ResultType::Err(e) {
@@ -1357,7 +1357,7 @@ struct SemanticChecker {
                             );
                         },
                         OptionEnumDeclaration::Some(ed) {
-                            for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
+                            for (let i = 0; i < m.match_arms.size(); i += 1) {
                                 let arm = m.match_arms[i];
                                 if (arm.value.enum_name.value != enum_name) {
                                     self.push_error(
@@ -1374,11 +1374,7 @@ struct SemanticChecker {
                                 }
                                 self.stack.push_scope();
 
-                                for (
-                                    let di = 0;
-                                    di < vector_size(&program.declared_types);
-                                    di += 1
-                                ) {
+                                for (let di = 0; di < program.declared_types.size(); di += 1) {
                                     if (
                                         program.declared_types[di].value matches DeclaredType::Enum(ee)
                                     ) {
@@ -1394,7 +1390,7 @@ struct SemanticChecker {
                                         }
                                     }
                                 }
-                                for (let vv = 0; vv < vector_size(&ed.members); vv += 1) {
+                                for (let vv = 0; vv < ed.members.size(); vv += 1) {
                                     if (
                                         ed.members[vv].value.identifier.value
                                             == arm.value.variant_name.value
@@ -1432,7 +1428,7 @@ struct SemanticChecker {
                                 ) {
                                     let payload_ty = Type::Void;
                                     let found_variant = false;
-                                    for (let v = 0; v < vector_size(&ed.members); v += 1) {
+                                    for (let v = 0; v < ed.members.size(); v += 1) {
                                         if (
                                             ed.members[v].value.identifier.value
                                                 == arm.value.variant_name.value
@@ -1490,10 +1486,10 @@ struct SemanticChecker {
                             if (!has_rest) {
                                 let missing = "";
                                 let missing_count = 0;
-                                for (let v = 0; v < vector_size(&ed.members); v += 1) {
+                                for (let v = 0; v < ed.members.size(); v += 1) {
                                     let variant_name = ed.members[v].value.identifier.value;
                                     let covered = false;
-                                    for (let a = 0; a < vector_size(&m.match_arms); a += 1) {
+                                    for (let a = 0; a < m.match_arms.size(); a += 1) {
                                         let arm = m.match_arms[a];
                                         if (
                                             arm.value.enum_name.value == enum_name
@@ -1674,7 +1670,7 @@ struct SemanticChecker {
 
     fn is_method_static(&Program program, &MethodCallExpression mc): OptionStr {
         if (mc.instance.value matches Expression::Variable(text)) {
-            for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+            for (let i = 0; i < program.declared_types.size(); i += 1) {
                 match (program.declared_types[i].value) {
                     DeclaredType::Struct(struct_declaration) {
                         if (text == struct_declaration.identifier.value) {
@@ -1694,16 +1690,16 @@ struct SemanticChecker {
     }
 
     fn find_extend_method(&Program program, &Type type, str method_name): OptionTypeMethodNode {
-        let wanted = type_debug(&type);
-        for (let i = 0; i < vector_size(&program.extend_blocks); i += 1) {
+        let wanted = type.debug();
+        for (let i = 0; i < program.extend_blocks.size(); i += 1) {
             let block_type = program.extend_blocks[i].type.value;
             if (block_type matches Type::Unresolved) {
                 continue;
             }
-            if (type_debug(&block_type) != wanted) {
+            if (block_type.debug() != wanted) {
                 continue;
             }
-            for (let j = 0; j < vector_size(&program.extend_blocks[i].methods); j += 1) {
+            for (let j = 0; j < program.extend_blocks[i].methods.size(); j += 1) {
                 if (program.extend_blocks[i].methods[j].value.identifier.value == method_name) {
                     return OptionTypeMethodNode::Some(program.extend_blocks[i].methods[j]);
                 }
@@ -1768,14 +1764,14 @@ struct SemanticChecker {
         if (
             SemanticChecker.is_method_static(&program, &mc) matches OptionStr::Some(instance_name)
         ) {
-            for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+            for (let i = 0; i < program.declared_types.size(); i += 1) {
                 match (program.declared_types[i].value) {
                     DeclaredType::Struct(struct_declaration) {
                         if (struct_declaration.identifier.value != instance_name) {
                             continue;
                         }
                         let method_found = false;
-                        for (let j = 0; j < vector_size(&struct_declaration.methods); j += 1) {
+                        for (let j = 0; j < struct_declaration.methods.size(); j += 1) {
                             let method = struct_declaration.methods[j].value;
                             let method_definition_span = struct_declaration.methods[j].span;
                             if (method.identifier.value == mc.field.value) {
@@ -1841,7 +1837,7 @@ struct SemanticChecker {
                             continue;
                         }
                         let method_found = false;
-                        for (let j = 0; j < vector_size(&enum_declaration.methods); j += 1) {
+                        for (let j = 0; j < enum_declaration.methods.size(); j += 1) {
                             let method = enum_declaration.methods[j].value;
                             let method_definition_span = enum_declaration.methods[j].span;
                             if (method.identifier.value == mc.field.value) {
@@ -1914,14 +1910,14 @@ struct SemanticChecker {
             self.push_error(err);
         } else if (result_type matches ResultType::Ok(type)) {
             if (type matches Type::Unresolved(instance_name)) {
-                for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
+                for (let i = 0; i < program.declared_types.size(); i += 1) {
                     match (program.declared_types[i].value) {
                         DeclaredType::Struct(struct_declaration) {
                             if (struct_declaration.identifier.value != instance_name) {
                                 continue;
                             }
                             let method_found = false;
-                            for (let j = 0; j < vector_size(&struct_declaration.methods); j += 1) {
+                            for (let j = 0; j < struct_declaration.methods.size(); j += 1) {
                                 let method = struct_declaration.methods[j].value;
                                 let method_definition_span = struct_declaration.methods[j].span;
                                 if (method.identifier.value == mc.field.value) {
@@ -1987,7 +1983,7 @@ struct SemanticChecker {
                                 continue;
                             }
                             let method_found = false;
-                            for (let j = 0; j < vector_size(&enum_declaration.methods); j += 1) {
+                            for (let j = 0; j < enum_declaration.methods.size(); j += 1) {
                                 let method = enum_declaration.methods[j].value;
                                 let method_definition_span = enum_declaration.methods[j].span;
                                 if (method.identifier.value == mc.field.value) {
@@ -2214,7 +2210,7 @@ struct SemanticChecker {
                         },
                         OptionStructDeclaration::Some(s) {
                             let found = false;
-                            for (let m = 0; m < vector_size(&s.members); m += 1) {
+                            for (let m = 0; m < s.members.size(); m += 1) {
                                 if (s.members[m].value.identifier.value == fa.field.value) {
                                     found = true;
                                     match (
@@ -2312,7 +2308,7 @@ struct SemanticChecker {
     }
 
     fn check_vector_literal(self, &Program program, ExpressionNode[] elements): void {
-        if (vector_size(&elements) == 0) {
+        if (elements.size() == 0) {
             self.set_last(Type::Vector(Type::Void));
             return;
         }
@@ -2322,7 +2318,7 @@ struct SemanticChecker {
                 self.push_error(e);
             },
             ResultType::Ok(elem_ty) {
-                for (let i = 1; i < vector_size(&elements); i += 1) {
+                for (let i = 1; i < elements.size(); i += 1) {
                     self.visit_expression(&program, elements[i]);
                     match (self.read_last(elements[i].span)) {
                         ResultType::Err(e) {
@@ -2361,7 +2357,7 @@ struct SemanticChecker {
                 );
             },
             OptionStructDeclaration::Some(s) {
-                for (let di = 0; di < vector_size(&program.declared_types); di += 1) {
+                for (let di = 0; di < program.declared_types.size(); di += 1) {
                     if (program.declared_types[di].value matches DeclaredType::Struct(ss)) {
                         if (ss.identifier.value == struct_name) {
                             self.push_definition(
@@ -2373,10 +2369,10 @@ struct SemanticChecker {
                     }
                 }
                 let seen: str[] = [];
-                for (let i = 0; i < vector_size(&node.value.fields); i += 1) {
+                for (let i = 0; i < node.value.fields.size(); i += 1) {
                     let field = node.value.fields[i];
                     let field_name = field.value.identifier.value;
-                    for (let j = 0; j < vector_size(&seen); j += 1) {
+                    for (let j = 0; j < seen.size(); j += 1) {
                         if (seen[j] == field_name) {
                             self.push_error(
                                 SemanticCheckerError.at(
@@ -2387,11 +2383,11 @@ struct SemanticChecker {
                             );
                         }
                     }
-                    vector_push(&seen, field_name);
+                    seen.push(field_name);
 
                     let expected = Type::Void;
                     let found_field = false;
-                    for (let m = 0; m < vector_size(&s.members); m += 1) {
+                    for (let m = 0; m < s.members.size(); m += 1) {
                         if (s.members[m].value.identifier.value == field_name) {
                             found_field = true;
                             expected = s.members[m].value.member_type.value;
@@ -2440,10 +2436,10 @@ struct SemanticChecker {
                         }
                     }
                 }
-                for (let m = 0; m < vector_size(&s.members); m += 1) {
+                for (let m = 0; m < s.members.size(); m += 1) {
                     let expected_name = s.members[m].value.identifier.value;
                     let present = false;
-                    for (let j = 0; j < vector_size(&seen); j += 1) {
+                    for (let j = 0; j < seen.size(); j += 1) {
                         if (seen[j] == expected_name) {
                             present = true;
                         }
@@ -2482,7 +2478,7 @@ struct SemanticChecker {
             OptionEnumDeclaration::Some(ed) {
                 let found = false;
                 let expected_payload = OptionTypeNode::None;
-                for (let i = 0; i < vector_size(&ed.members); i += 1) {
+                for (let i = 0; i < ed.members.size(); i += 1) {
                     if (ed.members[i].value.identifier.value == el.variant_name.value) {
                         found = true;
                         expected_payload = ed.members[i].value.member_type;
@@ -2503,7 +2499,7 @@ struct SemanticChecker {
                     return;
                 }
 
-                for (let di = 0; di < vector_size(&program.declared_types); di += 1) {
+                for (let di = 0; di < program.declared_types.size(); di += 1) {
                     if (program.declared_types[di].value matches DeclaredType::Enum(ee)) {
                         if (ee.identifier.value == enum_name) {
                             self.push_definition(
@@ -2514,7 +2510,7 @@ struct SemanticChecker {
                         }
                     }
                 }
-                for (let mi = 0; mi < vector_size(&ed.members); mi += 1) {
+                for (let mi = 0; mi < ed.members.size(); mi += 1) {
                     if (ed.members[mi].value.identifier.value == el.variant_name.value) {
                         self.push_definition(el.variant_name.span, ed.members[mi].span);
                         let payload_txt = "";
@@ -2625,7 +2621,7 @@ struct SemanticChecker {
 
         # User functions
         let found_fn = OptionFunctionDeclaration::None;
-        for (let i = 0; i < vector_size(&program.functions); i += 1) {
+        for (let i = 0; i < program.functions.size(); i += 1) {
             if (program.functions[i].value.identifier.value == name) {
                 found_fn = OptionFunctionDeclaration::Some(program.functions[i].value);
             }
@@ -2634,7 +2630,7 @@ struct SemanticChecker {
         # Externs
         let found_extern = false;
         let extern_ret = Type::Void;
-        for (let i = 0; i < vector_size(&program.extern_functions); i += 1) {
+        for (let i = 0; i < program.extern_functions.size(); i += 1) {
             let ef = program.extern_functions[i].value;
             let effective = ef.identifier.value;
             if (ef.alias matches OptionIdentifierNode::Some(a)) {
@@ -2648,7 +2644,7 @@ struct SemanticChecker {
 
         if (found_fn matches OptionFunctionDeclaration::Some(fd)) {
             self.function_hover(name, fd.parameters, fd.return_type.value, call.identifier.span);
-            for (let fi = 0; fi < vector_size(&program.functions); fi += 1) {
+            for (let fi = 0; fi < program.functions.size(); fi += 1) {
                 if (program.functions[fi].value.identifier.value == name) {
                     self.push_definition(
                         call.identifier.span,
@@ -2669,7 +2665,7 @@ struct SemanticChecker {
         }
 
         if (found_extern) {
-            for (let ei = 0; ei < vector_size(&program.extern_functions); ei += 1) {
+            for (let ei = 0; ei < program.extern_functions.size(); ei += 1) {
                 let ef = program.extern_functions[ei].value;
                 let effective = ef.identifier.value;
                 if (ef.alias matches OptionIdentifierNode::Some(a)) {
@@ -2685,7 +2681,7 @@ struct SemanticChecker {
                     self.push_definition(call.identifier.span, ef.identifier.span);
                 }
             }
-            for (let i = 0; i < vector_size(&call.arguments); i += 1) {
+            for (let i = 0; i < call.arguments.size(); i += 1) {
                 self.visit_expression(&program, call.arguments[i].value.value);
                 if (self.read_last(call.arguments[i].value.value.span) matches ResultType::Err(e)) {
                     self.push_error(e);
@@ -2708,7 +2704,7 @@ struct SemanticChecker {
             let arg_exprs: Expression[] = [];
             let arg_spans: Span[] = [];
 
-            for (let i = 0; i < vector_size(&call.arguments); i += 1) {
+            for (let i = 0; i < call.arguments.size(); i += 1) {
                 self.visit_expression(&program, call.arguments[i].value.value);
                 match (self.read_last(call.arguments[i].value.value.span)) {
                     ResultType::Err(e) {
@@ -2735,14 +2731,14 @@ struct SemanticChecker {
                                 )
                             );
                         }
-                        vector_push(&collected, t);
+                        collected.push(t);
                     }
                 }
-                vector_push(&arg_exprs, call.arguments[i].value.value.value);
-                vector_push(&arg_spans, call.arguments[i].span);
+                arg_exprs.push(call.arguments[i].value.value.value);
+                arg_spans.push(call.arguments[i].span);
             }
 
-            if (vector_size(&collected) == vector_size(&call.arguments)) {
+            if (collected.size() == call.arguments.size()) {
                 match (
                     SemanticChecker.check_std_call(collected, arg_exprs, arg_spans, std_fn, span)
                 ) {
@@ -2758,7 +2754,7 @@ struct SemanticChecker {
         }
 
         # Truly unknown
-        for (let i = 0; i < vector_size(&call.arguments); i += 1) {
+        for (let i = 0; i < call.arguments.size(); i += 1) {
             self.visit_expression(&program, call.arguments[i].value.value);
             if (self.read_last(call.arguments[i].value.value.span) matches ResultType::Err(e)) {
                 self.push_error(e);
@@ -2777,25 +2773,25 @@ struct SemanticChecker {
         str name,
         Span span
     ): void {
-        if (vector_size(&arguments) != vector_size(&parameters)) {
+        if (arguments.size() != parameters.size()) {
             self.push_error(
                 SemanticCheckerError.at(
                     ErrorSeverity::HIGH,
                     "Function '"
                         + name
                         + "' expects "
-                        + vector_size(&parameters) as str
+                        + parameters.size() as str
                         + " argument(s), got "
-                        + vector_size(&arguments) as str
+                        + arguments.size() as str
                         + ".",
                     span
                 )
             );
         }
 
-        let n = vector_size(&arguments);
-        if (vector_size(&parameters) < n) {
-            n = vector_size(&parameters);
+        let n = arguments.size();
+        if (parameters.size() < n) {
+            n = parameters.size();
         }
 
         for (let i = 0; i < n; i += 1) {

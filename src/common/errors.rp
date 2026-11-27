@@ -192,7 +192,7 @@ fn generic_error_stderr_message(&str message, &ErrorSeverity level, &Span span):
     }
 
     let file_content = read_file(filename);
-    let lines = str_split(file_content, "\n");
+    let lines = file_content.split("\n");
     return generic_error_with_source(text, &level, &span, filename, &lines);
 }
 

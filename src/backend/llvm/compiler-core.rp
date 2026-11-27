@@ -615,7 +615,7 @@ struct LLVMIRCodegen {
         }
         let lines: str[] = [];
         if (exists_file(path)) {
-            lines = str_split(read_file(path), "\n");
+            lines = read_file(path).split("\n");
         }
         self.sources.push(SourceLines { path, lines });
         return lines;

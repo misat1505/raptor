@@ -1,12 +1,24 @@
 import "../../../stdlib/string.rp";
 
-println((str_count_char("banana", 'a')) as str);
-println((str_count_char("banana", 'z')) as str);
-println((str_count_str("banana", "an")) as str);
-println((str_count_str("aaaa", "aa")) as str);
-println((str_count_str("abc", "z")) as str);
-println(str_remove_whitespace(" a b\tc\n"));
-println(str_remove_prefix("foobar", "foo"));
-println(str_remove_prefix("foobar", "bar"));
-println(str_remove_suffix("foobar", "bar"));
-println(str_remove_suffix("foobar", "foo"));
+let banana = "banana";
+let aaaa = "aaaa";
+let abc = "abc";
+let a = 'a';
+let z = 'z';
+let an = "an";
+let aa = "aa";
+let whitespace = " a b\tc\n";
+let foobar = "foobar";
+let foo = "foo";
+let bar = "bar";
+
+println((banana.count_char(a)) as str);
+println((banana.count_char(z)) as str);
+println((banana.count(an)) as str);
+println((aaaa.count(aa)) as str);
+println((abc.count(z as str)) as str);
+println(whitespace.remove_whitespace());
+println(foobar.remove_prefix(foo));
+println(foobar.remove_prefix(bar));
+println(foobar.remove_suffix(bar));
+println(foobar.remove_suffix(foo));

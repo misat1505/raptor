@@ -1,11 +1,15 @@
 import "../../../stdlib/string.rp";
 
-println("[" + str_trim_left("") + "]");
-println("[" + str_trim_left("   ") + "]");
-println("[" + str_trim_left("\t\n ") + "]");
-println("[" + str_trim_right("") + "]");
-println("[" + str_trim_right("   ") + "]");
-println("[" + str_trim_right("\t\n ") + "]");
-println("[" + str_trim("") + "]");
-println("[" + str_trim("   ") + "]");
-println("[" + str_trim("\t\n ") + "]");
+let s1 = "";
+let s2 = "   ";
+let s3 = "\t\n ";
+
+println("[" + s1.trim_left() + "]");
+println("[" + s2.trim_left() + "]");
+println("[" + s3.trim_left() + "]");
+println("[" + s1.trim_right() + "]");
+println("[" + s2.trim_right() + "]");
+println("[" + s3.trim_right() + "]");
+println("[" + s1.trim() + "]");
+println("[" + s2.trim() + "]");
+println("[" + s3.trim() + "]");

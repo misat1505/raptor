@@ -453,7 +453,7 @@ struct ImportResolver {
 
     fn path_parent(str path): str {
         let normalized = ImportResolver.normalize_path(path);
-        let idx = str_last_index_of_char(normalized, '/');
+        let idx = normalized.last_index_of_char('/');
         if (idx < 0) {
             return ".";
         }

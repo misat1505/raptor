@@ -8,16 +8,12 @@ import "../semantic-checker/semantic-helpers.rp";
 import "./std-function.rp";
 
 
-fn span_dummy(): Span {
-    return span_new(position_new(0, 0, 0, OptionStr::None), position_new(0, 0, 0, OptionStr::None));
-}
-
 fn std_type_check_vector_push(Type[] arg_types): ResultType {
     if (vector_size(&arg_types) != 2) {
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
             "vector_push expects exactly 2 arguments.",
-            span_dummy()
+            Span.default()
         ));
     }
 
@@ -29,76 +25,76 @@ fn std_type_check_vector_push(Type[] arg_types): ResultType {
             return ResultType::Ok(Type::Void);
         }
 
-        if (type_compatible(inner, arg_types[1])) {
+        if (inner.compatible(arg_types[1])) {
             return ResultType::Ok(Type::Void);
         }
 
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
             "vector_push expected element of type '"
-                + type_to_string(inner)
+                + inner.to_string()
                 + "', but got '"
-                + type_to_string(arg_types[1])
+                + arg_types[1].to_string()
                 + "'.",
-            span_dummy()
+            Span.default()
         ));
     } else {
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
             "vector_push expected a vector as first argument, but got '"
-                + type_to_string(arg_types[0])
+                + arg_types[0].to_string()
                 + "'.",
-            span_dummy()
+            Span.default()
         ));
     }
 }
 
 fn std_type_check_vector_size(Type[] arg_types): ResultType {
     if (vector_size(&arg_types) != 1) {
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
             "vector_size expects exactly 1 argument.",
-            span_dummy()
+            Span.default()
         ));
     }
 
     if (arg_types[0] matches Type::Vector) {
         return ResultType::Ok(Type::I64);
     } else {
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
-            "vector_size expected a vector, but got '" + type_to_string(arg_types[0]) + "'.",
-            span_dummy()
+            "vector_size expected a vector, but got '" + arg_types[0].to_string() + "'.",
+            Span.default()
         ));
     }
 }
 
 fn std_type_check_vector_stringify(Type[] arg_types): ResultType {
     if (vector_size(&arg_types) != 1) {
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
             "vector_stringify expects exactly 1 argument.",
-            span_dummy()
+            Span.default()
         ));
     }
 
     if (arg_types[0] matches Type::Vector) {
         return ResultType::Ok(Type::Str);
     } else {
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
-            "vector_stringify expected a vector, but got '" + type_to_string(arg_types[0]) + "'.",
-            span_dummy()
+            "vector_stringify expected a vector, but got '" + arg_types[0].to_string() + "'.",
+            Span.default()
         ));
     }
 }
 
 fn std_type_check_vector_extend(Type[] arg_types): ResultType {
     if (vector_size(&arg_types) != 2) {
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
             "vector_extend expects exactly 2 arguments.",
-            span_dummy()
+            Span.default()
         ));
     }
 
@@ -112,45 +108,45 @@ fn std_type_check_vector_extend(Type[] arg_types): ResultType {
                 return ResultType::Ok(Type::Void);
             }
 
-            if (type_compatible(target_inner, source_inner)) {
+            if (target_inner.compatible(source_inner)) {
                 return ResultType::Ok(Type::Void);
             }
 
-            return ResultType::Err(semantic_checker_error_new(
+            return ResultType::Err(SemanticCheckerError.new(
                 ErrorSeverity::HIGH,
                 "vector_extend element types are incompatible (target '"
-                    + type_to_string(target_inner)
+                    + target_inner.to_string()
                     + "', source '"
-                    + type_to_string(source_inner)
+                    + source_inner.to_string()
                     + "').",
-                span_dummy()
+                Span.default()
             ));
         }
 
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
             "vector_extend expected a vector as second argument, but got '"
-                + type_to_string(arg_types[1])
+                + arg_types[1].to_string()
                 + "'.",
-            span_dummy()
+            Span.default()
         ));
     }
 
-    return ResultType::Err(semantic_checker_error_new(
+    return ResultType::Err(SemanticCheckerError.new(
         ErrorSeverity::HIGH,
         "vector_extend expected a vector as first argument, but got '"
-            + type_to_string(arg_types[0])
+            + arg_types[0].to_string()
             + "'.",
-        span_dummy()
+        Span.default()
     ));
 }
 
 fn std_type_check_str_to_char_vector(Type[] arg_types): ResultType {
     if (vector_size(&arg_types) != 1) {
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
             "str_to_char_vector expects exactly 1 argument.",
-            span_dummy()
+            Span.default()
         ));
     }
 
@@ -158,19 +154,19 @@ fn std_type_check_str_to_char_vector(Type[] arg_types): ResultType {
         return ResultType::Ok(Type::Vector(Type::Char));
     }
 
-    return ResultType::Err(semantic_checker_error_new(
+    return ResultType::Err(SemanticCheckerError.new(
         ErrorSeverity::HIGH,
-        "str_to_char_vector expected a str, but got '" + type_to_string(arg_types[0]) + "'.",
-        span_dummy()
+        "str_to_char_vector expected a str, but got '" + arg_types[0].to_string() + "'.",
+        Span.default()
     ));
 }
 
 fn std_type_check_char_vector_to_str(Type[] arg_types): ResultType {
     if (vector_size(&arg_types) != 1) {
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
             "char_vector_to_str expects exactly 1 argument.",
-            span_dummy()
+            Span.default()
         ));
     }
 
@@ -181,17 +177,17 @@ fn std_type_check_char_vector_to_str(Type[] arg_types): ResultType {
         if (inner matches Type::Void) {
             return ResultType::Ok(Type::Str);
         }
-        return ResultType::Err(semantic_checker_error_new(
+        return ResultType::Err(SemanticCheckerError.new(
             ErrorSeverity::HIGH,
-            "char_vector_to_str expected char[], but got '" + type_to_string(arg_types[0]) + "'.",
-            span_dummy()
+            "char_vector_to_str expected char[], but got '" + arg_types[0].to_string() + "'.",
+            Span.default()
         ));
     }
 
-    return ResultType::Err(semantic_checker_error_new(
+    return ResultType::Err(SemanticCheckerError.new(
         ErrorSeverity::HIGH,
-        "char_vector_to_str expected a vector, but got '" + type_to_string(arg_types[0]) + "'.",
-        span_dummy()
+        "char_vector_to_str expected a vector, but got '" + arg_types[0].to_string() + "'.",
+        Span.default()
     ));
 }
 
@@ -200,7 +196,7 @@ fn std_run_type_check(StdFunction std_fn, Type[] arg_types, Span span): ResultTy
         StdTypeCheckKind::None {
             # Fixed params — pairwise compatible check.
             if (vector_size(&arg_types) != vector_size(&std_fn.params)) {
-                return ResultType::Err(semantic_checker_error_new(
+                return ResultType::Err(SemanticCheckerError.new(
                     ErrorSeverity::HIGH,
                     "Invalid usage of built-in function '"
                         + std_fn.name
@@ -213,17 +209,17 @@ fn std_run_type_check(StdFunction std_fn, Type[] arg_types, Span span): ResultTy
                 ));
             }
             for (let i = 0; i < vector_size(&std_fn.params); i += 1) {
-                if (!type_compatible(std_fn.params[i], arg_types[i])) {
-                    return ResultType::Err(semantic_checker_error_new(
+                if (!std_fn.params[i].compatible(arg_types[i])) {
+                    return ResultType::Err(SemanticCheckerError.new(
                         ErrorSeverity::HIGH,
                         "Parameter "
                             + i as str
                             + " of function `"
                             + std_fn.name
                             + "` has an incompatible type (expected '"
-                            + type_to_string(std_fn.params[i])
+                            + std_fn.params[i].to_string()
                             + "', got '"
-                            + type_to_string(arg_types[i])
+                            + arg_types[i].to_string()
                             + "').",
                         span
                     ));
@@ -237,7 +233,7 @@ fn std_run_type_check(StdFunction std_fn, Type[] arg_types, Span span): ResultTy
                     return ResultType::Ok(t);
                 },
                 ResultType::Err(e) {
-                    return ResultType::Err(semantic_checker_error_new(
+                    return ResultType::Err(SemanticCheckerError.new(
                         ErrorSeverity::HIGH,
                         e.message,
                         span
@@ -251,7 +247,7 @@ fn std_run_type_check(StdFunction std_fn, Type[] arg_types, Span span): ResultTy
                     return ResultType::Ok(t);
                 },
                 ResultType::Err(e) {
-                    return ResultType::Err(semantic_checker_error_new(
+                    return ResultType::Err(SemanticCheckerError.new(
                         ErrorSeverity::HIGH,
                         e.message,
                         span
@@ -265,7 +261,7 @@ fn std_run_type_check(StdFunction std_fn, Type[] arg_types, Span span): ResultTy
                     return ResultType::Ok(t);
                 },
                 ResultType::Err(e) {
-                    return ResultType::Err(semantic_checker_error_new(
+                    return ResultType::Err(SemanticCheckerError.new(
                         ErrorSeverity::HIGH,
                         e.message,
                         span
@@ -279,7 +275,7 @@ fn std_run_type_check(StdFunction std_fn, Type[] arg_types, Span span): ResultTy
                     return ResultType::Ok(t);
                 },
                 ResultType::Err(e) {
-                    return ResultType::Err(semantic_checker_error_new(
+                    return ResultType::Err(SemanticCheckerError.new(
                         ErrorSeverity::HIGH,
                         e.message,
                         span
@@ -293,7 +289,7 @@ fn std_run_type_check(StdFunction std_fn, Type[] arg_types, Span span): ResultTy
                     return ResultType::Ok(t);
                 },
                 ResultType::Err(e) {
-                    return ResultType::Err(semantic_checker_error_new(
+                    return ResultType::Err(SemanticCheckerError.new(
                         ErrorSeverity::HIGH,
                         e.message,
                         span
@@ -307,7 +303,7 @@ fn std_run_type_check(StdFunction std_fn, Type[] arg_types, Span span): ResultTy
                     return ResultType::Ok(t);
                 },
                 ResultType::Err(e) {
-                    return ResultType::Err(semantic_checker_error_new(
+                    return ResultType::Err(SemanticCheckerError.new(
                         ErrorSeverity::HIGH,
                         e.message,
                         span

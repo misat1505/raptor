@@ -518,8 +518,8 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
         }
     } else {
         let t = now_ms();
-        let checker = semantic_checker_new();
-        semantic_checker_check(&checker, &program);
+        let checker = SemanticChecker.new();
+        checker.check(&program);
         if (vector_size(&checker.errors) > 0) {
             let high = 0;
             let low = 0;
@@ -530,7 +530,7 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
                 } else {
                     low += 1;
                 }
-                eprintln(semantic_ckecker_error_get_stderr_message(&err) + "\n");
+                eprintln(err.get_stderr_message() + "\n");
             }
             eprintln(
                 "Static analysis finished with "

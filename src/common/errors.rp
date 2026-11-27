@@ -102,6 +102,29 @@ struct SemanticCheckerError derives Debug {
     str message,
     ErrorSeverity level,
     Span span
+
+    fn new(ErrorSeverity level, str message, Span span): SemanticCheckerError {
+        return SemanticCheckerError { message, level, span };
+    }
+
+    fn at(ErrorSeverity level, str summary, Span span): SemanticCheckerError {
+        return SemanticCheckerError { message: summary, level, span };
+    }
+
+    fn expected_found(
+        ErrorSeverity level,
+        str summary,
+        str expected,
+        str found,
+        Span span
+    ): SemanticCheckerError {
+        let message = summary + "\n  expected: " + expected + "\n  found:    " + found;
+        return SemanticCheckerError { message, level, span };
+    }
+
+    fn get_stderr_message(self): str {
+        return generic_error_stderr_message(&self.message, &self.level, &self.span);
+    }
 };
 
 struct InterpreterError derives Debug {
@@ -261,30 +284,6 @@ fn console_standard(): str {
         output += (bytes[i] as u8) as char;
     }
     return output;
-}
-
-fn semantic_checker_error_new(ErrorSeverity level, str message, Span span): SemanticCheckerError {
-    return SemanticCheckerError { message, level, span };
-}
-
-fn semantic_checker_error_at(ErrorSeverity level, str summary, Span span): SemanticCheckerError {
-    return SemanticCheckerError { message: summary, level, span };
-}
-
-fn semantic_checker_error_expected_found(
-    ErrorSeverity level,
-    str summary,
-    str expected,
-    str found,
-    Span span
-): SemanticCheckerError {
-    let message = summary + "\n  expected: " + expected + "\n  found:    " + found;
-
-    return SemanticCheckerError { message, level, span };
-}
-
-fn semantic_ckecker_error_get_stderr_message(&SemanticCheckerError error): str {
-    return generic_error_stderr_message(&error.message, &error.level, &error.span);
 }
 
 fn interpreter_error_new(ErrorSeverity level, str message, Span span): InterpreterError {

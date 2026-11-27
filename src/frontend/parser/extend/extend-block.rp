@@ -75,7 +75,7 @@ extend Parser {
                                         "Redeclaration of method '"
                                             + method_name
                                             + "' on type '"
-                                            + type_to_string(type_node.value)
+                                            + type_node.value.to_string()
                                             + "'.",
                                         methods[i].value.identifier.span
                                     ));

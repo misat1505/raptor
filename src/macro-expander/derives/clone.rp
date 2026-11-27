@@ -38,7 +38,7 @@ extend MacroExpander {
                 );
                 if (opt_method_based matches OptionFunctionDeclaration::Some(function)) {
                     let clone_method = TypeMethod {
-                        identifier: MacroExpander.ident("clone"),
+                        identifier: MacroExpander.ident(&"clone"),
                         self_identifier: OptionIdentifierNode::Some(IdentifierNode {
                             value: "self",
                             span: Span.default()
@@ -70,7 +70,7 @@ extend MacroExpander {
                 );
                 if (opt_method_based matches OptionFunctionDeclaration::Some(function)) {
                     let clone_method = TypeMethod {
-                        identifier: MacroExpander.ident("clone"),
+                        identifier: MacroExpander.ident(&"clone"),
                         self_identifier: OptionIdentifierNode::Some(IdentifierNode {
                             value: "self",
                             span: Span.default()
@@ -136,7 +136,7 @@ extend MacroExpander {
                 }
 
                 self.errors.push(
-                    macro_expander_error_at(
+                    MacroExpanderError.at(
                         ErrorSeverity::HIGH,
                         "Type '"
                             + dependency_type
@@ -161,7 +161,7 @@ extend MacroExpander {
             },
             Type::Void {
                 self.errors.push(
-                    macro_expander_error_at(
+                    MacroExpanderError.at(
                         ErrorSeverity::HIGH,
                         "Void type cannot be cloned (used by '" + parent_type + "').",
                         derive_span
@@ -206,7 +206,7 @@ extend MacroExpander {
         for (let i = 0; i < declaration.members.size(); i += 1) {
             let member = declaration.members[i];
             let field_name = member.value.identifier.value;
-            let field_expression = MacroExpander.field_access(variable_name, field_name);
+            let field_expression = MacroExpander.field_access(&variable_name, &field_name);
 
             let clone_result = self.clone_expression(
                 field_expression,
@@ -224,8 +224,8 @@ extend MacroExpander {
             fields.push(
                 StructLiteralFieldNode {
                     value: StructLiteralField {
-                        identifier: MacroExpander.ident(field_name),
-                        value: MacroExpander.expr(clone_result.expression)
+                        identifier: MacroExpander.ident(&field_name),
+                        value: MacroExpander.expr(&clone_result.expression)
                     },
                     span: Span.default()
                 }
@@ -233,19 +233,19 @@ extend MacroExpander {
         }
 
         let struct_literal = Expression::StructLiteral(StructLiteralNode {
-            value: StructLiteral { identifier: MacroExpander.ident(type_name), fields },
+            value: StructLiteral { identifier: MacroExpander.ident(&type_name), fields },
             span: Span.default()
         });
-        stmts.push(MacroExpander.stmt(MacroExpander.return_expr(struct_literal)));
+        stmts.push(MacroExpander.stmt(&MacroExpander.return_expr(&struct_literal)));
 
         let params: ParameterNode[] = [];
-        params.push(MacroExpander.param_ref(type_name, variable_name));
+        params.push(MacroExpander.param_ref(&type_name, &variable_name));
 
         return OptionFunctionDeclaration::Some(FunctionDeclaration {
-            identifier: MacroExpander.ident(to_snake_case(type_name) + "_clone"),
+            identifier: MacroExpander.ident(&to_snake_case(type_name) + "_clone"),
             parameters: params,
-            return_type: MacroExpander.type(Type::Unresolved(type_name)),
-            block: MacroExpander.block(stmts)
+            return_type: MacroExpander.type(&Type::Unresolved(type_name)),
+            block: MacroExpander.block(&stmts)
         });
     }
 
@@ -279,10 +279,10 @@ extend MacroExpander {
                     let arm_stmts: StatementNode[] = [];
                     arm_stmts.push(
                         MacroExpander.stmt(
-                            MacroExpander.return_expr(
-                                Expression::EnumLiteral(EnumLiteralExpression {
-                                    enum_name: MacroExpander.ident(enum_name),
-                                    variant_name: MacroExpander.ident(variant_name),
+                            &MacroExpander.return_expr(
+                                &Expression::EnumLiteral(EnumLiteralExpression {
+                                    enum_name: MacroExpander.ident(&enum_name),
+                                    variant_name: MacroExpander.ident(&variant_name),
                                     variant_value: OptionExpressionNode::None
                                 })
                             )
@@ -291,10 +291,10 @@ extend MacroExpander {
                     match_arms.push(
                         MatchArmNode {
                             value: MatchArm {
-                                enum_name: MacroExpander.ident(enum_name),
-                                variant_name: MacroExpander.ident(variant_name),
+                                enum_name: MacroExpander.ident(&enum_name),
+                                variant_name: MacroExpander.ident(&variant_name),
                                 variant_value: OptionIdentifierNode::None,
-                                block: MacroExpander.block(arm_stmts)
+                                block: MacroExpander.block(&arm_stmts)
                             },
                             span: Span.default()
                         }
@@ -303,7 +303,7 @@ extend MacroExpander {
                 OptionTypeNode::Some(type_node) {
                     let payload_var = MacroExpander.debug_variable_name(type_node.value);
                     let clone_result = self.clone_expression(
-                        MacroExpander.var(payload_var),
+                        MacroExpander.var(&payload_var),
                         type_node.value,
                         enum_name,
                         derive_span,
@@ -316,12 +316,12 @@ extend MacroExpander {
                     }
                     arm_stmts.push(
                         MacroExpander.stmt(
-                            MacroExpander.return_expr(
-                                Expression::EnumLiteral(EnumLiteralExpression {
-                                    enum_name: MacroExpander.ident(enum_name),
-                                    variant_name: MacroExpander.ident(variant_name),
+                            &MacroExpander.return_expr(
+                                &Expression::EnumLiteral(EnumLiteralExpression {
+                                    enum_name: MacroExpander.ident(&enum_name),
+                                    variant_name: MacroExpander.ident(&variant_name),
                                     variant_value: OptionExpressionNode::Some(MacroExpander.expr(
-                                        clone_result.expression
+                                        &clone_result.expression
                                     ))
                                 })
                             )
@@ -330,12 +330,12 @@ extend MacroExpander {
                     match_arms.push(
                         MatchArmNode {
                             value: MatchArm {
-                                enum_name: MacroExpander.ident(enum_name),
-                                variant_name: MacroExpander.ident(variant_name),
+                                enum_name: MacroExpander.ident(&enum_name),
+                                variant_name: MacroExpander.ident(&variant_name),
                                 variant_value: OptionIdentifierNode::Some(MacroExpander.ident(
-                                    payload_var
+                                    &payload_var
                                 )),
-                                block: MacroExpander.block(arm_stmts)
+                                block: MacroExpander.block(&arm_stmts)
                             },
                             span: Span.default()
                         }
@@ -347,8 +347,8 @@ extend MacroExpander {
         let stmts: StatementNode[] = [];
         stmts.push(
             MacroExpander.stmt(
-                Statement::Match(MatchStatement {
-                    expression: MacroExpander.expr(MacroExpander.var(variable_name)),
+                &Statement::Match(MatchStatement {
+                    expression: MacroExpander.expr(&MacroExpander.var(&variable_name)),
                     match_arms,
                     rest_arm: OptionBlockNode::None
                 })
@@ -356,13 +356,13 @@ extend MacroExpander {
         );
 
         let params: ParameterNode[] = [];
-        params.push(MacroExpander.param_ref(enum_name, variable_name));
+        params.push(MacroExpander.param_ref(&enum_name, &variable_name));
 
         return OptionFunctionDeclaration::Some(FunctionDeclaration {
-            identifier: MacroExpander.ident(to_snake_case(enum_name) + "_clone"),
+            identifier: MacroExpander.ident(&to_snake_case(enum_name) + "_clone"),
             parameters: params,
-            return_type: MacroExpander.type(Type::Unresolved(enum_name)),
-            block: MacroExpander.block(stmts)
+            return_type: MacroExpander.type(&Type::Unresolved(enum_name)),
+            block: MacroExpander.block(&stmts)
         });
     }
 
@@ -393,15 +393,15 @@ extend MacroExpander {
                         return CloneExpressionResult {
                             statements: empty,
                             expression: MacroExpander.call_ref(
-                                to_snake_case(identifier) + "_clone",
-                                expression
+                                &to_snake_case(identifier) + "_clone",
+                                &expression
                             )
                         };
                     },
                     ExpansionStrategy::MethodBased {
                         return CloneExpressionResult {
                             statements: empty,
-                            expression: MacroExpander.method_call_ref(&expression, "clone")
+                            expression: MacroExpander.method_call_ref(&expression, &"clone")
                         };
                     }
                 }
@@ -437,13 +437,15 @@ extend MacroExpander {
         let index = "i_" + suffix;
         let stmts: StatementNode[] = [];
 
-        stmts.push(MacroExpander.stmt(MacroExpander.let_(src, expression, OptionTypeNode::None)));
+        stmts.push(
+            MacroExpander.stmt(&MacroExpander.let_(&src, &expression, &OptionTypeNode::None))
+        );
         stmts.push(
             MacroExpander.stmt(
-                MacroExpander.let_(
-                    dst,
-                    Expression::Vector([]),
-                    OptionTypeNode::Some(TypeNode {
+                &MacroExpander.let_(
+                    &dst,
+                    &Expression::Vector([]),
+                    &OptionTypeNode::Some(TypeNode {
                         value: Type::Vector(inner),
                         span: Span.default()
                     })
@@ -452,12 +454,12 @@ extend MacroExpander {
         );
         stmts.push(
             MacroExpander.stmt(
-                MacroExpander.let_(index, MacroExpander.i64_lit(0), OptionTypeNode::None)
+                &MacroExpander.let_(&index, &MacroExpander.i64_lit(0), &OptionTypeNode::None)
             )
         );
 
         let loop_body: StatementNode[] = [];
-        let elem = MacroExpander.index(src, index);
+        let elem = MacroExpander.index(&src, &index);
         let cloned = self.clone_expression(
             elem,
             inner,
@@ -475,7 +477,7 @@ extend MacroExpander {
         push_args.push(
             ArgumentNode {
                 value: Argument {
-                    value: MacroExpander.expr(MacroExpander.var(dst)),
+                    value: MacroExpander.expr(&MacroExpander.var(&dst)),
                     passed_by: PassedBy::Reference
                 },
                 span: Span.default()
@@ -484,7 +486,7 @@ extend MacroExpander {
         push_args.push(
             ArgumentNode {
                 value: Argument {
-                    value: MacroExpander.expr(cloned.expression),
+                    value: MacroExpander.expr(&cloned.expression),
                     passed_by: PassedBy::Value
                 },
                 span: Span.default()
@@ -492,35 +494,35 @@ extend MacroExpander {
         );
         loop_body.push(
             MacroExpander.stmt(
-                Statement::FunctionCall(FunctionCallExpression {
-                    identifier: MacroExpander.ident("vector_push"),
+                &Statement::FunctionCall(FunctionCallExpression {
+                    identifier: MacroExpander.ident(&"vector_push"),
                     arguments: push_args
                 })
             )
         );
         loop_body.push(
             MacroExpander.stmt(
-                MacroExpander.assign(
-                    index,
-                    MacroExpander.addition(MacroExpander.var(index), MacroExpander.i64_lit(1))
+                &MacroExpander.assign(
+                    &index,
+                    &MacroExpander.addition(&MacroExpander.var(&index), &MacroExpander.i64_lit(1))
                 )
             )
         );
 
         stmts.push(
             MacroExpander.stmt(
-                Statement::WhileLoop(WhileLoopStatement {
+                &Statement::WhileLoop(WhileLoopStatement {
                     condition: MacroExpander.expr(
-                        MacroExpander.less(
-                            MacroExpander.var(index),
-                            MacroExpander.call_ref("vector_size", MacroExpander.var(src))
+                        &MacroExpander.less(
+                            &MacroExpander.var(&index),
+                            &MacroExpander.call_ref(&"vector_size", &MacroExpander.var(&src))
                         )
                     ),
-                    block: MacroExpander.block(loop_body)
+                    block: MacroExpander.block(&loop_body)
                 })
             )
         );
 
-        return CloneExpressionResult { statements: stmts, expression: MacroExpander.var(dst) };
+        return CloneExpressionResult { statements: stmts, expression: MacroExpander.var(&dst) };
     }
 };

@@ -144,6 +144,10 @@ struct MacroExpanderError derives Debug {
     str message,
     ErrorSeverity level,
     Span span
+
+    fn at(ErrorSeverity level, str summary, Span span): MacroExpanderError {
+        return MacroExpanderError { message: summary, level, span };
+    }
 };
 
 
@@ -401,26 +405,6 @@ fn compiler_error_expected_found(
     let message = summary + "\n  expected: " + expected + "\n  found:    " + found;
 
     return CompilerError { message, level, span };
-}
-
-fn macro_expander_error_new(ErrorSeverity level, str message, Span span): MacroExpanderError {
-    return MacroExpanderError { message, level, span };
-}
-
-fn macro_expander_error_at(ErrorSeverity level, str summary, Span span): MacroExpanderError {
-    return MacroExpanderError { message: summary, level, span };
-}
-
-fn macro_expander_error_expected_found(
-    ErrorSeverity level,
-    str summary,
-    str expected,
-    str found,
-    Span span
-): MacroExpanderError {
-    let message = summary + "\n  expected: " + expected + "\n  found:    " + found;
-
-    return MacroExpanderError { message, level, span };
 }
 
 fn errors_append_position(str message, Position position): str {

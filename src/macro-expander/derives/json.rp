@@ -14,8 +14,8 @@ extend MacroExpander {
         let format = MacroExpander.sb_format_json();
         let type_name = "";
         let stmts: StatementNode[] = [];
-        let function_based_block = MacroExpander.block(stmts);
-        let method_based_block = MacroExpander.block(stmts);
+        let function_based_block = MacroExpander.block(&stmts);
+        let method_based_block = MacroExpander.block(&stmts);
 
         match (declared_type) {
             DeclaredType::Enum(enum_declaration) {
@@ -153,7 +153,7 @@ extend MacroExpander {
                 }
 
                 self.errors.push(
-                    macro_expander_error_at(
+                    MacroExpanderError.at(
                         ErrorSeverity::HIGH,
                         "Type '"
                             + dependency_type
@@ -174,7 +174,7 @@ extend MacroExpander {
             },
             Type::Void {
                 self.errors.push(
-                    macro_expander_error_at(
+                    MacroExpanderError.at(
                         ErrorSeverity::HIGH,
                         "Void type cannot be encoded to Json (used by '" + parent_type + "').",
                         derive_span
@@ -212,7 +212,7 @@ extend MacroExpander {
                 &emit,
                 &format,
                 member.value.member_type.value,
-                MacroExpander.field_access("self", field_name),
+                MacroExpander.field_access(&"self", &field_name),
                 "self_" + field_name,
                 expansion_strategy,
                 false
@@ -222,8 +222,8 @@ extend MacroExpander {
         MacroExpander.emit_lit(&emit, "}");
 
         let stmts = MacroExpander.emit_finish(&emit);
-        stmts.push(MacroExpander.stmt(MacroExpander.return_expr(MacroExpander.var("sb"))));
-        return MacroExpander.block(stmts);
+        stmts.push(MacroExpander.stmt(&MacroExpander.return_expr(&MacroExpander.var(&"sb"))));
+        return MacroExpander.block(&stmts);
     }
 
     fn enum_json_block(
@@ -248,7 +248,7 @@ extend MacroExpander {
                 OptionTypeNode::Some(type_node) {
                     let payload_variable = MacroExpander.debug_variable_name(type_node.value);
                     payload_binding = OptionIdentifierNode::Some(MacroExpander.ident(
-                        payload_variable
+                        &payload_variable
                     ));
 
                     MacroExpander.emit_lit(&emit, "{\"" + variant_name + "\":");
@@ -257,7 +257,7 @@ extend MacroExpander {
                         &emit,
                         &format,
                         type_node.value,
-                        MacroExpander.var(payload_variable),
+                        MacroExpander.var(&payload_variable),
                         payload_variable,
                         expansion_strategy,
                         false
@@ -267,14 +267,16 @@ extend MacroExpander {
             }
 
             let arm_stmts = MacroExpander.emit_finish(&emit);
-            arm_stmts.push(MacroExpander.stmt(MacroExpander.return_expr(MacroExpander.var("sb"))));
+            arm_stmts.push(
+                MacroExpander.stmt(&MacroExpander.return_expr(&MacroExpander.var(&"sb")))
+            );
             match_arms.push(
                 MatchArmNode {
                     value: MatchArm {
-                        enum_name: MacroExpander.ident(enum_name),
-                        variant_name: MacroExpander.ident(variant_name),
+                        enum_name: MacroExpander.ident(&enum_name),
+                        variant_name: MacroExpander.ident(&variant_name),
                         variant_value: payload_binding,
-                        block: MacroExpander.block(arm_stmts)
+                        block: MacroExpander.block(&arm_stmts)
                     },
                     span: Span.default()
                 }
@@ -284,13 +286,13 @@ extend MacroExpander {
         let stmts: StatementNode[] = [];
         stmts.push(
             MacroExpander.stmt(
-                Statement::Match(MatchStatement {
-                    expression: MacroExpander.expr(MacroExpander.var("self")),
+                &Statement::Match(MatchStatement {
+                    expression: MacroExpander.expr(&MacroExpander.var(&"self")),
                     match_arms,
                     rest_arm: OptionBlockNode::None
                 })
             )
         );
-        return MacroExpander.block(stmts);
+        return MacroExpander.block(&stmts);
     }
 };

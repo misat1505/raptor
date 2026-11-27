@@ -63,7 +63,7 @@ extend MacroExpander {
             let existing = program.declared_types[i];
             if (MacroExpander.declared_type_name(&existing.value) == "StringBuilder") {
                 self.errors.push(
-                    macro_expander_error_at(
+                    MacroExpanderError.at(
                         ErrorSeverity::HIGH,
                         "Type 'StringBuilder' is a built-in type and cannot be redeclared.",
                         existing.span
@@ -85,7 +85,7 @@ extend MacroExpander {
         match (Parser.new(&lexer)) {
             ResultParser::Err(err) {
                 self.errors.push(
-                    macro_expander_error_at(
+                    MacroExpanderError.at(
                         ErrorSeverity::HIGH,
                         "Internal error: cannot parse built-in prelude: "
                             + err.get_stderr_message(),
@@ -97,7 +97,7 @@ extend MacroExpander {
                 match (parser.parse()) {
                     ResultProgram::Err(err) {
                         self.errors.push(
-                            macro_expander_error_at(
+                            MacroExpanderError.at(
                                 ErrorSeverity::HIGH,
                                 "Internal error: cannot parse built-in prelude: "
                                     + err.get_stderr_message(),

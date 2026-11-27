@@ -122,7 +122,7 @@ struct MacroExpander {
         for (let i = 0; i < methods.size(); i += 1) {
             if (methods[i].value.identifier.value == method_name) {
                 self.errors.push(
-                    macro_expander_error_at(
+                    MacroExpanderError.at(
                         ErrorSeverity::HIGH,
                         "Method '"
                             + method_name
@@ -148,7 +148,7 @@ struct MacroExpander {
         for (let i = 0; i < program.functions.size(); i += 1) {
             if (program.functions[i].value.identifier.value == function_name) {
                 self.errors.push(
-                    macro_expander_error_at(
+                    MacroExpanderError.at(
                         ErrorSeverity::HIGH,
                         "Function '"
                             + function_name
@@ -163,27 +163,27 @@ struct MacroExpander {
         program.functions.push(FunctionDeclarationNode { value: function, span: Span.default() });
     }
 
-    fn ident(str value): IdentifierNode {
+    fn ident(&str value): IdentifierNode {
         return IdentifierNode { value, span: Span.default() };
     }
 
-    fn expr(Expression value): ExpressionNode {
+    fn expr(&Expression value): ExpressionNode {
         return ExpressionNode { value, span: Span.default() };
     }
 
-    fn stmt(Statement value): StatementNode {
+    fn stmt(&Statement value): StatementNode {
         return StatementNode { value, span: Span.default() };
     }
 
-    fn type(Type value): TypeNode {
+    fn type(&Type value): TypeNode {
         return TypeNode { value, span: Span.default() };
     }
 
-    fn block(StatementNode[] statements): BlockNode {
+    fn block(&StatementNode[] statements): BlockNode {
         return BlockNode { value: Block { statements }, span: Span.default() };
     }
 
-    fn str_lit(str s): Expression {
+    fn str_lit(&str s): Expression {
         return Expression::Literal(Literal::String(s));
     }
 
@@ -191,126 +191,126 @@ struct MacroExpander {
         return Expression::Literal(Literal::I64(n));
     }
 
-    fn var(str name): Expression {
+    fn var(&str name): Expression {
         return Expression::Variable(name);
     }
 
-    fn addition(Expression left, Expression right): Expression {
+    fn addition(&Expression left, &Expression right): Expression {
         return Expression::Addition(BinaryExpression {
-            left: MacroExpander.expr(left),
-            right: MacroExpander.expr(right)
+            left: MacroExpander.expr(&left),
+            right: MacroExpander.expr(&right)
         });
     }
 
-    fn less(Expression left, Expression right): Expression {
+    fn less(&Expression left, &Expression right): Expression {
         return Expression::Less(BinaryExpression {
-            left: MacroExpander.expr(left),
-            right: MacroExpander.expr(right)
+            left: MacroExpander.expr(&left),
+            right: MacroExpander.expr(&right)
         });
     }
 
-    fn field_access(str instance, str field): Expression {
+    fn field_access(&str instance, &str field): Expression {
         return Expression::FieldAccess(FieldAccessExpression {
-            instance: MacroExpander.expr(MacroExpander.var(instance)),
-            field: MacroExpander.ident(field)
+            instance: MacroExpander.expr(&MacroExpander.var(&instance)),
+            field: MacroExpander.ident(&field)
         });
     }
 
-    fn index(str collection, str index): Expression {
+    fn index(&str collection, &str index): Expression {
         return Expression::Index(IndexExpression {
-            collection: MacroExpander.expr(MacroExpander.var(collection)),
-            index: MacroExpander.expr(MacroExpander.var(index))
+            collection: MacroExpander.expr(&MacroExpander.var(&collection)),
+            index: MacroExpander.expr(&MacroExpander.var(&index))
         });
     }
 
-    fn cast_to_str(Expression value): Expression {
+    fn cast_to_str(&Expression value): Expression {
         return Expression::Casting(CastingExpression {
-            value: MacroExpander.expr(value),
-            to_type: MacroExpander.type(Type::Str)
+            value: MacroExpander.expr(&value),
+            to_type: MacroExpander.type(&Type::Str)
         });
     }
 
-    fn call_ref(str fn_name, Expression arg): Expression {
+    fn call_ref(&str fn_name, &Expression arg): Expression {
         let args: ArgumentNode[] = [];
         args.push(
             ArgumentNode {
-                value: Argument { value: MacroExpander.expr(arg), passed_by: PassedBy::Reference },
+                value: Argument { value: MacroExpander.expr(&arg), passed_by: PassedBy::Reference },
                 span: Span.default()
             }
         );
         return Expression::FunctionCall(FunctionCallExpression {
-            identifier: MacroExpander.ident(fn_name),
+            identifier: MacroExpander.ident(&fn_name),
             arguments: args
         });
     }
 
-    fn method_call_ref(&Expression entity_name, str method_name): Expression {
+    fn method_call_ref(&Expression entity_name, &str method_name): Expression {
         return Expression::MethodCall(MethodCallExpression {
-            instance: MacroExpander.expr(entity_name),
+            instance: MacroExpander.expr(&entity_name),
             target: MethodCallTarget::Unresolved,
-            field: MacroExpander.ident(method_name),
+            field: MacroExpander.ident(&method_name),
             arguments: []
         });
     }
 
-    fn call_value(str fn_name, Expression arg): Expression {
+    fn call_value(&str fn_name, &Expression arg): Expression {
         let args: ArgumentNode[] = [];
         args.push(
             ArgumentNode {
-                value: Argument { value: MacroExpander.expr(arg), passed_by: PassedBy::Value },
+                value: Argument { value: MacroExpander.expr(&arg), passed_by: PassedBy::Value },
                 span: Span.default()
             }
         );
         return Expression::FunctionCall(FunctionCallExpression {
-            identifier: MacroExpander.ident(fn_name),
+            identifier: MacroExpander.ident(&fn_name),
             arguments: args
         });
     }
 
-    fn return_expr(Expression e): Statement {
-        return Statement::Return(OptionExpressionNode::Some(MacroExpander.expr(e)));
+    fn return_expr(&Expression e): Statement {
+        return Statement::Return(OptionExpressionNode::Some(MacroExpander.expr(&e)));
     }
 
-    fn let_(str name, Expression value, OptionTypeNode var_type): Statement {
+    fn let_(&str name, &Expression value, &OptionTypeNode var_type): Statement {
         return Statement::Declaration(DeclarationStatement {
-            identifier: MacroExpander.ident(name),
+            identifier: MacroExpander.ident(&name),
             var_type,
-            value: MacroExpander.expr(value)
+            value: MacroExpander.expr(&value)
         });
     }
 
-    fn assign(str name, Expression value): Statement {
+    fn assign(&str name, &Expression value): Statement {
         return Statement::Assignment(AssignmentStatement {
-            identifier: MacroExpander.ident(name),
+            identifier: MacroExpander.ident(&name),
             accessors: [],
-            value: MacroExpander.expr(value)
+            value: MacroExpander.expr(&value)
         });
     }
 
-    fn append_str(str result_var, Expression piece): Statement {
+    fn append_str(&str result_var, &Expression piece): Statement {
         return MacroExpander.assign(
-            result_var,
-            MacroExpander.addition(MacroExpander.var(result_var), piece)
+            &result_var,
+            &MacroExpander.addition(&MacroExpander.var(&result_var), &piece)
         );
     }
 
-    fn combine_strings(Expression[] expressions): Expression {
+    fn combine_strings(&Expression[] expressions): Expression {
         if (expressions.size() == 0) {
-            return MacroExpander.str_lit("");
+            return MacroExpander.str_lit(&"");
         }
         let result = expressions[0];
         for (let i = 1; i < expressions.size(); i += 1) {
-            result = MacroExpander.addition(result, expressions[i]);
+            result = MacroExpander.addition(&result, &expressions[i]);
         }
         return result;
     }
 
-    fn param_ref(str type_name, str param_name): ParameterNode {
+    fn param_ref(&str type_name, &str param_name): ParameterNode {
         return ParameterNode {
             value: Parameter {
                 passed_by: PassedBy::Reference,
-                parameter_type: MacroExpander.type(Type::Unresolved(type_name)),
-                identifier: MacroExpander.ident(param_name)
+                parameter_type: MacroExpander.type(&Type::Unresolved(type_name)),
+                identifier: MacroExpander.ident(&param_name)
             },
             span: Span.default()
         };
@@ -403,8 +403,8 @@ struct MacroExpander {
     }
 
     fn emit_flush(&SbEmit e): void {
-        if (str_len(e.pending) > 0) {
-            e.stmts.push(MacroExpander.sb_push_str_stmt(MacroExpander.str_lit(e.pending)));
+        if (e.pending.size() > 0) {
+            e.stmts.push(MacroExpander.sb_push_str_stmt(MacroExpander.str_lit(&e.pending)));
             e.pending = "";
         }
     }
@@ -423,30 +423,30 @@ struct MacroExpander {
         return e.stmts;
     }
 
-    fn arg(Expression value, PassedBy passed_by): ArgumentNode {
+    fn arg(&Expression value, &PassedBy passed_by): ArgumentNode {
         return ArgumentNode {
-            value: Argument { value: MacroExpander.expr(value), passed_by },
+            value: Argument { value: MacroExpander.expr(&value), passed_by },
             span: Span.default()
         };
     }
 
     fn method_call_expr(
-        Expression instance,
-        str method_name,
-        ArgumentNode[] arguments
+        &Expression instance,
+        &str method_name,
+        &ArgumentNode[] arguments
     ): Expression {
         return Expression::MethodCall(MethodCallExpression {
-            instance: MacroExpander.expr(instance),
+            instance: MacroExpander.expr(&instance),
             target: MethodCallTarget::Unresolved,
-            field: MacroExpander.ident(method_name),
+            field: MacroExpander.ident(&method_name),
             arguments
         });
     }
 
-    fn function_call_stmt(str fn_name, ArgumentNode[] arguments): StatementNode {
+    fn function_call_stmt(&str fn_name, &ArgumentNode[] arguments): StatementNode {
         return MacroExpander.stmt(
-            Statement::FunctionCall(FunctionCallExpression {
-                identifier: MacroExpander.ident(fn_name),
+            &Statement::FunctionCall(FunctionCallExpression {
+                identifier: MacroExpander.ident(&fn_name),
                 arguments
             })
         );
@@ -454,11 +454,11 @@ struct MacroExpander {
 
     fn sb_push_str_stmt(Expression value): StatementNode {
         return MacroExpander.stmt(
-            Statement::Expression(MacroExpander.expr(
-                MacroExpander.method_call_expr(
-                    MacroExpander.var("sb"),
-                    "push_str",
-                    [MacroExpander.arg(value, PassedBy::Reference)]
+            &Statement::Expression(MacroExpander.expr(
+                &MacroExpander.method_call_expr(
+                    &MacroExpander.var(&"sb"),
+                    &"push_str",
+                    &[MacroExpander.arg(&value, &PassedBy::Reference)]
                 )
             ))
         );
@@ -466,26 +466,26 @@ struct MacroExpander {
 
     fn sb_push_char_stmt(Expression value): StatementNode {
         let is_nul = Expression::Equal(BinaryExpression {
-            left: MacroExpander.expr(value),
-            right: MacroExpander.expr(Expression::Literal(Literal::Char('\0')))
+            left: MacroExpander.expr(&value),
+            right: MacroExpander.expr(&Expression::Literal(Literal::Char('\0')))
         });
         let push_char = MacroExpander.stmt(
-            Statement::Expression(MacroExpander.expr(
-                MacroExpander.method_call_expr(
-                    MacroExpander.var("sb"),
-                    "push_char",
-                    [MacroExpander.arg(value, PassedBy::Value)]
+            &Statement::Expression(MacroExpander.expr(
+                &MacroExpander.method_call_expr(
+                    &MacroExpander.var(&"sb"),
+                    &"push_char",
+                    &[MacroExpander.arg(&value, &PassedBy::Value)]
                 )
             ))
         );
 
         return MacroExpander.stmt(
-            Statement::Conditional(ConditionalStatement {
-                condition: MacroExpander.expr(is_nul),
+            &Statement::Conditional(ConditionalStatement {
+                condition: MacroExpander.expr(&is_nul),
                 if_block: MacroExpander.block(
-                    [MacroExpander.sb_push_str_stmt(MacroExpander.str_lit("\\0"))]
+                    &[MacroExpander.sb_push_str_stmt(MacroExpander.str_lit(&"\\0"))]
                 ),
-                else_block: OptionBlockNode::Some(MacroExpander.block([push_char]))
+                else_block: OptionBlockNode::Some(MacroExpander.block(&[push_char]))
             })
         );
     }
@@ -605,7 +605,7 @@ struct MacroExpander {
                 if (MacroExpander.is_number_like(ty)) {
                     MacroExpander.emit_stmt(
                         &e,
-                        MacroExpander.sb_push_str_stmt(MacroExpander.cast_to_str(expression))
+                        MacroExpander.sb_push_str_stmt(MacroExpander.cast_to_str(&expression))
                     );
                 } else {
                     MacroExpander.emit_lit(&e, f.unprintable_literal);
@@ -663,10 +663,10 @@ struct MacroExpander {
             MacroExpander.emit_stmt(
                 &e,
                 MacroExpander.function_call_stmt(
-                    sb_fn_name,
-                    [
-                        MacroExpander.arg(expression, PassedBy::Reference),
-                        MacroExpander.arg(MacroExpander.var("sb"), PassedBy::Reference)
+                    &sb_fn_name,
+                    &[
+                        MacroExpander.arg(&expression, &PassedBy::Reference),
+                        MacroExpander.arg(&MacroExpander.var(&"sb"), &PassedBy::Reference)
                     ]
                 )
             );
@@ -674,26 +674,26 @@ struct MacroExpander {
             MacroExpander.emit_stmt(
                 &e,
                 MacroExpander.stmt(
-                    Statement::Expression(MacroExpander.expr(
-                        MacroExpander.method_call_expr(
-                            expression,
-                            f.sb_method,
-                            [MacroExpander.arg(MacroExpander.var("sb"), PassedBy::Reference)]
+                    &Statement::Expression(MacroExpander.expr(
+                        &MacroExpander.method_call_expr(
+                            &expression,
+                            &f.sb_method,
+                            &[MacroExpander.arg(&MacroExpander.var(&"sb"), &PassedBy::Reference)]
                         )
                     ))
                 )
             );
         } else {
             let temp = ctx + "_dep";
-            let plain_call = MacroExpander.method_call_expr(expression, f.plain_method, []);
+            let plain_call = MacroExpander.method_call_expr(&expression, &f.plain_method, &[]);
             if (mode == 2) {
-                plain_call = MacroExpander.call_ref(plain_fn_name, expression);
+                plain_call = MacroExpander.call_ref(&plain_fn_name, &expression);
             }
             MacroExpander.emit_stmt(
                 &e,
-                MacroExpander.stmt(MacroExpander.let_(temp, plain_call, OptionTypeNode::None))
+                MacroExpander.stmt(&MacroExpander.let_(&temp, &plain_call, &OptionTypeNode::None))
             );
-            MacroExpander.emit_stmt(&e, MacroExpander.sb_push_str_stmt(MacroExpander.var(temp)));
+            MacroExpander.emit_stmt(&e, MacroExpander.sb_push_str_stmt(MacroExpander.var(&temp)));
         }
     }
 
@@ -715,13 +715,17 @@ struct MacroExpander {
         MacroExpander.emit_stmt(
             &e,
             MacroExpander.stmt(
-                MacroExpander.let_(vector_variable, expression, OptionTypeNode::None)
+                &MacroExpander.let_(&vector_variable, &expression, &OptionTypeNode::None)
             )
         );
         MacroExpander.emit_stmt(
             &e,
             MacroExpander.stmt(
-                MacroExpander.let_(index_variable, MacroExpander.i64_lit(0), OptionTypeNode::None)
+                &MacroExpander.let_(
+                    &index_variable,
+                    &MacroExpander.i64_lit(0),
+                    &OptionTypeNode::None
+                )
             )
         );
 
@@ -729,15 +733,19 @@ struct MacroExpander {
         MacroExpander.emit_stmt(
             &body,
             MacroExpander.stmt(
-                Statement::Conditional(ConditionalStatement {
+                &Statement::Conditional(ConditionalStatement {
                     condition: MacroExpander.expr(
-                        MacroExpander.less(
-                            MacroExpander.i64_lit(0),
-                            MacroExpander.var(index_variable)
+                        &MacroExpander.less(
+                            &MacroExpander.i64_lit(0),
+                            &MacroExpander.var(&index_variable)
                         )
                     ),
                     if_block: MacroExpander.block(
-                        [MacroExpander.sb_push_str_stmt(MacroExpander.str_lit(f.vector_separator))]
+                        &[
+                            MacroExpander.sb_push_str_stmt(
+                                MacroExpander.str_lit(&f.vector_separator)
+                            )
+                        ]
                     ),
                     else_block: OptionBlockNode::None
                 })
@@ -748,7 +756,7 @@ struct MacroExpander {
             &body,
             &f,
             inner_type,
-            MacroExpander.index(vector_variable, index_variable),
+            MacroExpander.index(&vector_variable, &index_variable),
             ctx + "_e",
             strategy,
             true
@@ -756,11 +764,11 @@ struct MacroExpander {
         MacroExpander.emit_stmt(
             &body,
             MacroExpander.stmt(
-                MacroExpander.assign(
-                    index_variable,
-                    MacroExpander.addition(
-                        MacroExpander.var(index_variable),
-                        MacroExpander.i64_lit(1)
+                &MacroExpander.assign(
+                    &index_variable,
+                    &MacroExpander.addition(
+                        &MacroExpander.var(&index_variable),
+                        &MacroExpander.i64_lit(1)
                     )
                 )
             )
@@ -769,17 +777,17 @@ struct MacroExpander {
         MacroExpander.emit_stmt(
             &e,
             MacroExpander.stmt(
-                Statement::WhileLoop(WhileLoopStatement {
+                &Statement::WhileLoop(WhileLoopStatement {
                     condition: MacroExpander.expr(
-                        MacroExpander.less(
-                            MacroExpander.var(index_variable),
-                            MacroExpander.call_ref(
-                                "vector_size",
-                                MacroExpander.var(vector_variable)
+                        &MacroExpander.less(
+                            &MacroExpander.var(&index_variable),
+                            &MacroExpander.call_ref(
+                                &"vector_size",
+                                &MacroExpander.var(&vector_variable)
                             )
                         )
                     ),
-                    block: MacroExpander.block(MacroExpander.emit_finish(&body))
+                    block: MacroExpander.block(&MacroExpander.emit_finish(&body))
                 })
             )
         );
@@ -787,27 +795,27 @@ struct MacroExpander {
     }
 
     fn sb_param(): ParameterNode {
-        return MacroExpander.param_ref("StringBuilder", "sb");
+        return MacroExpander.param_ref(&"StringBuilder", &"sb");
     }
 
     fn sb_type(): TypeNode {
-        return MacroExpander.type(Type::Unresolved("StringBuilder"));
+        return MacroExpander.type(&Type::Unresolved("StringBuilder"));
     }
 
     fn sb_new_stmt(): StatementNode {
         return MacroExpander.stmt(
-            MacroExpander.let_(
-                "sb",
-                MacroExpander.method_call_expr(MacroExpander.var("StringBuilder"), "new", []),
-                OptionTypeNode::None
+            &MacroExpander.let_(
+                &"sb",
+                &MacroExpander.method_call_expr(&MacroExpander.var(&"StringBuilder"), &"new", &[]),
+                &OptionTypeNode::None
             )
         );
     }
 
     fn sb_return_string_stmt(): StatementNode {
         return MacroExpander.stmt(
-            MacroExpander.return_expr(
-                MacroExpander.method_call_expr(MacroExpander.var("sb"), "to_string", [])
+            &MacroExpander.return_expr(
+                &MacroExpander.method_call_expr(&MacroExpander.var(&"sb"), &"to_string", &[])
             )
         );
     }
@@ -828,8 +836,11 @@ struct MacroExpander {
         me.insert_function(
             &program,
             &FunctionDeclaration {
-                identifier: MacroExpander.ident(sb_fn_name),
-                parameters: [MacroExpander.param_ref(type_name, "self"), MacroExpander.sb_param()],
+                identifier: MacroExpander.ident(&sb_fn_name),
+                parameters: [
+                    MacroExpander.param_ref(&type_name, &"self"),
+                    MacroExpander.sb_param()
+                ],
                 return_type: MacroExpander.sb_type(),
                 block: function_block
             },
@@ -839,17 +850,20 @@ struct MacroExpander {
         me.insert_function(
             &program,
             &FunctionDeclaration {
-                identifier: MacroExpander.ident(snake + f.fn_suffix),
-                parameters: [MacroExpander.param_ref(type_name, "self")],
-                return_type: MacroExpander.type(Type::Str),
+                identifier: MacroExpander.ident(&snake + f.fn_suffix),
+                parameters: [MacroExpander.param_ref(&type_name, &"self")],
+                return_type: MacroExpander.type(&Type::Str),
                 block: MacroExpander.block(
-                    [
+                    &[
                         MacroExpander.sb_new_stmt(),
                         MacroExpander.function_call_stmt(
-                            sb_fn_name,
-                            [
-                                MacroExpander.arg(MacroExpander.var("self"), PassedBy::Reference),
-                                MacroExpander.arg(MacroExpander.var("sb"), PassedBy::Reference)
+                            &sb_fn_name,
+                            &[
+                                MacroExpander.arg(
+                                    &MacroExpander.var(&"self"),
+                                    &PassedBy::Reference
+                                ),
+                                MacroExpander.arg(&MacroExpander.var(&"sb"), &PassedBy::Reference)
                             ]
                         ),
                         MacroExpander.sb_return_string_stmt()
@@ -860,8 +874,8 @@ struct MacroExpander {
         );
 
         let sb_method = TypeMethod {
-            identifier: MacroExpander.ident(f.sb_method),
-            self_identifier: OptionIdentifierNode::Some(MacroExpander.ident("self")),
+            identifier: MacroExpander.ident(&f.sb_method),
+            self_identifier: OptionIdentifierNode::Some(MacroExpander.ident(&"self")),
             parameters: [MacroExpander.sb_param()],
             return_type: MacroExpander.sb_type(),
             block: method_block
@@ -869,19 +883,24 @@ struct MacroExpander {
         me.insert_method(&declared_type, &sb_method, &derive_span);
 
         let plain_method = TypeMethod {
-            identifier: MacroExpander.ident(f.plain_method),
-            self_identifier: OptionIdentifierNode::Some(MacroExpander.ident("self")),
+            identifier: MacroExpander.ident(&f.plain_method),
+            self_identifier: OptionIdentifierNode::Some(MacroExpander.ident(&"self")),
             parameters: [],
-            return_type: MacroExpander.type(Type::Str),
+            return_type: MacroExpander.type(&Type::Str),
             block: MacroExpander.block(
-                [
+                &[
                     MacroExpander.sb_new_stmt(),
                     MacroExpander.stmt(
-                        Statement::Expression(MacroExpander.expr(
-                            MacroExpander.method_call_expr(
-                                MacroExpander.var("self"),
-                                f.sb_method,
-                                [MacroExpander.arg(MacroExpander.var("sb"), PassedBy::Reference)]
+                        &Statement::Expression(MacroExpander.expr(
+                            &MacroExpander.method_call_expr(
+                                &MacroExpander.var(&"self"),
+                                &f.sb_method,
+                                &[
+                                    MacroExpander.arg(
+                                        &MacroExpander.var(&"sb"),
+                                        &PassedBy::Reference
+                                    )
+                                ]
                             )
                         ))
                     ),

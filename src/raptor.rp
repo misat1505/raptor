@@ -547,8 +547,8 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
     }
 
     let name_mangler_time = now_ms();
-    let name_mangler = name_mangler_new(&program);
-    nm_mangle_program(&name_mangler);
+    let name_mangler = NameMangler.new(&program);
+    name_mangler.mangle_program();
     phase_done(&opts, "Name mangling", name_mangler_time);
 
     if (opts.dump) {

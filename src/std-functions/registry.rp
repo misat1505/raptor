@@ -1,8 +1,3 @@
-# ============================================================
-# Mirrors `get_std_functions()` in std_functions.rs
-# Only name / params / passed_by / return_type / type_check_kind.
-# ============================================================
-
 import "../frontend/parser/ast.rp";
 import "./std-function.rp";
 

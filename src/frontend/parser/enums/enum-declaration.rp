@@ -46,9 +46,6 @@ extend Parser {
             }
         }
 
-        # Mirrors the Rust source exactly - this uses the same "couldn't
-        # create identifier while parsing struct declaration" message as
-        # struct_declaration.rs (looks like a copy/paste artifact upstream).
         if (!found_identifier) {
             return ResultOptionEnumDeclarationNode::Err(self.emit_error(
                 "Couldn't create identifier while parsing struct declaration."

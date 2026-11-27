@@ -8,12 +8,6 @@ import "./backend/llvm/llvm-mod.rp";
 import "./name-mangler/name-mangler.rp";
 
 
-# ============================================================
-# Command line interface. Mirrors src/main.rs: same flags, same phases, same
-# messages. The self-hosted compiler has no interpreter, so it always compiles;
-# in addition it takes `--memory <arc|leak>` (see bootstrap/README.md).
-# ============================================================
-
 struct Timeval {
     i64 sec,
     i64 usec
@@ -92,7 +86,6 @@ fn pad_right(str s, i64 width): str {
     return out;
 }
 
-# 3 decimal places, like Rust's {:.3}.
 fn format_fixed3(f64 v): str {
     let n = (v * 1000.0 + 0.5) as i64;
     let whole = n / 1000;
@@ -330,7 +323,6 @@ fn quoted(str s): str {
     return "'" + s + "'";
 }
 
-# Runs a shell command. Returns "" on success, otherwise the message Rust prints.
 fn run_command(str command, str program, str step, &CliOptions opts): str {
     debug(&opts, command);
 
@@ -370,7 +362,6 @@ fn run_executable(&CliOptions opts, str exe_path): i64 {
     let status = system(path) as i64;
     debug(&opts, "Finished running executable.");
 
-    # Like Rust's ExitStatus::code(): a signal-terminated child counts as 1.
     if (status % 128 != 0) {
         return 1;
     }

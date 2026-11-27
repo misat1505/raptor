@@ -6,12 +6,6 @@ import "./parser-results.rp";
 import "./core.rp";
 
 
-# `parse_statement` tries each statement-starting production in turn and
-# returns the first one that matches. Rust expresses this as a loop over
-# an array of function pointers (`[Self::parse_assign_or_call, ...]`);
-# Raptor has no first-class functions, so it's spelled out as a sequence
-# of attempts instead - functionally identical, just not data-driven.
-
 extend Parser {
     fn parse_statement(self): ResultOptionStatementNode {
         match (self.parse_assign_or_call()) {
@@ -438,10 +432,6 @@ extend Parser {
             return ResultProgram::Err(err);
         }
 
-        # Resolving declared types (`resolve_declared_types` in Rust) is a
-        # semantic-checker step, not a parsing one - out of scope here, so
-        # `Program` simply doesn't carry a resolved `types` table (see the
-        # comment on `Program` in ast.rp).
         return ResultProgram::Ok(Program {
             statements,
             functions,
@@ -456,14 +446,3 @@ extend Parser {
         return self.parse_program();
     }
 };
-
-# Rust's `check_name_collision` looks a name up across four `HashMap`s
-# (user functions, built-in std functions, extern functions, declared
-# types) in O(1). Raptor doesn't have a map type yet, so this walks the
-# (small, whole-program) vectors we do have instead - same behavior,
-# just O(n). The std-function registry itself is a backend/semantic
-# concept (`get_std_functions()`) that doesn't exist on the parsing side
-# of this project, so collisions against built-in names aren't checked
-# here; that stays a semantic-checker concern, consistently with the
-# rest of this parser stopping at AST creation.
-# Mirrors `IParser::parse`, the public entry point (`parser.parse()`).

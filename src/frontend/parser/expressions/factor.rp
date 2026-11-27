@@ -10,10 +10,6 @@ extend Parser {
     fn parse_factor(self): ResultOptionExpressionNode {
         # factor = literal | ("(", expression, ")") | vector_literal | identifier_or_call_or_struct_literal_or_enum_literal;
 
-        # Mirrors `if let Ok(Some(literal)) = self.parse_literal()` in Rust: an
-        # `Err` from this attempt is deliberately swallowed, exactly like the
-        # bootstrap compiler does, and parsing falls through to the next
-        # alternative instead of propagating it.
         if (self.parse_literal() matches ResultOptionLiteralNode::Ok(option_literal)) {
             if (option_literal matches OptionLiteralNode::Some(literal)) {
                 return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(ExpressionNode {

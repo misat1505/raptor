@@ -2,36 +2,6 @@ import "../../common/span.rp";
 import "../../common/position.rp";
 
 
-# ============================================================
-# This file mirrors `src/frontend/ast.rs` and `src/common/types.rs`
-# from the Rust bootstrap compiler.
-#
-# Rust leans on two generic building blocks that Raptor does not have:
-#
-#   - `Node<T> { value: T, span: Span }` - attaches a source span to any
-#     value.
-#   - `Option<T>` - "maybe a T".
-#
-# Since Raptor has no generics, both are recreated by hand, once per
-# concrete `T`: for every AST value type `X` there is a matching
-# `XNode { X value, Span span }` struct playing the role of `Node<X>`,
-# and, wherever Rust used `Option<Node<X>>`, an `OptionXNode` enum
-# playing the role of `Option<Node<X>>`.
-#
-# Rust's enum variants may carry more than one field
-# (`Addition(BNode<Expression>, BNode<Expression>)`). Raptor's enum
-# variants may only carry a single payload, so any such variant is
-# given a small carrier struct instead (e.g. `BinaryExpression`).
-#
-# There is no `Box<T>` here either: Raptor's structs/enums are already
-# heap-allocated, reference-counted values (see docs/memory-management.md),
-# so directly recursive types (an `Expression` containing an
-# `ExpressionNode` which itself contains an `Expression`, and so on) are
-# fine without any indirection wrapper.
-# ============================================================
-
-# ==================== Types (common/types.rs) ====================
-
 enum Type derives Debug, Clone {
     Bool,
     Str,
@@ -267,15 +237,6 @@ enum PassedBy derives Debug, Clone {
 };
 
 # ==================== Expressions ====================
-
-# Forward declared here in comments only (Raptor resolves all
-# declarations in a file before checking bodies, so the mutual
-# recursion between `Expression` and `ExpressionNode` below is fine):
-#
-#   Expression   - the *kind* of expression (no span)
-#   ExpressionNode - Expression + Span (== Node<Expression> in Rust,
-#                    used wherever Rust used `BNode<Expression>` too,
-#                    since there is no Box here)
 
 struct BinaryExpression derives Debug, Clone {
     ExpressionNode left,
@@ -678,14 +639,6 @@ struct SignatureParameterNode derives Debug, Clone {
 
 # ==================== Program ====================
 
-# The Rust `Program` keys functions/extern_functions/declared_types by
-# name in `HashMap`s, and also carries the registry of built-in std
-# functions plus a fully resolved `types` table. Raptor has no map type
-# available at the language level yet, and resolving declared types /
-# registering std functions is semantic-checker work anyway - both are
-# out of scope for a parser whose pipeline stops at AST creation. So
-# `Program` here keeps only what parsing itself produces, as flat
-# vectors instead of maps.
 struct Program derives Debug {
     StatementNode[] statements,
     FunctionDeclarationNode[] functions,
@@ -694,17 +647,3 @@ struct Program derives Debug {
     ExtendBlock[] extend_blocks,
     InterfaceDeclarationNode[] interfaces
 };
-
-# Empty vector of any element type is compatible with typed vectors.
-# Vector(Box<Type>) in Rust.
-# Placeholder for an identifier found in type position (e.g. `Hobby[]
-# hobbies`) before it's known whether it names a struct or an enum.
-# Resolving it is a semantic-checker concern and out of scope for this
-# parser; it is kept around unresolved, exactly like the Rust parser
-# produces it.
-# Boolean operations
-# Relations
-# Arithmetic operations
-# Unary operations
-# Casting
-# Values

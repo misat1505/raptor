@@ -453,9 +453,3 @@ extend Parser {
         }
     }
 };
-
-# Rebuilds `identifier` followed by all of its accessors `x[0].y`) as a
-# plain expression - mirrors the `build_access_expression` closure the
-# Rust parser defines inline (Raptor has no closures/lambdas, so this is
-# a named helper called from the handful of compound-assignment cases
-# below instead).

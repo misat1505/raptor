@@ -196,13 +196,6 @@ fn llvm_emit_drop_functions(&LlvmCompiler c): void {
     }
 }
 
-# ============================================================
-# Value semantics (same as the Rust backend):
-#   * str            full copy whenever it is stored or passed by value
-#   * T[] (by value) new header + new backing array, elements shared
-#   * struct (by value) new struct, primitive fields copied, composite fields shared
-# ============================================================
-
 # Emits the allocation of `size` bytes in the mode the program is compiled in.
 fn llvm_copy_alloc(&LlvmCompiler c, str size, str drop): str {
     if (c.arc) {

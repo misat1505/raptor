@@ -1,6 +1,3 @@
-# Custom type_check callbacks for vector_* builtins
-# (mirrors closures in vectors/vector_{push,size,stringify}.rs).
-
 import "../frontend/parser/ast.rp";
 import "../common/span.rp";
 import "../common/position.rp";

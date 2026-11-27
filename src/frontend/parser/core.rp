@@ -8,44 +8,13 @@ import "./ast.rp";
 import "./parser-results.rp";
 
 
-# ============================================================
-# Mirrors `src/frontend/parser/mod.rs` (the `Parser<L: ILexer>` struct)
-# and `src/frontend/parser/core.rs` (`next_token`, `current_token`,
-# `consume_must_be`, `consume_if_matches`, `create_parser_error`,
-# `token_text`, and the `try_consume!`/`try_consume_token!` macros).
-#
-# Rust's `Parser<L: ILexer>` is generic over the lexer implementation so
-# tests can swap in a mock lexer. Raptor has no generics/interfaces, so
-# this parser is hard-wired to the concrete selfhost `Lexer`.
-#
-# `try_consume!`/`try_consume_token!` are Rust *macros*: they are
-# textually inlined at every call site, they don't exist as callable
-# functions at runtime. Raptor's macro system (`define_macro`) isn't
-# implemented yet (see examples/macro.rp), so every call site below
-# spells the same two patterns out by hand instead:
-#
-#   try_consume_token!(self, Category)
-#     -> consume the current token if it has this exact category, or
-#        bail out of the current production with `Ok(None)`.
-#
-#   try_consume!(self, parse_thing)
-#     -> call another `parse_*` function; propagate its error, bail out
-#        of the current production with `Ok(None)` if it returned
-#        `None`, or unwrap the value if it returned `Some`.
-# ============================================================
-
 struct Parser derives Debug {
     Lexer lexer
 
     fn new(&Lexer lexer): ResultParser {
         let primed = lexer;
 
-        # The token stream always begins with a synthetic STX token. Just
-        # like `Lexer::new` in the Rust bootstrap compiler calls
-        # `generate_token()` twice before returning, we advance twice here:
-        # once to consume the leading STX, once more to land on the first
-        # real token, so that `parser_current_token` already has something
-        # meaningful to return as soon as the parser exists.
+        # The token stream always begins with a synthetic STX token.
         let first_result = primed.next();
         if (first_result matches ResultOptionToken::Err(err)) {
             return ResultParser::Err(ParserError.from_lexer(&err));

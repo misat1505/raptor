@@ -1,7 +1,3 @@
-# ============================================================
-# Mirrors src/backend/llvm/compiler/statements.rs
-# ============================================================
-
 import "../../frontend/parser/ast.rp";
 import "./compiler-core.rp";
 import "./expressions.rp";
@@ -491,8 +487,6 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
             ir_emit(&c.ir, "  br label %" + rest_l);
         },
         OptionBlockNode::None {
-            # The semantic checker should guarantee exhaustiveness; like the
-            # Rust backend, fail loudly if it did not.
             llvm_emit_diag(&c, "true", "Non-exhaustive match: no arm matched.", span, true);
             ir_emit(&c.ir, "  br label %" + end_l);
         }
@@ -577,11 +571,6 @@ fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
     llvm_compiler_pop_scope(&c, outer_marker);
 }
 
-# switch (expr: alias, ...) { (cond) -> { ... } ... }
-# Like the Rust backend: the aliased expressions are evaluated once, then every
-# case condition is tested in order and EVERY matching case runs (there is no
-# implicit stop after a match). `break` leaves the switch, `continue` belongs to
-# the enclosing loop.
 fn llvm_compile_switch(&LlvmCompiler c, SwitchStatement sw): void {
     let marker = llvm_compiler_push_scope_marker(&c);
     for (let i = 0; i < vector_size(&sw.expressions); i += 1) {

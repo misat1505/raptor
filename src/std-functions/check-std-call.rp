@@ -1,17 +1,9 @@
-# ============================================================
-# Semantic-checker helpers for built-in calls.
-# Import from semantic-checker and use in check_function_call
-# *before* the "unknown function" fallback.
-# ============================================================
-
 import "../frontend/parser/ast.rp";
 import "../common/errors.rp";
 import "../common/span.rp";
 import "../semantic-checker/semantic-helpers.rp";
 import "./std-functions-mod.rp";
 
-
-# Mirrors SemanticChecker::is_valid_reference_expression
 
 extend SemanticChecker {
     fn check_std_call(

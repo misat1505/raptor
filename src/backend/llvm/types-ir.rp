@@ -1,9 +1,3 @@
-# ============================================================
-# Map Raptor Type -> LLVM IR type string (simplified runtime).
-# Full Rust path uses inkwell types + refcounted headers;
-# selfhost emits opaque ptr for managed values (str/vector/struct/enum).
-# ============================================================
-
 import "../../frontend/parser/ast.rp";
 
 

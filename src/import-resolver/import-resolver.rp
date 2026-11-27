@@ -60,7 +60,6 @@ struct ImportResolver {
             return ResultProgram::Err(err);
         }
 
-        # pop entry from the cycle stack (mirrors Rust `self.stack.pop()`)
         if (self.stack.size() > 0) {
             # rebuild stack without last element (no vector_pop in language)
             let new_stack: str[] = [];

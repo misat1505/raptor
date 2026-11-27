@@ -293,7 +293,7 @@ struct NameMangler {
                             span: instance.span
                         };
                         args.push(self_arg);
-                        for (let i = 0; i < vector_size(&old_arguments); i += 1) {
+                        for (let i = 0; i < old_arguments.size(); i += 1) {
                             args.push(old_arguments[i]);
                         }
 

@@ -27,12 +27,12 @@ extend LLVMIRCodegen {
             self.ir.emit_arc_runtime();
         }
 
-        for (let i = 0; i < vector_size(&program.extern_functions); i += 1) {
+        for (let i = 0; i < program.extern_functions.size(); i += 1) {
             self.compile_extern(program.extern_functions[i]);
         }
         self.ir.emit("");
 
-        for (let i = 0; i < vector_size(&program.functions); i += 1) {
+        for (let i = 0; i < program.functions.size(); i += 1) {
             self.compile_function_body(program.functions[i]);
         }
 
@@ -48,7 +48,7 @@ extend LLVMIRCodegen {
         let compiler_vars: CompilerVar[] = [];
         self.locals = compiler_vars;
 
-        for (let i = 0; i < vector_size(&program.statements); i += 1) {
+        for (let i = 0; i < program.statements.size(); i += 1) {
             if (self.has_terminator) {
                 break;
             }
@@ -65,7 +65,7 @@ extend LLVMIRCodegen {
 
         self.emit_drop_functions();
         self.emit_copy_functions();
-        for (let i = 0; i < vector_size(&self.extra_fns); i += 1) {
+        for (let i = 0; i < self.extra_fns.size(); i += 1) {
             self.ir.emit(self.extra_fns[i]);
         }
 
@@ -77,12 +77,9 @@ extend LLVMIRCodegen {
         codegen.arc = arc;
         codegen.overflow = overflow;
         let ir = codegen.compile(&program);
-        for (let i = 0; i < vector_size(&codegen.errors); i += 1) {
-            vector_push(&errors, codegen.errors[i]);
+        for (let i = 0; i < codegen.errors.size(); i += 1) {
+            errors.push(codegen.errors[i]);
         }
         return ir;
     }
 };
-
-# Generates the LLVM IR text for `program`. Code generation errors are appended
-# to `errors` (the IR is then incomplete and must not be used).

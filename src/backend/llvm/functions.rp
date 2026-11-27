@@ -34,7 +34,7 @@ extend LLVMIRCodegen {
     fn emit_function_signature(FunctionDeclarationNode f): str {
         let ret = f.value.return_type.value.to_llvm();
         let params_ir = "";
-        for (let i = 0; i < vector_size(&f.value.parameters); i += 1) {
+        for (let i = 0; i < f.value.parameters.size(); i += 1) {
             if (i > 0) {
                 params_ir += ", ";
             }
@@ -64,13 +64,12 @@ extend LLVMIRCodegen {
         self.ir.emit("  br label %allocas");
         self.ir.emit("start:");
 
-        for (let i = 0; i < vector_size(&f.value.parameters); i += 1) {
+        for (let i = 0; i < f.value.parameters.size(); i += 1) {
             let p = f.value.parameters[i];
             let ty = p.value.parameter_type.value.to_llvm();
             if (LLVMIRCodegen.param_is_prim_ref(p)) {
                 # The incoming pointer IS the variable's storage: no alloca/copy.
-                vector_push(
-                    &self.locals,
+                self.locals.push(
                     CompilerVar {
                         name: p.value.identifier.value,
                         ptr: "%" + p.value.identifier.value + ".arg",
@@ -144,7 +143,7 @@ extend LLVMIRCodegen {
             "inet_addr",
             "fgets"
         ];
-        for (let i = 0; i < vector_size(&known); i += 1) {
+        for (let i = 0; i < known.size(); i += 1) {
             if (known[i] == name) {
                 return true;
             }
@@ -155,7 +154,7 @@ extend LLVMIRCodegen {
     fn compile_extern(self, ExternFunctionDeclarationNode e): void {
         let ret = e.value.return_type.value.to_llvm();
         let params_ir = "";
-        for (let i = 0; i < vector_size(&e.value.parameters); i += 1) {
+        for (let i = 0; i < e.value.parameters.size(); i += 1) {
             if (i > 0) {
                 params_ir += ", ";
             }

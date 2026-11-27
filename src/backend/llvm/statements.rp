@@ -8,7 +8,7 @@ import "./types-ir.rp";
 extend LLVMIRCodegen {
     fn compile_block(self, BlockNode block): void {
         let marker = self.push_scope_marker();
-        for (let i = 0; i < vector_size(&block.value.statements); i += 1) {
+        for (let i = 0; i < block.value.statements.size(); i += 1) {
             if (self.has_terminator) {
                 break;
             }
@@ -21,7 +21,7 @@ extend LLVMIRCodegen {
     }
 
     fn double_const(str int_or_float): str {
-        let n = str_len(int_or_float);
+        let n = int_or_float.size();
         for (let i = 0; i < n; i += 1) {
             if (int_or_float[i] == '.') {
                 return int_or_float;
@@ -49,7 +49,7 @@ extend LLVMIRCodegen {
         if (dst_ty == "double") {
             if (rty == "double") {
                 let v = rval;
-                if (str_len(v) > 0 && v[0] != '%') {
+                if (v.size() > 0 && v[0] != '%') {
                     v = LLVMIRCodegen.double_const(v);
                 }
                 self.ir.emit("  store double " + v + ", ptr " + dst_ptr);
@@ -78,7 +78,7 @@ extend LLVMIRCodegen {
         # integer / i1 destinations: coerce to dst width
         if (rty == dst_ty) {
             let v = rval;
-            if (dst_ty == "double" && str_len(v) > 0 && v[0] != '%') {
+            if (dst_ty == "double" && v.size() > 0 && v[0] != '%') {
                 v = LLVMIRCodegen.double_const(v);
             }
             self.ir.emit("  store " + dst_ty + " " + v + ", ptr " + dst_ptr);
@@ -126,7 +126,7 @@ extend LLVMIRCodegen {
             return;
         }
         let v = self.locals[idx];
-        if (vector_size(&assign.accessors) == 0) {
+        if (assign.accessors.size() == 0) {
             # The old reference is released after the new one is in place.
             if (self.arc && v.owned && v.ty == "ptr") {
                 let old = self.ir.tmp();
@@ -146,15 +146,15 @@ extend LLVMIRCodegen {
         # Raptor type name of `cur` as we walk the accessor chain ("" = unknown).
         let cur_rty = v.rty;
 
-        for (let i = 0; i < vector_size(&assign.accessors); i += 1) {
-            let is_last = i == vector_size(&assign.accessors) - 1;
+        for (let i = 0; i < assign.accessors.size(); i += 1) {
+            let is_last = i == assign.accessors.size() - 1;
             match (assign.accessors[i].value) {
                 Accessor::MethodCall {},
                 Accessor::Field(field) {
                     let fidx = 0;
-                    for (let t = 0; t < vector_size(&self.program.declared_types); t += 1) {
+                    for (let t = 0; t < self.program.declared_types.size(); t += 1) {
                         if (self.program.declared_types[t].value matches DeclaredType::Struct(s)) {
-                            for (let m = 0; m < vector_size(&s.members); m += 1) {
+                            for (let m = 0; m < s.members.size(); m += 1) {
                                 if (s.members[m].value.identifier.value == field.value) {
                                     fidx = m;
                                 }
@@ -167,7 +167,7 @@ extend LLVMIRCodegen {
                     let next_rty = "";
                     if (cur_rty != "") {
                         if (self.lookup_struct(cur_rty) matches OptionStructDeclaration::Some(sd)) {
-                            for (let m = 0; m < vector_size(&sd.members); m += 1) {
+                            for (let m = 0; m < sd.members.size(); m += 1) {
                                 if (sd.members[m].value.identifier.value == field.value) {
                                     fidx = m;
                                     next_rty = sd.members[m].value.member_type.value.llvm_type_rname();
@@ -258,7 +258,7 @@ extend LLVMIRCodegen {
     }
 
     fn compile_if(self, ConditionalStatement stmt): void {
-        let cond_temps = vector_size(&self.temps);
+        let cond_temps = self.temps.size();
         self.compile_expression(stmt.condition);
         let cond = self.last_value;
         if (self.last_type != "i1") {
@@ -307,7 +307,7 @@ extend LLVMIRCodegen {
         self.ir.emit("  br label %" + cond_l);
         self.ir.emit(cond_l + ":");
         self.has_terminator = false;
-        let cond_temps = vector_size(&self.temps);
+        let cond_temps = self.temps.size();
         self.compile_expression(stmt.condition);
         let cond = self.last_value;
         if (self.last_type != "i1") {
@@ -319,40 +319,40 @@ extend LLVMIRCodegen {
         self.ir.emit("  br i1 " + cond + ", label %" + body_l + ", label %" + end_l);
         self.ir.emit(body_l + ":");
         self.has_terminator = false;
-        vector_push(&self.break_stack, end_l);
-        vector_push(&self.continue_stack, cond_l);
-        vector_push(&self.loop_marks, vector_size(&self.locals));
-        vector_push(&self.loop_temp_marks, vector_size(&self.temps));
-        vector_push(&self.cont_marks, vector_size(&self.locals));
-        vector_push(&self.cont_temp_marks, vector_size(&self.temps));
+        self.break_stack.push(end_l);
+        self.continue_stack.push(cond_l);
+        self.loop_marks.push(self.locals.size());
+        self.loop_temp_marks.push(self.temps.size());
+        self.cont_marks.push(self.locals.size());
+        self.cont_temp_marks.push(self.temps.size());
         self.compile_block(stmt.block);
 
         # pop stacks
         let nb: str[] = [];
-        for (let i = 0; i < vector_size(&self.break_stack) - 1; i += 1) {
-            vector_push(&nb, self.break_stack[i]);
+        for (let i = 0; i < self.break_stack.size() - 1; i += 1) {
+            nb.push(self.break_stack[i]);
         }
         self.break_stack = nb;
         let nc: str[] = [];
-        for (let i = 0; i < vector_size(&self.continue_stack) - 1; i += 1) {
-            vector_push(&nc, self.continue_stack[i]);
+        for (let i = 0; i < self.continue_stack.size() - 1; i += 1) {
+            nc.push(self.continue_stack[i]);
         }
         self.continue_stack = nc;
         let nm: i64[] = [];
-        for (let i = 0; i < vector_size(&self.loop_marks) - 1; i += 1) {
-            vector_push(&nm, self.loop_marks[i]);
+        for (let i = 0; i < self.loop_marks.size() - 1; i += 1) {
+            nm.push(self.loop_marks[i]);
         }
         self.loop_marks = nm;
         let ntm: i64[] = [];
-        for (let i = 0; i < vector_size(&self.loop_temp_marks) - 1; i += 1) {
-            vector_push(&ntm, self.loop_temp_marks[i]);
+        for (let i = 0; i < self.loop_temp_marks.size() - 1; i += 1) {
+            ntm.push(self.loop_temp_marks[i]);
         }
         self.loop_temp_marks = ntm;
         let ncm: i64[] = [];
         let nctm: i64[] = [];
-        for (let i = 0; i < vector_size(&self.cont_marks) - 1; i += 1) {
-            vector_push(&ncm, self.cont_marks[i]);
-            vector_push(&nctm, self.cont_temp_marks[i]);
+        for (let i = 0; i < self.cont_marks.size() - 1; i += 1) {
+            ncm.push(self.cont_marks[i]);
+            nctm.push(self.cont_temp_marks[i]);
         }
         self.cont_marks = ncm;
         self.cont_temp_marks = nctm;
@@ -375,7 +375,7 @@ extend LLVMIRCodegen {
         self.ir.emit("  br label %" + cond_l);
         self.ir.emit(cond_l + ":");
         self.has_terminator = false;
-        let cond_temps = vector_size(&self.temps);
+        let cond_temps = self.temps.size();
         self.compile_expression(stmt.condition);
         let cond = self.last_value;
         if (self.last_type != "i1") {
@@ -387,38 +387,38 @@ extend LLVMIRCodegen {
         self.ir.emit("  br i1 " + cond + ", label %" + body_l + ", label %" + end_l);
         self.ir.emit(body_l + ":");
         self.has_terminator = false;
-        vector_push(&self.break_stack, end_l);
-        vector_push(&self.continue_stack, step_l);
-        vector_push(&self.loop_marks, vector_size(&self.locals));
-        vector_push(&self.loop_temp_marks, vector_size(&self.temps));
-        vector_push(&self.cont_marks, vector_size(&self.locals));
-        vector_push(&self.cont_temp_marks, vector_size(&self.temps));
+        self.break_stack.push(end_l);
+        self.continue_stack.push(step_l);
+        self.loop_marks.push(self.locals.size());
+        self.loop_temp_marks.push(self.temps.size());
+        self.cont_marks.push(self.locals.size());
+        self.cont_temp_marks.push(self.temps.size());
         self.compile_block(stmt.block);
         let nb: str[] = [];
-        for (let i = 0; i < vector_size(&self.break_stack) - 1; i += 1) {
-            vector_push(&nb, self.break_stack[i]);
+        for (let i = 0; i < self.break_stack.size() - 1; i += 1) {
+            nb.push(self.break_stack[i]);
         }
         self.break_stack = nb;
         let nc: str[] = [];
-        for (let i = 0; i < vector_size(&self.continue_stack) - 1; i += 1) {
-            vector_push(&nc, self.continue_stack[i]);
+        for (let i = 0; i < self.continue_stack.size() - 1; i += 1) {
+            nc.push(self.continue_stack[i]);
         }
         self.continue_stack = nc;
         let nm: i64[] = [];
-        for (let i = 0; i < vector_size(&self.loop_marks) - 1; i += 1) {
-            vector_push(&nm, self.loop_marks[i]);
+        for (let i = 0; i < self.loop_marks.size() - 1; i += 1) {
+            nm.push(self.loop_marks[i]);
         }
         self.loop_marks = nm;
         let ntm: i64[] = [];
-        for (let i = 0; i < vector_size(&self.loop_temp_marks) - 1; i += 1) {
-            vector_push(&ntm, self.loop_temp_marks[i]);
+        for (let i = 0; i < self.loop_temp_marks.size() - 1; i += 1) {
+            ntm.push(self.loop_temp_marks[i]);
         }
         self.loop_temp_marks = ntm;
         let ncm: i64[] = [];
         let nctm: i64[] = [];
-        for (let i = 0; i < vector_size(&self.cont_marks) - 1; i += 1) {
-            vector_push(&ncm, self.cont_marks[i]);
-            vector_push(&nctm, self.cont_temp_marks[i]);
+        for (let i = 0; i < self.cont_marks.size() - 1; i += 1) {
+            ncm.push(self.cont_marks[i]);
+            nctm.push(self.cont_temp_marks[i]);
         }
         self.cont_marks = ncm;
         self.cont_temp_marks = nctm;
@@ -461,13 +461,13 @@ extend LLVMIRCodegen {
 
         let end_l = self.ir.label("match.end");
         let arm_labels: str[] = [];
-        for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
-            vector_push(&arm_labels, self.ir.label("match.arm"));
+        for (let i = 0; i < m.match_arms.size(); i += 1) {
+            arm_labels.push(self.ir.label("match.arm"));
         }
         let rest_l = self.ir.label("match.rest");
 
         # chain of icmp + br
-        for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
+        for (let i = 0; i < m.match_arms.size(); i += 1) {
             let arm = m.match_arms[i];
             let expected = self.enum_variant_tag(
                 arm.value.enum_name.value,
@@ -491,7 +491,7 @@ extend LLVMIRCodegen {
             }
         }
 
-        for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
+        for (let i = 0; i < m.match_arms.size(); i += 1) {
             let arm = m.match_arms[i];
             self.ir.emit(arm_labels[i] + ":");
             self.has_terminator = false;
@@ -507,7 +507,7 @@ extend LLVMIRCodegen {
                         arm.value.enum_name.value
                     ) matches OptionEnumDeclaration::Some(ed)
                 ) {
-                    for (let mi = 0; mi < vector_size(&ed.members); mi += 1) {
+                    for (let mi = 0; mi < ed.members.size(); mi += 1) {
                         if (ed.members[mi].value.identifier.value == arm.value.variant_name.value) {
                             if (
                                 ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)
@@ -573,7 +573,7 @@ extend LLVMIRCodegen {
 
     fn compile_switch(self, SwitchStatement sw): void {
         let marker = self.push_scope_marker();
-        for (let i = 0; i < vector_size(&sw.expressions); i += 1) {
+        for (let i = 0; i < sw.expressions.size(); i += 1) {
             if (sw.expressions[i].value.alias matches OptionIdentifierNode::Some(alias)) {
                 let source = sw.expressions[i].value.expression;
                 self.compile_owned(source);
@@ -590,18 +590,18 @@ extend LLVMIRCodegen {
         }
 
         let after_l = self.ir.label("switch.after");
-        vector_push(&self.break_stack, after_l);
-        vector_push(&self.loop_marks, vector_size(&self.locals));
-        vector_push(&self.loop_temp_marks, vector_size(&self.temps));
+        self.break_stack.push(after_l);
+        self.loop_marks.push(self.locals.size());
+        self.loop_temp_marks.push(self.temps.size());
 
-        let n = vector_size(&sw.cases);
+        let n = sw.cases.size();
         for (let i = 0; i < n; i += 1) {
             let case_l = self.ir.label("switch.case");
             let next_l = after_l;
             if (i + 1 < n) {
                 next_l = self.ir.label("switch.check");
             }
-            let cond_temps = vector_size(&self.temps);
+            let cond_temps = self.temps.size();
             self.compile_expression(sw.cases[i].value.condition);
             let cond = self.last_value;
             if (self.last_type != "i1") {
@@ -629,10 +629,10 @@ extend LLVMIRCodegen {
         let nb: str[] = [];
         let nm: i64[] = [];
         let ntm: i64[] = [];
-        for (let i = 0; i < vector_size(&self.break_stack) - 1; i += 1) {
-            vector_push(&nb, self.break_stack[i]);
-            vector_push(&nm, self.loop_marks[i]);
-            vector_push(&ntm, self.loop_temp_marks[i]);
+        for (let i = 0; i < self.break_stack.size() - 1; i += 1) {
+            nb.push(self.break_stack[i]);
+            nm.push(self.loop_marks[i]);
+            ntm.push(self.loop_temp_marks[i]);
         }
         self.break_stack = nb;
         self.loop_marks = nm;
@@ -645,7 +645,7 @@ extend LLVMIRCodegen {
     }
 
     fn compile_statement(self, StatementNode node): void {
-        let temps_start = vector_size(&self.temps);
+        let temps_start = self.temps.size();
         self.compile_statement_inner(node);
         if (self.has_terminator) {
             # return / break / continue already released what they needed to.
@@ -743,31 +743,23 @@ extend LLVMIRCodegen {
                 self.has_terminator = true;
             },
             Statement::Break {
-                if (vector_size(&self.break_stack) == 0) {
+                if (self.break_stack.size() == 0) {
                     self.error("break outside loop");
                 } else {
-                    let t = self.break_stack[vector_size(&self.break_stack) - 1];
-                    self.release_temps_from(
-                        self.loop_temp_marks[vector_size(&self.loop_temp_marks) - 1]
-                    );
-                    self.emit_release_locals_from(
-                        self.loop_marks[vector_size(&self.loop_marks) - 1]
-                    );
+                    let t = self.break_stack[self.break_stack.size() - 1];
+                    self.release_temps_from(self.loop_temp_marks[self.loop_temp_marks.size() - 1]);
+                    self.emit_release_locals_from(self.loop_marks[self.loop_marks.size() - 1]);
                     self.ir.emit("  br label %" + t);
                     self.has_terminator = true;
                 }
             },
             Statement::Continue {
-                if (vector_size(&self.continue_stack) == 0) {
+                if (self.continue_stack.size() == 0) {
                     self.error("continue outside loop");
                 } else {
-                    let t = self.continue_stack[vector_size(&self.continue_stack) - 1];
-                    self.release_temps_from(
-                        self.cont_temp_marks[vector_size(&self.cont_temp_marks) - 1]
-                    );
-                    self.emit_release_locals_from(
-                        self.cont_marks[vector_size(&self.cont_marks) - 1]
-                    );
+                    let t = self.continue_stack[self.continue_stack.size() - 1];
+                    self.release_temps_from(self.cont_temp_marks[self.cont_temp_marks.size() - 1]);
+                    self.emit_release_locals_from(self.cont_marks[self.cont_marks.size() - 1]);
                     self.ir.emit("  br label %" + t);
                     self.has_terminator = true;
                 }

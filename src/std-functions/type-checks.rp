@@ -7,7 +7,7 @@ import "./std-function.rp";
 
 struct StdTypeChecker {
     fn check_vector_push(Type[] arg_types): ResultType {
-        if (vector_size(&arg_types) != 2) {
+        if (arg_types.size() != 2) {
             return ResultType::Err(SemanticCheckerError.new(
                 ErrorSeverity::HIGH,
                 "vector_push expects exactly 2 arguments.",
@@ -48,7 +48,7 @@ struct StdTypeChecker {
     }
 
     fn check_vector_size(Type[] arg_types): ResultType {
-        if (vector_size(&arg_types) != 1) {
+        if (arg_types.size() != 1) {
             return ResultType::Err(SemanticCheckerError.new(
                 ErrorSeverity::HIGH,
                 "vector_size expects exactly 1 argument.",
@@ -68,7 +68,7 @@ struct StdTypeChecker {
     }
 
     fn check_vector_stringify(Type[] arg_types): ResultType {
-        if (vector_size(&arg_types) != 1) {
+        if (arg_types.size() != 1) {
             return ResultType::Err(SemanticCheckerError.new(
                 ErrorSeverity::HIGH,
                 "vector_stringify expects exactly 1 argument.",
@@ -88,7 +88,7 @@ struct StdTypeChecker {
     }
 
     fn check_vector_extend(Type[] arg_types): ResultType {
-        if (vector_size(&arg_types) != 2) {
+        if (arg_types.size() != 2) {
             return ResultType::Err(SemanticCheckerError.new(
                 ErrorSeverity::HIGH,
                 "vector_extend expects exactly 2 arguments.",
@@ -140,7 +140,7 @@ struct StdTypeChecker {
     }
 
     fn check_str_to_char_vector(Type[] arg_types): ResultType {
-        if (vector_size(&arg_types) != 1) {
+        if (arg_types.size() != 1) {
             return ResultType::Err(SemanticCheckerError.new(
                 ErrorSeverity::HIGH,
                 "str_to_char_vector expects exactly 1 argument.",
@@ -160,7 +160,7 @@ struct StdTypeChecker {
     }
 
     fn check_char_vector_to_str(Type[] arg_types): ResultType {
-        if (vector_size(&arg_types) != 1) {
+        if (arg_types.size() != 1) {
             return ResultType::Err(SemanticCheckerError.new(
                 ErrorSeverity::HIGH,
                 "char_vector_to_str expects exactly 1 argument.",
@@ -193,20 +193,20 @@ struct StdTypeChecker {
         match (std_fn.type_check_kind) {
             StdTypeCheckKind::None {
                 # Fixed params — pairwise compatible check.
-                if (vector_size(&arg_types) != vector_size(&std_fn.params)) {
+                if (arg_types.size() != std_fn.params.size()) {
                     return ResultType::Err(SemanticCheckerError.new(
                         ErrorSeverity::HIGH,
                         "Invalid usage of built-in function '"
                             + std_fn.name
                             + "': expected "
-                            + vector_size(&std_fn.params) as str
+                            + std_fn.params.size() as str
                             + " argument(s), got "
-                            + vector_size(&arg_types) as str
+                            + arg_types.size() as str
                             + ".",
                         span
                     ));
                 }
-                for (let i = 0; i < vector_size(&std_fn.params); i += 1) {
+                for (let i = 0; i < std_fn.params.size(); i += 1) {
                     if (!std_fn.params[i].compatible(arg_types[i])) {
                         return ResultType::Err(SemanticCheckerError.new(
                             ErrorSeverity::HIGH,

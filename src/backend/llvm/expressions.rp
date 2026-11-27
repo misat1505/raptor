@@ -290,7 +290,7 @@ extend LLVMIRCodegen {
     }
 
     fn user_function_index(self, str name): i64 {
-        for (let i = 0; i < vector_size(&self.program.functions); i += 1) {
+        for (let i = 0; i < self.program.functions.size(); i += 1) {
             if (self.program.functions[i].value.identifier.value == name) {
                 return i;
             }
@@ -303,7 +303,7 @@ extend LLVMIRCodegen {
         if (fi < 0) {
             return "";
         }
-        if (arg_index >= vector_size(&self.program.functions[fi].value.parameters)) {
+        if (arg_index >= self.program.functions[fi].value.parameters.size()) {
             return "";
         }
         let pty = self.program.functions[fi].value.parameters[arg_index].value.parameter_type.value;
@@ -453,14 +453,14 @@ extend LLVMIRCodegen {
             self.ir.emit("  " + above + " = icmp " + pred + " " + sty + " " + val + ", " + max_c);
         }
         let cond = below;
-        if (str_len(below) > 0 && str_len(above) > 0) {
+        if (below.size() > 0 && above.size() > 0) {
             cond = self.ir.tmp();
             self.ir.emit("  " + cond + " = or i1 " + below + ", " + above);
         }
-        if (str_len(below) == 0) {
+        if (below.size() == 0) {
             cond = above;
         }
-        if (str_len(cond) == 0) {
+        if (cond.size() == 0) {
             return;
         }
         let sign = "unsigned";
@@ -658,12 +658,12 @@ extend LLVMIRCodegen {
 
     fn vstr_fn(self, str elem): str {
         let name = "@rt_vstr." + LLVMIRCodegen.vstr_sanitize(elem);
-        for (let i = 0; i < vector_size(&self.extra_fn_names); i += 1) {
+        for (let i = 0; i < self.extra_fn_names.size(); i += 1) {
             if (self.extra_fn_names[i] == name) {
                 return name;
             }
         }
-        vector_push(&self.extra_fn_names, name);
+        self.extra_fn_names.push(name);
 
         let alloc = "call ptr @malloc(i64 %total)";
         if (self.arc) {
@@ -676,106 +676,106 @@ extend LLVMIRCodegen {
         if (is_vec) {
             inner_fn = self.vstr_fn(inner_elem);
         }
-        let lines: str[] = [];
-        vector_push(&lines, "define ptr " + name + "(ptr %v) {");
-        vector_push(&lines, "entry:");
-        vector_push(&lines, "  %lp = getelementptr i8, ptr %v, i64 16");
-        vector_push(&lines, "  %len = load i64, ptr %lp");
-        vector_push(&lines, "  %dpp = getelementptr i8, ptr %v, i64 8");
-        vector_push(&lines, "  %data = load ptr, ptr %dpp");
-        vector_push(&lines, "  %szp = alloca i64");
-        vector_push(&lines, "  %ip = alloca i64");
-        vector_push(&lines, "  store i64 3, ptr %szp");
-        vector_push(&lines, "  store i64 0, ptr %ip");
-        vector_push(&lines, "  br label %c1");
-        vector_push(&lines, "c1:");
-        vector_push(&lines, "  %i1 = load i64, ptr %ip");
-        vector_push(&lines, "  %k1 = icmp slt i64 %i1, %len");
-        vector_push(&lines, "  br i1 %k1, label %b1, label %alloc");
-        vector_push(&lines, "b1:");
+        let lines: str[] = [
+            "define ptr " + name + "(ptr %v) {",
+            "entry:",
+            "  %lp = getelementptr i8, ptr %v, i64 16",
+            "  %len = load i64, ptr %lp",
+            "  %dpp = getelementptr i8, ptr %v, i64 8",
+            "  %data = load ptr, ptr %dpp",
+            "  %szp = alloca i64",
+            "  %ip = alloca i64",
+            "  store i64 3, ptr %szp",
+            "  store i64 0, ptr %ip",
+            "  br label %c1",
+            "c1:",
+            "  %i1 = load i64, ptr %ip",
+            "  %k1 = icmp slt i64 %i1, %len",
+            "  br i1 %k1, label %b1, label %alloc",
+            "b1:"
+        ];
         if (is_vec) {
             # Nested vector: format the inner one only to learn its length.
-            vector_push(&lines, "  %s1 = getelementptr ptr, ptr %data, i64 %i1");
-            vector_push(&lines, "  %sp1 = load ptr, ptr %s1");
-            vector_push(&lines, "  %tmp1 = call ptr " + inner_fn + "(ptr %sp1)");
-            vector_push(&lines, "  %sl1 = call i64 @strlen(ptr %tmp1)");
+            lines.push("  %s1 = getelementptr ptr, ptr %data, i64 %i1");
+            lines.push("  %sp1 = load ptr, ptr %s1");
+            lines.push("  %tmp1 = call ptr " + inner_fn + "(ptr %sp1)");
+            lines.push("  %sl1 = call i64 @strlen(ptr %tmp1)");
             if (self.arc) {
-                vector_push(&lines, "  call void @rt_release(ptr %tmp1)");
+                lines.push("  call void @rt_release(ptr %tmp1)");
             }
-            vector_push(&lines, "  %es = add i64 %sl1, 4");
+            lines.push("  %es = add i64 %sl1, 4");
         } else if (is_str) {
-            vector_push(&lines, "  %s1 = getelementptr ptr, ptr %data, i64 %i1");
-            vector_push(&lines, "  %sp1 = load ptr, ptr %s1");
-            vector_push(&lines, "  %sl1 = call i64 @strlen(ptr %sp1)");
-            vector_push(&lines, "  %es = add i64 %sl1, 4");
+            lines.push("  %s1 = getelementptr ptr, ptr %data, i64 %i1");
+            lines.push("  %sp1 = load ptr, ptr %s1");
+            lines.push("  %sl1 = call i64 @strlen(ptr %sp1)");
+            lines.push("  %es = add i64 %sl1, 4");
         } else {
-            vector_push(&lines, "  %es = add i64 0, 28");
+            lines.push("  %es = add i64 0, 28");
         }
-        vector_push(&lines, "  %sz0 = load i64, ptr %szp");
-        vector_push(&lines, "  %sz1 = add i64 %sz0, %es");
-        vector_push(&lines, "  store i64 %sz1, ptr %szp");
-        vector_push(&lines, "  %in1 = add i64 %i1, 1");
-        vector_push(&lines, "  store i64 %in1, ptr %ip");
-        vector_push(&lines, "  br label %c1");
-        vector_push(&lines, "alloc:");
-        vector_push(&lines, "  %total = load i64, ptr %szp");
-        vector_push(&lines, "  %buf = " + alloc);
-        vector_push(&lines, "  store i8 91, ptr %buf");
-        vector_push(&lines, "  %posp = alloca i64");
-        vector_push(&lines, "  store i64 1, ptr %posp");
-        vector_push(&lines, "  store i64 0, ptr %ip");
-        vector_push(&lines, "  br label %c2");
-        vector_push(&lines, "c2:");
-        vector_push(&lines, "  %i2 = load i64, ptr %ip");
-        vector_push(&lines, "  %k2 = icmp slt i64 %i2, %len");
-        vector_push(&lines, "  br i1 %k2, label %b2, label %fin");
-        vector_push(&lines, "b2:");
-        vector_push(&lines, "  %pos0 = load i64, ptr %posp");
-        vector_push(&lines, "  %first = icmp eq i64 %i2, 0");
-        vector_push(&lines, "  br i1 %first, label %elem, label %sep");
-        vector_push(&lines, "sep:");
-        vector_push(&lines, "  %sp0 = getelementptr i8, ptr %buf, i64 %pos0");
-        vector_push(&lines, "  store i8 44, ptr %sp0");
-        vector_push(&lines, "  %sp0b = getelementptr i8, ptr %sp0, i64 1");
-        vector_push(&lines, "  store i8 32, ptr %sp0b");
-        vector_push(&lines, "  %pos1 = add i64 %pos0, 2");
-        vector_push(&lines, "  br label %elem");
-        vector_push(&lines, "elem:");
-        vector_push(&lines, "  %pos = phi i64 [ %pos0, %b2 ], [ %pos1, %sep ]");
-        vector_push(&lines, "  %dst = getelementptr i8, ptr %buf, i64 %pos");
-        vector_push(&lines, "  %cap = sub i64 %total, %pos");
-        vector_push(&lines, "  %slot = getelementptr ptr, ptr %data, i64 %i2");
+        lines.push("  %sz0 = load i64, ptr %szp");
+        lines.push("  %sz1 = add i64 %sz0, %es");
+        lines.push("  store i64 %sz1, ptr %szp");
+        lines.push("  %in1 = add i64 %i1, 1");
+        lines.push("  store i64 %in1, ptr %ip");
+        lines.push("  br label %c1");
+        lines.push("alloc:");
+        lines.push("  %total = load i64, ptr %szp");
+        lines.push("  %buf = " + alloc);
+        lines.push("  store i8 91, ptr %buf");
+        lines.push("  %posp = alloca i64");
+        lines.push("  store i64 1, ptr %posp");
+        lines.push("  store i64 0, ptr %ip");
+        lines.push("  br label %c2");
+        lines.push("c2:");
+        lines.push("  %i2 = load i64, ptr %ip");
+        lines.push("  %k2 = icmp slt i64 %i2, %len");
+        lines.push("  br i1 %k2, label %b2, label %fin");
+        lines.push("b2:");
+        lines.push("  %pos0 = load i64, ptr %posp");
+        lines.push("  %first = icmp eq i64 %i2, 0");
+        lines.push("  br i1 %first, label %elem, label %sep");
+        lines.push("sep:");
+        lines.push("  %sp0 = getelementptr i8, ptr %buf, i64 %pos0");
+        lines.push("  store i8 44, ptr %sp0");
+        lines.push("  %sp0b = getelementptr i8, ptr %sp0, i64 1");
+        lines.push("  store i8 32, ptr %sp0b");
+        lines.push("  %pos1 = add i64 %pos0, 2");
+        lines.push("  br label %elem");
+        lines.push("elem:");
+        lines.push("  %pos = phi i64 [ %pos0, %b2 ], [ %pos1, %sep ]");
+        lines.push("  %dst = getelementptr i8, ptr %buf, i64 %pos");
+        lines.push("  %cap = sub i64 %total, %pos");
+        lines.push("  %slot = getelementptr ptr, ptr %data, i64 %i2");
         let call = "";
         if (is_vec) {
-            vector_push(&lines, "  %vp = load ptr, ptr %slot");
-            vector_push(&lines, "  %vs = call ptr " + inner_fn + "(ptr %vp)");
-            vector_push(&lines, self.vstr_cstr("%s", "%fmt"));
-            vector_push(
-                &lines,
+            lines.push("  %vp = load ptr, ptr %slot");
+            lines.push("  %vs = call ptr " + inner_fn + "(ptr %vp)");
+            lines.push(self.vstr_cstr("%s", "%fmt"));
+            lines.push(
                 "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %vs)"
             );
             if (self.arc) {
-                vector_push(&lines, "  call void @rt_release(ptr %vs)");
+                lines.push("  call void @rt_release(ptr %vs)");
             }
             call = "";
         } else if (is_str) {
-            vector_push(&lines, "  %ep = load ptr, ptr %slot");
-            vector_push(&lines, self.vstr_cstr("\"%s\"", "%fmt"));
+            lines.push("  %ep = load ptr, ptr %slot");
+            lines.push(self.vstr_cstr("\"%s\"", "%fmt"));
             call =
                 "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %ep)";
         } else {
-            vector_push(&lines, "  %raw = load i64, ptr %slot");
+            lines.push("  %raw = load i64, ptr %slot");
             if (elem == "f64") {
-                vector_push(&lines, "  %dv = bitcast i64 %raw to double");
-                vector_push(&lines, self.vstr_cstr("%g", "%fmt"));
+                lines.push("  %dv = bitcast i64 %raw to double");
+                lines.push(self.vstr_cstr("%g", "%fmt"));
                 call =
                     "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, double %dv)";
             } else if (elem == "bool") {
-                vector_push(&lines, "  %bv = trunc i64 %raw to i1");
-                vector_push(&lines, self.vstr_cstr("true", "%tt"));
-                vector_push(&lines, self.vstr_cstr("false", "%ff"));
-                vector_push(&lines, "  %bs = select i1 %bv, ptr %tt, ptr %ff");
-                vector_push(&lines, self.vstr_cstr("%s", "%fmt"));
+                lines.push("  %bv = trunc i64 %raw to i1");
+                lines.push(self.vstr_cstr("true", "%tt"));
+                lines.push(self.vstr_cstr("false", "%ff"));
+                lines.push("  %bs = select i1 %bv, ptr %tt, ptr %ff");
+                lines.push(self.vstr_cstr("%s", "%fmt"));
                 call =
                     "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, ptr %bs)";
             } else {
@@ -787,45 +787,45 @@ extend LLVMIRCodegen {
                     if (uns) {
                         ext = "zext";
                     }
-                    vector_push(&lines, "  %nv = trunc i64 %raw to " + ity);
-                    vector_push(&lines, "  %xv = " + ext + " " + ity + " %nv to i64");
+                    lines.push("  %nv = trunc i64 %raw to " + ity);
+                    lines.push("  %xv = " + ext + " " + ity + " %nv to i64");
                     wide = "%xv";
                 }
                 let fmt = "%lld";
                 if (uns) {
                     fmt = "%llu";
                 }
-                vector_push(&lines, self.vstr_cstr(fmt, "%fmt"));
+                lines.push(self.vstr_cstr(fmt, "%fmt"));
                 call =
                     "  %w = call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dst, i64 %cap, ptr %fmt, i64 "
                         + wide
                         + ")";
             }
         }
-        if (str_len(call) > 0) {
-            vector_push(&lines, call);
+        if (call.size() > 0) {
+            lines.push(call);
         }
-        vector_push(&lines, "  %w64 = sext i32 %w to i64");
-        vector_push(&lines, "  %posn = add i64 %pos, %w64");
-        vector_push(&lines, "  store i64 %posn, ptr %posp");
-        vector_push(&lines, "  %in2 = add i64 %i2, 1");
-        vector_push(&lines, "  store i64 %in2, ptr %ip");
-        vector_push(&lines, "  br label %c2");
-        vector_push(&lines, "fin:");
-        vector_push(&lines, "  %endp = load i64, ptr %posp");
-        vector_push(&lines, "  %e0 = getelementptr i8, ptr %buf, i64 %endp");
-        vector_push(&lines, "  store i8 93, ptr %e0");
-        vector_push(&lines, "  %e1 = getelementptr i8, ptr %e0, i64 1");
-        vector_push(&lines, "  store i8 0, ptr %e1");
-        vector_push(&lines, "  ret ptr %buf");
-        vector_push(&lines, "}");
-        vector_push(&lines, "");
+        lines.push("  %w64 = sext i32 %w to i64");
+        lines.push("  %posn = add i64 %pos, %w64");
+        lines.push("  store i64 %posn, ptr %posp");
+        lines.push("  %in2 = add i64 %i2, 1");
+        lines.push("  store i64 %in2, ptr %ip");
+        lines.push("  br label %c2");
+        lines.push("fin:");
+        lines.push("  %endp = load i64, ptr %posp");
+        lines.push("  %e0 = getelementptr i8, ptr %buf, i64 %endp");
+        lines.push("  store i8 93, ptr %e0");
+        lines.push("  %e1 = getelementptr i8, ptr %e0, i64 1");
+        lines.push("  store i8 0, ptr %e1");
+        lines.push("  ret ptr %buf");
+        lines.push("}");
+        lines.push("");
 
         let text = "";
-        for (let i = 0; i < vector_size(&lines); i += 1) {
+        for (let i = 0; i < lines.size(); i += 1) {
             text += lines[i] + "\n";
         }
-        vector_push(&self.extra_fns, text);
+        self.extra_fns.push(text);
         return name;
     }
 
@@ -1023,7 +1023,7 @@ extend LLVMIRCodegen {
 
     fn compile_vector_literal(self, ExpressionNode[] elems): void {
         let vec = self.vector_alloc_empty();
-        for (let i = 0; i < vector_size(&elems); i += 1) {
+        for (let i = 0; i < elems.size(); i += 1) {
             self.compile_owned(elems[i]);
             if (self.last_type == "ptr") {
                 self.vector_push_ptr(vec, self.last_value);
@@ -1038,7 +1038,7 @@ extend LLVMIRCodegen {
         let name = node.value.identifier.value;
         let nfields = self.struct_field_count(name);
         if (nfields == 0) {
-            nfields = vector_size(&node.value.fields);
+            nfields = node.value.fields.size();
         }
         let bytes = (nfields + 1) * 8;
         let p = self.alloc_bytes(bytes as str, self.struct_drop_ref(name));
@@ -1053,7 +1053,7 @@ extend LLVMIRCodegen {
         );
         self.ir.emit("  store i64 1, ptr " + rc_gep);
 
-        for (let i = 0; i < vector_size(&node.value.fields); i += 1) {
+        for (let i = 0; i < node.value.fields.size(); i += 1) {
             let f = node.value.fields[i];
             let idx = self.struct_field_index(name, f.value.identifier.value);
             self.compile_owned(f.value.value);
@@ -1106,9 +1106,9 @@ extend LLVMIRCodegen {
 
         let idx = 0;
         let field_ty = "i64";
-        for (let t = 0; t < vector_size(&self.program.declared_types); t += 1) {
+        for (let t = 0; t < self.program.declared_types.size(); t += 1) {
             if (self.program.declared_types[t].value matches DeclaredType::Struct(s)) {
-                for (let m = 0; m < vector_size(&s.members); m += 1) {
+                for (let m = 0; m < s.members.size(); m += 1) {
                     if (s.members[m].value.identifier.value == fa.field.value) {
                         idx = m;
                         field_ty = s.members[m].value.member_type.value.to_llvm();
@@ -1123,7 +1123,7 @@ extend LLVMIRCodegen {
         let base_rty = self.expr_rtype(fa.instance);
         if (base_rty != "") {
             if (self.lookup_struct(base_rty) matches OptionStructDeclaration::Some(sd)) {
-                for (let m = 0; m < vector_size(&sd.members); m += 1) {
+                for (let m = 0; m < sd.members.size(); m += 1) {
                     if (sd.members[m].value.identifier.value == fa.field.value) {
                         idx = m;
                         field_ty = sd.members[m].value.member_type.value.to_llvm();
@@ -1244,7 +1244,7 @@ extend LLVMIRCodegen {
                 return LLVMIRCodegen.llvm_rty_element(col_rty);
             },
             Expression::Vector(elems) {
-                if (vector_size(&elems) == 0) {
+                if (elems.size() == 0) {
                     return "";
                 }
                 return self.expr_rtype(elems[0]) + "[]";
@@ -1266,7 +1266,7 @@ extend LLVMIRCodegen {
                 let base = self.expr_rtype(fa.instance);
                 if (base != "") {
                     if (self.lookup_struct(base) matches OptionStructDeclaration::Some(sd)) {
-                        for (let m = 0; m < vector_size(&sd.members); m += 1) {
+                        for (let m = 0; m < sd.members.size(); m += 1) {
                             if (sd.members[m].value.identifier.value == fa.field.value) {
                                 return sd.members[m].value.member_type.value.llvm_type_rname();
                             }
@@ -1279,9 +1279,9 @@ extend LLVMIRCodegen {
                 # declares it agrees on its type.
                 let found = false;
                 let result = "";
-                for (let t = 0; t < vector_size(&self.program.declared_types); t += 1) {
+                for (let t = 0; t < self.program.declared_types.size(); t += 1) {
                     if (self.program.declared_types[t].value matches DeclaredType::Struct(s)) {
-                        for (let m = 0; m < vector_size(&s.members); m += 1) {
+                        for (let m = 0; m < s.members.size(); m += 1) {
                             if (s.members[m].value.identifier.value == fa.field.value) {
                                 let name = s.members[m].value.member_type.value.llvm_type_rname();
                                 if (found && name != result) {
@@ -1296,7 +1296,7 @@ extend LLVMIRCodegen {
                 return result;
             },
             Expression::FunctionCall(call) {
-                for (let i = 0; i < vector_size(&self.program.functions); i += 1) {
+                for (let i = 0; i < self.program.functions.size(); i += 1) {
                     if (self.program.functions[i].value.identifier.value == call.identifier.value) {
                         return self.program.functions[i].value.return_type.value.llvm_type_rname();
                     }
@@ -1406,7 +1406,7 @@ extend LLVMIRCodegen {
 
         # "1" when the argument is a fresh (+1) temporary the caller must release.
         let arg_fresh: str[] = [];
-        for (let i = 0; i < vector_size(&call.arguments); i += 1) {
+        for (let i = 0; i < call.arguments.size(); i += 1) {
             let arg_ref = false;
             if (call.arguments[i].value.passed_by matches PassedBy::Reference) {
                 arg_ref = true;
@@ -1426,9 +1426,9 @@ extend LLVMIRCodegen {
                 }
             }
             if (addr != "") {
-                vector_push(&arg_vals, addr);
-                vector_push(&arg_tys, "ptr");
-                vector_push(&arg_fresh, "0");
+                arg_vals.push(addr);
+                arg_tys.push("ptr");
+                arg_fresh.push("0");
                 continue;
             }
             self.compile_expression(call.arguments[i].value.value);
@@ -1441,32 +1441,32 @@ extend LLVMIRCodegen {
                     self.last_value
                 );
             }
-            if (str_len(arg_copy) > 0) {
-                vector_push(&arg_vals, arg_copy);
-                vector_push(&arg_tys, "ptr");
-                vector_push(&arg_fresh, "1");
+            if (arg_copy.size() > 0) {
+                arg_vals.push(arg_copy);
+                arg_tys.push("ptr");
+                arg_fresh.push("1");
                 continue;
             }
             if (arg_ref && self.last_type != "ptr") {
                 # Not a plain variable (field, index, temporary): pass a temporary's
                 # address. Writes by the callee are not propagated back.
                 let tmp = self.ir.tmp();
-                vector_push(&self.allocas, "  " + tmp + " = alloca " + self.last_type);
+                self.allocas.push("  " + tmp + " = alloca " + self.last_type);
                 self.ir.emit("  store " + self.last_type + " " + self.last_value + ", ptr " + tmp);
-                vector_push(&arg_vals, tmp);
-                vector_push(&arg_tys, "ptr");
-                vector_push(&arg_fresh, "0");
+                arg_vals.push(tmp);
+                arg_tys.push("ptr");
+                arg_fresh.push("0");
                 continue;
             }
-            vector_push(&arg_vals, self.last_value);
-            vector_push(&arg_tys, self.last_type);
+            arg_vals.push(self.last_value);
+            arg_tys.push(self.last_type);
             if (
                 self.last_type == "ptr"
                     && !LLVMIRCodegen.expr_is_borrowed(call.arguments[i].value.value)
             ) {
-                vector_push(&arg_fresh, "1");
+                arg_fresh.push("1");
             } else {
-                vector_push(&arg_fresh, "0");
+                arg_fresh.push("0");
             }
         }
 
@@ -1474,7 +1474,7 @@ extend LLVMIRCodegen {
 
         # Temporaries passed as arguments were only borrowed by the callee.
         if (self.arc) {
-            for (let i = 0; i < vector_size(&arg_vals); i += 1) {
+            for (let i = 0; i < arg_vals.size(); i += 1) {
                 if (arg_fresh[i] == "1") {
                     let consumed = false;
                     if (call.identifier.value == "vector_push" && i == 1) {
@@ -1499,7 +1499,7 @@ extend LLVMIRCodegen {
 
         # ========== IO ==========
         if (name == "println") {
-            if (vector_size(&arg_vals) == 0) {
+            if (arg_vals.size() == 0) {
                 let g = self.ir.cstr_global("\n");
                 let p = self.ir.tmp();
                 self.ir.emit(
@@ -1537,7 +1537,7 @@ extend LLVMIRCodegen {
         }
 
         if (name == "print") {
-            if (vector_size(&arg_vals) >= 1) {
+            if (arg_vals.size() >= 1) {
                 let a = arg_vals[0];
                 let at = arg_tys[0];
                 if (at != "ptr") {
@@ -1926,7 +1926,7 @@ extend LLVMIRCodegen {
             if (self.arc) {
                 # The copied pointers are now shared by two vectors: retain each one.
                 let ip = self.ir.tmp();
-                vector_push(&self.allocas, "  " + ip + " = alloca i64");
+                self.allocas.push("  " + ip + " = alloca i64");
                 let mg = self.ir.tmp();
                 self.ir.emit("  " + mg + " = icmp ne i64 " + s_flag + ", 0");
                 let rinit_l = self.ir.label("vext.rinit");
@@ -2002,7 +2002,7 @@ extend LLVMIRCodegen {
             self.ir.emit("  " + c_p + " = getelementptr i8, ptr " + vec + ", i64 24");
             self.ir.emit("  store i64 " + len + ", ptr " + c_p);
             let ip = self.ir.tmp();
-            vector_push(&self.allocas, "  " + ip + " = alloca i64");
+            self.allocas.push("  " + ip + " = alloca i64");
             self.ir.emit("  store i64 0, ptr " + ip);
             self.ir.emit("  br label %" + loop_l);
 
@@ -2050,7 +2050,7 @@ extend LLVMIRCodegen {
             let buf = self.alloc_bytes(n1, "null");
 
             let ip = self.ir.tmp();
-            vector_push(&self.allocas, "  " + ip + " = alloca i64");
+            self.allocas.push("  " + ip + " = alloca i64");
             self.ir.emit("  store i64 0, ptr " + ip);
             let loop_l = self.ir.label("c2s.loop");
             let body_l = self.ir.label("c2s.body");
@@ -2358,12 +2358,12 @@ extend LLVMIRCodegen {
         let ret_ty = "i64";
         let extern_str = false;
         let extern_link = "";
-        for (let i = 0; i < vector_size(&self.program.functions); i += 1) {
+        for (let i = 0; i < self.program.functions.size(); i += 1) {
             if (self.program.functions[i].value.identifier.value == name) {
                 ret_ty = self.program.functions[i].value.return_type.value.to_llvm();
             }
         }
-        for (let i = 0; i < vector_size(&self.program.extern_functions); i += 1) {
+        for (let i = 0; i < self.program.extern_functions.size(); i += 1) {
             let ef = self.program.extern_functions[i].value;
             let n = ef.identifier.value;
             if (ef.alias matches OptionIdentifierNode::Some(a)) {
@@ -2378,14 +2378,14 @@ extend LLVMIRCodegen {
             }
         }
         let args_ir = "";
-        for (let i = 0; i < vector_size(&arg_vals); i += 1) {
+        for (let i = 0; i < arg_vals.size(); i += 1) {
             if (i > 0) {
                 args_ir += ", ";
             }
             args_ir += arg_tys[i] + " " + arg_vals[i];
         }
         let link = name;
-        if (str_len(extern_link) > 0) {
+        if (!extern_link.is_empty()) {
             link = extern_link;
         }
         if (name == "main") {
@@ -2644,7 +2644,7 @@ extend LLVMIRCodegen {
         }
 
         self.ir.emit(rhs_l + ":");
-        let rhs_temps = vector_size(&self.temps);
+        let rhs_temps = self.temps.size();
         self.compile_expression(right);
         let rv = self.last_value;
         self.flush_temps_from(rhs_temps);

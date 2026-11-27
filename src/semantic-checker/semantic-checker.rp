@@ -1401,8 +1401,7 @@ struct SemanticChecker {
                                                 + arm.value.variant_name.value
                                                 + payload_txt
                                                 + "\n```";
-                                        vector_push(
-                                            &self.hovers,
+                                        self.hovers.push(
                                             HoverInfo {
                                                 span: arm.value.variant_name.span,
                                                 contents
@@ -2513,10 +2512,7 @@ struct SemanticChecker {
                                 + el.variant_name.value
                                 + payload_txt
                                 + "\n```";
-                        vector_push(
-                            &self.hovers,
-                            HoverInfo { span: el.variant_name.span, contents }
-                        );
+                        self.hovers.push(HoverInfo { span: el.variant_name.span, contents });
                     }
                 }
 

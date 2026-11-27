@@ -111,7 +111,7 @@ struct LLVMIRCodegen {
     }
 
     fn error(self, str msg): void {
-        vector_push(&self.errors, msg);
+        self.errors.push(msg);
     }
 
     fn set_last(self, str value, str ty): void {
@@ -120,7 +120,7 @@ struct LLVMIRCodegen {
     }
 
     fn find_local(self, str name): i64 {
-        for (let i = vector_size(&self.locals) - 1; i >= 0; i -= 1) {
+        for (let i = self.locals.size() - 1; i >= 0; i -= 1) {
             if (self.locals[i].name == name) {
                 return i;
             }
@@ -132,13 +132,13 @@ struct LLVMIRCodegen {
         let n = self.local_id;
         self.local_id += 1;
         let ptr = "%" + name + "." + n as str + ".addr";
-        vector_push(&self.allocas, "  " + ptr + " = alloca " + ty);
-        vector_push(&self.locals, CompilerVar { name, ptr, ty, rty: "", owned: false });
+        self.allocas.push("  " + ptr + " = alloca " + ty);
+        self.locals.push(CompilerVar { name, ptr, ty, rty: "", owned: false });
         return ptr;
     }
 
     fn set_last_local_rty(self, str rty): void {
-        let last = vector_size(&self.locals) - 1;
+        let last = self.locals.size() - 1;
         if (last >= 0) {
             self.locals[last].rty = rty;
         }
@@ -163,19 +163,19 @@ struct LLVMIRCodegen {
     }
 
     fn push_scope_marker(self): i64 {
-        return vector_size(&self.locals);
+        return self.locals.size();
     }
 
     fn pop_scope(self, i64 marker): void {
         let kept: CompilerVar[] = [];
         for (let i = 0; i < marker; i += 1) {
-            vector_push(&kept, self.locals[i]);
+            kept.push(self.locals[i]);
         }
         self.locals = kept;
     }
 
     fn lookup_struct(self, str name): OptionStructDeclaration {
-        for (let i = 0; i < vector_size(&self.program.declared_types); i += 1) {
+        for (let i = 0; i < self.program.declared_types.size(); i += 1) {
             if (self.program.declared_types[i].value matches DeclaredType::Struct(s)) {
                 if (s.identifier.value == name) {
                     return OptionStructDeclaration::Some(s);
@@ -186,7 +186,7 @@ struct LLVMIRCodegen {
     }
 
     fn lookup_enum(self, str name): OptionEnumDeclaration {
-        for (let i = 0; i < vector_size(&self.program.declared_types); i += 1) {
+        for (let i = 0; i < self.program.declared_types.size(); i += 1) {
             if (self.program.declared_types[i].value matches DeclaredType::Enum(e)) {
                 if (e.identifier.value == name) {
                     return OptionEnumDeclaration::Some(e);
@@ -198,7 +198,7 @@ struct LLVMIRCodegen {
 
     fn enum_variant_tag(self, str enum_name, str variant): i64 {
         if (self.lookup_enum(enum_name) matches OptionEnumDeclaration::Some(ed)) {
-            for (let i = 0; i < vector_size(&ed.members); i += 1) {
+            for (let i = 0; i < ed.members.size(); i += 1) {
                 if (ed.members[i].value.identifier.value == variant) {
                     return i;
                 }
@@ -209,7 +209,7 @@ struct LLVMIRCodegen {
 
     fn struct_field_index(self, str struct_name, str field): i64 {
         if (self.lookup_struct(struct_name) matches OptionStructDeclaration::Some(sd)) {
-            for (let i = 0; i < vector_size(&sd.members); i += 1) {
+            for (let i = 0; i < sd.members.size(); i += 1) {
                 if (sd.members[i].value.identifier.value == field) {
                     return i;
                 }
@@ -221,7 +221,7 @@ struct LLVMIRCodegen {
     fn struct_field_count(self, str struct_name): i64 {
         match (self.lookup_struct(struct_name)) {
             OptionStructDeclaration::Some(sd) {
-                return vector_size(&sd.members);
+                return sd.members.size();
             },
             OptionStructDeclaration::None {
                 return 0;
@@ -313,7 +313,7 @@ struct LLVMIRCodegen {
     }
 
     fn mark_last_owned(self): void {
-        let last = vector_size(&self.locals) - 1;
+        let last = self.locals.size() - 1;
         if (last >= 0) {
             self.locals[last].owned = true;
         }
@@ -342,7 +342,7 @@ struct LLVMIRCodegen {
     }
 
     fn str_literal(self, str text): str {
-        let n = str_len(text) + 1;
+        let n = text.size() + 1;
         let tmp = self.ir.tmp();
         if (self.arc) {
             let g = self.ir.managed_str_global(text);
@@ -374,7 +374,7 @@ struct LLVMIRCodegen {
         if (!self.arc) {
             return;
         }
-        let i = vector_size(&self.locals) - 1;
+        let i = self.locals.size() - 1;
         while (i >= start) {
             if (self.locals[i].owned) {
                 let v = self.ir.tmp();
@@ -425,7 +425,7 @@ struct LLVMIRCodegen {
             return "null";
         }
         if (self.lookup_struct(name) matches OptionStructDeclaration::Some(sd)) {
-            for (let m = 0; m < vector_size(&sd.members); m += 1) {
+            for (let m = 0; m < sd.members.size(); m += 1) {
                 if (self.type_is_managed(sd.members[m].value.member_type.value)) {
                     return "@drop.struct." + name;
                 }
@@ -439,7 +439,7 @@ struct LLVMIRCodegen {
             return "null";
         }
         if (self.lookup_enum(name) matches OptionEnumDeclaration::Some(ed)) {
-            for (let m = 0; m < vector_size(&ed.members); m += 1) {
+            for (let m = 0; m < ed.members.size(); m += 1) {
                 if (ed.members[m].value.member_type matches OptionTypeNode::Some(tn)) {
                     if (self.type_is_managed(tn.value)) {
                         return "@drop.enum." + name;
@@ -482,7 +482,7 @@ struct LLVMIRCodegen {
 
     fn end_body(self): void {
         self.ir.emit("allocas:");
-        for (let i = 0; i < vector_size(&self.allocas); i += 1) {
+        for (let i = 0; i < self.allocas.size(); i += 1) {
             self.ir.emit(self.allocas[i]);
         }
         self.ir.emit("  br label %start");
@@ -608,7 +608,7 @@ struct LLVMIRCodegen {
     }
 
     fn source_lines(self, str path): str[] {
-        for (let i = 0; i < vector_size(&self.sources); i += 1) {
+        for (let i = 0; i < self.sources.size(); i += 1) {
             if (self.sources[i].path == path) {
                 return self.sources[i].lines;
             }
@@ -617,7 +617,7 @@ struct LLVMIRCodegen {
         if (exists_file(path)) {
             lines = str_split(read_file(path), "\n");
         }
-        vector_push(&self.sources, SourceLines { path, lines });
+        self.sources.push(SourceLines { path, lines });
         return lines;
     }
 
@@ -629,7 +629,7 @@ struct LLVMIRCodegen {
             },
             OptionStr::Some(filename) {
                 let lines = self.source_lines(filename);
-                if (vector_size(&lines) == 0) {
+                if (lines.size() == 0) {
                     return text;
                 }
                 return generic_error_with_source(text, &level, &span, filename, &lines);
@@ -653,7 +653,7 @@ struct LLVMIRCodegen {
             "  "
                 + gp
                 + " = getelementptr inbounds ["
-                + (str_len(text) + 1) as str
+                + (text.size() + 1) as str
                 + " x i8], ptr "
                 + g
                 + ", i64 0, i64 0"
@@ -699,14 +699,14 @@ struct LLVMIRCodegen {
         if (LLVMIRCodegen.expr_is_borrowed(base)) {
             return;
         }
-        vector_push(&self.temps, value);
+        self.temps.push(value);
     }
 
     fn release_temps_from(self, i64 start): void {
         if (!self.arc) {
             return;
         }
-        let i = vector_size(&self.temps) - 1;
+        let i = self.temps.size() - 1;
         while (i >= start) {
             self.emit_release(self.temps[i]);
             i -= 1;
@@ -716,8 +716,8 @@ struct LLVMIRCodegen {
     fn forget_temps_from(self, i64 start): void {
         let kept: str[] = [];
         for (let i = 0; i < start; i += 1) {
-            if (i < vector_size(&self.temps)) {
-                vector_push(&kept, self.temps[i]);
+            if (i < self.temps.size()) {
+                kept.push(self.temps[i]);
             }
         }
         self.temps = kept;

@@ -40,7 +40,7 @@ struct IrBuilder {
 
     fn escape_cstr(str value): str {
         let escaped = "";
-        for (let i = 0; i < str_len(value); i += 1) {
+        for (let i = 0; i < value.size(); i += 1) {
             let c = value[i];
             if (c == '\\') {
                 escaped += "\\\\";
@@ -60,7 +60,7 @@ struct IrBuilder {
     fn cstr_global(self, str value): str {
         let name = "@.str." + self.str_id as str;
         self.str_id += 1;
-        let n = str_len(value) + 1;
+        let n = value.size() + 1;
         self.emit_global(
             name
                 + " = private unnamed_addr constant ["
@@ -75,7 +75,7 @@ struct IrBuilder {
     fn managed_str_global(self, str value): str {
         let name = "@.mstr." + self.str_id as str;
         self.str_id += 1;
-        let n = str_len(value) + 1;
+        let n = value.size() + 1;
         self.emit_global(
             name
                 + " = private constant { i64, i64, ["
@@ -91,21 +91,21 @@ struct IrBuilder {
 
     fn join_lines(&str[] parts): str {
         let cur: str[] = [];
-        for (let i = 0; i < vector_size(&parts); i += 1) {
-            vector_push(&cur, parts[i] + "\n");
+        for (let i = 0; i < parts.size(); i += 1) {
+            cur.push(parts[i] + "\n");
         }
-        if (vector_size(&cur) == 0) {
+        if (cur.size() == 0) {
             return "";
         }
-        while (vector_size(&cur) > 1) {
+        while (cur.size() > 1) {
             let next: str[] = [];
-            let n = vector_size(&cur);
+            let n = cur.size();
             let i = 0;
             while (i < n) {
                 if (i + 1 < n) {
-                    vector_push(&next, cur[i] + cur[i + 1]);
+                    next.push(cur[i] + cur[i + 1]);
                 } else {
-                    vector_push(&next, cur[i]);
+                    next.push(cur[i]);
                 }
                 i += 2;
             }
@@ -116,20 +116,20 @@ struct IrBuilder {
 
     fn finish(self): str {
         let parts: str[] = [];
-        for (let i = 0; i < vector_size(&self.header); i += 1) {
-            vector_push(&parts, self.header[i]);
+        for (let i = 0; i < self.header.size(); i += 1) {
+            parts.push(self.header[i]);
         }
-        if (vector_size(&self.header) > 0) {
-            vector_push(&parts, "");
+        if (self.header.size() > 0) {
+            parts.push("");
         }
-        for (let i = 0; i < vector_size(&self.globals); i += 1) {
-            vector_push(&parts, self.globals[i]);
+        for (let i = 0; i < self.globals.size(); i += 1) {
+            parts.push(self.globals[i]);
         }
-        if (vector_size(&self.globals) > 0) {
-            vector_push(&parts, "");
+        if (self.globals.size() > 0) {
+            parts.push("");
         }
-        for (let i = 0; i < vector_size(&self.lines); i += 1) {
-            vector_push(&parts, self.lines[i]);
+        for (let i = 0; i < self.lines.size(); i += 1) {
+            parts.push(self.lines[i]);
         }
         return IrBuilder.join_lines(&parts);
     }
@@ -242,22 +242,8 @@ struct IrBuilder {
             "}",
             ""
         ];
-        for (let i = 0; i < vector_size(&rt); i += 1) {
+        for (let i = 0; i < rt.size(); i += 1) {
             self.emit(rt[i]);
         }
     }
 };
-
-# Escapes `value` for use inside an LLVM `c"..."` string constant.
-# Plain NUL-terminated constant (printf formats, fopen modes, ...). Never handed
-# to user code, so it carries no ARC header.
-# String literal as seen by user code in ARC mode: { rc, drop, chars }.
-# rc = -1 marks it immortal, so rt_retain / rt_release ignore it. The value
-# handed to user code points at `chars`, i.e. it is still a plain char*.
-# Joins `parts` (each followed by "\n") with a balanced pairwise merge.
-#
-# A plain `out += line` loop copies the whole accumulated string for every line:
-# O(n^2) bytes allocated. The self-hosted backend emits raw C strings and never
-# frees them, so for a multi-megabyte module that exhausts memory. Merging in
-# pairs copies each byte only O(log n) times.
-# Order required by LLVM: header → globals → body

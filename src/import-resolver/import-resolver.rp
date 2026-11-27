@@ -64,7 +64,7 @@ struct ImportResolver {
             # rebuild stack without last element (no vector_pop in language)
             let new_stack: str[] = [];
             for (let i = 0; i < self.stack.size() - 1; i += 1) {
-                vector_push(&new_stack, self.stack[i]);
+                new_stack.push(self.stack[i]);
             }
             self.stack = new_stack;
         }

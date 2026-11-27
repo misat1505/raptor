@@ -207,7 +207,7 @@ fn generic_error_with_source(
 ): str {
     let text = message_text;
     let normalized_line = span.start.line - 1;
-    if (normalized_line >= vector_size(&lines)) {
+    if (normalized_line >= lines.size()) {
         return text;
     }
 
@@ -226,7 +226,7 @@ fn generic_error_with_source(
     underline += console_standard();
 
     let line_str = span.start.line as str;
-    let spaces_count = 4 - str_len(line_str);
+    let spaces_count = 4 - line_str.size();
     if (spaces_count < 1) {
         spaces_count = 1;
     }
@@ -236,7 +236,7 @@ fn generic_error_with_source(
     }
     line_number_prefix += line_str + ' ';
     let underline_bar_prefix = "";
-    for (let i = 0; i < str_len(line_number_prefix); i += 1) {
+    for (let i = 0; i < line_number_prefix.size(); i += 1) {
         underline_bar_prefix += ' ';
     }
     text +=
@@ -262,7 +262,7 @@ fn generic_error_with_source(
 fn console_red(): str {
     let bytes = [27, 91, 49, 59, 51, 49, 109];
     let output = "";
-    for (let i = 0; i < vector_size(&bytes); i += 1) {
+    for (let i = 0; i < bytes.size(); i += 1) {
         output += (bytes[i] as u8) as char;
     }
     return output;
@@ -271,7 +271,7 @@ fn console_red(): str {
 fn console_yellow(): str {
     let bytes = [27, 91, 49, 59, 51, 51, 109];
     let output = "";
-    for (let i = 0; i < vector_size(&bytes); i += 1) {
+    for (let i = 0; i < bytes.size(); i += 1) {
         output += (bytes[i] as u8) as char;
     }
     return output;
@@ -280,7 +280,7 @@ fn console_yellow(): str {
 fn console_standard(): str {
     let bytes = [27, 91, 48, 109];
     let output = "";
-    for (let i = 0; i < vector_size(&bytes); i += 1) {
+    for (let i = 0; i < bytes.size(); i += 1) {
         output += (bytes[i] as u8) as char;
     }
     return output;

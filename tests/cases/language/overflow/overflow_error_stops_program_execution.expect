@@ -1,4 +1,4 @@
-flags: --unsafe --overflow error
+flags: --overflow error
 exit: 1
 stderr-contains: "error"
 --- stdout ---

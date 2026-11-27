@@ -1,7 +1,3 @@
-# ============================================================
-# Mirrors `src/macro_expander/macro_expander.rs`
-# ============================================================
-
 import "../common/errors.rp";
 import "../common/span.rp";
 import "../common/position.rp";
@@ -10,16 +6,6 @@ import "../frontend/parser/ast.rp";
 import "../frontend/parser/parser-results.rp";
 
 
-struct MacroExpander {
-    str[] supported_derives,
-    MacroExpanderError[] errors
-};
-
-# Snapshot declared types so we can insert functions while iterating.
-
-# ---------- AST construction helpers (macro_node) ----------
-
-# Optional declared type carrier for lookups (parser has no OptionDeclaredType).
 enum OptionDeclaredType {
     Some(DeclaredType),
     None
@@ -30,35 +16,11 @@ enum ExpansionStrategy {
     MethodBased
 };
 
-# Not a built-in derive macro. It may name a user-declared interface
-# (`derives Shape` == `implements Shape`); the semantic checker validates
-# that the name really refers to one and reports unknown names.
-
-# ============================================================
-# StringBuilder-based code generation (shared by Debug and Json).
-#
-# Derives no longer build a result with `+` / `+=` (a new allocation per
-# piece). They append to a `StringBuilder` instead. For every derive there
-# are two function/method pairs:
-#
-#   fn user_debug_sb(&User self, &StringBuilder sb): StringBuilder   (function based)
-#   fn user_debug(&User self): str                                   (wrapper)
-#   User.debug_sb(self, &StringBuilder sb): StringBuilder            (method based)
-#   User.debug(self): str                                            (wrapper)
-#
-# Nested derived types call the `_sb` variant of their dependency, so the
-# whole value is written into one builder. Types that only provide a
-# hand-written `debug()` / `x_debug()` are used through a fallback.
-# ============================================================
-
-# Collects the statements of one block. Adjacent literal pieces are merged
-# into a single `sb.push_str(&"...")` call.
 struct SbEmit {
     StatementNode[] stmts,
     str pending
 };
 
-# What differs between derives when a single value is written.
 struct SbFormat {
     str derive_name,
     str plain_method,
@@ -71,831 +33,877 @@ struct SbFormat {
     str unprintable_literal
 };
 
+struct MacroExpander {
+    str[] supported_derives,
+    MacroExpanderError[] errors
 
-fn macro_expander_new(): MacroExpander {
-    return MacroExpander { supported_derives: ["Debug", "Json", "Clone"], errors: [] };
-}
-
-fn macro_expander_run(&MacroExpander me, &Program program): void {
-    macro_expander_inject_prelude(&me, &program);
-    if (vector_size(&me.errors) > 0) {
-        return;
-    }
-    macro_expander_expand_derive_macros(&me, &program);
-}
-
-fn macro_expander_expand_derive_macros(&MacroExpander me, &Program program): void {
-    let types: DeclaredType[] = [];
-    for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
-        vector_push(&types, program.declared_types[i].value);
+    fn new(): MacroExpander {
+        return MacroExpander { supported_derives: ["Debug", "Json", "Clone"], errors: [] };
     }
 
-    for (let i = 0; i < vector_size(&types); i += 1) {
-        macro_expander_expand_derive_macros_of_type(&me, &program, types[i]);
-    }
-}
-
-fn macro_expander_expand_derive_macros_of_type(
-    &MacroExpander me,
-    &Program program,
-    DeclaredType declared_type
-): void {
-    let type_derives: IdentifierNode[] = [];
-
-    match (declared_type) {
-        DeclaredType::Enum(enum_declaration) {
-            type_derives = enum_declaration.enum_derives;
-        },
-        DeclaredType::Struct(struct_declaration) {
-            type_derives = struct_declaration.struct_derives;
-        }
-    }
-
-    for (let i = 0; i < vector_size(&type_derives); i += 1) {
-        let derive = type_derives[i];
-        let is_supported = false;
-        for (let j = 0; j < vector_size(&me.supported_derives); j += 1) {
-            if (me.supported_derives[j] == derive.value) {
-                is_supported = true;
-            }
-        }
-
-        if (!is_supported) {
-            continue;
-        }
-
-        if (derive.value == "Debug") {
-            macro_expander_derive_debug(&me, &program, declared_type, derive.span);
-        } else if (derive.value == "Json") {
-            macro_expander_derive_json(&me, &program, declared_type, derive.span);
-        } else if (derive.value == "Clone") {
-            macro_expander_derive_clone(&me, &program, declared_type, derive.span);
-        }
-    }
-}
-
-fn macro_expander_insert_method(
-    &MacroExpander me,
-    &DeclaredType type_declaration,
-    &TypeMethod method_declaration,
-    Span derive_span
-): void {
-    let method_name = method_declaration.identifier.value;
-    let node = TypeMethodNode { value: method_declaration, span: me_span() };
-
-    match (type_declaration) {
-        DeclaredType::Enum(enum_declaration) {
-            if (
-                !macro_expander_has_collision(
-                    &me,
-                    &enum_declaration.methods,
-                    method_name,
-                    &derive_span
-                )
-            ) {
-                vector_push(&enum_declaration.methods, node);
-            }
-        },
-        DeclaredType::Struct(struct_declaration) {
-            if (
-                !macro_expander_has_collision(
-                    &me,
-                    &struct_declaration.methods,
-                    method_name,
-                    &derive_span
-                )
-            ) {
-                vector_push(&struct_declaration.methods, node);
-            }
-        }
-    }
-}
-
-fn macro_expander_has_collision(
-    &MacroExpander me,
-    &TypeMethodNode[] methods,
-    str method_name,
-    &Span derive_span
-): bool {
-    for (let i = 0; i < vector_size(&methods); i += 1) {
-        if (methods[i].value.identifier.value == method_name) {
-            vector_push(
-                &me.errors,
-                macro_expander_error_at(
-                    ErrorSeverity::HIGH,
-                    "Method '"
-                        + method_name
-                        + "' conflicts with a method generated by a derive macro. Remove the manually declared method or remove the corresponding derive.",
-                    derive_span
-                )
-            );
-            return true;
-        }
-    }
-
-    return false;
-}
-
-fn macro_expander_insert_function(
-    &MacroExpander me,
-    &Program program,
-    FunctionDeclaration function,
-    Span derive_span
-): void {
-    let function_name = function.identifier.value;
-
-    for (let i = 0; i < vector_size(&program.functions); i += 1) {
-        if (program.functions[i].value.identifier.value == function_name) {
-            vector_push(
-                &me.errors,
-                macro_expander_error_at(
-                    ErrorSeverity::HIGH,
-                    "Function '"
-                        + function_name
-                        + "' conflicts with a function generated by a derive macro. Remove the manually declared function or remove the corresponding derive.",
-                    derive_span
-                )
-            );
+    fn run(self, &Program program): void {
+        self.inject_prelude(&program);
+        if (self.errors.size() > 0) {
             return;
         }
+        self.expand_derive_macros(&program);
     }
 
-    vector_push(&program.functions, FunctionDeclarationNode { value: function, span: me_span() });
-}
+    fn expand_derive_macros(self, &Program program): void {
+        let types: DeclaredType[] = [];
+        for (let i = 0; i < program.declared_types.size(); i += 1) {
+            types.push(program.declared_types[i].value);
+        }
 
-fn to_snake_case(str value): str {
-    let result = "";
-    for (let i = 0; i < str_len(value); i += 1) {
-        let c = value[i];
-        if (char_is_upper(c) && i > 0) {
-            result += "_";
-            result += char_to_lower(c);
-        } else {
-            result += char_to_lower(c);
+        for (let i = 0; i < types.size(); i += 1) {
+            self.expand_derive_macros_of_type(&program, &types[i]);
         }
     }
-    return result;
-}
 
-fn me_span(): Span {
-    return span_new(position_new(0, 0, 0, OptionStr::None), position_new(0, 0, 0, OptionStr::None));
-}
+    fn expand_derive_macros_of_type(self, &Program program, &DeclaredType declared_type): void {
+        let type_derives: IdentifierNode[] = [];
 
-fn me_ident(str value): IdentifierNode {
-    return IdentifierNode { value, span: me_span() };
-}
-
-fn me_expr(Expression value): ExpressionNode {
-    return ExpressionNode { value, span: me_span() };
-}
-
-fn me_stmt(Statement value): StatementNode {
-    return StatementNode { value, span: me_span() };
-}
-
-fn me_type(Type value): TypeNode {
-    return TypeNode { value, span: me_span() };
-}
-
-fn me_block(StatementNode[] statements): BlockNode {
-    return BlockNode { value: Block { statements }, span: me_span() };
-}
-
-fn me_str_lit(str s): Expression {
-    return Expression::Literal(Literal::String(s));
-}
-
-fn me_i64_lit(i64 n): Expression {
-    return Expression::Literal(Literal::I64(n));
-}
-
-fn me_var(str name): Expression {
-    return Expression::Variable(name);
-}
-
-fn me_addition(Expression left, Expression right): Expression {
-    return Expression::Addition(BinaryExpression { left: me_expr(left), right: me_expr(right) });
-}
-
-fn me_less(Expression left, Expression right): Expression {
-    return Expression::Less(BinaryExpression { left: me_expr(left), right: me_expr(right) });
-}
-
-fn me_field_access(str instance, str field): Expression {
-    return Expression::FieldAccess(FieldAccessExpression {
-        instance: me_expr(me_var(instance)),
-        field: me_ident(field)
-    });
-}
-
-fn me_index(str collection, str index): Expression {
-    return Expression::Index(IndexExpression {
-        collection: me_expr(me_var(collection)),
-        index: me_expr(me_var(index))
-    });
-}
-
-fn me_cast_to_str(Expression value): Expression {
-    return Expression::Casting(CastingExpression {
-        value: me_expr(value),
-        to_type: me_type(Type::Str)
-    });
-}
-
-fn me_call_ref(str fn_name, Expression arg): Expression {
-    let args: ArgumentNode[] = [];
-    vector_push(
-        &args,
-        ArgumentNode {
-            value: Argument { value: me_expr(arg), passed_by: PassedBy::Reference },
-            span: me_span()
-        }
-    );
-    return Expression::FunctionCall(FunctionCallExpression {
-        identifier: me_ident(fn_name),
-        arguments: args
-    });
-}
-
-fn me_method_call_ref(&Expression entity_name, str method_name): Expression {
-    return Expression::MethodCall(MethodCallExpression {
-        instance: me_expr(entity_name),
-        target: MethodCallTarget::Unresolved,
-        field: me_ident(method_name),
-        arguments: []
-    });
-}
-
-fn me_call_value(str fn_name, Expression arg): Expression {
-    let args: ArgumentNode[] = [];
-    vector_push(
-        &args,
-        ArgumentNode {
-            value: Argument { value: me_expr(arg), passed_by: PassedBy::Value },
-            span: me_span()
-        }
-    );
-    return Expression::FunctionCall(FunctionCallExpression {
-        identifier: me_ident(fn_name),
-        arguments: args
-    });
-}
-
-fn me_return_expr(Expression e): Statement {
-    return Statement::Return(OptionExpressionNode::Some(me_expr(e)));
-}
-
-fn me_let(str name, Expression value, OptionTypeNode var_type): Statement {
-    return Statement::Declaration(DeclarationStatement {
-        identifier: me_ident(name),
-        var_type,
-        value: me_expr(value)
-    });
-}
-
-fn me_assign(str name, Expression value): Statement {
-    return Statement::Assignment(AssignmentStatement {
-        identifier: me_ident(name),
-        accessors: [],
-        value: me_expr(value)
-    });
-}
-
-fn me_append_str(str result_var, Expression piece): Statement {
-    return me_assign(result_var, me_addition(me_var(result_var), piece));
-}
-
-fn me_combine_strings(Expression[] expressions): Expression {
-    if (vector_size(&expressions) == 0) {
-        return me_str_lit("");
-    }
-    let result = expressions[0];
-    for (let i = 1; i < vector_size(&expressions); i += 1) {
-        result = me_addition(result, expressions[i]);
-    }
-    return result;
-}
-
-fn me_param_ref(str type_name, str param_name): ParameterNode {
-    return ParameterNode {
-        value: Parameter {
-            passed_by: PassedBy::Reference,
-            parameter_type: me_type(Type::Unresolved(type_name)),
-            identifier: me_ident(param_name)
-        },
-        span: me_span()
-    };
-}
-
-fn me_find_declared_type(&Program program, str name): OptionDeclaredType {
-    for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
-        let dt = program.declared_types[i].value;
-        let n = "";
-        match (dt) {
-            DeclaredType::Struct(s) {
-                n = s.identifier.value;
+        match (declared_type) {
+            DeclaredType::Enum(enum_declaration) {
+                type_derives = enum_declaration.enum_derives;
             },
-            DeclaredType::Enum(e) {
-                n = e.identifier.value;
+            DeclaredType::Struct(struct_declaration) {
+                type_derives = struct_declaration.struct_derives;
             }
         }
-        if (n == name) {
-            return OptionDeclaredType::Some(dt);
-        }
-    }
-    return OptionDeclaredType::None;
-}
 
-fn me_type_has_derive(&Program program, str type_name, str derive_name): bool {
-    let found = me_find_declared_type(&program, type_name);
-    match (found) {
-        OptionDeclaredType::None {
-            return false;
-        },
-        OptionDeclaredType::Some(dt) {
-            let type_derives: IdentifierNode[] = [];
-            match (dt) {
-                DeclaredType::Struct(s) {
-                    type_derives = s.struct_derives;
-                },
-                DeclaredType::Enum(e) {
-                    type_derives = e.enum_derives;
+        for (let i = 0; i < type_derives.size(); i += 1) {
+            let derive = type_derives[i];
+            let is_supported = false;
+            for (let j = 0; j < self.supported_derives.size(); j += 1) {
+                if (self.supported_derives[j] == derive.value) {
+                    is_supported = true;
                 }
             }
-            for (let i = 0; i < vector_size(&type_derives); i += 1) {
-                if (type_derives[i].value == derive_name) {
-                    return true;
+
+            if (!is_supported) {
+                continue;
+            }
+
+            if (derive.value == "Debug") {
+                self.derive_debug(&program, &declared_type, derive.span);
+            } else if (derive.value == "Json") {
+                self.derive_json(&program, &declared_type, derive.span);
+            } else if (derive.value == "Clone") {
+                self.derive_clone(&program, &declared_type, derive.span);
+            }
+        }
+    }
+
+    fn insert_method(
+        self,
+        &DeclaredType type_declaration,
+        &TypeMethod method_declaration,
+        &Span derive_span
+    ): void {
+        let method_name = method_declaration.identifier.value;
+        let node = TypeMethodNode { value: method_declaration, span: Span.default() };
+
+        match (type_declaration) {
+            DeclaredType::Enum(enum_declaration) {
+                if (!self.has_collision(&enum_declaration.methods, method_name, &derive_span)) {
+                    enum_declaration.methods.push(node);
+                }
+            },
+            DeclaredType::Struct(struct_declaration) {
+                if (!self.has_collision(&struct_declaration.methods, method_name, &derive_span)) {
+                    struct_declaration.methods.push(node);
                 }
             }
-            return false;
         }
     }
-}
 
-fn me_function_exists(&Program program, str name): bool {
-    for (let i = 0; i < vector_size(&program.functions); i += 1) {
-        if (program.functions[i].value.identifier.value == name) {
-            return true;
-        }
-    }
-    return false;
-}
-
-fn me_sb_format_debug(): SbFormat {
-    return SbFormat {
-        derive_name: "Debug",
-        plain_method: "debug",
-        sb_method: "debug_sb",
-        fn_suffix: "_debug",
-        char_quote: "'",
-        vector_separator: ", ",
-        nested_vector_literal: "<vector>",
-        nest_vectors: false,
-        unprintable_literal: "<unprintable>"
-    };
-}
-
-fn me_sb_format_json(): SbFormat {
-    return SbFormat {
-        derive_name: "Json",
-        plain_method: "json_encode",
-        sb_method: "json_encode_sb",
-        fn_suffix: "_json_encode",
-        char_quote: "\"",
-        vector_separator: ",",
-        nested_vector_literal: "[]",
-        nest_vectors: true,
-        unprintable_literal: "null"
-    };
-}
-
-fn sb_emit_new(): SbEmit {
-    return SbEmit { stmts: [], pending: "" };
-}
-
-fn sb_emit_flush(&SbEmit e): void {
-    if (str_len(e.pending) > 0) {
-        vector_push(&e.stmts, me_sb_push_str_stmt(me_str_lit(e.pending)));
-        e.pending = "";
-    }
-}
-
-fn sb_emit_lit(&SbEmit e, str text): void {
-    e.pending = e.pending + text;
-}
-
-fn sb_emit_stmt(&SbEmit e, StatementNode statement): void {
-    sb_emit_flush(&e);
-    vector_push(&e.stmts, statement);
-}
-
-fn sb_emit_finish(&SbEmit e): StatementNode[] {
-    sb_emit_flush(&e);
-    return e.stmts;
-}
-
-fn me_arg(Expression value, PassedBy passed_by): ArgumentNode {
-    return ArgumentNode { value: Argument { value: me_expr(value), passed_by }, span: me_span() };
-}
-
-fn me_method_call_expr(Expression instance, str method_name, ArgumentNode[] arguments): Expression {
-    return Expression::MethodCall(MethodCallExpression {
-        instance: me_expr(instance),
-        target: MethodCallTarget::Unresolved,
-        field: me_ident(method_name),
-        arguments
-    });
-}
-
-fn me_function_call_stmt(str fn_name, ArgumentNode[] arguments): StatementNode {
-    return me_stmt(
-        Statement::FunctionCall(FunctionCallExpression { identifier: me_ident(fn_name), arguments })
-    );
-}
-
-# sb.push_str(&value);
-fn me_sb_push_str_stmt(Expression value): StatementNode {
-    return me_stmt(
-        Statement::Expression(me_expr(
-            me_method_call_expr(me_var("sb"), "push_str", [me_arg(value, PassedBy::Reference)])
-        ))
-    );
-}
-
-# sb.push_char(value);
-fn me_sb_push_char_stmt(Expression value): StatementNode {
-    let is_nul = Expression::Equal(BinaryExpression {
-        left: me_expr(value),
-        right: me_expr(Expression::Literal(Literal::Char('\0')))
-    });
-    let push_char = me_stmt(
-        Statement::Expression(me_expr(
-            me_method_call_expr(me_var("sb"), "push_char", [me_arg(value, PassedBy::Value)])
-        ))
-    );
-
-    return me_stmt(
-        Statement::Conditional(ConditionalStatement {
-            condition: me_expr(is_nul),
-            if_block: me_block([me_sb_push_str_stmt(me_str_lit("\\0"))]),
-            else_block: OptionBlockNode::Some(me_block([push_char]))
-        })
-    );
-}
-
-fn me_type_has_method(&Program program, str type_name, str method_name): bool {
-    for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
-        let methods: TypeMethodNode[] = [];
-        let name = "";
-        match (program.declared_types[i].value) {
-            DeclaredType::Struct(s) {
-                name = s.identifier.value;
-                methods = s.methods;
-            },
-            DeclaredType::Enum(e) {
-                name = e.identifier.value;
-                methods = e.methods;
-            }
-        }
-        if (name != type_name) {
-            continue;
-        }
-        for (let j = 0; j < vector_size(&methods); j += 1) {
-            if (methods[j].value.identifier.value == method_name) {
+    fn has_collision(self, &TypeMethodNode[] methods, str method_name, &Span derive_span): bool {
+        for (let i = 0; i < methods.size(); i += 1) {
+            if (methods[i].value.identifier.value == method_name) {
+                self.errors.push(
+                    macro_expander_error_at(
+                        ErrorSeverity::HIGH,
+                        "Method '"
+                            + method_name
+                            + "' conflicts with a method generated by a derive macro. Remove the manually declared method or remove the corresponding derive.",
+                        derive_span
+                    )
+                );
                 return true;
             }
         }
-    }
-    return false;
-}
 
-fn me_is_number_like(Type ty): bool {
-    match (ty) {
-        Type::Bool {
-            return true;
-        },
-        Type::F64 {
-            return true;
-        },
-        Type::I8 {
-            return true;
-        },
-        Type::I16 {
-            return true;
-        },
-        Type::I32 {
-            return true;
-        },
-        Type::I64 {
-            return true;
-        },
-        Type::U8 {
-            return true;
-        },
-        Type::U16 {
-            return true;
-        },
-        Type::U32 {
-            return true;
-        },
-        Type::U64 {
-            return true;
-        },
-        rest {
-            return false;
-        }
-    }
-}
-
-# Appends the statements that write `expression` (of type `ty`) to `sb`.
-# `ctx` makes the names of temporaries unique within the generated function.
-# `in_vector` is true for vector elements: unless the format sets `nest_vectors`
-# (Json), a vector inside a vector keeps the pre-StringBuilder behaviour of
-# printing a fixed placeholder (Debug).
-fn me_sb_emit_value(
-    &Program program,
-    &SbEmit e,
-    &SbFormat f,
-    Type ty,
-    Expression expression,
-    str ctx,
-    ExpansionStrategy strategy,
-    bool in_vector
-): void {
-    match (ty) {
-        Type::Str {
-            sb_emit_lit(&e, "\"");
-            sb_emit_stmt(&e, me_sb_push_str_stmt(expression));
-            sb_emit_lit(&e, "\"");
-        },
-        Type::Char {
-            sb_emit_lit(&e, f.char_quote);
-            sb_emit_stmt(&e, me_sb_push_char_stmt(expression));
-            sb_emit_lit(&e, f.char_quote);
-        },
-        Type::Unresolved(type_name) {
-            me_sb_emit_dependency(&program, &e, &f, type_name, expression, ctx, strategy);
-        },
-        Type::Vector(inner_type) {
-            if (in_vector && !f.nest_vectors) {
-                sb_emit_lit(&e, f.nested_vector_literal);
-            } else {
-                me_sb_emit_vector(&program, &e, &f, inner_type, expression, ctx, strategy);
-            }
-        },
-        rest {
-            if (me_is_number_like(ty)) {
-                sb_emit_stmt(&e, me_sb_push_str_stmt(me_cast_to_str(expression)));
-            } else {
-                sb_emit_lit(&e, f.unprintable_literal);
-            }
-        }
-    }
-}
-
-# Writes a value of a user type. Picks, in order of preference, what the
-# dependency actually provides for the current strategy:
-#   1. its `_sb` variant (derived or hand-written), same style as the strategy
-#   2. its `_sb` variant in the other style
-#   3. a plain `debug()` / `json_encode()` (as a fallback: the string is
-#      copied into the builder), same style as the strategy
-#   4. the plain variant in the other style
-fn me_sb_emit_dependency(
-    &Program program,
-    &SbEmit e,
-    &SbFormat f,
-    str type_name,
-    Expression expression,
-    str ctx,
-    ExpansionStrategy strategy
-): void {
-    let snake = to_snake_case(type_name);
-    let sb_fn_name = snake + f.fn_suffix + "_sb";
-    let plain_fn_name = snake + f.fn_suffix;
-
-    let has_derive = me_type_has_derive(&program, type_name, f.derive_name);
-    let has_sb_fn = has_derive || me_function_exists(&program, sb_fn_name);
-    let has_sb_method = has_derive || me_type_has_method(&program, type_name, f.sb_method);
-    let has_plain_fn = me_function_exists(&program, plain_fn_name);
-    let has_plain_method = me_type_has_method(&program, type_name, f.plain_method);
-
-    # 0 = sb function, 1 = sb method, 2 = plain function, 3 = plain method
-    let mode = 3;
-    match (strategy) {
-        ExpansionStrategy::FunctionBased {
-            if (has_sb_fn) {
-                mode = 0;
-            } else if (has_sb_method) {
-                mode = 1;
-            } else if (has_plain_fn) {
-                mode = 2;
-            }
-        },
-        ExpansionStrategy::MethodBased {
-            if (has_sb_method) {
-                mode = 1;
-            } else if (has_sb_fn) {
-                mode = 0;
-            } else if (has_plain_method) {
-                mode = 3;
-            } else {
-                mode = 2;
-            }
-        }
+        return false;
     }
 
-    if (mode == 0) {
-        sb_emit_stmt(
-            &e,
-            me_function_call_stmt(
-                sb_fn_name,
-                [me_arg(expression, PassedBy::Reference), me_arg(me_var("sb"), PassedBy::Reference)]
-            )
-        );
-    } else if (mode == 1) {
-        sb_emit_stmt(
-            &e,
-            me_stmt(
-                Statement::Expression(me_expr(
-                    me_method_call_expr(
-                        expression,
-                        f.sb_method,
-                        [me_arg(me_var("sb"), PassedBy::Reference)]
+    fn insert_function(
+        self,
+        &Program program,
+        &FunctionDeclaration function,
+        &Span derive_span
+    ): void {
+        let function_name = function.identifier.value;
+
+        for (let i = 0; i < program.functions.size(); i += 1) {
+            if (program.functions[i].value.identifier.value == function_name) {
+                self.errors.push(
+                    macro_expander_error_at(
+                        ErrorSeverity::HIGH,
+                        "Function '"
+                            + function_name
+                            + "' conflicts with a function generated by a derive macro. Remove the manually declared function or remove the corresponding derive.",
+                        derive_span
                     )
-                ))
-            )
-        );
-    } else {
-        let temp = ctx + "_dep";
-        let plain_call = me_method_call_expr(expression, f.plain_method, []);
-        if (mode == 2) {
-            plain_call = me_call_ref(plain_fn_name, expression);
+                );
+                return;
+            }
         }
-        sb_emit_stmt(&e, me_stmt(me_let(temp, plain_call, OptionTypeNode::None)));
-        sb_emit_stmt(&e, me_sb_push_str_stmt(me_var(temp)));
+
+        program.functions.push(FunctionDeclarationNode { value: function, span: Span.default() });
     }
-}
 
-fn me_sb_emit_vector(
-    &Program program,
-    &SbEmit e,
-    &SbFormat f,
-    Type inner_type,
-    Expression expression,
-    str ctx,
-    ExpansionStrategy strategy
-): void {
-    let vector_variable = ctx + "_vec";
-    let index_variable = ctx + "_i";
+    fn ident(str value): IdentifierNode {
+        return IdentifierNode { value, span: Span.default() };
+    }
 
-    sb_emit_lit(&e, "[");
+    fn expr(Expression value): ExpressionNode {
+        return ExpressionNode { value, span: Span.default() };
+    }
 
-    # Bind the vector to a temp so it can be indexed in the loop.
-    sb_emit_stmt(&e, me_stmt(me_let(vector_variable, expression, OptionTypeNode::None)));
-    sb_emit_stmt(&e, me_stmt(me_let(index_variable, me_i64_lit(0), OptionTypeNode::None)));
+    fn stmt(Statement value): StatementNode {
+        return StatementNode { value, span: Span.default() };
+    }
 
-    let body = sb_emit_new();
-    sb_emit_stmt(
-        &body,
-        me_stmt(
+    fn type(Type value): TypeNode {
+        return TypeNode { value, span: Span.default() };
+    }
+
+    fn block(StatementNode[] statements): BlockNode {
+        return BlockNode { value: Block { statements }, span: Span.default() };
+    }
+
+    fn str_lit(str s): Expression {
+        return Expression::Literal(Literal::String(s));
+    }
+
+    fn i64_lit(i64 n): Expression {
+        return Expression::Literal(Literal::I64(n));
+    }
+
+    fn var(str name): Expression {
+        return Expression::Variable(name);
+    }
+
+    fn addition(Expression left, Expression right): Expression {
+        return Expression::Addition(BinaryExpression {
+            left: MacroExpander.expr(left),
+            right: MacroExpander.expr(right)
+        });
+    }
+
+    fn less(Expression left, Expression right): Expression {
+        return Expression::Less(BinaryExpression {
+            left: MacroExpander.expr(left),
+            right: MacroExpander.expr(right)
+        });
+    }
+
+    fn field_access(str instance, str field): Expression {
+        return Expression::FieldAccess(FieldAccessExpression {
+            instance: MacroExpander.expr(MacroExpander.var(instance)),
+            field: MacroExpander.ident(field)
+        });
+    }
+
+    fn index(str collection, str index): Expression {
+        return Expression::Index(IndexExpression {
+            collection: MacroExpander.expr(MacroExpander.var(collection)),
+            index: MacroExpander.expr(MacroExpander.var(index))
+        });
+    }
+
+    fn cast_to_str(Expression value): Expression {
+        return Expression::Casting(CastingExpression {
+            value: MacroExpander.expr(value),
+            to_type: MacroExpander.type(Type::Str)
+        });
+    }
+
+    fn call_ref(str fn_name, Expression arg): Expression {
+        let args: ArgumentNode[] = [];
+        args.push(
+            ArgumentNode {
+                value: Argument { value: MacroExpander.expr(arg), passed_by: PassedBy::Reference },
+                span: Span.default()
+            }
+        );
+        return Expression::FunctionCall(FunctionCallExpression {
+            identifier: MacroExpander.ident(fn_name),
+            arguments: args
+        });
+    }
+
+    fn method_call_ref(&Expression entity_name, str method_name): Expression {
+        return Expression::MethodCall(MethodCallExpression {
+            instance: MacroExpander.expr(entity_name),
+            target: MethodCallTarget::Unresolved,
+            field: MacroExpander.ident(method_name),
+            arguments: []
+        });
+    }
+
+    fn call_value(str fn_name, Expression arg): Expression {
+        let args: ArgumentNode[] = [];
+        args.push(
+            ArgumentNode {
+                value: Argument { value: MacroExpander.expr(arg), passed_by: PassedBy::Value },
+                span: Span.default()
+            }
+        );
+        return Expression::FunctionCall(FunctionCallExpression {
+            identifier: MacroExpander.ident(fn_name),
+            arguments: args
+        });
+    }
+
+    fn return_expr(Expression e): Statement {
+        return Statement::Return(OptionExpressionNode::Some(MacroExpander.expr(e)));
+    }
+
+    fn let_(str name, Expression value, OptionTypeNode var_type): Statement {
+        return Statement::Declaration(DeclarationStatement {
+            identifier: MacroExpander.ident(name),
+            var_type,
+            value: MacroExpander.expr(value)
+        });
+    }
+
+    fn assign(str name, Expression value): Statement {
+        return Statement::Assignment(AssignmentStatement {
+            identifier: MacroExpander.ident(name),
+            accessors: [],
+            value: MacroExpander.expr(value)
+        });
+    }
+
+    fn append_str(str result_var, Expression piece): Statement {
+        return MacroExpander.assign(
+            result_var,
+            MacroExpander.addition(MacroExpander.var(result_var), piece)
+        );
+    }
+
+    fn combine_strings(Expression[] expressions): Expression {
+        if (expressions.size() == 0) {
+            return MacroExpander.str_lit("");
+        }
+        let result = expressions[0];
+        for (let i = 1; i < expressions.size(); i += 1) {
+            result = MacroExpander.addition(result, expressions[i]);
+        }
+        return result;
+    }
+
+    fn param_ref(str type_name, str param_name): ParameterNode {
+        return ParameterNode {
+            value: Parameter {
+                passed_by: PassedBy::Reference,
+                parameter_type: MacroExpander.type(Type::Unresolved(type_name)),
+                identifier: MacroExpander.ident(param_name)
+            },
+            span: Span.default()
+        };
+    }
+
+    fn find_declared_type(&Program program, str name): OptionDeclaredType {
+        for (let i = 0; i < program.declared_types.size(); i += 1) {
+            let dt = program.declared_types[i].value;
+            let n = "";
+            match (dt) {
+                DeclaredType::Struct(s) {
+                    n = s.identifier.value;
+                },
+                DeclaredType::Enum(e) {
+                    n = e.identifier.value;
+                }
+            }
+            if (n == name) {
+                return OptionDeclaredType::Some(dt);
+            }
+        }
+        return OptionDeclaredType::None;
+    }
+
+    fn type_has_derive(&Program program, str type_name, str derive_name): bool {
+        let found = MacroExpander.find_declared_type(&program, type_name);
+        match (found) {
+            OptionDeclaredType::None {
+                return false;
+            },
+            OptionDeclaredType::Some(dt) {
+                let type_derives: IdentifierNode[] = [];
+                match (dt) {
+                    DeclaredType::Struct(s) {
+                        type_derives = s.struct_derives;
+                    },
+                    DeclaredType::Enum(e) {
+                        type_derives = e.enum_derives;
+                    }
+                }
+                for (let i = 0; i < type_derives.size(); i += 1) {
+                    if (type_derives[i].value == derive_name) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+    }
+
+    fn function_exists(&Program program, str name): bool {
+        for (let i = 0; i < program.functions.size(); i += 1) {
+            if (program.functions[i].value.identifier.value == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn sb_format_debug(): SbFormat {
+        return SbFormat {
+            derive_name: "Debug",
+            plain_method: "debug",
+            sb_method: "debug_sb",
+            fn_suffix: "_debug",
+            char_quote: "'",
+            vector_separator: ", ",
+            nested_vector_literal: "<vector>",
+            nest_vectors: false,
+            unprintable_literal: "<unprintable>"
+        };
+    }
+
+    fn sb_format_json(): SbFormat {
+        return SbFormat {
+            derive_name: "Json",
+            plain_method: "json_encode",
+            sb_method: "json_encode_sb",
+            fn_suffix: "_json_encode",
+            char_quote: "\"",
+            vector_separator: ",",
+            nested_vector_literal: "[]",
+            nest_vectors: true,
+            unprintable_literal: "null"
+        };
+    }
+
+    fn emit_new(): SbEmit {
+        return SbEmit { stmts: [], pending: "" };
+    }
+
+    fn emit_flush(&SbEmit e): void {
+        if (str_len(e.pending) > 0) {
+            e.stmts.push(MacroExpander.sb_push_str_stmt(MacroExpander.str_lit(e.pending)));
+            e.pending = "";
+        }
+    }
+
+    fn emit_lit(&SbEmit e, str text): void {
+        e.pending = e.pending + text;
+    }
+
+    fn emit_stmt(&SbEmit e, StatementNode statement): void {
+        MacroExpander.emit_flush(&e);
+        e.stmts.push(statement);
+    }
+
+    fn emit_finish(&SbEmit e): StatementNode[] {
+        MacroExpander.emit_flush(&e);
+        return e.stmts;
+    }
+
+    fn arg(Expression value, PassedBy passed_by): ArgumentNode {
+        return ArgumentNode {
+            value: Argument { value: MacroExpander.expr(value), passed_by },
+            span: Span.default()
+        };
+    }
+
+    fn method_call_expr(
+        Expression instance,
+        str method_name,
+        ArgumentNode[] arguments
+    ): Expression {
+        return Expression::MethodCall(MethodCallExpression {
+            instance: MacroExpander.expr(instance),
+            target: MethodCallTarget::Unresolved,
+            field: MacroExpander.ident(method_name),
+            arguments
+        });
+    }
+
+    fn function_call_stmt(str fn_name, ArgumentNode[] arguments): StatementNode {
+        return MacroExpander.stmt(
+            Statement::FunctionCall(FunctionCallExpression {
+                identifier: MacroExpander.ident(fn_name),
+                arguments
+            })
+        );
+    }
+
+    fn sb_push_str_stmt(Expression value): StatementNode {
+        return MacroExpander.stmt(
+            Statement::Expression(MacroExpander.expr(
+                MacroExpander.method_call_expr(
+                    MacroExpander.var("sb"),
+                    "push_str",
+                    [MacroExpander.arg(value, PassedBy::Reference)]
+                )
+            ))
+        );
+    }
+
+    fn sb_push_char_stmt(Expression value): StatementNode {
+        let is_nul = Expression::Equal(BinaryExpression {
+            left: MacroExpander.expr(value),
+            right: MacroExpander.expr(Expression::Literal(Literal::Char('\0')))
+        });
+        let push_char = MacroExpander.stmt(
+            Statement::Expression(MacroExpander.expr(
+                MacroExpander.method_call_expr(
+                    MacroExpander.var("sb"),
+                    "push_char",
+                    [MacroExpander.arg(value, PassedBy::Value)]
+                )
+            ))
+        );
+
+        return MacroExpander.stmt(
             Statement::Conditional(ConditionalStatement {
-                condition: me_expr(me_less(me_i64_lit(0), me_var(index_variable))),
-                if_block: me_block([me_sb_push_str_stmt(me_str_lit(f.vector_separator))]),
-                else_block: OptionBlockNode::None
-            })
-        )
-    );
-    me_sb_emit_value(
-        &program,
-        &body,
-        &f,
-        inner_type,
-        me_index(vector_variable, index_variable),
-        ctx + "_e",
-        strategy,
-        true
-    );
-    sb_emit_stmt(
-        &body,
-        me_stmt(me_assign(index_variable, me_addition(me_var(index_variable), me_i64_lit(1))))
-    );
-
-    sb_emit_stmt(
-        &e,
-        me_stmt(
-            Statement::WhileLoop(WhileLoopStatement {
-                condition: me_expr(
-                    me_less(
-                        me_var(index_variable),
-                        me_call_ref("vector_size", me_var(vector_variable))
-                    )
+                condition: MacroExpander.expr(is_nul),
+                if_block: MacroExpander.block(
+                    [MacroExpander.sb_push_str_stmt(MacroExpander.str_lit("\\0"))]
                 ),
-                block: me_block(sb_emit_finish(&body))
+                else_block: OptionBlockNode::Some(MacroExpander.block([push_char]))
             })
-        )
-    );
-    sb_emit_lit(&e, "]");
-}
+        );
+    }
 
-fn me_sb_param(): ParameterNode {
-    return me_param_ref("StringBuilder", "sb");
-}
+    fn type_has_method(&Program program, str type_name, str method_name): bool {
+        for (let i = 0; i < program.declared_types.size(); i += 1) {
+            let methods: TypeMethodNode[] = [];
+            let name = "";
+            match (program.declared_types[i].value) {
+                DeclaredType::Struct(s) {
+                    name = s.identifier.value;
+                    methods = s.methods;
+                },
+                DeclaredType::Enum(e) {
+                    name = e.identifier.value;
+                    methods = e.methods;
+                }
+            }
+            if (name != type_name) {
+                continue;
+            }
+            for (let j = 0; j < methods.size(); j += 1) {
+                if (methods[j].value.identifier.value == method_name) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
-fn me_sb_type(): TypeNode {
-    return me_type(Type::Unresolved("StringBuilder"));
-}
+    fn is_number_like(Type ty): bool {
+        match (ty) {
+            Type::Bool {
+                return true;
+            },
+            Type::F64 {
+                return true;
+            },
+            Type::I8 {
+                return true;
+            },
+            Type::I16 {
+                return true;
+            },
+            Type::I32 {
+                return true;
+            },
+            Type::I64 {
+                return true;
+            },
+            Type::U8 {
+                return true;
+            },
+            Type::U16 {
+                return true;
+            },
+            Type::U32 {
+                return true;
+            },
+            Type::U64 {
+                return true;
+            },
+            rest {
+                return false;
+            }
+        }
+    }
 
-# let sb = StringBuilder.new();
-fn me_sb_new_stmt(): StatementNode {
-    return me_stmt(
-        me_let("sb", me_method_call_expr(me_var("StringBuilder"), "new", []), OptionTypeNode::None)
-    );
-}
+    fn sb_emit_value(
+        &Program program,
+        &SbEmit e,
+        &SbFormat f,
+        Type ty,
+        Expression expression,
+        str ctx,
+        ExpansionStrategy strategy,
+        bool in_vector
+    ): void {
+        match (ty) {
+            Type::Str {
+                MacroExpander.emit_lit(&e, "\"");
+                MacroExpander.emit_stmt(&e, MacroExpander.sb_push_str_stmt(expression));
+                MacroExpander.emit_lit(&e, "\"");
+            },
+            Type::Char {
+                MacroExpander.emit_lit(&e, f.char_quote);
+                MacroExpander.emit_stmt(&e, MacroExpander.sb_push_char_stmt(expression));
+                MacroExpander.emit_lit(&e, f.char_quote);
+            },
+            Type::Unresolved(type_name) {
+                MacroExpander.sb_emit_dependency(
+                    &program,
+                    &e,
+                    &f,
+                    type_name,
+                    expression,
+                    ctx,
+                    strategy
+                );
+            },
+            Type::Vector(inner_type) {
+                if (in_vector && !f.nest_vectors) {
+                    MacroExpander.emit_lit(&e, f.nested_vector_literal);
+                } else {
+                    MacroExpander.sb_emit_vector(
+                        &program,
+                        &e,
+                        &f,
+                        inner_type,
+                        expression,
+                        ctx,
+                        strategy
+                    );
+                }
+            },
+            rest {
+                if (MacroExpander.is_number_like(ty)) {
+                    MacroExpander.emit_stmt(
+                        &e,
+                        MacroExpander.sb_push_str_stmt(MacroExpander.cast_to_str(expression))
+                    );
+                } else {
+                    MacroExpander.emit_lit(&e, f.unprintable_literal);
+                }
+            }
+        }
+    }
 
-# return sb.to_string();
-fn me_sb_return_string_stmt(): StatementNode {
-    return me_stmt(me_return_expr(me_method_call_expr(me_var("sb"), "to_string", [])));
-}
+    fn sb_emit_dependency(
+        &Program program,
+        &SbEmit e,
+        &SbFormat f,
+        str type_name,
+        Expression expression,
+        str ctx,
+        ExpansionStrategy strategy
+    ): void {
+        let snake = to_snake_case(type_name);
+        let sb_fn_name = snake + f.fn_suffix + "_sb";
+        let plain_fn_name = snake + f.fn_suffix;
 
-# Defines both pairs for a derive: `x_debug_sb` / `x_debug` and `debug_sb` / `debug`.
-fn me_sb_install(
-    &MacroExpander me,
-    &Program program,
-    DeclaredType declared_type,
-    str type_name,
-    &SbFormat f,
-    BlockNode function_block,
-    BlockNode method_block,
-    Span derive_span
-): void {
-    let snake = to_snake_case(type_name);
-    let sb_fn_name = snake + f.fn_suffix + "_sb";
+        let has_derive = MacroExpander.type_has_derive(&program, type_name, f.derive_name);
+        let has_sb_fn = has_derive || MacroExpander.function_exists(&program, sb_fn_name);
+        let has_sb_method =
+            has_derive || MacroExpander.type_has_method(&program, type_name, f.sb_method);
+        let has_plain_fn = MacroExpander.function_exists(&program, plain_fn_name);
+        let has_plain_method = MacroExpander.type_has_method(&program, type_name, f.plain_method);
 
-    macro_expander_insert_function(
-        &me,
-        &program,
-        FunctionDeclaration {
-            identifier: me_ident(sb_fn_name),
-            parameters: [me_param_ref(type_name, "self"), me_sb_param()],
-            return_type: me_sb_type(),
-            block: function_block
-        },
-        derive_span
-    );
+        # 0 = sb function, 1 = sb method, 2 = plain function, 3 = plain method
+        let mode = 3;
+        match (strategy) {
+            ExpansionStrategy::FunctionBased {
+                if (has_sb_fn) {
+                    mode = 0;
+                } else if (has_sb_method) {
+                    mode = 1;
+                } else if (has_plain_fn) {
+                    mode = 2;
+                }
+            },
+            ExpansionStrategy::MethodBased {
+                if (has_sb_method) {
+                    mode = 1;
+                } else if (has_sb_fn) {
+                    mode = 0;
+                } else if (has_plain_method) {
+                    mode = 3;
+                } else {
+                    mode = 2;
+                }
+            }
+        }
 
-    macro_expander_insert_function(
-        &me,
-        &program,
-        FunctionDeclaration {
-            identifier: me_ident(snake + f.fn_suffix),
-            parameters: [me_param_ref(type_name, "self")],
-            return_type: me_type(Type::Str),
-            block: me_block(
-                [
-                    me_sb_new_stmt(),
-                    me_function_call_stmt(
-                        sb_fn_name,
-                        [
-                            me_arg(me_var("self"), PassedBy::Reference),
-                            me_arg(me_var("sb"), PassedBy::Reference)
-                        ]
-                    ),
-                    me_sb_return_string_stmt()
-                ]
-            )
-        },
-        derive_span
-    );
-
-    let sb_method = TypeMethod {
-        identifier: me_ident(f.sb_method),
-        self_identifier: OptionIdentifierNode::Some(me_ident("self")),
-        parameters: [me_sb_param()],
-        return_type: me_sb_type(),
-        block: method_block
-    };
-    macro_expander_insert_method(&me, &declared_type, &sb_method, derive_span);
-
-    let plain_method = TypeMethod {
-        identifier: me_ident(f.plain_method),
-        self_identifier: OptionIdentifierNode::Some(me_ident("self")),
-        parameters: [],
-        return_type: me_type(Type::Str),
-        block: me_block(
-            [
-                me_sb_new_stmt(),
-                me_stmt(
-                    Statement::Expression(me_expr(
-                        me_method_call_expr(
-                            me_var("self"),
+        if (mode == 0) {
+            MacroExpander.emit_stmt(
+                &e,
+                MacroExpander.function_call_stmt(
+                    sb_fn_name,
+                    [
+                        MacroExpander.arg(expression, PassedBy::Reference),
+                        MacroExpander.arg(MacroExpander.var("sb"), PassedBy::Reference)
+                    ]
+                )
+            );
+        } else if (mode == 1) {
+            MacroExpander.emit_stmt(
+                &e,
+                MacroExpander.stmt(
+                    Statement::Expression(MacroExpander.expr(
+                        MacroExpander.method_call_expr(
+                            expression,
                             f.sb_method,
-                            [me_arg(me_var("sb"), PassedBy::Reference)]
+                            [MacroExpander.arg(MacroExpander.var("sb"), PassedBy::Reference)]
                         )
                     ))
-                ),
-                me_sb_return_string_stmt()
-            ]
-        )
-    };
-    macro_expander_insert_method(&me, &declared_type, &plain_method, derive_span);
+                )
+            );
+        } else {
+            let temp = ctx + "_dep";
+            let plain_call = MacroExpander.method_call_expr(expression, f.plain_method, []);
+            if (mode == 2) {
+                plain_call = MacroExpander.call_ref(plain_fn_name, expression);
+            }
+            MacroExpander.emit_stmt(
+                &e,
+                MacroExpander.stmt(MacroExpander.let_(temp, plain_call, OptionTypeNode::None))
+            );
+            MacroExpander.emit_stmt(&e, MacroExpander.sb_push_str_stmt(MacroExpander.var(temp)));
+        }
+    }
+
+    fn sb_emit_vector(
+        &Program program,
+        &SbEmit e,
+        &SbFormat f,
+        Type inner_type,
+        Expression expression,
+        str ctx,
+        ExpansionStrategy strategy
+    ): void {
+        let vector_variable = ctx + "_vec";
+        let index_variable = ctx + "_i";
+
+        MacroExpander.emit_lit(&e, "[");
+
+        # Bind the vector to a temp so it can be indexed in the loop.
+        MacroExpander.emit_stmt(
+            &e,
+            MacroExpander.stmt(
+                MacroExpander.let_(vector_variable, expression, OptionTypeNode::None)
+            )
+        );
+        MacroExpander.emit_stmt(
+            &e,
+            MacroExpander.stmt(
+                MacroExpander.let_(index_variable, MacroExpander.i64_lit(0), OptionTypeNode::None)
+            )
+        );
+
+        let body = MacroExpander.emit_new();
+        MacroExpander.emit_stmt(
+            &body,
+            MacroExpander.stmt(
+                Statement::Conditional(ConditionalStatement {
+                    condition: MacroExpander.expr(
+                        MacroExpander.less(
+                            MacroExpander.i64_lit(0),
+                            MacroExpander.var(index_variable)
+                        )
+                    ),
+                    if_block: MacroExpander.block(
+                        [MacroExpander.sb_push_str_stmt(MacroExpander.str_lit(f.vector_separator))]
+                    ),
+                    else_block: OptionBlockNode::None
+                })
+            )
+        );
+        MacroExpander.sb_emit_value(
+            &program,
+            &body,
+            &f,
+            inner_type,
+            MacroExpander.index(vector_variable, index_variable),
+            ctx + "_e",
+            strategy,
+            true
+        );
+        MacroExpander.emit_stmt(
+            &body,
+            MacroExpander.stmt(
+                MacroExpander.assign(
+                    index_variable,
+                    MacroExpander.addition(
+                        MacroExpander.var(index_variable),
+                        MacroExpander.i64_lit(1)
+                    )
+                )
+            )
+        );
+
+        MacroExpander.emit_stmt(
+            &e,
+            MacroExpander.stmt(
+                Statement::WhileLoop(WhileLoopStatement {
+                    condition: MacroExpander.expr(
+                        MacroExpander.less(
+                            MacroExpander.var(index_variable),
+                            MacroExpander.call_ref(
+                                "vector_size",
+                                MacroExpander.var(vector_variable)
+                            )
+                        )
+                    ),
+                    block: MacroExpander.block(MacroExpander.emit_finish(&body))
+                })
+            )
+        );
+        MacroExpander.emit_lit(&e, "]");
+    }
+
+    fn sb_param(): ParameterNode {
+        return MacroExpander.param_ref("StringBuilder", "sb");
+    }
+
+    fn sb_type(): TypeNode {
+        return MacroExpander.type(Type::Unresolved("StringBuilder"));
+    }
+
+    fn sb_new_stmt(): StatementNode {
+        return MacroExpander.stmt(
+            MacroExpander.let_(
+                "sb",
+                MacroExpander.method_call_expr(MacroExpander.var("StringBuilder"), "new", []),
+                OptionTypeNode::None
+            )
+        );
+    }
+
+    fn sb_return_string_stmt(): StatementNode {
+        return MacroExpander.stmt(
+            MacroExpander.return_expr(
+                MacroExpander.method_call_expr(MacroExpander.var("sb"), "to_string", [])
+            )
+        );
+    }
+
+    fn sb_install(
+        &MacroExpander me,
+        &Program program,
+        &DeclaredType declared_type,
+        str type_name,
+        &SbFormat f,
+        &BlockNode function_block,
+        &BlockNode method_block,
+        &Span derive_span
+    ): void {
+        let snake = to_snake_case(type_name);
+        let sb_fn_name = snake + f.fn_suffix + "_sb";
+
+        me.insert_function(
+            &program,
+            &FunctionDeclaration {
+                identifier: MacroExpander.ident(sb_fn_name),
+                parameters: [MacroExpander.param_ref(type_name, "self"), MacroExpander.sb_param()],
+                return_type: MacroExpander.sb_type(),
+                block: function_block
+            },
+            &derive_span
+        );
+
+        me.insert_function(
+            &program,
+            &FunctionDeclaration {
+                identifier: MacroExpander.ident(snake + f.fn_suffix),
+                parameters: [MacroExpander.param_ref(type_name, "self")],
+                return_type: MacroExpander.type(Type::Str),
+                block: MacroExpander.block(
+                    [
+                        MacroExpander.sb_new_stmt(),
+                        MacroExpander.function_call_stmt(
+                            sb_fn_name,
+                            [
+                                MacroExpander.arg(MacroExpander.var("self"), PassedBy::Reference),
+                                MacroExpander.arg(MacroExpander.var("sb"), PassedBy::Reference)
+                            ]
+                        ),
+                        MacroExpander.sb_return_string_stmt()
+                    ]
+                )
+            },
+            &derive_span
+        );
+
+        let sb_method = TypeMethod {
+            identifier: MacroExpander.ident(f.sb_method),
+            self_identifier: OptionIdentifierNode::Some(MacroExpander.ident("self")),
+            parameters: [MacroExpander.sb_param()],
+            return_type: MacroExpander.sb_type(),
+            block: method_block
+        };
+        me.insert_method(&declared_type, &sb_method, &derive_span);
+
+        let plain_method = TypeMethod {
+            identifier: MacroExpander.ident(f.plain_method),
+            self_identifier: OptionIdentifierNode::Some(MacroExpander.ident("self")),
+            parameters: [],
+            return_type: MacroExpander.type(Type::Str),
+            block: MacroExpander.block(
+                [
+                    MacroExpander.sb_new_stmt(),
+                    MacroExpander.stmt(
+                        Statement::Expression(MacroExpander.expr(
+                            MacroExpander.method_call_expr(
+                                MacroExpander.var("self"),
+                                f.sb_method,
+                                [MacroExpander.arg(MacroExpander.var("sb"), PassedBy::Reference)]
+                            )
+                        ))
+                    ),
+                    MacroExpander.sb_return_string_stmt()
+                ]
+            )
+        };
+        me.insert_method(&declared_type, &plain_method, &derive_span);
+    }
+};
+
+
+fn to_snake_case(str value): str {
+    let result = "";
+    for (let i = 0; i < value.size(); i += 1) {
+        let c = value[i];
+        if (c.is_upper() && i > 0) {
+            result += "_";
+            result += c.to_lower();
+        } else {
+            result += c.to_lower();
+        }
+    }
+    return result;
 }

@@ -8,109 +8,110 @@ import "../frontend/parser/parser-results.rp";
 import "../frontend/parser/core.rp";
 import "../frontend/parser/program.rp";
 import "./macro-expander.rp";
+import "../../stdlib/vector.rp";
 
 
-fn macro_expander_prelude_source(): str {
-    let lines: str[] = [
-        "struct StringBuilder {",
-        "    char[] data",
-        "",
-        "    fn new(): StringBuilder {",
-        "        return StringBuilder { data: [] };",
-        "    }",
-        "",
-        "    fn push_char(self, char c): void {",
-        "        vector_push(&self.data, c);",
-        "    }",
-        "",
-        "    fn push_str(self, &str text): void {",
-        "        for (let i = 0; i < str_len(text); i += 1) {",
-        "            vector_push(&self.data, text[i]);",
-        "        }",
-        "    }",
-        "",
-        "    fn push_char_vector(self, &char[] chars): void {",
-        "        vector_extend(&self.data, &chars);",
-        "    }",
-        "",
-        "    fn push_builder(self, &StringBuilder other): void {",
-        "        vector_extend(&self.data, &other.data);",
-        "    }",
-        "",
-        "    fn to_string(self): str {",
-        "        return char_vector_to_str(&self.data);",
-        "    }",
-        "};"
-    ];
-    return str_join(lines, "\n");
-}
-
-fn macro_expander_declared_type_name(DeclaredType declared_type): str {
-    match (declared_type) {
-        DeclaredType::Struct(struct_declaration) {
-            return struct_declaration.identifier.value;
-        },
-        DeclaredType::Enum(enum_declaration) {
-            return enum_declaration.identifier.value;
-        }
+extend MacroExpander {
+    fn prelude_source(): str {
+        let lines: str[] = [
+            "struct StringBuilder {",
+            "    char[] data",
+            "",
+            "    fn new(): StringBuilder {",
+            "        return StringBuilder { data: [] };",
+            "    }",
+            "",
+            "    fn push_char(self, char c): void {",
+            "        vector_push(&self.data, c);",
+            "    }",
+            "",
+            "    fn push_str(self, &str text): void {",
+            "        for (let i = 0; i < str_len(text); i += 1) {",
+            "            vector_push(&self.data, text[i]);",
+            "        }",
+            "    }",
+            "",
+            "    fn push_char_vector(self, &char[] chars): void {",
+            "        vector_extend(&self.data, &chars);",
+            "    }",
+            "",
+            "    fn push_builder(self, &StringBuilder other): void {",
+            "        vector_extend(&self.data, &other.data);",
+            "    }",
+            "",
+            "    fn to_string(self): str {",
+            "        return char_vector_to_str(&self.data);",
+            "    }",
+            "};"
+        ];
+        return lines.join("\n");
     }
-}
 
-fn macro_expander_inject_prelude(&MacroExpander me, &Program program): void {
-    for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
-        let existing = program.declared_types[i];
-        if (macro_expander_declared_type_name(existing.value) == "StringBuilder") {
-            vector_push(
-                &me.errors,
-                macro_expander_error_at(
-                    ErrorSeverity::HIGH,
-                    "Type 'StringBuilder' is a built-in type and cannot be redeclared.",
-                    existing.span
-                )
-            );
-            return;
+    fn declared_type_name(&DeclaredType declared_type): str {
+        match (declared_type) {
+            DeclaredType::Struct(struct_declaration) {
+                return struct_declaration.identifier.value;
+            },
+            DeclaredType::Enum(enum_declaration) {
+                return enum_declaration.identifier.value;
+            }
         }
     }
 
-    let reader = LazyStreamReader.new(
-        macro_expander_prelude_source(),
-        OptionStr::Some("<prelude>")
-    );
-    let lexer = Lexer.new(
-        &reader,
-        &LexerOptions { max_comment_length: 500, max_identifier_length: 100 }
-    );
+    fn inject_prelude(self, &Program program): void {
+        for (let i = 0; i < program.declared_types.size(); i += 1) {
+            let existing = program.declared_types[i];
+            if (MacroExpander.declared_type_name(&existing.value) == "StringBuilder") {
+                self.errors.push(
+                    macro_expander_error_at(
+                        ErrorSeverity::HIGH,
+                        "Type 'StringBuilder' is a built-in type and cannot be redeclared.",
+                        existing.span
+                    )
+                );
+                return;
+            }
+        }
 
-    match (Parser.new(&lexer)) {
-        ResultParser::Err(err) {
-            vector_push(
-                &me.errors,
-                macro_expander_error_at(
-                    ErrorSeverity::HIGH,
-                    "Internal error: cannot parse built-in prelude: " + err.get_stderr_message(),
-                    me_span()
-                )
-            );
-        },
-        ResultParser::Ok(parser) {
-            match (parser.parse()) {
-                ResultProgram::Err(err) {
-                    vector_push(
-                        &me.errors,
-                        macro_expander_error_at(
-                            ErrorSeverity::HIGH,
-                            "Internal error: cannot parse built-in prelude: "
-                                + err.get_stderr_message(),
-                            me_span()
-                        )
-                    );
-                },
-                ResultProgram::Ok(prelude) {
-                    for (let i = 0; i < vector_size(&prelude.declared_types); i += 1) {
-                        vector_push(&program.declared_types, prelude.declared_types[i]);
+        let reader = LazyStreamReader.new(
+            MacroExpander.prelude_source(),
+            OptionStr::Some("<prelude>")
+        );
+        let lexer = Lexer.new(
+            &reader,
+            &LexerOptions { max_comment_length: 500, max_identifier_length: 100 }
+        );
+
+        match (Parser.new(&lexer)) {
+            ResultParser::Err(err) {
+                self.errors.push(
+                    macro_expander_error_at(
+                        ErrorSeverity::HIGH,
+                        "Internal error: cannot parse built-in prelude: "
+                            + err.get_stderr_message(),
+                        Span.default()
+                    )
+                );
+            },
+            ResultParser::Ok(parser) {
+                match (parser.parse()) {
+                    ResultProgram::Err(err) {
+                        self.errors.push(
+                            macro_expander_error_at(
+                                ErrorSeverity::HIGH,
+                                "Internal error: cannot parse built-in prelude: "
+                                    + err.get_stderr_message(),
+                                Span.default()
+                            )
+                        );
+                    },
+                    ResultProgram::Ok(prelude) {
+                        for (let i = 0; i < prelude.declared_types.size(); i += 1) {
+                            program.declared_types.push(prelude.declared_types[i]);
+                        }
                     }
                 }
             }
         }
     }
-}
+};

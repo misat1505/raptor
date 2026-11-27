@@ -574,12 +574,12 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
 
 fn stage_macros(&CliOptions opts, &Program program, f64 total_started): i64 {
     let t = now_ms();
-    let expander = macro_expander_new();
-    macro_expander_run(&expander, &program);
-    if (vector_size(&expander.errors) > 0) {
+    let expander = MacroExpander.new();
+    expander.run(&program);
+    if (expander.errors.size() > 0) {
         let macro_errors = 0;
         let macro_warnings = 0;
-        for (let i = 0; i < vector_size(&expander.errors); i += 1) {
+        for (let i = 0; i < expander.errors.size(); i += 1) {
             let err = expander.errors[i];
             if (err.level matches ErrorSeverity::HIGH) {
                 macro_errors += 1;

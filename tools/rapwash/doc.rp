@@ -7,6 +7,100 @@ enum Doc derives Debug {
     Indent(Doc[]),
     Group(Doc[]),
     Concat(Doc[])
+
+    fn is_empty_text(self): bool {
+        if (self matches Doc::Text(t)) {
+            return t.size() == 0;
+        }
+        return false;
+    }
+
+    fn print(self, i64 width, i64 indent_width): str {
+        let p = DocPrinter {
+            output: "",
+            col: 0,
+            pending_indent: 0,
+            width,
+            indent_width,
+            stack: DocStack { items: [], top: 0 },
+            scratch: DocStack { items: [], top: 0 }
+        };
+
+        p.stack.push(DocCmd { indent: 0, flat: false, doc: self });
+
+        while (p.stack.top > 0) {
+            let cmd = p.stack.pop();
+
+            match (cmd.doc) {
+                Doc::Text(s) {
+                    p.write(s);
+                },
+                Doc::Line {
+                    if (cmd.flat) {
+                        p.write(" ");
+                    } else {
+                        p.newline(cmd.indent);
+                    }
+                },
+                Doc::SoftLine {
+                    if (!cmd.flat) {
+                        p.newline(cmd.indent);
+                    }
+                },
+                Doc::HardLine {
+                    p.newline(cmd.indent);
+                },
+                Doc::IfBreak(s) {
+                    if (!cmd.flat) {
+                        p.write(s);
+                    }
+                },
+                Doc::Indent(xs) {
+                    p.stack.push_children(&xs, cmd.indent + p.indent_width, cmd.flat);
+                },
+                Doc::Concat(xs) {
+                    p.stack.push_children(&xs, cmd.indent, cmd.flat);
+                },
+                Doc::Group(xs) {
+                    let flat = cmd.flat;
+                    if (!flat) {
+                        let candidate = DocCmd { indent: cmd.indent, flat: true, doc: cmd.doc };
+                        flat = p.fits(candidate, p.width - p.col);
+                    }
+                    p.stack.push_children(&xs, cmd.indent, flat);
+                }
+            }
+        }
+
+        return p.output;
+    }
+
+    fn join(&Doc[] items, &Doc separator): Doc {
+        let parts: Doc[] = [];
+        for (let i = 0; i < items.size(); i += 1) {
+            if (i != 0) {
+                parts.push(separator);
+            }
+            parts.push(items[i]);
+        }
+        return Doc::Concat(parts);
+    }
+
+    fn call(str name, &Doc[] args): Doc {
+        if (args.size() == 0) {
+            return Doc::Text(name + "()");
+        }
+
+        let separator = Doc::Concat([Doc::Text(","), Doc::Line]);
+        let inner = Doc::Concat([Doc::SoftLine, Doc.join(&args, &separator), Doc::IfBreak(",")]);
+
+        return Doc::Group([
+            Doc::Text(name + "("),
+            Doc::Indent([inner]),
+            Doc::SoftLine,
+            Doc::Text(")")
+        ]);
+    }
 };
 
 struct DocCmd derives Debug {
@@ -18,6 +112,26 @@ struct DocCmd derives Debug {
 struct DocStack derives Debug {
     DocCmd[] items,
     i64 top
+
+    fn push(self, DocCmd cmd): void {
+        if (self.top == self.items.size()) {
+            self.items.push(cmd);
+        } else {
+            self.items[self.top] = cmd;
+        }
+        self.top += 1;
+    }
+
+    fn pop(self): DocCmd {
+        self.top -= 1;
+        return self.items[self.top];
+    }
+
+    fn push_children(self, &Doc[] children, i64 indent, bool flat): void {
+        for (let i = children.size(); i > 0; i -= 1) {
+            self.push(DocCmd { indent, flat, doc: children[i - 1] });
+        }
+    }
 };
 
 struct DocPrinter derives Debug {
@@ -28,187 +142,84 @@ struct DocPrinter derives Debug {
     i64 indent_width,
     DocStack stack,
     DocStack scratch
+
+    fn write(self, str text): void {
+        let len = text.size();
+        if (len == 0) {
+            return;
+        }
+
+        if (self.pending_indent > 0) {
+            for (let i = 0; i < self.pending_indent; i += 1) {
+                self.output += " ";
+            }
+            self.pending_indent = 0;
+        }
+
+        self.output += text;
+        self.col += len;
+    }
+
+    fn newline(self, i64 indent): void {
+        self.output += "\n";
+        self.pending_indent = indent;
+        self.col = indent;
+    }
+
+    fn fits(self, DocCmd first, i64 width_left): bool {
+        let remaining = width_left;
+        let rest_idx = self.stack.top;
+
+        self.scratch.top = 0;
+        self.scratch.push(first);
+
+        while (remaining >= 0) {
+            let cmd = first;
+            if (self.scratch.top > 0) {
+                cmd = self.scratch.pop();
+            } else if (rest_idx > 0) {
+                rest_idx -= 1;
+                cmd = self.stack.items[rest_idx];
+            } else {
+                return true;
+            }
+
+            match (cmd.doc) {
+                Doc::Text(s) {
+                    remaining -= s.size();
+                },
+                Doc::Line {
+                    if (cmd.flat) {
+                        remaining -= 1;
+                    } else {
+                        return true;
+                    }
+                },
+                Doc::SoftLine {
+                    if (!cmd.flat) {
+                        return true;
+                    }
+                },
+                Doc::HardLine {
+                    return !cmd.flat;
+                },
+                Doc::IfBreak(s) {
+                    if (!cmd.flat) {
+                        remaining -= s.size();
+                    }
+                },
+                Doc::Indent(xs) {
+                    self.scratch.push_children(&xs, 0, cmd.flat);
+                },
+                Doc::Concat(xs) {
+                    self.scratch.push_children(&xs, 0, cmd.flat);
+                },
+                Doc::Group(xs) {
+                    self.scratch.push_children(&xs, 0, cmd.flat);
+                }
+            }
+        }
+
+        return false;
+    }
 };
-
-
-fn doc_stack_push(&DocStack stack, DocCmd cmd): void {
-    if (stack.top == vector_size(&stack.items)) {
-        vector_push(&stack.items, cmd);
-    } else {
-        stack.items[stack.top] = cmd;
-    }
-    stack.top += 1;
-}
-
-fn doc_stack_pop(&DocStack stack): DocCmd {
-    stack.top -= 1;
-    return stack.items[stack.top];
-}
-
-fn doc_stack_push_children(&DocStack stack, &Doc[] children, i64 indent, bool flat): void {
-    for (let i = vector_size(&children); i > 0; i -= 1) {
-        doc_stack_push(&stack, DocCmd { indent: indent, flat: flat, doc: children[i - 1] });
-    }
-}
-
-fn doc_printer_write(&DocPrinter p, str text): void {
-    let len = str_len(text);
-    if (len == 0) {
-        return;
-    }
-
-    if (p.pending_indent > 0) {
-        for (let i = 0; i < p.pending_indent; i += 1) {
-            p.output += " ";
-        }
-        p.pending_indent = 0;
-    }
-
-    p.output += text;
-    p.col += len;
-}
-
-fn doc_printer_newline(&DocPrinter p, i64 indent): void {
-    p.output += "\n";
-    p.pending_indent = indent;
-    p.col = indent;
-}
-
-fn doc_fits(&DocPrinter p, DocCmd first, i64 width_left): bool {
-    let remaining = width_left;
-    let rest_idx = p.stack.top;
-
-    p.scratch.top = 0;
-    doc_stack_push(&p.scratch, first);
-
-    while (remaining >= 0) {
-        let cmd = first;
-        if (p.scratch.top > 0) {
-            cmd = doc_stack_pop(&p.scratch);
-        } else if (rest_idx > 0) {
-            rest_idx -= 1;
-            cmd = p.stack.items[rest_idx];
-        } else {
-            return true;
-        }
-
-        match (cmd.doc) {
-            Doc::Text(s) {
-                remaining -= str_len(s);
-            },
-            Doc::Line {
-                if (cmd.flat) {
-                    remaining -= 1;
-                } else {
-                    return true;
-                }
-            },
-            Doc::SoftLine {
-                if (!cmd.flat) {
-                    return true;
-                }
-            },
-            Doc::HardLine {
-                return !cmd.flat;
-            },
-            Doc::IfBreak(s) {
-                if (!cmd.flat) {
-                    remaining -= str_len(s);
-                }
-            },
-            Doc::Indent(xs) {
-                doc_stack_push_children(&p.scratch, &xs, 0, cmd.flat);
-            },
-            Doc::Concat(xs) {
-                doc_stack_push_children(&p.scratch, &xs, 0, cmd.flat);
-            },
-            Doc::Group(xs) {
-                doc_stack_push_children(&p.scratch, &xs, 0, cmd.flat);
-            }
-        }
-    }
-
-    return false;
-}
-
-fn doc_print(&Doc doc, i64 width, i64 indent_width): str {
-    let p = DocPrinter {
-        output: "",
-        col: 0,
-        pending_indent: 0,
-        width: width,
-        indent_width: indent_width,
-        stack: DocStack { items: [], top: 0 },
-        scratch: DocStack { items: [], top: 0 }
-    };
-
-    doc_stack_push(&p.stack, DocCmd { indent: 0, flat: false, doc: doc });
-
-    while (p.stack.top > 0) {
-        let cmd = doc_stack_pop(&p.stack);
-
-        match (cmd.doc) {
-            Doc::Text(s) {
-                doc_printer_write(&p, s);
-            },
-            Doc::Line {
-                if (cmd.flat) {
-                    doc_printer_write(&p, " ");
-                } else {
-                    doc_printer_newline(&p, cmd.indent);
-                }
-            },
-            Doc::SoftLine {
-                if (!cmd.flat) {
-                    doc_printer_newline(&p, cmd.indent);
-                }
-            },
-            Doc::HardLine {
-                doc_printer_newline(&p, cmd.indent);
-            },
-            Doc::IfBreak(s) {
-                if (!cmd.flat) {
-                    doc_printer_write(&p, s);
-                }
-            },
-            Doc::Indent(xs) {
-                doc_stack_push_children(&p.stack, &xs, cmd.indent + p.indent_width, cmd.flat);
-            },
-            Doc::Concat(xs) {
-                doc_stack_push_children(&p.stack, &xs, cmd.indent, cmd.flat);
-            },
-            Doc::Group(xs) {
-                let flat = cmd.flat;
-                if (!flat) {
-                    let candidate = DocCmd { indent: cmd.indent, flat: true, doc: cmd.doc };
-                    flat = doc_fits(&p, candidate, p.width - p.col);
-                }
-                doc_stack_push_children(&p.stack, &xs, cmd.indent, flat);
-            }
-        }
-    }
-
-    return p.output;
-}
-
-fn doc_join(&Doc[] items, &Doc separator): Doc {
-    let parts: Doc[] = [];
-    for (let i = 0; i < vector_size(&items); i += 1) {
-        if (i != 0) {
-            vector_push(&parts, separator);
-        }
-        vector_push(&parts, items[i]);
-    }
-    return Doc::Concat(parts);
-}
-
-fn doc_call(str name, &Doc[] args): Doc {
-    if (vector_size(&args) == 0) {
-        return Doc::Text(name + "()");
-    }
-
-    let separator = Doc::Concat([Doc::Text(","), Doc::Line]);
-    let inner = Doc::Concat([Doc::SoftLine, doc_join(&args, &separator), Doc::IfBreak(",")]);
-
-    return Doc::Group([Doc::Text(name + "("), Doc::Indent([inner]), Doc::SoftLine, Doc::Text(")")]);
-}

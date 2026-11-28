@@ -1,14 +1,22 @@
 import "../../../stdlib/string.rp";
 
-println("[" + str_trim_left("  a b  ") + "]");
-println("[" + str_trim_right("  a b  ") + "]");
-println("[" + str_trim("  a b  ") + "]");
-println("[" + str_trim("\t\nx\n") + "]");
-println("[" + str_trim("abc") + "]");
-println(str_to_lower("HeLLo 123"));
-println(str_to_upper("HeLLo 123"));
-println(str_capitalize("hello"));
-println(str_capitalize(""));
-println(str_capitalize("Hello"));
-println(str_uncapitalize("Hello"));
-println(str_uncapitalize(""));
+let s1 = "  a b  ";
+let s2 = "\t\nx\n";
+let s3 = "abc";
+let s4 = "HeLLo 123";
+let s5 = "hello";
+let s6 = "";
+let s7 = "Hello";
+
+println("[" + s1.trim_left() + "]");
+println("[" + s1.trim_right() + "]");
+println("[" + s1.trim() + "]");
+println("[" + s2.trim() + "]");
+println("[" + s3.trim() + "]");
+println(s4.to_lower());
+println(s4.to_upper());
+println(s5.capitalize());
+println(s6.capitalize());
+println(s7.capitalize());
+println(s7.uncapitalize());
+println(s6.uncapitalize());

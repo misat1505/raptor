@@ -1,4 +1,3 @@
-
 enum CheckForIntrinsicMethodCallData {
     Ok,
     ErrorInCall(str),
@@ -7,121 +6,103 @@ enum CheckForIntrinsicMethodCallData {
 };
 
 
-fn semantic_checker_check_for_intrinsic_method_call(
-    &SemanticChecker sc,
-    &Program program,
-    &Type type,
-    &MethodCallExpression mc
-): CheckForIntrinsicMethodCallData {
-    match (type) {
-        Type::Vector(vector_inner_type) {
-            if (mc.field.value == "push") {
-                if (vector_size(&mc.arguments) != 1) {
-                    return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Method 'push' expects exactly 1 argument, but "
-                            + vector_size(&mc.arguments) as str
-                            + " were provided."
-                    );
-                }
-
-                let argument = mc.arguments[0];
-
-                if (argument.value.passed_by matches PassedBy::Reference) {
-                    return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Argument of method 'push' must be passed by value."
-                    );
-                }
-
-                semantic_checker_visit_expression(&sc, &program, argument.value.value);
-
-                if (semantic_checker_read_last(&sc, argument.span) matches ResultType::Ok(arg_type)) {
-                    if (type_debug(&arg_type) != type_debug(&vector_inner_type)) {
-                        return CheckForIntrinsicMethodCallData::ErrorInCall(
-                            "Method 'push' expects an argument of type '"
-                                + type_to_string(vector_inner_type)
-                                + "', but '"
-                                + type_to_string(arg_type)
-                                + "' was provided."
-                        );
+extend SemanticChecker {
+    fn check_for_intrinsic_method_call(
+        self,
+        &Program program,
+        &Type type,
+        &MethodCallExpression mc
+    ): CheckForIntrinsicMethodCallData {
+        match (type) {
+            Type::Vector(vector_inner_type) {
+                if (mc.field.value == "push") {
+                    if (mc.arguments.size() != 1) {
+                        return CheckForIntrinsicMethodCallData::ErrorInCall("Method 'push' expects exactly 1 argument, but "
+                            + mc.arguments.size() as str
+                            + " were provided.");
                     }
 
-                    semantic_checker_set_last(&sc, Type::Void);
-                    return CheckForIntrinsicMethodCallData::Ok;
-                } else {
-                    return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Failed to resolve the type of the argument passed to method 'push'."
-                    );
-                }
-            } else if (mc.field.value == "ext") {
-                if (vector_size(&mc.arguments) != 1) {
-                    return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Method 'ext' expects exactly 1 argument, but "
-                            + vector_size(&mc.arguments) as str
-                            + " were provided."
-                    );
-                }
+                    let argument = mc.arguments[0];
 
-                let argument = mc.arguments[0];
-
-                if (argument.value.passed_by matches PassedBy::Value) {
-                    return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Argument of method 'ext' must be passed by reference."
-                    );
-                }
-
-                semantic_checker_visit_expression(&sc, &program, argument.value.value);
-
-                if (semantic_checker_read_last(&sc, argument.span) matches ResultType::Ok(arg_type)) {
-                    if (type_debug(&arg_type) != type_debug(&type)) {
-                        return CheckForIntrinsicMethodCallData::ErrorInCall(
-                            "Method 'ext' expects an argument of type '"
-                                + type_to_string(type)
-                                + "', but '"
-                                + type_to_string(arg_type)
-                                + "' was provided."
-                        );
+                    if (argument.value.passed_by matches PassedBy::Reference) {
+                        return CheckForIntrinsicMethodCallData::ErrorInCall("Argument of method 'push' must be passed by value.");
                     }
 
-                    semantic_checker_set_last(&sc, Type::Void);
+                    self.visit_expression(&program, argument.value.value);
+
+                    if (self.read_last(argument.span) matches ResultType::Ok(arg_type)) {
+                        if (arg_type.debug() != vector_inner_type.debug()) {
+                            return CheckForIntrinsicMethodCallData::ErrorInCall("Method 'push' expects an argument of type '"
+                                + vector_inner_type.to_string()
+                                + "', but '"
+                                + arg_type.to_string()
+                                + "' was provided.");
+                        }
+
+                        self.set_last(Type::Void);
+                        return CheckForIntrinsicMethodCallData::Ok;
+                    } else {
+                        return CheckForIntrinsicMethodCallData::ErrorInCall("Failed to resolve the type of the argument passed to method 'push'.");
+                    }
+                } else if (mc.field.value == "ext") {
+                    if (mc.arguments.size() != 1) {
+                        return CheckForIntrinsicMethodCallData::ErrorInCall("Method 'ext' expects exactly 1 argument, but "
+                            + mc.arguments.size() as str
+                            + " were provided.");
+                    }
+
+                    let argument = mc.arguments[0];
+
+                    if (argument.value.passed_by matches PassedBy::Value) {
+                        return CheckForIntrinsicMethodCallData::ErrorInCall("Argument of method 'ext' must be passed by reference.");
+                    }
+
+                    self.visit_expression(&program, argument.value.value);
+
+                    if (self.read_last(argument.span) matches ResultType::Ok(arg_type)) {
+                        if (arg_type.debug() != type.debug()) {
+                            return CheckForIntrinsicMethodCallData::ErrorInCall("Method 'ext' expects an argument of type '"
+                                + type.to_string()
+                                + "', but '"
+                                + arg_type.to_string()
+                                + "' was provided.");
+                        }
+
+                        self.set_last(Type::Void);
+                        return CheckForIntrinsicMethodCallData::Ok;
+                    } else {
+                        return CheckForIntrinsicMethodCallData::ErrorInCall("Failed to resolve the type of the argument passed to method 'ext'.");
+                    }
+                } else if (mc.field.value == "size") {
+                    if (mc.arguments.size() != 0) {
+                        return CheckForIntrinsicMethodCallData::ErrorInCall("Method 'size' expects no arguments, but "
+                            + mc.arguments.size() as str
+                            + " were provided.");
+                    }
+
+                    self.set_last(Type::I64);
                     return CheckForIntrinsicMethodCallData::Ok;
-                } else {
-                    return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Failed to resolve the type of the argument passed to method 'ext'."
-                    );
-                }
-            } else if (mc.field.value == "size") {
-                if (vector_size(&mc.arguments) != 0) {
-                    return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Method 'size' expects no arguments, but "
-                            + vector_size(&mc.arguments) as str
-                            + " were provided."
-                    );
                 }
 
-                semantic_checker_set_last(&sc, Type::I64);
-                return CheckForIntrinsicMethodCallData::Ok;
-            }
+                return CheckForIntrinsicMethodCallData::NoMethodMatchInType;
+            },
+            Type::Str {
+                if (mc.field.value == "size") {
+                    if (mc.arguments.size() != 0) {
+                        return CheckForIntrinsicMethodCallData::ErrorInCall("Method 'size' expects no arguments, but "
+                            + mc.arguments.size() as str
+                            + " were provided.");
+                    }
 
-            return CheckForIntrinsicMethodCallData::NoMethodMatchInType;
-        },
-        Type::Str {
-            if (mc.field.value == "size") {
-                if (vector_size(&mc.arguments) != 0) {
-                    return CheckForIntrinsicMethodCallData::ErrorInCall(
-                        "Method 'size' expects no arguments, but "
-                            + vector_size(&mc.arguments) as str
-                            + " were provided."
-                    );
+                    self.set_last(Type::I64);
+                    return CheckForIntrinsicMethodCallData::Ok;
                 }
 
-                semantic_checker_set_last(&sc, Type::I64);
-                return CheckForIntrinsicMethodCallData::Ok;
-            }
+                return CheckForIntrinsicMethodCallData::NoMethodMatchInType;
+            },
+            rest {}
+        }
 
-            return CheckForIntrinsicMethodCallData::NoMethodMatchInType;
-        },
-        rest {}
+        return CheckForIntrinsicMethodCallData::NoTypeMatch;
     }
-
-    return CheckForIntrinsicMethodCallData::NoTypeMatch;
-}
+};

@@ -1,15 +1,3 @@
-# ============================================================
-# Mirrors `src/macro_expander/derives/debug.rs`
-#
-# `derives Debug` writes into a `StringBuilder` (see the StringBuilder
-# section of macro-expander.rp) and generates, for a type `User`:
-#
-#   fn user_debug_sb(&User self, &StringBuilder sb): StringBuilder
-#   fn user_debug(&User self): str
-#   User.debug_sb(self, &StringBuilder sb): StringBuilder
-#   User.debug(self): str
-# ============================================================
-
 import "../../common/errors.rp";
 import "../../common/span.rp";
 import "../../../stdlib/string.rp";
@@ -17,357 +5,342 @@ import "../../frontend/parser/ast.rp";
 import "../macro-expander.rp";
 
 
-fn macro_expander_derive_debug(
-    &MacroExpander me,
-    &Program program,
-    DeclaredType declared_type,
-    Span derive_span
-): void {
-    if (!macro_expander_check_debug_dependencies(&me, &program, declared_type, derive_span)) {
-        return;
-    }
-
-    let format = me_sb_format_debug();
-    let type_name = "";
-    let stmts: StatementNode[] = [];
-    let function_based_block = me_block(stmts);
-    let method_based_block = me_block(stmts);
-
-    match (declared_type) {
-        DeclaredType::Enum(enum_declaration) {
-            type_name = enum_declaration.identifier.value;
-            function_based_block = macro_expander_enum_debug_block(
-                &program,
-                enum_declaration,
-                ExpansionStrategy::FunctionBased
-            );
-            method_based_block = macro_expander_enum_debug_block(
-                &program,
-                enum_declaration,
-                ExpansionStrategy::MethodBased
-            );
-        },
-        DeclaredType::Struct(struct_declaration) {
-            type_name = struct_declaration.identifier.value;
-            function_based_block = macro_expander_struct_debug_block(
-                &program,
-                struct_declaration,
-                ExpansionStrategy::FunctionBased
-            );
-            method_based_block = macro_expander_struct_debug_block(
-                &program,
-                struct_declaration,
-                ExpansionStrategy::MethodBased
-            );
+extend MacroExpander {
+    fn derive_debug(self, &Program program, &DeclaredType declared_type, Span derive_span): void {
+        if (!self.check_debug_dependencies(&program, declared_type, derive_span)) {
+            return;
         }
-    }
 
-    me_sb_install(
-        &me,
-        &program,
-        declared_type,
-        type_name,
-        &format,
-        function_based_block,
-        method_based_block,
-        derive_span
-    );
-}
+        let format = MacroExpander.sb_format_debug();
+        let type_name = "";
+        let stmts: StatementNode[] = [];
+        let function_based_block = MacroExpander.block(&stmts);
+        let method_based_block = MacroExpander.block(&stmts);
 
-fn macro_expander_check_debug_dependencies(
-    &MacroExpander me,
-    &Program program,
-    DeclaredType declared_type,
-    Span derive_span
-): bool {
-    let parent_type = "";
-    let member_types: Type[] = [];
-
-    match (declared_type) {
-        DeclaredType::Struct(struct_declaration) {
-            parent_type = struct_declaration.identifier.value;
-            for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
-                vector_push(&member_types, struct_declaration.members[i].value.member_type.value);
-            }
-        },
-        DeclaredType::Enum(enum_declaration) {
-            parent_type = enum_declaration.identifier.value;
-            for (let i = 0; i < vector_size(&enum_declaration.members); i += 1) {
-                if (enum_declaration.members[i].value.member_type matches OptionTypeNode::Some(t)) {
-                    vector_push(&member_types, t.value);
-                }
-            }
-        }
-    }
-
-    let ok = true;
-    for (let i = 0; i < vector_size(&member_types); i += 1) {
-        if (
-            !macro_expander_check_debug_type(
-                &me,
-                &program,
-                member_types[i],
-                parent_type,
-                derive_span
-            )
-        ) {
-            ok = false;
-        }
-    }
-    return ok;
-}
-
-fn macro_expander_check_debug_type(
-    &MacroExpander me,
-    &Program program,
-    Type ty,
-    str parent_type,
-    Span derive_span
-): bool {
-    match (ty) {
-        Type::Vector(inner) {
-            return macro_expander_check_debug_type(&me, &program, inner, parent_type, derive_span);
-        },
-        Type::Unresolved(dependency_type) {
-            if (dependency_type == parent_type) {
-                return true;
-            }
-
-            if (me_type_has_derive(&program, dependency_type, "Debug")) {
-                return true;
-            }
-
-            let debug_fn_name = to_snake_case(dependency_type) + "_debug";
-
-            if (
-                me_function_exists(&program, debug_fn_name)
-                    || me_function_exists(&program, debug_fn_name + "_sb")
-            ) {
-                return true;
-            }
-
-            for (let i = 0; i < vector_size(&program.declared_types); i += 1) {
-                let type = program.declared_types[i].value;
-
-                let methods: TypeMethodNode[] = [];
-
-                match (type) {
-                    DeclaredType::Struct(struct_declaration) {
-                        if (struct_declaration.identifier.value != dependency_type) {
-                            continue;
-                        }
-
-                        methods = struct_declaration.methods;
-                    },
-                    DeclaredType::Enum(enum_declaration) {
-                        if (enum_declaration.identifier.value != dependency_type) {
-                            continue;
-                        }
-
-                        methods = enum_declaration.methods;
-                    }
-                }
-
-                for (let j = 0; j < vector_size(&methods); j += 1) {
-                    if (
-                        methods[j].value.identifier.value == "debug"
-                            || methods[j].value.identifier.value == "debug_sb"
-                    ) {
-                        return true;
-                    }
-                }
-            }
-
-            vector_push(
-                &me.errors,
-                macro_expander_error_at(
-                    ErrorSeverity::HIGH,
-                    "Type '"
-                        + dependency_type
-                        + "' used by '"
-                        + parent_type
-                        + "' cannot be debugged. Hint: add 'Debug' to the derives of '"
-                        + dependency_type
-                        + "', or implement the function 'fn "
-                        + debug_fn_name
-                        + "(&"
-                        + dependency_type
-                        + " value): str', or implement the method 'fn debug(self): str'.",
-                    derive_span
-                )
-            );
-
-            return false;
-        },
-        Type::Void {
-            vector_push(
-                &me.errors,
-                macro_expander_error_at(
-                    ErrorSeverity::HIGH,
-                    "Void type cannot be debugged (used by '" + parent_type + "').",
-                    derive_span
-                )
-            );
-
-            return false;
-        },
-        rest {
-            return true;
-        }
-    }
-}
-
-fn macro_expander_struct_debug_block(
-    &Program program,
-    StructDeclaration struct_declaration,
-    ExpansionStrategy expansion_strategy
-): BlockNode {
-    let format = me_sb_format_debug();
-    let emit = sb_emit_new();
-
-    sb_emit_lit(&emit, struct_declaration.identifier.value + " { ");
-
-    for (let i = 0; i < vector_size(&struct_declaration.members); i += 1) {
-        let member = struct_declaration.members[i];
-        let field_name = member.value.identifier.value;
-
-        if (i > 0) {
-            sb_emit_lit(&emit, ", ");
-        }
-        sb_emit_lit(&emit, field_name + ": ");
-        me_sb_emit_value(
-            &program,
-            &emit,
-            &format,
-            member.value.member_type.value,
-            me_field_access("self", field_name),
-            "self_" + field_name,
-            expansion_strategy,
-            false
-        );
-    }
-
-    sb_emit_lit(&emit, " }");
-
-    let stmts = sb_emit_finish(&emit);
-    vector_push(&stmts, me_stmt(me_return_expr(me_var("sb"))));
-    return me_block(stmts);
-}
-
-fn macro_expander_enum_debug_block(
-    &Program program,
-    EnumDeclaration enum_declaration,
-    ExpansionStrategy expansion_strategy
-): BlockNode {
-    let format = me_sb_format_debug();
-    let enum_name = enum_declaration.identifier.value;
-    let match_arms: MatchArmNode[] = [];
-
-    for (let i = 0; i < vector_size(&enum_declaration.members); i += 1) {
-        let member = enum_declaration.members[i];
-        let variant_name = member.value.identifier.value;
-        let emit = sb_emit_new();
-        let payload_binding = OptionIdentifierNode::None;
-
-        match (member.value.member_type) {
-            OptionTypeNode::None {
-                sb_emit_lit(&emit, enum_name + "::" + variant_name);
-            },
-            OptionTypeNode::Some(type_node) {
-                let payload_variable = macro_expander_debug_variable_name(type_node.value);
-                payload_binding = OptionIdentifierNode::Some(me_ident(payload_variable));
-
-                sb_emit_lit(&emit, enum_name + "::" + variant_name + "(");
-                me_sb_emit_value(
+        match (declared_type) {
+            DeclaredType::Enum(enum_declaration) {
+                type_name = enum_declaration.identifier.value;
+                function_based_block = MacroExpander.enum_debug_block(
                     &program,
-                    &emit,
-                    &format,
-                    type_node.value,
-                    me_var(payload_variable),
-                    payload_variable,
-                    expansion_strategy,
-                    false
+                    enum_declaration,
+                    ExpansionStrategy::FunctionBased
                 );
-                sb_emit_lit(&emit, ")");
+                method_based_block = MacroExpander.enum_debug_block(
+                    &program,
+                    enum_declaration,
+                    ExpansionStrategy::MethodBased
+                );
+            },
+            DeclaredType::Struct(struct_declaration) {
+                type_name = struct_declaration.identifier.value;
+                function_based_block = MacroExpander.struct_debug_block(
+                    &program,
+                    struct_declaration,
+                    ExpansionStrategy::FunctionBased
+                );
+                method_based_block = MacroExpander.struct_debug_block(
+                    &program,
+                    struct_declaration,
+                    ExpansionStrategy::MethodBased
+                );
             }
         }
 
-        let arm_stmts = sb_emit_finish(&emit);
-        vector_push(&arm_stmts, me_stmt(me_return_expr(me_var("sb"))));
-        vector_push(
-            &match_arms,
-            MatchArmNode {
-                value: MatchArm {
-                    enum_name: me_ident(enum_name),
-                    variant_name: me_ident(variant_name),
-                    variant_value: payload_binding,
-                    block: me_block(arm_stmts)
-                },
-                span: me_span()
-            }
+        MacroExpander.sb_install(
+            &self,
+            &program,
+            &declared_type,
+            type_name,
+            &format,
+            &function_based_block,
+            &method_based_block,
+            &derive_span
         );
     }
 
-    let stmts: StatementNode[] = [];
-    vector_push(
-        &stmts,
-        me_stmt(
-            Statement::Match(MatchStatement {
-                expression: me_expr(me_var("self")),
-                match_arms: match_arms,
-                rest_arm: OptionBlockNode::None
-            })
-        )
-    );
-    return me_block(stmts);
-}
+    fn check_debug_dependencies(
+        self,
+        &Program program,
+        DeclaredType declared_type,
+        Span derive_span
+    ): bool {
+        let parent_type = "";
+        let member_types: Type[] = [];
 
-fn macro_expander_debug_variable_name(Type member_type): str {
-    match (member_type) {
-        Type::Bool {
-            return "bool_var";
-        },
-        Type::Str {
-            return "str_var";
-        },
-        Type::Char {
-            return "char_var";
-        },
-        Type::I8 {
-            return "i8_var";
-        },
-        Type::I16 {
-            return "i16_var";
-        },
-        Type::I32 {
-            return "i32_var";
-        },
-        Type::I64 {
-            return "i64_var";
-        },
-        Type::U8 {
-            return "u8_var";
-        },
-        Type::U16 {
-            return "u16_var";
-        },
-        Type::U32 {
-            return "u32_var";
-        },
-        Type::U64 {
-            return "u64_var";
-        },
-        Type::F64 {
-            return "f64_var";
-        },
-        Type::Void {
-            return "void_var";
-        },
-        Type::Vector {
-            return "vector_var";
-        },
-        Type::Unresolved {
-            return "unresolved_var";
+        match (declared_type) {
+            DeclaredType::Struct(struct_declaration) {
+                parent_type = struct_declaration.identifier.value;
+                for (let i = 0; i < struct_declaration.members.size(); i += 1) {
+                    member_types.push(struct_declaration.members[i].value.member_type.value);
+                }
+            },
+            DeclaredType::Enum(enum_declaration) {
+                parent_type = enum_declaration.identifier.value;
+                for (let i = 0; i < enum_declaration.members.size(); i += 1) {
+                    if (
+                        enum_declaration.members[i].value.member_type matches OptionTypeNode::Some(t)
+                    ) {
+                        member_types.push(t.value);
+                    }
+                }
+            }
+        }
+
+        let ok = true;
+        for (let i = 0; i < member_types.size(); i += 1) {
+            if (!self.check_debug_type(&program, member_types[i], parent_type, derive_span)) {
+                ok = false;
+            }
+        }
+        return ok;
+    }
+
+    fn check_debug_type(self, &Program program, Type ty, str parent_type, Span derive_span): bool {
+        match (ty) {
+            Type::Vector(inner) {
+                return self.check_debug_type(&program, inner, parent_type, derive_span);
+            },
+            Type::Unresolved(dependency_type) {
+                if (dependency_type == parent_type) {
+                    return true;
+                }
+
+                if (MacroExpander.type_has_derive(&program, dependency_type, "Debug")) {
+                    return true;
+                }
+
+                let debug_fn_name = to_snake_case(dependency_type) + "_debug";
+
+                if (
+                    MacroExpander.function_exists(&program, debug_fn_name)
+                        || MacroExpander.function_exists(&program, debug_fn_name + "_sb")
+                ) {
+                    return true;
+                }
+
+                for (let i = 0; i < program.declared_types.size(); i += 1) {
+                    let type = program.declared_types[i].value;
+
+                    let methods: TypeMethodNode[] = [];
+
+                    match (type) {
+                        DeclaredType::Struct(struct_declaration) {
+                            if (struct_declaration.identifier.value != dependency_type) {
+                                continue;
+                            }
+
+                            methods = struct_declaration.methods;
+                        },
+                        DeclaredType::Enum(enum_declaration) {
+                            if (enum_declaration.identifier.value != dependency_type) {
+                                continue;
+                            }
+
+                            methods = enum_declaration.methods;
+                        }
+                    }
+
+                    for (let j = 0; j < methods.size(); j += 1) {
+                        if (
+                            methods[j].value.identifier.value == "debug"
+                                || methods[j].value.identifier.value == "debug_sb"
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+
+                self.errors.push(
+                    MacroExpanderError.at(
+                        ErrorSeverity::HIGH,
+                        "Type '"
+                            + dependency_type
+                            + "' used by '"
+                            + parent_type
+                            + "' cannot be debugged. Hint: add 'Debug' to the derives of '"
+                            + dependency_type
+                            + "', or implement the function 'fn "
+                            + debug_fn_name
+                            + "(&"
+                            + dependency_type
+                            + " value): str', or implement the method 'fn debug(self): str'.",
+                        derive_span
+                    )
+                );
+
+                return false;
+            },
+            Type::Void {
+                self.errors.push(
+                    MacroExpanderError.at(
+                        ErrorSeverity::HIGH,
+                        "Void type cannot be debugged (used by '" + parent_type + "').",
+                        derive_span
+                    )
+                );
+
+                return false;
+            },
+            rest {
+                return true;
+            }
         }
     }
-}
+
+    fn struct_debug_block(
+        &Program program,
+        StructDeclaration struct_declaration,
+        ExpansionStrategy expansion_strategy
+    ): BlockNode {
+        let format = MacroExpander.sb_format_debug();
+        let emit = MacroExpander.emit_new();
+
+        MacroExpander.emit_lit(&emit, struct_declaration.identifier.value + " { ");
+
+        for (let i = 0; i < struct_declaration.members.size(); i += 1) {
+            let member = struct_declaration.members[i];
+            let field_name = member.value.identifier.value;
+
+            if (i > 0) {
+                MacroExpander.emit_lit(&emit, ", ");
+            }
+            MacroExpander.emit_lit(&emit, field_name + ": ");
+            MacroExpander.sb_emit_value(
+                &program,
+                &emit,
+                &format,
+                member.value.member_type.value,
+                MacroExpander.field_access(&"self", &field_name),
+                "self_" + field_name,
+                expansion_strategy,
+                false
+            );
+        }
+
+        MacroExpander.emit_lit(&emit, " }");
+
+        let stmts = MacroExpander.emit_finish(&emit);
+        stmts.push(MacroExpander.stmt(&MacroExpander.return_expr(&MacroExpander.var(&"sb"))));
+        return MacroExpander.block(&stmts);
+    }
+
+    fn enum_debug_block(
+        &Program program,
+        EnumDeclaration enum_declaration,
+        ExpansionStrategy expansion_strategy
+    ): BlockNode {
+        let format = MacroExpander.sb_format_debug();
+        let enum_name = enum_declaration.identifier.value;
+        let match_arms: MatchArmNode[] = [];
+
+        for (let i = 0; i < enum_declaration.members.size(); i += 1) {
+            let member = enum_declaration.members[i];
+            let variant_name = member.value.identifier.value;
+            let emit = MacroExpander.emit_new();
+            let payload_binding = OptionIdentifierNode::None;
+
+            match (member.value.member_type) {
+                OptionTypeNode::None {
+                    MacroExpander.emit_lit(&emit, enum_name + "::" + variant_name);
+                },
+                OptionTypeNode::Some(type_node) {
+                    let payload_variable = MacroExpander.debug_variable_name(type_node.value);
+                    payload_binding = OptionIdentifierNode::Some(MacroExpander.ident(
+                        &payload_variable
+                    ));
+
+                    MacroExpander.emit_lit(&emit, enum_name + "::" + variant_name + "(");
+                    MacroExpander.sb_emit_value(
+                        &program,
+                        &emit,
+                        &format,
+                        type_node.value,
+                        MacroExpander.var(&payload_variable),
+                        payload_variable,
+                        expansion_strategy,
+                        false
+                    );
+                    MacroExpander.emit_lit(&emit, ")");
+                }
+            }
+
+            let arm_stmts = MacroExpander.emit_finish(&emit);
+            arm_stmts.push(
+                MacroExpander.stmt(&MacroExpander.return_expr(&MacroExpander.var(&"sb")))
+            );
+            match_arms.push(
+                MatchArmNode {
+                    value: MatchArm {
+                        enum_name: MacroExpander.ident(&enum_name),
+                        variant_name: MacroExpander.ident(&variant_name),
+                        variant_value: payload_binding,
+                        block: MacroExpander.block(&arm_stmts)
+                    },
+                    span: Span.default()
+                }
+            );
+        }
+
+        let stmts: StatementNode[] = [];
+        stmts.push(
+            MacroExpander.stmt(
+                &Statement::Match(MatchStatement {
+                    expression: MacroExpander.expr(&MacroExpander.var(&"self")),
+                    match_arms,
+                    rest_arm: OptionBlockNode::None
+                })
+            )
+        );
+        return MacroExpander.block(&stmts);
+    }
+
+    fn debug_variable_name(Type member_type): str {
+        match (member_type) {
+            Type::Bool {
+                return "bool_var";
+            },
+            Type::Str {
+                return "str_var";
+            },
+            Type::Char {
+                return "char_var";
+            },
+            Type::I8 {
+                return "i8_var";
+            },
+            Type::I16 {
+                return "i16_var";
+            },
+            Type::I32 {
+                return "i32_var";
+            },
+            Type::I64 {
+                return "i64_var";
+            },
+            Type::U8 {
+                return "u8_var";
+            },
+            Type::U16 {
+                return "u16_var";
+            },
+            Type::U32 {
+                return "u32_var";
+            },
+            Type::U64 {
+                return "u64_var";
+            },
+            Type::F64 {
+                return "f64_var";
+            },
+            Type::Void {
+                return "void_var";
+            },
+            Type::Vector {
+                return "vector_var";
+            },
+            Type::Unresolved {
+                return "unresolved_var";
+            }
+        }
+    }
+};

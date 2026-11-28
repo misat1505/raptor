@@ -2,7 +2,7 @@ import "../../../stdlib/vector.rp";
 
 fn show(&i64[] v): str {
     let out = "[";
-    for (let i = 0; i < vector_size(&v); i += 1) {
+    for (let i = 0; i < v.size(); i += 1) {
         if (i > 0) {
             out += ",";
         }
@@ -14,75 +14,72 @@ fn show(&i64[] v): str {
 let v = [3, 1, 2, 3];
 let e: i64[] = [];
 let one = [7];
-println((i64_vector_is_empty(&e)) as str);
-println((i64_vector_is_empty(&v)) as str);
-println((i64_vector_contains(&v, 2)) as str);
-println((i64_vector_contains(&v, 9)) as str);
-println((i64_vector_contains(&e, 1)) as str);
-println((i64_vector_index_of(&v, 3)) as str);
-println((i64_vector_index_of(&v, 9)) as str);
-println((i64_vector_last_index_of(&v, 3)) as str);
-println((i64_vector_last_index_of(&v, 9)) as str);
-println((i64_vector_first(&v)) as str);
-println((i64_vector_last(&v)) as str);
-println((i64_vector_first(&one)) as str);
-println((i64_vector_last(&one)) as str);
-println((i64_vector_sum(&v)) as str);
-println((i64_vector_sum(&e)) as str);
-println((i64_vector_min(&v)) as str);
-println((i64_vector_max(&v)) as str);
-println((i64_vector_min(&e)) as str);
-println((i64_vector_max(&e)) as str);
-println(i64_vector_average(&v) as str);
-println(i64_vector_average(&e) as str);
-println(show(&i64_vector_reverse(&v)));
-println(show(&i64_vector_copy(&v)));
-println(show(&i64_vector_remove_at(&v, 1)));
-println(show(&i64_vector_remove_at(&v, 99)));
-println(show(&i64_vector_remove_at(&v, -1)));
-println(show(&i64_vector_remove_value(&v, 3)));
-println(show(&i64_vector_remove_value(&v, 9)));
-println((i64_vector_count(&v, 3)) as str);
-println((i64_vector_count(&v, 9)) as str);
-println(show(&i64_vector_distinct(&v)));
+
+println((e.is_empty()) as str);
+println((v.is_empty()) as str);
+println((v.contains(2)) as str);
+println((v.contains(9)) as str);
+println((e.contains(1)) as str);
+println((v.index_of(3)) as str);
+println((v.index_of(9)) as str);
+println((v.last_index_of(3)) as str);
+println((v.last_index_of(9)) as str);
+println((v.first()) as str);
+println((v.last()) as str);
+println((one.first()) as str);
+println((one.last()) as str);
+println((v.sum()) as str);
+println((e.sum()) as str);
+println((v.min()) as str);
+println((v.max()) as str);
+println((e.min()) as str);
+println((e.max()) as str);
+println(v.average() as str);
+println(e.average() as str);
+println(show(&v.reverse()));
+println(show(&v.copy()));
+println(show(&v.remove_at(1)));
+println(show(&v.remove_at(99)));
+println(show(&v.remove_at(-1)));
+println(show(&v.remove_value(3)));
+println(show(&v.remove_value(9)));
+println((v.count(3)) as str);
+println((v.count(9)) as str);
+println(show(&v.distinct()));
+
 let w = [8, 9];
-println(show(&i64_vector_concat(&v, &w)));
-println(show(&i64_vector_concat(&e, &w)));
-println(show(&i64_vector_take(&v, 2)));
-println(show(&i64_vector_take(&v, 0)));
-println(show(&i64_vector_take(&v, 99)));
-println(show(&i64_vector_skip(&v, 2)));
-println(show(&i64_vector_skip(&v, 0)));
-println(show(&i64_vector_skip(&v, 99)));
-println(show(&i64_vector_slice(&v, 1, 3)));
-println(show(&i64_vector_slice(&v, 2, 2)));
-println(show(&i64_vector_sort(&v)));
-println(show(&i64_vector_sort_desc(&v)));
-println(show(&i64_vector_sort(&e)));
+println(show(&v.concat(&w)));
+println(show(&e.concat(&w)));
+println(show(&v.take(2)));
+println(show(&v.take(0)));
+println(show(&v.take(99)));
+println(show(&v.skip(2)));
+println(show(&v.skip(0)));
+println(show(&v.skip(99)));
+println(show(&v.slice(1, 3)));
+println(show(&v.slice(2, 2)));
+println(show(&v.sort()));
+println(show(&v.sort_desc()));
+println(show(&e.sort()));
+
 let unsorted = [5, -2, 9, 0, -2];
-println(show(&i64_vector_sort(&unsorted)));
+println(show(&unsorted.sort()));
 println(show(&unsorted));
-println(show(&i64_vector_fill(3, 4)));
-println(show(&i64_vector_fill(0, 4)));
-println(show(&i64_vector_fill(-2, 4)));
-println(show(&i64_vector_range(2, 6)));
-println(show(&i64_vector_range(5, 5)));
-println(show(&i64_vector_range(6, 2)));
-println(show(&i64_vector_range_step(0, 10, 3)));
-println(show(&i64_vector_range_step(10, 0, -4)));
-println(show(&i64_vector_range_step(0, 5, 0)));
-println(show(&i64_vector_range_step(5, 0, 1)));
+
 let r = [1, 2, 3, 4];
-i64_vector_reverse_in_place(&r);
+r.reverse_in_place();
 println(show(&r));
-i64_vector_swap(&r, 0, 3);
+r.swap(0, 3);
 println(show(&r));
-i64_vector_swap(&r, -1, 2);
-i64_vector_swap(&r, 0, 99);
+r.swap(-1, 2);
+r.swap(0, 99);
 println(show(&r));
+
 let one_r = [5];
-i64_vector_reverse_in_place(&one_r);
+one_r.reverse_in_place();
+
 let empty_r: i64[] = [];
-i64_vector_reverse_in_place(&empty_r);
+empty_r.reverse_in_place();
+
 println(show(&one_r));
 println(show(&empty_r));

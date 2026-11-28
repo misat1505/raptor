@@ -37,11 +37,11 @@ fn exit_with(i64 code): void {
 
 fn eprintln(str text): void {
     text += "\n";
-    c_write(2 as i32, text, str_len(text));
+    c_write(2 as i32, text, text.size());
 }
 
 fn parse_i64_arg(str flag, str value): i64 {
-    if (str_len(value) == 0) {
+    if (value.size() == 0) {
         eprintln("error: " + flag + " requires a positive integer argument");
         exit_with(1);
     }
@@ -60,7 +60,7 @@ fn shell_quote(str value): str {
     let result = "'";
     let i = 0;
 
-    while (i < str_len(value)) {
+    while (i < value.size()) {
         let ch = value[i];
 
         if (ch == (39 as u8) as char) {
@@ -90,30 +90,27 @@ fn format_file(
 
     let content = read_file(filename);
 
-    let lexer_options = LexerOptions {
-        max_comment_length: max_comment_length,
-        max_identifier_length: max_identifier_length
-    };
+    let lexer_options = LexerOptions { max_comment_length, max_identifier_length };
 
-    let src = lazy_stream_reader_new(content, OptionStr::Some(filename));
-    let lexer = lexer_new(src, lexer_options);
+    let src = LazyStreamReader.new(content, OptionStr::Some(filename));
+    let lexer = Lexer.new(&src, &lexer_options);
 
-    match (parser_new(lexer)) {
+    match (Parser.new(&lexer)) {
         ResultParser::Err(err) {
             eprintln(filename + ":");
-            eprintln(parser_error_get_stderr_message(&err));
+            eprintln(err.get_stderr_message());
             return false;
         },
         ResultParser::Ok(parser) {
-            match (parser_parse(&parser)) {
+            match (parser.parse()) {
                 ResultProgram::Ok(ast) {
-                    let comments = extract_source_comments(content);
-                    let doc_builder = DocBuilder { ast: ast, comments: comments };
-                    let doc = doc_builder_build(&doc_builder);
-                    let output = doc_print(&doc, max_line_size, indent_width);
+                    let comments = SourceComment.extract_source_comments(content);
+                    let doc_builder = DocBuilder { ast, comments };
+                    let doc = doc_builder.build();
+                    let output = doc.print(max_line_size, indent_width);
 
-                    if (str_len(output) > 1) {
-                        output = str_trim_right(output) + "\n";
+                    if (output.size() > 1) {
+                        output = output.trim_right() + "\n";
                     } else {
                         output = "";
                     }
@@ -122,7 +119,7 @@ fn format_file(
                 },
                 ResultProgram::Err(err) {
                     eprintln(filename + ":");
-                    eprintln(parser_error_get_stderr_message(&err));
+                    eprintln(err.get_stderr_message());
                     return false;
                 }
             }
@@ -175,7 +172,7 @@ fn main(): void {
 
     let i = 1;
 
-    while (i < vector_size(&args)) {
+    while (i < args.size()) {
         let a = args[i];
 
         if (a == "-h" || a == "--help") {
@@ -184,7 +181,7 @@ fn main(): void {
         } else if (a == "--max-line-size") {
             i += 1;
 
-            if (i >= vector_size(&args)) {
+            if (i >= args.size()) {
                 eprintln("error: --max-line-size requires a value");
                 exit_with(1);
             }
@@ -193,7 +190,7 @@ fn main(): void {
         } else if (a == "--indent-width") {
             i += 1;
 
-            if (i >= vector_size(&args)) {
+            if (i >= args.size()) {
                 eprintln("error: --indent-width requires a value");
                 exit_with(1);
             }
@@ -202,7 +199,7 @@ fn main(): void {
         } else if (a == "--max-comment-length") {
             i += 1;
 
-            if (i >= vector_size(&args)) {
+            if (i >= args.size()) {
                 eprintln("error: --max-comment-length requires a value");
                 exit_with(1);
             }
@@ -211,13 +208,13 @@ fn main(): void {
         } else if (a == "--max-identifier-length") {
             i += 1;
 
-            if (i >= vector_size(&args)) {
+            if (i >= args.size()) {
                 eprintln("error: --max-identifier-length requires a value");
                 exit_with(1);
             }
 
             max_identifier_length = parse_i64_arg("--max-identifier-length", args[i]);
-        } else if (str_starts_with(a, "-")) {
+        } else if (a.starts_with("-")) {
             eprintln("error: unknown option '" + a + "'");
             eprintln("Try '" + program + " --help' for more information.");
             exit_with(1);
@@ -259,7 +256,7 @@ fn main(): void {
         return;
     }
 
-    if (!str_ends_with(filename, ".rp")) {
+    if (!filename.ends_with(".rp")) {
         eprintln("error: expected a .rp file or a directory, got '" + filename + "'");
         exit_with(1);
     }

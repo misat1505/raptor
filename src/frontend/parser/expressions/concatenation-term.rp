@@ -6,43 +6,41 @@ import "../core.rp";
 import "./relation-term.rp";
 
 
-fn parser_parse_concatenation_term(&Parser parser): ResultOptionExpressionNode {
-    # concatenation_term = relation_term, { "&&", relation_term };
-    let left_call = parser_parse_relation_term(&parser);
+extend Parser {
+    fn parse_concatenation_term(self): ResultOptionExpressionNode {
+        # concatenation_term = relation_term, { "&&", relation_term };
+        let left_call = self.parse_relation_term();
 
-    let left_side = ExpressionNode {
-        value: Expression::Literal(Literal::True),
-        span: parser_current_token(&parser).span
-    };
-    let found_left = false;
+        let left_side = ExpressionNode {
+            value: Expression::Literal(Literal::True),
+            span: self.current_token().span
+        };
+        let found_left = false;
 
-    match (left_call) {
-        ResultOptionExpressionNode::Err(err) {
-            return ResultOptionExpressionNode::Err(err);
-        },
-        ResultOptionExpressionNode::Ok(option_left) {
-            if (option_left matches OptionExpressionNode::Some(value)) {
-                left_side = value;
-                found_left = true;
+        match (left_call) {
+            ResultOptionExpressionNode::Err(err) {
+                return ResultOptionExpressionNode::Err(err);
+            },
+            ResultOptionExpressionNode::Ok(option_left) {
+                if (option_left matches OptionExpressionNode::Some(value)) {
+                    left_side = value;
+                    found_left = true;
+                }
             }
         }
-    }
 
-    if (!found_left) {
-        return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
-    }
+        if (!found_left) {
+            return ResultOptionExpressionNode::Ok(OptionExpressionNode::None);
+        }
 
-    while (true) {
-        if (parser_current_token(&parser).category matches TokenCategory::And) {
-            let advance = parser_next_token(&parser);
+        while (self.current_token().category matches TokenCategory::And) {
+            let advance = self.next_token();
             if (advance matches ResultOptionToken::Err(err)) {
-                return ResultOptionExpressionNode::Err(parser_error_from_lexer_error(&err));
+                return ResultOptionExpressionNode::Err(ParserError.from_lexer(&err));
             }
 
-            let right_call = parser_parse_relation_term(&parser);
             let found_right = false;
-
-            match (right_call) {
+            match (self.parse_relation_term()) {
                 ResultOptionExpressionNode::Err(err) {
                     return ResultOptionExpressionNode::Err(err);
                 },
@@ -53,7 +51,7 @@ fn parser_parse_concatenation_term(&Parser parser): ResultOptionExpressionNode {
                                 left: left_side,
                                 right: right_side
                             }),
-                            span: span_new(left_side.span.start, right_side.span.end)
+                            span: Span.new(&left_side.span.start, &right_side.span.end)
                         };
                         found_right = true;
                     }
@@ -61,15 +59,12 @@ fn parser_parse_concatenation_term(&Parser parser): ResultOptionExpressionNode {
             }
 
             if (!found_right) {
-                return ResultOptionExpressionNode::Err(parser_create_parser_error(
-                    &parser,
+                return ResultOptionExpressionNode::Err(self.emit_error(
                     "Couldn't create relation term while parsing concatenation term."
                 ));
             }
-        } else {
-            break;
         }
-    }
 
-    return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(left_side));
-}
+        return ResultOptionExpressionNode::Ok(OptionExpressionNode::Some(left_side));
+    }
+};

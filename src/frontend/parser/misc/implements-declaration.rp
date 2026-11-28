@@ -5,82 +5,80 @@ import "../parser-results.rp";
 import "../core.rp";
 
 
-fn parser_parse_implements_declaration(&Parser parser): ResultIdentifierNodeVec {
-    # derives_declaration = implements, identifier, { ",", identifier };
-    let consumed_derives_keyword = parser_consume_if_matches(&parser, TokenCategory::Implements);
+extend Parser {
+    fn parse_implements_declaration(self): ResultIdentifierNodeVec {
+        # derives_declaration = implements, identifier, { ",", identifier };
+        let consumed_derives_keyword = self.consume_if_matches(&TokenCategory::Implements);
 
-    let has_implements_keyword = OptionToken::None;
-    match (consumed_derives_keyword) {
-        ResultOptionToken::Err(err) {
-            return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));
-        },
-        ResultOptionToken::Ok(t) {
-            has_implements_keyword = t;
-        }
-    }
-
-    if (has_implements_keyword matches OptionToken::None) {
-        return ResultIdentifierNodeVec::Ok([]);
-    }
-
-    let first = parser_parse_identifier(&parser);
-    let type_implementations: IdentifierNode[] = [];
-
-    match (first) {
-        ResultOptionIdentifierNode::Err(err) {
-            return ResultIdentifierNodeVec::Err(err);
-        },
-        ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::Some(identifier) {
-                    vector_push(&type_implementations, identifier);
-                },
-                OptionIdentifierNode::None {
-                    return ResultIdentifierNodeVec::Err(parser_create_parser_error(
-                        &parser,
-                        "Couldn't create identifier while parsing implements declaration."
-                    ));
-                }
-            }
-        }
-    }
-
-    while (true) {
-        let comma = parser_consume_if_matches(&parser, TokenCategory::Comma);
-        let has_comma = OptionToken::None;
-        match (comma) {
+        let has_implements_keyword = OptionToken::None;
+        match (consumed_derives_keyword) {
             ResultOptionToken::Err(err) {
-                return ResultIdentifierNodeVec::Err(parser_error_from_lexer_error(&err));
+                return ResultIdentifierNodeVec::Err(ParserError.from_lexer(&err));
             },
             ResultOptionToken::Ok(t) {
-                has_comma = t;
+                has_implements_keyword = t;
             }
         }
 
-        if (has_comma matches OptionToken::None) {
-            break;
+        if (has_implements_keyword matches OptionToken::None) {
+            return ResultIdentifierNodeVec::Ok([]);
         }
 
-        let next = parser_parse_identifier(&parser);
-        match (next) {
+        let type_implementations: IdentifierNode[] = [];
+
+        match (self.parse_identifier()) {
             ResultOptionIdentifierNode::Err(err) {
                 return ResultIdentifierNodeVec::Err(err);
             },
             ResultOptionIdentifierNode::Ok(option_identifier) {
                 match (option_identifier) {
                     OptionIdentifierNode::Some(identifier) {
-                        vector_push(&type_implementations, identifier);
+                        type_implementations.push(identifier);
                     },
                     OptionIdentifierNode::None {
-                        return ResultIdentifierNodeVec::Err(parser_create_parser_error(
-                            &parser,
-                            "Couldn't create identifier while parsing derive declaration."
+                        return ResultIdentifierNodeVec::Err(self.emit_error(
+                            "Couldn't create identifier while parsing implements declaration."
                         ));
                     }
                 }
             }
         }
-    }
 
-    return ResultIdentifierNodeVec::Ok(type_implementations);
-}
+        while (true) {
+            let comma = self.consume_if_matches(&TokenCategory::Comma);
+            let has_comma = OptionToken::None;
+            match (comma) {
+                ResultOptionToken::Err(err) {
+                    return ResultIdentifierNodeVec::Err(ParserError.from_lexer(&err));
+                },
+                ResultOptionToken::Ok(t) {
+                    has_comma = t;
+                }
+            }
+
+            if (has_comma matches OptionToken::None) {
+                break;
+            }
+
+            match (self.parse_identifier()) {
+                ResultOptionIdentifierNode::Err(err) {
+                    return ResultIdentifierNodeVec::Err(err);
+                },
+                ResultOptionIdentifierNode::Ok(option_identifier) {
+                    match (option_identifier) {
+                        OptionIdentifierNode::Some(identifier) {
+                            type_implementations.push(identifier);
+                        },
+                        OptionIdentifierNode::None {
+                            return ResultIdentifierNodeVec::Err(self.emit_error(
+                                "Couldn't create identifier while parsing derive declaration."
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        return ResultIdentifierNodeVec::Ok(type_implementations);
+    }
+};

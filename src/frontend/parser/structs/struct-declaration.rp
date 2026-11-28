@@ -5,367 +5,372 @@ import "../parser-results.rp";
 import "../core.rp";
 
 
-fn parser_parse_struct_declaration(&Parser parser): ResultOptionStructDeclarationNode {
-    # struct_declaration = "struct", identifier, [ derives_declaration ], "{", [ struct_members ], "}", [ methods ], ";";
-    let struct_consumed = parser_consume_if_matches(&parser, TokenCategory::Struct);
+extend Parser {
+    fn parse_struct_declaration(self): ResultOptionStructDeclarationNode {
+        # struct_declaration = "struct", identifier, [ derives_declaration ], "{", [ struct_members ], "}", [ methods ], ";";
+        let struct_consumed = self.consume_if_matches(&TokenCategory::Struct);
 
-    let struct_token = parser_current_token(&parser);
-    let has_struct = false;
-    match (struct_consumed) {
-        ResultOptionToken::Err(err) {
-            return ResultOptionStructDeclarationNode::Err(parser_error_from_lexer_error(&err));
-        },
-        ResultOptionToken::Ok(option_struct) {
-            if (option_struct matches OptionToken::Some(token)) {
-                struct_token = token;
-                has_struct = true;
+        let struct_token = self.current_token();
+        let has_struct = false;
+        match (struct_consumed) {
+            ResultOptionToken::Err(err) {
+                return ResultOptionStructDeclarationNode::Err(ParserError.from_lexer(&err));
+            },
+            ResultOptionToken::Ok(option_struct) {
+                if (option_struct matches OptionToken::Some(token)) {
+                    struct_token = token;
+                    has_struct = true;
+                }
             }
         }
-    }
 
-    if (!has_struct) {
-        return ResultOptionStructDeclarationNode::Ok(OptionStructDeclarationNode::None);
-    }
-
-    let identifier_call = parser_parse_identifier(&parser);
-    let identifier = IdentifierNode { value: "", span: parser_current_token(&parser).span };
-    let found_identifier = false;
-    match (identifier_call) {
-        ResultOptionIdentifierNode::Err(err) {
-            return ResultOptionStructDeclarationNode::Err(err);
-        },
-        ResultOptionIdentifierNode::Ok(option_identifier) {
-            if (option_identifier matches OptionIdentifierNode::Some(i)) {
-                identifier = i;
-                found_identifier = true;
-            }
+        if (!has_struct) {
+            return ResultOptionStructDeclarationNode::Ok(OptionStructDeclarationNode::None);
         }
-    }
 
-    if (!found_identifier) {
-        return ResultOptionStructDeclarationNode::Err(parser_create_parser_error(
-            &parser,
-            "Couldn't create identifier while parsing struct declaration."
-        ));
-    }
-
-    let derives_call = parser_parse_derive_declaration(&parser);
-    let struct_derives: IdentifierNode[] = [];
-    match (derives_call) {
-        ResultIdentifierNodeVec::Err(err) {
-            return ResultOptionStructDeclarationNode::Err(err);
-        },
-        ResultIdentifierNodeVec::Ok(parsed) {
-            struct_derives = parsed;
-        }
-    }
-
-    let implementations_call = parser_parse_implements_declaration(&parser);
-    let implementations: IdentifierNode[] = [];
-    match (implementations_call) {
-        ResultIdentifierNodeVec::Err(err) {
-            return ResultOptionStructDeclarationNode::Err(err);
-        },
-        ResultIdentifierNodeVec::Ok(parsed) {
-            implementations = parsed;
-        }
-    }
-
-    let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
-    if (brace_open matches ResultToken::Err(err)) {
-        return ResultOptionStructDeclarationNode::Err(err);
-    }
-
-    let members_call = parser_parse_struct_members(&parser);
-    let members: StructMemberNode[] = [];
-    match (members_call) {
-        ResultStructMemberNodeVec::Err(err) {
-            return ResultOptionStructDeclarationNode::Err(err);
-        },
-        ResultStructMemberNodeVec::Ok(parsed) {
-            members = parsed;
-        }
-    }
-
-    let methods: TypeMethodNode[] = [];
-    while (true) {
-        match (parser_parse_type_method(&parser)) {
-            ResultOptionTypeMethodNode::Err(err) {
+        let identifier_call = self.parse_identifier();
+        let identifier = IdentifierNode { value: "", span: self.current_token().span };
+        let found_identifier = false;
+        match (identifier_call) {
+            ResultOptionIdentifierNode::Err(err) {
                 return ResultOptionStructDeclarationNode::Err(err);
             },
-            ResultOptionTypeMethodNode::Ok(option_type_method) {
-                match (option_type_method) {
-                    OptionTypeMethodNode::Some(type_method_node) {
-                        for (let i = 0; i < vector_size(&methods); i += 1) {
-                            let method_name = methods[i].value.identifier.value;
-                            if (method_name == type_method_node.value.identifier.value) {
-                                return ResultOptionStructDeclarationNode::Err(parser_error_at(
-                                    ErrorSeverity::HIGH,
-                                    "Redeclaration of method '"
-                                        + method_name
-                                        + "' on type '"
-                                        + identifier.value
-                                        + "'.",
-                                    methods[i].value.identifier.span
-                                ));
+            ResultOptionIdentifierNode::Ok(option_identifier) {
+                if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                    identifier = i;
+                    found_identifier = true;
+                }
+            }
+        }
+
+        if (!found_identifier) {
+            return ResultOptionStructDeclarationNode::Err(self.emit_error(
+                "Couldn't create identifier while parsing struct declaration."
+            ));
+        }
+
+        let derives_call = self.parse_derive_declaration();
+        let struct_derives: IdentifierNode[] = [];
+        match (derives_call) {
+            ResultIdentifierNodeVec::Err(err) {
+                return ResultOptionStructDeclarationNode::Err(err);
+            },
+            ResultIdentifierNodeVec::Ok(parsed) {
+                struct_derives = parsed;
+            }
+        }
+
+        let implementations_call = self.parse_implements_declaration();
+        let implementations: IdentifierNode[] = [];
+        match (implementations_call) {
+            ResultIdentifierNodeVec::Err(err) {
+                return ResultOptionStructDeclarationNode::Err(err);
+            },
+            ResultIdentifierNodeVec::Ok(parsed) {
+                implementations = parsed;
+            }
+        }
+
+        let brace_open = self.consume_must_be(&TokenCategory::BraceOpen);
+        if (brace_open matches ResultToken::Err(err)) {
+            return ResultOptionStructDeclarationNode::Err(err);
+        }
+
+        let members_call = self.parse_struct_members();
+        let members: StructMemberNode[] = [];
+        match (members_call) {
+            ResultStructMemberNodeVec::Err(err) {
+                return ResultOptionStructDeclarationNode::Err(err);
+            },
+            ResultStructMemberNodeVec::Ok(parsed) {
+                members = parsed;
+            }
+        }
+
+        let methods: TypeMethodNode[] = [];
+        while (true) {
+            match (self.parse_type_method()) {
+                ResultOptionTypeMethodNode::Err(err) {
+                    return ResultOptionStructDeclarationNode::Err(err);
+                },
+                ResultOptionTypeMethodNode::Ok(option_type_method) {
+                    match (option_type_method) {
+                        OptionTypeMethodNode::Some(type_method_node) {
+                            for (let i = 0; i < methods.size(); i += 1) {
+                                let method_name = methods[i].value.identifier.value;
+                                if (method_name == type_method_node.value.identifier.value) {
+                                    return ResultOptionStructDeclarationNode::Err(ParserError.at(
+                                        ErrorSeverity::HIGH,
+                                        "Redeclaration of method '"
+                                            + method_name
+                                            + "' on type '"
+                                            + identifier.value
+                                            + "'.",
+                                        methods[i].value.identifier.span
+                                    ));
+                                }
                             }
+                            methods.push(type_method_node);
+                        },
+                        OptionTypeMethodNode::None {
+                            break;
                         }
-                        vector_push(&methods, type_method_node);
-                    },
-                    OptionTypeMethodNode::None {
-                        break;
                     }
                 }
             }
         }
-    }
 
-    let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
-    if (brace_close matches ResultToken::Err(err)) {
-        return ResultOptionStructDeclarationNode::Err(err);
-    }
-
-    let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
-    match (semicolon_consumed) {
-        ResultToken::Err(err) {
+        let brace_close = self.consume_must_be(&TokenCategory::BraceClose);
+        if (brace_close matches ResultToken::Err(err)) {
             return ResultOptionStructDeclarationNode::Err(err);
-        },
-        ResultToken::Ok(semicolon_token) {
-            return ResultOptionStructDeclarationNode::Ok(OptionStructDeclarationNode::Some(StructDeclarationNode {
-                value: StructDeclaration { identifier, members, struct_derives, methods, implementations },
-                span: span_new(struct_token.span.start, semicolon_token.span.end)
-            }));
         }
-    }
-}
 
-fn parser_parse_struct_members(&Parser parser): ResultStructMemberNodeVec {
-    # struct_members = struct_member, { ",", struct_member };
-    let first_call = parser_parse_struct_member(&parser);
-    let members: StructMemberNode[] = [];
-
-    match (first_call) {
-        ResultOptionStructMemberNode::Err(err) {
-            return ResultStructMemberNodeVec::Err(err);
-        },
-        ResultOptionStructMemberNode::Ok(option_first) {
-            match (option_first) {
-                OptionStructMemberNode::None {
-                    return ResultStructMemberNodeVec::Ok(members);
-                },
-                OptionStructMemberNode::Some(first) {
-                    vector_push(&members, first);
-                }
+        let semicolon_consumed = self.consume_must_be(&TokenCategory::Semicolon);
+        match (semicolon_consumed) {
+            ResultToken::Err(err) {
+                return ResultOptionStructDeclarationNode::Err(err);
+            },
+            ResultToken::Ok(semicolon_token) {
+                return ResultOptionStructDeclarationNode::Ok(OptionStructDeclarationNode::Some(StructDeclarationNode {
+                    value: StructDeclaration {
+                        identifier,
+                        members,
+                        struct_derives,
+                        methods,
+                        implementations
+                    },
+                    span: Span.new(&struct_token.span.start, &semicolon_token.span.end)
+                }));
             }
         }
     }
 
-    while (parser_current_token(&parser).category matches TokenCategory::Comma) {
-        let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
-        if (comma_consumed matches ResultToken::Err(err)) {
-            return ResultStructMemberNodeVec::Err(err);
-        }
+    fn parse_struct_members(self): ResultStructMemberNodeVec {
+        # struct_members = struct_member, { ",", struct_member };
+        let members: StructMemberNode[] = [];
 
-        let next_call = parser_parse_struct_member(&parser);
-        match (next_call) {
+        match (self.parse_struct_member()) {
             ResultOptionStructMemberNode::Err(err) {
                 return ResultStructMemberNodeVec::Err(err);
             },
-            ResultOptionStructMemberNode::Ok(option_next) {
-                match (option_next) {
+            ResultOptionStructMemberNode::Ok(option_first) {
+                match (option_first) {
                     OptionStructMemberNode::None {
-                        return ResultStructMemberNodeVec::Err(parser_create_parser_error(
-                            &parser,
-                            "Expected struct member after comma."
+                        return ResultStructMemberNodeVec::Ok(members);
+                    },
+                    OptionStructMemberNode::Some(first) {
+                        members.push(first);
+                    }
+                }
+            }
+        }
+
+        while (self.current_token().category matches TokenCategory::Comma) {
+            let comma_consumed = self.consume_must_be(&TokenCategory::Comma);
+            if (comma_consumed matches ResultToken::Err(err)) {
+                return ResultStructMemberNodeVec::Err(err);
+            }
+
+            match (self.parse_struct_member()) {
+                ResultOptionStructMemberNode::Err(err) {
+                    return ResultStructMemberNodeVec::Err(err);
+                },
+                ResultOptionStructMemberNode::Ok(option_next) {
+                    match (option_next) {
+                        OptionStructMemberNode::None {
+                            return ResultStructMemberNodeVec::Err(self.emit_error(
+                                "Expected struct member after comma."
+                            ));
+                        },
+                        OptionStructMemberNode::Some(next) {
+                            for (let i = 0; i < members.size(); i += 1) {
+                                if (
+                                    members[i].value.identifier.value == next.value.identifier.value
+                                ) {
+                                    return ResultStructMemberNodeVec::Err(ParserError.at(
+                                        ErrorSeverity::HIGH,
+                                        "Redeclaration of member '"
+                                            + next.value.identifier.value
+                                            + "'.",
+                                        next.span
+                                    ));
+                                }
+                            }
+                            members.push(next);
+                        }
+                    }
+                }
+            }
+        }
+
+        return ResultStructMemberNodeVec::Ok(members);
+    }
+
+    fn parse_struct_member(self): ResultOptionStructMemberNode {
+        # struct_member = type, identifier;
+        let type_call = self.parse_type();
+        let member_type = TypeNode { value: Type::Void, span: self.current_token().span };
+        let found_type = false;
+        match (type_call) {
+            ResultOptionTypeNode::Err(err) {
+                return ResultOptionStructMemberNode::Err(err);
+            },
+            ResultOptionTypeNode::Ok(option_type) {
+                if (option_type matches OptionTypeNode::Some(t)) {
+                    member_type = t;
+                    found_type = true;
+                }
+            }
+        }
+
+        if (!found_type) {
+            return ResultOptionStructMemberNode::Ok(OptionStructMemberNode::None);
+        }
+
+        let identifier_call = self.parse_identifier();
+        match (identifier_call) {
+            ResultOptionIdentifierNode::Err(err) {
+                return ResultOptionStructMemberNode::Err(err);
+            },
+            ResultOptionIdentifierNode::Ok(option_identifier) {
+                match (option_identifier) {
+                    OptionIdentifierNode::None {
+                        return ResultOptionStructMemberNode::Err(self.emit_error(
+                            "Couldn't create identifier while parsing struct member."
                         ));
                     },
-                    OptionStructMemberNode::Some(next) {
-                        for (let i = 0; i < vector_size(&members); i += 1) {
-                            if (members[i].value.identifier.value == next.value.identifier.value) {
-                                return ResultStructMemberNodeVec::Err(parser_error_at(
-                                    ErrorSeverity::HIGH,
-                                    "Redeclaration of member '"
-                                        + next.value.identifier.value
-                                        + "'.",
-                                    next.span
-                                ));
-                            }
+                    OptionIdentifierNode::Some(identifier) {
+                        return ResultOptionStructMemberNode::Ok(OptionStructMemberNode::Some(StructMemberNode {
+                            value: StructMember { identifier, member_type },
+                            span: Span.new(&member_type.span.start, &identifier.span.end)
+                        }));
+                    }
+                }
+            }
+        }
+    }
+
+    fn parse_type_method(self): ResultOptionTypeMethodNode {
+        # type_method = "fn", identifier, "(", [ method_parameters ], ")", ":", type, statement_block;
+        # method_parameters = "self", [ ",", parameters ] | parameters;
+
+        let fn_consumed = self.consume_if_matches(&TokenCategory::Fn);
+
+        let fn_token = self.current_token();
+        let has_fn = false;
+        match (fn_consumed) {
+            ResultOptionToken::Err(err) {
+                return ResultOptionTypeMethodNode::Err(ParserError.from_lexer(&err));
+            },
+            ResultOptionToken::Ok(option_fn) {
+                if (option_fn matches OptionToken::Some(token)) {
+                    fn_token = token;
+                    has_fn = true;
+                }
+            }
+        }
+
+        if (!has_fn) {
+            return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::None);
+        }
+
+        let identifier_call = self.parse_identifier();
+        match (identifier_call) {
+            ResultOptionIdentifierNode::Err(err) {
+                return ResultOptionTypeMethodNode::Err(err);
+            },
+            ResultOptionIdentifierNode::Ok(option_identifier) {
+                match (option_identifier) {
+                    OptionIdentifierNode::None {
+                        return ResultOptionTypeMethodNode::Err(self.emit_error(
+                            "Couldn't create identifier while parsing struct member."
+                        ));
+                    },
+                    OptionIdentifierNode::Some(identifier) {
+                        let paren_open = self.consume_must_be(&TokenCategory::ParenOpen);
+                        if (paren_open matches ResultToken::Err(err)) {
+                            return ResultOptionTypeMethodNode::Err(err);
                         }
-                        vector_push(&members, next);
-                    }
-                }
-            }
-        }
-    }
-
-    return ResultStructMemberNodeVec::Ok(members);
-}
-
-fn parser_parse_struct_member(&Parser parser): ResultOptionStructMemberNode {
-    # struct_member = type, identifier;
-    let type_call = parser_parse_type(&parser);
-    let member_type = TypeNode { value: Type::Void, span: parser_current_token(&parser).span };
-    let found_type = false;
-    match (type_call) {
-        ResultOptionTypeNode::Err(err) {
-            return ResultOptionStructMemberNode::Err(err);
-        },
-        ResultOptionTypeNode::Ok(option_type) {
-            if (option_type matches OptionTypeNode::Some(t)) {
-                member_type = t;
-                found_type = true;
-            }
-        }
-    }
-
-    if (!found_type) {
-        return ResultOptionStructMemberNode::Ok(OptionStructMemberNode::None);
-    }
-
-    let identifier_call = parser_parse_identifier(&parser);
-    match (identifier_call) {
-        ResultOptionIdentifierNode::Err(err) {
-            return ResultOptionStructMemberNode::Err(err);
-        },
-        ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::None {
-                    return ResultOptionStructMemberNode::Err(parser_create_parser_error(
-                        &parser,
-                        "Couldn't create identifier while parsing struct member."
-                    ));
-                },
-                OptionIdentifierNode::Some(identifier) {
-                    return ResultOptionStructMemberNode::Ok(OptionStructMemberNode::Some(StructMemberNode {
-                        value: StructMember { identifier, member_type },
-                        span: span_new(member_type.span.start, identifier.span.end)
-                    }));
-                }
-            }
-        }
-    }
-}
-
-fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
-    # type_method = "fn", identifier, "(", [ method_parameters ], ")", ":", type, statement_block;
-    # method_parameters = "self", [ ",", parameters ] | parameters;
-
-    let fn_consumed = parser_consume_if_matches(&parser, TokenCategory::Fn);
-
-    let fn_token = parser_current_token(&parser);
-    let has_fn = false;
-    match (fn_consumed) {
-        ResultOptionToken::Err(err) {
-            return ResultOptionTypeMethodNode::Err(parser_error_from_lexer_error(&err));
-        },
-        ResultOptionToken::Ok(option_fn) {
-            if (option_fn matches OptionToken::Some(token)) {
-                fn_token = token;
-                has_fn = true;
-            }
-        }
-    }
-
-    if (!has_fn) {
-        return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::None);
-    }
-
-    let identifier_call = parser_parse_identifier(&parser);
-    match (identifier_call) {
-        ResultOptionIdentifierNode::Err(err) {
-            return ResultOptionTypeMethodNode::Err(err);
-        },
-        ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::None {
-                    return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
-                        &parser,
-                        "Couldn't create identifier while parsing struct member."
-                    ));
-                },
-                OptionIdentifierNode::Some(identifier) {
-                    let paren_open = parser_consume_must_be(&parser, TokenCategory::ParenOpen);
-                    if (paren_open matches ResultToken::Err(err)) {
-                        return ResultOptionTypeMethodNode::Err(err);
-                    }
-                    let self_node = OptionIdentifierNode::None;
-                    let current_token = parser_current_token(&parser);
-                    let has_comma_after_self = false;
-                    if (current_token.category matches TokenCategory::Identifier) {
-                        if (current_token.value matches TokenValue::String(ident)) {
-                            if (ident == "self") {
-                                self_node = OptionIdentifierNode::Some(IdentifierNode {
-                                    value: ident,
-                                    span: current_token.span
-                                });
-                                parser_next_token(&parser);
-                                let ro_comma_token = parser_consume_if_matches(
-                                    &parser,
-                                    TokenCategory::Comma
-                                );
-                                if (ro_comma_token matches ResultOptionToken::Ok(option_token)) {
-                                    if (option_token matches OptionToken::Some) {
-                                        has_comma_after_self = true;
+                        let self_node = OptionIdentifierNode::None;
+                        let current_token = self.current_token();
+                        let has_comma_after_self = false;
+                        if (current_token.category matches TokenCategory::Identifier) {
+                            if (current_token.value matches TokenValue::String(ident)) {
+                                if (ident == "self") {
+                                    self_node = OptionIdentifierNode::Some(IdentifierNode {
+                                        value: ident,
+                                        span: current_token.span
+                                    });
+                                    self.next_token();
+                                    let ro_comma_token = self.consume_if_matches(
+                                        &TokenCategory::Comma
+                                    );
+                                    if (
+                                        ro_comma_token matches ResultOptionToken::Ok(option_token)
+                                    ) {
+                                        if (option_token matches OptionToken::Some) {
+                                            has_comma_after_self = true;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    let parameters_call = parser_parse_parameters(&parser);
-                    let parameters: ParameterNode[] = [];
-                    match (parameters_call) {
-                        ResultParameterNodeVec::Err(err) {
-                            return ResultOptionTypeMethodNode::Err(err);
-                        },
-                        ResultParameterNodeVec::Ok(parsed) {
-                            parameters = parsed;
+                        let parameters_call = self.parse_parameters();
+                        let parameters: ParameterNode[] = [];
+                        match (parameters_call) {
+                            ResultParameterNodeVec::Err(err) {
+                                return ResultOptionTypeMethodNode::Err(err);
+                            },
+                            ResultParameterNodeVec::Ok(parsed) {
+                                parameters = parsed;
+                            }
                         }
-                    }
-                    if (has_comma_after_self && vector_size(&parameters) == 0) {
-                        return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
-                            &parser,
-                            "Expected parameter after comma."
-                        ));
-                    }
-                    let paren_close = parser_consume_must_be(&parser, TokenCategory::ParenClose);
-                    if (paren_close matches ResultToken::Err(err)) {
-                        return ResultOptionTypeMethodNode::Err(err);
-                    }
-                    let colon = parser_consume_must_be(&parser, TokenCategory::Colon);
-                    if (colon matches ResultToken::Err(err)) {
-                        return ResultOptionTypeMethodNode::Err(err);
-                    }
-
-                    let type_call = parser_parse_return_type(&parser);
-                    if (type_call matches ResultTypeNode::Err(err)) {
-                        return ResultOptionTypeMethodNode::Err(err);
-                    }
-
-                    if (type_call matches ResultTypeNode::Ok(type_node)) {
-                        let stmt_block_call = parser_parse_statement_block(&parser);
-                        if (stmt_block_call matches ResultOptionBlockNode::Err(err)) {
+                        if (has_comma_after_self && parameters.size() == 0) {
+                            return ResultOptionTypeMethodNode::Err(self.emit_error(
+                                "Expected parameter after comma."
+                            ));
+                        }
+                        let paren_close = self.consume_must_be(&TokenCategory::ParenClose);
+                        if (paren_close matches ResultToken::Err(err)) {
+                            return ResultOptionTypeMethodNode::Err(err);
+                        }
+                        let colon = self.consume_must_be(&TokenCategory::Colon);
+                        if (colon matches ResultToken::Err(err)) {
                             return ResultOptionTypeMethodNode::Err(err);
                         }
 
-                        if (stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)) {
-                            if (option_block_node matches OptionBlockNode::None) {
-                                return ResultOptionTypeMethodNode::Err(parser_create_parser_error(
-                                    &parser,
-                                    "Couldn't create type while parsing type method."
-                                ));
+                        let type_call = self.parse_return_type();
+                        if (type_call matches ResultTypeNode::Err(err)) {
+                            return ResultOptionTypeMethodNode::Err(err);
+                        }
+
+                        if (type_call matches ResultTypeNode::Ok(type_node)) {
+                            let stmt_block_call = self.parse_statement_block();
+                            if (stmt_block_call matches ResultOptionBlockNode::Err(err)) {
+                                return ResultOptionTypeMethodNode::Err(err);
                             }
 
-                            if (option_block_node matches OptionBlockNode::Some(block_node)) {
-                                return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::Some(TypeMethodNode {
-                                    value: TypeMethod {
-                                        identifier,
-                                        self_identifier: self_node,
-                                        parameters,
-                                        return_type: type_node,
-                                        block: block_node
-                                    },
-                                    span: span_new(fn_token.span.start, block_node.span.end)
-                                }));
+                            if (
+                                stmt_block_call matches ResultOptionBlockNode::Ok(option_block_node)
+                            ) {
+                                if (option_block_node matches OptionBlockNode::None) {
+                                    return ResultOptionTypeMethodNode::Err(self.emit_error(
+                                        "Couldn't create type while parsing type method."
+                                    ));
+                                }
+
+                                if (option_block_node matches OptionBlockNode::Some(block_node)) {
+                                    return ResultOptionTypeMethodNode::Ok(OptionTypeMethodNode::Some(TypeMethodNode {
+                                        value: TypeMethod {
+                                            identifier,
+                                            self_identifier: self_node,
+                                            parameters,
+                                            return_type: type_node,
+                                            block: block_node
+                                        },
+                                        span: Span.new(&fn_token.span.start, &block_node.span.end)
+                                    }));
+                                }
                             }
                         }
                     }
@@ -373,4 +378,4 @@ fn parser_parse_type_method(&Parser parser): ResultOptionTypeMethodNode {
             }
         }
     }
-}
+};

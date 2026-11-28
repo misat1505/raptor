@@ -1,7 +1,3 @@
-# ============================================================
-# Mirrors src/backend/llvm/compiler/statements.rs
-# ============================================================
-
 import "../../frontend/parser/ast.rp";
 import "./compiler-core.rp";
 import "./expressions.rp";
@@ -9,797 +5,793 @@ import "./ir-builder.rp";
 import "./types-ir.rp";
 
 
-fn llvm_compile_block(&LlvmCompiler c, BlockNode block): void {
-    let marker = llvm_compiler_push_scope_marker(&c);
-    for (let i = 0; i < vector_size(&block.value.statements); i += 1) {
-        if (c.has_terminator) {
-            break;
+extend LLVMIRCodegen {
+    fn compile_block(self, BlockNode block): void {
+        let marker = self.push_scope_marker();
+        for (let i = 0; i < block.value.statements.size(); i += 1) {
+            if (self.has_terminator) {
+                break;
+            }
+            self.compile_statement(block.value.statements[i]);
         }
-        llvm_compile_statement(&c, block.value.statements[i]);
+        if (!self.has_terminator) {
+            self.emit_release_locals_from(marker);
+        }
+        self.pop_scope(marker);
     }
-    if (!c.has_terminator) {
-        llvm_emit_release_locals_from(&c, marker);
-    }
-    llvm_compiler_pop_scope(&c, marker);
-}
 
-# LLVM requires a '.' in decimal double literals ("1e+20" is rejected).
-fn llvm_double_const(str int_or_float): str {
-    let n = str_len(int_or_float);
-    for (let i = 0; i < n; i += 1) {
-        if (int_or_float[i] == '.') {
-            return int_or_float;
+    fn double_const(str int_or_float): str {
+        let n = int_or_float.size();
+        for (let i = 0; i < n; i += 1) {
+            if (int_or_float[i] == '.') {
+                return int_or_float;
+            }
         }
-    }
-    for (let i = 0; i < n; i += 1) {
-        let c = int_or_float[i];
-        if (c == 'e' || c == 'E') {
-            let head = "";
-            let tail = "";
-            for (let j = 0; j < n; j += 1) {
-                if (j < i) {
-                    head += int_or_float[j];
-                } else {
-                    tail += int_or_float[j];
+        for (let i = 0; i < n; i += 1) {
+            let c = int_or_float[i];
+            if (c == 'e' || c == 'E') {
+                let head = "";
+                let tail = "";
+                for (let j = 0; j < n; j += 1) {
+                    if (j < i) {
+                        head += int_or_float[j];
+                    } else {
+                        tail += int_or_float[j];
+                    }
                 }
+                return head + ".0" + tail;
             }
-            return head + ".0" + tail;
         }
+        return int_or_float + ".0";
     }
-    return int_or_float + ".0";
-}
 
-# Store value of (rval, rty) into alloca/slot of dst_ty.
-fn llvm_store_typed(&LlvmCompiler c, str dst_ptr, str dst_ty, str rval, str rty): void {
-    if (dst_ty == "double") {
-        if (rty == "double") {
-            let v = rval;
-            if (str_len(v) > 0 && v[0] != '%') {
-                v = llvm_double_const(v);
+    fn store_typed(self, str dst_ptr, str dst_ty, str rval, str rty): void {
+        if (dst_ty == "double") {
+            if (rty == "double") {
+                let v = rval;
+                if (v.size() > 0 && v[0] != '%') {
+                    v = LLVMIRCodegen.double_const(v);
+                }
+                self.ir.emit("  store double " + v + ", ptr " + dst_ptr);
+            } else {
+                let as64 = self.as_i64(rval, rty);
+                let d = self.ir.tmp();
+                self.ir.emit("  " + d + " = sitofp i64 " + as64 + " to double");
+                self.ir.emit("  store double " + d + ", ptr " + dst_ptr);
             }
-            ir_emit(&c.ir, "  store double " + v + ", ptr " + dst_ptr);
-        } else {
-            let as64 = llvm_as_i64(&c, rval, rty);
-            let d = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + d + " = sitofp i64 " + as64 + " to double");
-            ir_emit(&c.ir, "  store double " + d + ", ptr " + dst_ptr);
-        }
-        return;
-    }
-
-    if (dst_ty == "ptr") {
-        if (rty == "ptr") {
-            ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + dst_ptr);
-        } else {
-            # non-ptr into ptr slot: store via inttoptr of i64 bits / string path not here
-            let as64 = llvm_as_i64(&c, rval, rty);
-            let p = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + p + " = inttoptr i64 " + as64 + " to ptr");
-            ir_emit(&c.ir, "  store ptr " + p + ", ptr " + dst_ptr);
-        }
-        return;
-    }
-
-    # integer / i1 destinations: coerce to dst width
-    if (rty == dst_ty) {
-        let v = rval;
-        if (dst_ty == "double" && str_len(v) > 0 && v[0] != '%') {
-            v = llvm_double_const(v);
-        }
-        ir_emit(&c.ir, "  store " + dst_ty + " " + v + ", ptr " + dst_ptr);
-        return;
-    }
-
-    let as64 = llvm_as_i64(&c, rval, rty);
-    if (dst_ty == "i64") {
-        ir_emit(&c.ir, "  store i64 " + as64 + ", ptr " + dst_ptr);
-        return;
-    }
-    if (dst_ty == "i1" || dst_ty == "i8" || dst_ty == "i16" || dst_ty == "i32") {
-        let t = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + t + " = trunc i64 " + as64 + " to " + dst_ty);
-        ir_emit(&c.ir, "  store " + dst_ty + " " + t + ", ptr " + dst_ptr);
-        return;
-    }
-
-    ir_emit(&c.ir, "  store " + rty + " " + rval + ", ptr " + dst_ptr);
-}
-
-fn llvm_compile_declaration(&LlvmCompiler c, DeclarationStatement decl): void {
-    llvm_compile_owned(&c, decl.value);
-    let ty = c.last_type;
-    let rty = llvm_expr_rtype(&c, decl.value);
-    if (decl.var_type matches OptionTypeNode::Some(tn)) {
-        ty = type_to_llvm(tn.value);
-        rty = llvm_type_rname(tn.value);
-    }
-    let ptr = llvm_compiler_declare_local(&c, decl.identifier.value, ty);
-    llvm_compiler_set_last_local_rty(&c, rty);
-    llvm_store_typed(&c, ptr, ty, c.last_value, c.last_type);
-    if (ty == "ptr") {
-        llvm_compiler_mark_last_owned(&c);
-    }
-}
-
-fn llvm_compile_assignment(&LlvmCompiler c, AssignmentStatement assign): void {
-    llvm_compile_owned(&c, assign.value);
-    let rval = c.last_value;
-    let rty = c.last_type;
-    let idx = llvm_compiler_find_local(&c, assign.identifier.value);
-    if (idx < 0) {
-        llvm_compiler_error(&c, "Assign to undeclared '" + assign.identifier.value + "'");
-        return;
-    }
-    let v = c.locals[idx];
-    if (vector_size(&assign.accessors) == 0) {
-        # The old reference is released after the new one is in place.
-        if (c.arc && v.owned && v.ty == "ptr") {
-            let old = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + old + " = load ptr, ptr " + v.ptr);
-            llvm_store_typed(&c, v.ptr, v.ty, rval, rty);
-            llvm_emit_release(&c, old);
             return;
         }
-        llvm_store_typed(&c, v.ptr, v.ty, rval, rty);
-        return;
-    }
 
-    let base = ir_tmp(&c.ir);
-    ir_emit(&c.ir, "  " + base + " = load " + v.ty + ", ptr " + v.ptr);
-    let cur = base;
-
-    # Raptor type name of `cur` as we walk the accessor chain ("" = unknown).
-    let cur_rty = v.rty;
-
-    for (let i = 0; i < vector_size(&assign.accessors); i += 1) {
-        let is_last = i == vector_size(&assign.accessors) - 1;
-        match (assign.accessors[i].value) {
-            Accessor::MethodCall {},
-            Accessor::Field(field) {
-                let fidx = 0;
-                for (let t = 0; t < vector_size(&c.program.declared_types); t += 1) {
-                    if (c.program.declared_types[t].value matches DeclaredType::Struct(s)) {
-                        for (let m = 0; m < vector_size(&s.members); m += 1) {
-                            if (s.members[m].value.identifier.value == field.value) {
-                                fidx = m;
-                            }
-                        }
-                    }
-                }
-
-                # Prefer the real layout of the struct we are walking through
-                # when known (by-name lookup is ambiguous across structs).
-                let next_rty = "";
-                if (cur_rty != "") {
-                    if (llvm_lookup_struct(&c, cur_rty) matches OptionStructDeclaration::Some(sd)) {
-                        for (let m = 0; m < vector_size(&sd.members); m += 1) {
-                            if (sd.members[m].value.identifier.value == field.value) {
-                                fidx = m;
-                                next_rty = llvm_type_rname(sd.members[m].value.member_type.value);
-                            }
-                        }
-                    }
-                }
-                cur_rty = next_rty;
-                let gep = ir_tmp(&c.ir);
-                ir_emit(
-                    &c.ir,
-                    "  " + gep + " = getelementptr i8, ptr " + cur + ", i64 " + (fidx * 8) as str
-                );
-                if (is_last) {
-                    if (rty == "ptr") {
-                        if (c.arc) {
-                            let old_f = ir_tmp(&c.ir);
-                            ir_emit(&c.ir, "  " + old_f + " = load ptr, ptr " + gep);
-                            ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + gep);
-                            llvm_emit_release(&c, old_f);
-                        } else {
-                            ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + gep);
-                        }
-                    } else {
-                        let sv = llvm_to_slot_i64(&c, rval, rty);
-                        ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + gep);
-                    }
-                } else {
-                    let n = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + n + " = load ptr, ptr " + gep);
-                    cur = n;
-                }
-            },
-            Accessor::Index(index_expr) {
-                let container_rty = cur_rty;
-                cur_rty = llvm_rty_element(container_rty);
-                llvm_compile_expression(&c, index_expr);
-                let i_val = llvm_as_i64(&c, c.last_value, c.last_type);
-                if (container_rty == "str" && is_last) {
-                    # s[i] = c: overwrite one byte of the (private) string in place.
-                    llvm_emit_bounds_check(&c, cur, i_val, true, index_expr.span);
-                    let byte_p = ir_tmp(&c.ir);
-                    ir_emit(
-                        &c.ir,
-                        "  " + byte_p + " = getelementptr i8, ptr " + cur + ", i64 " + i_val
-                    );
-                    let byte_v = llvm_resize_int(&c, rval, rty, "i8", false);
-                    ir_emit(&c.ir, "  store i8 " + byte_v + ", ptr " + byte_p);
-                    return;
-                }
-                llvm_emit_bounds_check(&c, cur, i_val, false, index_expr.span);
-                let data_p = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + data_p + " = getelementptr i8, ptr " + cur + ", i64 8");
-                let data = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + data + " = load ptr, ptr " + data_p);
-                let slot = ir_tmp(&c.ir);
-                ir_emit(
-                    &c.ir,
-                    "  " + slot + " = getelementptr ptr, ptr " + data + ", i64 " + i_val
-                );
-                if (is_last) {
-                    if (rty == "ptr") {
-                        if (c.arc) {
-                            let old_e = ir_tmp(&c.ir);
-                            ir_emit(&c.ir, "  " + old_e + " = load ptr, ptr " + slot);
-                            ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + slot);
-                            ir_emit(
-                                &c.ir,
-                                "  store i64 1, ptr " + cur
-                            );  # elements are managed pointers
-                            llvm_emit_release(&c, old_e);
-                        } else {
-                            ir_emit(&c.ir, "  store ptr " + rval + ", ptr " + slot);
-                        }
-                    } else {
-                        let sv = llvm_to_slot_i64(&c, rval, rty);
-                        ir_emit(&c.ir, "  store i64 " + sv + ", ptr " + slot);
-                    }
-                } else {
-                    let n = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + n + " = load ptr, ptr " + slot);
-                    cur = n;
-                }
-            }
-        }
-    }
-}
-
-fn llvm_compile_if(&LlvmCompiler c, ConditionalStatement stmt): void {
-    let cond_temps = vector_size(&c.temps);
-    llvm_compile_expression(&c, stmt.condition);
-    let cond = c.last_value;
-    if (c.last_type != "i1") {
-        let t = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + t + " = icmp ne i64 " + cond + ", 0");
-        cond = t;
-    }
-    llvm_flush_temps_from(&c, cond_temps);
-    let then_l = ir_label(&c.ir, "if.then");
-    let else_l = ir_label(&c.ir, "if.else");
-    let end_l = ir_label(&c.ir, "if.end");
-    let has_else = false;
-    if (stmt.else_block matches OptionBlockNode::Some) {
-        has_else = true;
-    }
-    if (has_else) {
-        ir_emit(&c.ir, "  br i1 " + cond + ", label %" + then_l + ", label %" + else_l);
-    } else {
-        ir_emit(&c.ir, "  br i1 " + cond + ", label %" + then_l + ", label %" + end_l);
-    }
-
-    ir_emit(&c.ir, then_l + ":");
-    c.has_terminator = false;
-    llvm_compile_block(&c, stmt.if_block);
-    if (!c.has_terminator) {
-        ir_emit(&c.ir, "  br label %" + end_l);
-    }
-
-    if (stmt.else_block matches OptionBlockNode::Some(eb)) {
-        ir_emit(&c.ir, else_l + ":");
-        c.has_terminator = false;
-        llvm_compile_block(&c, eb);
-        if (!c.has_terminator) {
-            ir_emit(&c.ir, "  br label %" + end_l);
-        }
-    }
-
-    ir_emit(&c.ir, end_l + ":");
-    c.has_terminator = false;
-}
-
-fn llvm_compile_while(&LlvmCompiler c, WhileLoopStatement stmt): void {
-    let cond_l = ir_label(&c.ir, "while.cond");
-    let body_l = ir_label(&c.ir, "while.body");
-    let end_l = ir_label(&c.ir, "while.end");
-    ir_emit(&c.ir, "  br label %" + cond_l);
-    ir_emit(&c.ir, cond_l + ":");
-    c.has_terminator = false;
-    let cond_temps = vector_size(&c.temps);
-    llvm_compile_expression(&c, stmt.condition);
-    let cond = c.last_value;
-    if (c.last_type != "i1") {
-        let t = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + t + " = icmp ne i64 " + cond + ", 0");
-        cond = t;
-    }
-    llvm_flush_temps_from(&c, cond_temps);
-    ir_emit(&c.ir, "  br i1 " + cond + ", label %" + body_l + ", label %" + end_l);
-    ir_emit(&c.ir, body_l + ":");
-    c.has_terminator = false;
-    vector_push(&c.break_stack, end_l);
-    vector_push(&c.continue_stack, cond_l);
-    vector_push(&c.loop_marks, vector_size(&c.locals));
-    vector_push(&c.loop_temp_marks, vector_size(&c.temps));
-    vector_push(&c.cont_marks, vector_size(&c.locals));
-    vector_push(&c.cont_temp_marks, vector_size(&c.temps));
-    llvm_compile_block(&c, stmt.block);
-
-    # pop stacks
-    let nb: str[] = [];
-    for (let i = 0; i < vector_size(&c.break_stack) - 1; i += 1) {
-        vector_push(&nb, c.break_stack[i]);
-    }
-    c.break_stack = nb;
-    let nc: str[] = [];
-    for (let i = 0; i < vector_size(&c.continue_stack) - 1; i += 1) {
-        vector_push(&nc, c.continue_stack[i]);
-    }
-    c.continue_stack = nc;
-    let nm: i64[] = [];
-    for (let i = 0; i < vector_size(&c.loop_marks) - 1; i += 1) {
-        vector_push(&nm, c.loop_marks[i]);
-    }
-    c.loop_marks = nm;
-    let ntm: i64[] = [];
-    for (let i = 0; i < vector_size(&c.loop_temp_marks) - 1; i += 1) {
-        vector_push(&ntm, c.loop_temp_marks[i]);
-    }
-    c.loop_temp_marks = ntm;
-    let ncm: i64[] = [];
-    let nctm: i64[] = [];
-    for (let i = 0; i < vector_size(&c.cont_marks) - 1; i += 1) {
-        vector_push(&ncm, c.cont_marks[i]);
-        vector_push(&nctm, c.cont_temp_marks[i]);
-    }
-    c.cont_marks = ncm;
-    c.cont_temp_marks = nctm;
-    if (!c.has_terminator) {
-        ir_emit(&c.ir, "  br label %" + cond_l);
-    }
-    ir_emit(&c.ir, end_l + ":");
-    c.has_terminator = false;
-}
-
-fn llvm_compile_for(&LlvmCompiler c, ForLoopStatement stmt): void {
-    let marker = llvm_compiler_push_scope_marker(&c);
-    if (stmt.declaration matches OptionStatementNode::Some(d)) {
-        llvm_compile_statement(&c, d);
-    }
-    let cond_l = ir_label(&c.ir, "for.cond");
-    let body_l = ir_label(&c.ir, "for.body");
-    let step_l = ir_label(&c.ir, "for.step");
-    let end_l = ir_label(&c.ir, "for.end");
-    ir_emit(&c.ir, "  br label %" + cond_l);
-    ir_emit(&c.ir, cond_l + ":");
-    c.has_terminator = false;
-    let cond_temps = vector_size(&c.temps);
-    llvm_compile_expression(&c, stmt.condition);
-    let cond = c.last_value;
-    if (c.last_type != "i1") {
-        let t = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + t + " = icmp ne i64 " + cond + ", 0");
-        cond = t;
-    }
-    llvm_flush_temps_from(&c, cond_temps);
-    ir_emit(&c.ir, "  br i1 " + cond + ", label %" + body_l + ", label %" + end_l);
-    ir_emit(&c.ir, body_l + ":");
-    c.has_terminator = false;
-    vector_push(&c.break_stack, end_l);
-    vector_push(&c.continue_stack, step_l);
-    vector_push(&c.loop_marks, vector_size(&c.locals));
-    vector_push(&c.loop_temp_marks, vector_size(&c.temps));
-    vector_push(&c.cont_marks, vector_size(&c.locals));
-    vector_push(&c.cont_temp_marks, vector_size(&c.temps));
-    llvm_compile_block(&c, stmt.block);
-    let nb: str[] = [];
-    for (let i = 0; i < vector_size(&c.break_stack) - 1; i += 1) {
-        vector_push(&nb, c.break_stack[i]);
-    }
-    c.break_stack = nb;
-    let nc: str[] = [];
-    for (let i = 0; i < vector_size(&c.continue_stack) - 1; i += 1) {
-        vector_push(&nc, c.continue_stack[i]);
-    }
-    c.continue_stack = nc;
-    let nm: i64[] = [];
-    for (let i = 0; i < vector_size(&c.loop_marks) - 1; i += 1) {
-        vector_push(&nm, c.loop_marks[i]);
-    }
-    c.loop_marks = nm;
-    let ntm: i64[] = [];
-    for (let i = 0; i < vector_size(&c.loop_temp_marks) - 1; i += 1) {
-        vector_push(&ntm, c.loop_temp_marks[i]);
-    }
-    c.loop_temp_marks = ntm;
-    let ncm: i64[] = [];
-    let nctm: i64[] = [];
-    for (let i = 0; i < vector_size(&c.cont_marks) - 1; i += 1) {
-        vector_push(&ncm, c.cont_marks[i]);
-        vector_push(&nctm, c.cont_temp_marks[i]);
-    }
-    c.cont_marks = ncm;
-    c.cont_temp_marks = nctm;
-    if (!c.has_terminator) {
-        ir_emit(&c.ir, "  br label %" + step_l);
-    }
-    ir_emit(&c.ir, step_l + ":");
-    c.has_terminator = false;
-    if (stmt.assignment matches OptionStatementNode::Some(a)) {
-        llvm_compile_statement(&c, a);
-    }
-    ir_emit(&c.ir, "  br label %" + cond_l);
-    ir_emit(&c.ir, end_l + ":");
-    c.has_terminator = false;
-    llvm_emit_release_locals_from(&c, marker);
-    llvm_compiler_pop_scope(&c, marker);
-}
-
-fn llvm_compile_match(&LlvmCompiler c, MatchStatement m, Span span): void {
-    let outer_marker = llvm_compiler_push_scope_marker(&c);
-    llvm_compile_expression(&c, m.expression);
-    let scrut = c.last_value;
-
-    # A fresh subject (e.g. the result of a call) must outlive the arms, whose
-    # bindings point into it: park it in a hidden owned local, released when the
-    # match ends or on any return / break out of an arm.
-    if (c.arc && c.last_type == "ptr" && !llvm_expr_is_borrowed(m.expression)) {
-        let hidden = llvm_compiler_declare_local(&c, "$match", "ptr");
-        ir_emit(&c.ir, "  store ptr " + scrut + ", ptr " + hidden);
-        llvm_compiler_mark_last_owned(&c);
-    }
-
-    # load tag at offset 8
-    let tag_p = ir_tmp(&c.ir);
-    ir_emit(&c.ir, "  " + tag_p + " = getelementptr i8, ptr " + scrut + ", i64 8");
-    let tag = ir_tmp(&c.ir);
-    ir_emit(&c.ir, "  " + tag + " = load i64, ptr " + tag_p);
-    let pay_p = ir_tmp(&c.ir);
-    ir_emit(&c.ir, "  " + pay_p + " = getelementptr i8, ptr " + scrut + ", i64 16");
-
-    let end_l = ir_label(&c.ir, "match.end");
-    let arm_labels: str[] = [];
-    for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
-        vector_push(&arm_labels, ir_label(&c.ir, "match.arm"));
-    }
-    let rest_l = ir_label(&c.ir, "match.rest");
-
-    # chain of icmp + br
-    for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
-        let arm = m.match_arms[i];
-        let expected = llvm_enum_variant_tag(
-            &c,
-            arm.value.enum_name.value,
-            arm.value.variant_name.value
-        );
-        let cmp = ir_tmp(&c.ir);
-        ir_emit(&c.ir, "  " + cmp + " = icmp eq i64 " + tag + ", " + expected as str);
-        let next_check = ir_label(&c.ir, "match.chk");
-        ir_emit(&c.ir, "  br i1 " + cmp + ", label %" + arm_labels[i] + ", label %" + next_check);
-        ir_emit(&c.ir, next_check + ":");
-    }
-
-    # no arm matched -> rest or end
-    match (m.rest_arm) {
-        OptionBlockNode::Some {
-            ir_emit(&c.ir, "  br label %" + rest_l);
-        },
-        OptionBlockNode::None {
-            # The semantic checker should guarantee exhaustiveness; like the
-            # Rust backend, fail loudly if it did not.
-            llvm_emit_diag(&c, "true", "Non-exhaustive match: no arm matched.", span, true);
-            ir_emit(&c.ir, "  br label %" + end_l);
-        }
-    }
-
-    for (let i = 0; i < vector_size(&m.match_arms); i += 1) {
-        let arm = m.match_arms[i];
-        ir_emit(&c.ir, arm_labels[i] + ":");
-        c.has_terminator = false;
-        let marker = llvm_compiler_push_scope_marker(&c);
-        if (arm.value.variant_value matches OptionIdentifierNode::Some(bind)) {
-            # Bind the payload with the variant's real type. Primitive payloads
-            # are stored in the enum as i64 slots (see llvm_compile_enum_literal),
-            # so they must be loaded as i64 and narrowed, not loaded as `ptr`.
-            let pay_ty = "ptr";
-            let pay_rty = "";
-            if (
-                llvm_lookup_enum(
-                    &c,
-                    arm.value.enum_name.value
-                ) matches OptionEnumDeclaration::Some(ed)
-            ) {
-                for (let mi = 0; mi < vector_size(&ed.members); mi += 1) {
-                    if (ed.members[mi].value.identifier.value == arm.value.variant_name.value) {
-                        if (ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)) {
-                            pay_ty = type_to_llvm(ptn.value);
-                            pay_rty = llvm_type_rname(ptn.value);
-                        }
-                    }
-                }
-            }
-            let ptr = llvm_compiler_declare_local(&c, bind.value, pay_ty);
-            llvm_compiler_set_last_local_rty(&c, pay_rty);
-            if (pay_ty == "ptr") {
-                let pay = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + pay + " = load ptr, ptr " + pay_p);
-
-                # The binding owns a reference of its own: the arm may replace
-                # or mutate the matched value (e.g. `x.f = None;`), which would
-                # otherwise free the payload while the binding is still used.
-                llvm_emit_retain(&c, pay);
-                llvm_compiler_mark_last_owned(&c);
-                ir_emit(&c.ir, "  store ptr " + pay + ", ptr " + ptr);
+        if (dst_ty == "ptr") {
+            if (rty == "ptr") {
+                self.ir.emit("  store ptr " + rval + ", ptr " + dst_ptr);
             } else {
-                let raw = ir_tmp(&c.ir);
-                ir_emit(&c.ir, "  " + raw + " = load i64, ptr " + pay_p);
-                if (pay_ty == "i64") {
-                    ir_emit(&c.ir, "  store i64 " + raw + ", ptr " + ptr);
-                } else if (pay_ty == "double") {
-                    let d = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + d + " = bitcast i64 " + raw + " to double");
-                    ir_emit(&c.ir, "  store double " + d + ", ptr " + ptr);
-                } else {
-                    let nr = ir_tmp(&c.ir);
-                    ir_emit(&c.ir, "  " + nr + " = trunc i64 " + raw + " to " + pay_ty);
-                    ir_emit(&c.ir, "  store " + pay_ty + " " + nr + ", ptr " + ptr);
-                }
+                # non-ptr into ptr slot: store via inttoptr of i64 bits / string path not here
+                let as64 = self.as_i64(rval, rty);
+                let p = self.ir.tmp();
+                self.ir.emit("  " + p + " = inttoptr i64 " + as64 + " to ptr");
+                self.ir.emit("  store ptr " + p + ", ptr " + dst_ptr);
             }
+            return;
         }
-        llvm_compile_block(&c, arm.value.block);
-        if (!c.has_terminator) {
-            llvm_emit_release_locals_from(&c, marker);
-        }
-        llvm_compiler_pop_scope(&c, marker);
-        if (!c.has_terminator) {
-            ir_emit(&c.ir, "  br label %" + end_l);
-        }
-    }
 
-    if (m.rest_arm matches OptionBlockNode::Some(b)) {
-        ir_emit(&c.ir, rest_l + ":");
-        c.has_terminator = false;
-        llvm_compile_block(&c, b);
-        if (!c.has_terminator) {
-            ir_emit(&c.ir, "  br label %" + end_l);
-        }
-    }
-
-    ir_emit(&c.ir, end_l + ":");
-    c.has_terminator = false;
-    llvm_emit_release_locals_from(&c, outer_marker);
-    llvm_compiler_pop_scope(&c, outer_marker);
-}
-
-# switch (expr: alias, ...) { (cond) -> { ... } ... }
-# Like the Rust backend: the aliased expressions are evaluated once, then every
-# case condition is tested in order and EVERY matching case runs (there is no
-# implicit stop after a match). `break` leaves the switch, `continue` belongs to
-# the enclosing loop.
-fn llvm_compile_switch(&LlvmCompiler c, SwitchStatement sw): void {
-    let marker = llvm_compiler_push_scope_marker(&c);
-    for (let i = 0; i < vector_size(&sw.expressions); i += 1) {
-        if (sw.expressions[i].value.alias matches OptionIdentifierNode::Some(alias)) {
-            let source = sw.expressions[i].value.expression;
-            llvm_compile_owned(&c, source);
-            let alias_ty = c.last_type;
-            let alias_rty = llvm_expr_rtype(&c, source);
-            let alias_val = c.last_value;
-            let slot = llvm_compiler_declare_local(&c, alias.value, alias_ty);
-            llvm_compiler_set_last_local_rty(&c, alias_rty);
-            llvm_store_typed(&c, slot, alias_ty, alias_val, alias_ty);
-            if (alias_ty == "ptr") {
-                llvm_compiler_mark_last_owned(&c);
+        # integer / i1 destinations: coerce to dst width
+        if (rty == dst_ty) {
+            let v = rval;
+            if (dst_ty == "double" && v.size() > 0 && v[0] != '%') {
+                v = LLVMIRCodegen.double_const(v);
             }
+            self.ir.emit("  store " + dst_ty + " " + v + ", ptr " + dst_ptr);
+            return;
+        }
+
+        let as64 = self.as_i64(rval, rty);
+        if (dst_ty == "i64") {
+            self.ir.emit("  store i64 " + as64 + ", ptr " + dst_ptr);
+            return;
+        }
+        if (dst_ty == "i1" || dst_ty == "i8" || dst_ty == "i16" || dst_ty == "i32") {
+            let t = self.ir.tmp();
+            self.ir.emit("  " + t + " = trunc i64 " + as64 + " to " + dst_ty);
+            self.ir.emit("  store " + dst_ty + " " + t + ", ptr " + dst_ptr);
+            return;
+        }
+
+        self.ir.emit("  store " + rty + " " + rval + ", ptr " + dst_ptr);
+    }
+
+    fn compile_declaration(self, DeclarationStatement decl): void {
+        self.compile_owned(decl.value);
+        let ty = self.last_type;
+        let rty = self.expr_rtype(decl.value);
+        if (decl.var_type matches OptionTypeNode::Some(tn)) {
+            ty = tn.value.to_llvm();
+            rty = tn.value.llvm_type_rname();
+        }
+        let ptr = self.declare_local(decl.identifier.value, ty);
+        self.set_last_local_rty(rty);
+        self.store_typed(ptr, ty, self.last_value, self.last_type);
+        if (ty == "ptr") {
+            self.mark_last_owned();
         }
     }
 
-    let after_l = ir_label(&c.ir, "switch.after");
-    vector_push(&c.break_stack, after_l);
-    vector_push(&c.loop_marks, vector_size(&c.locals));
-    vector_push(&c.loop_temp_marks, vector_size(&c.temps));
-
-    let n = vector_size(&sw.cases);
-    for (let i = 0; i < n; i += 1) {
-        let case_l = ir_label(&c.ir, "switch.case");
-        let next_l = after_l;
-        if (i + 1 < n) {
-            next_l = ir_label(&c.ir, "switch.check");
+    fn compile_assignment(self, AssignmentStatement assign): void {
+        self.compile_owned(assign.value);
+        let rval = self.last_value;
+        let rty = self.last_type;
+        let idx = self.find_local(assign.identifier.value);
+        if (idx < 0) {
+            self.error("Assign to undeclared '" + assign.identifier.value + "'");
+            return;
         }
-        let cond_temps = vector_size(&c.temps);
-        llvm_compile_expression(&c, sw.cases[i].value.condition);
-        let cond = c.last_value;
-        if (c.last_type != "i1") {
-            let t = ir_tmp(&c.ir);
-            ir_emit(&c.ir, "  " + t + " = icmp ne i64 " + cond + ", 0");
-            cond = t;
+        let v = self.locals[idx];
+        if (assign.accessors.size() == 0) {
+            # The old reference is released after the new one is in place.
+            if (self.arc && v.owned && v.ty == "ptr") {
+                let old = self.ir.tmp();
+                self.ir.emit("  " + old + " = load ptr, ptr " + v.ptr);
+                self.store_typed(v.ptr, v.ty, rval, rty);
+                self.emit_release(old);
+                return;
+            }
+            self.store_typed(v.ptr, v.ty, rval, rty);
+            return;
         }
-        llvm_flush_temps_from(&c, cond_temps);
-        ir_emit(&c.ir, "  br i1 " + cond + ", label %" + case_l + ", label %" + next_l);
-        ir_emit(&c.ir, case_l + ":");
-        c.has_terminator = false;
-        llvm_compile_block(&c, sw.cases[i].value.block);
-        if (!c.has_terminator) {
-            ir_emit(&c.ir, "  br label %" + next_l);
-        }
-        if (i + 1 < n) {
-            ir_emit(&c.ir, next_l + ":");
-            c.has_terminator = false;
-        }
-    }
-    if (n == 0) {
-        ir_emit(&c.ir, "  br label %" + after_l);
-    }
 
-    let nb: str[] = [];
-    let nm: i64[] = [];
-    let ntm: i64[] = [];
-    for (let i = 0; i < vector_size(&c.break_stack) - 1; i += 1) {
-        vector_push(&nb, c.break_stack[i]);
-        vector_push(&nm, c.loop_marks[i]);
-        vector_push(&ntm, c.loop_temp_marks[i]);
-    }
-    c.break_stack = nb;
-    c.loop_marks = nm;
-    c.loop_temp_marks = ntm;
+        let base = self.ir.tmp();
+        self.ir.emit("  " + base + " = load " + v.ty + ", ptr " + v.ptr);
+        let cur = base;
 
-    ir_emit(&c.ir, after_l + ":");
-    c.has_terminator = false;
-    llvm_emit_release_locals_from(&c, marker);
-    llvm_compiler_pop_scope(&c, marker);
-}
+        # Raptor type name of `cur` as we walk the accessor chain ("" = unknown).
+        let cur_rty = v.rty;
 
-# Every statement releases the temporaries it created once it is done.
-fn llvm_compile_statement(&LlvmCompiler c, StatementNode node): void {
-    let temps_start = vector_size(&c.temps);
-    llvm_compile_statement_inner(&c, node);
-    if (c.has_terminator) {
-        # return / break / continue already released what they needed to.
-        llvm_forget_temps_from(&c, temps_start);
-    } else {
-        llvm_flush_temps_from(&c, temps_start);
-    }
-}
-
-fn llvm_compile_statement_inner(&LlvmCompiler c, StatementNode node): void {
-    match (node.value) {
-        Statement::Declaration(d) {
-            llvm_compile_declaration(&c, d);
-        },
-        Statement::Assignment(a) {
-            llvm_compile_assignment(&c, a);
-        },
-        Statement::Conditional(s) {
-            llvm_compile_if(&c, s);
-        },
-        Statement::WhileLoop(s) {
-            llvm_compile_while(&c, s);
-        },
-        Statement::ForLoop(s) {
-            llvm_compile_for(&c, s);
-        },
-        Statement::Return(opt) {
-            match (opt) {
-                OptionExpressionNode::Some(expr) {
-                    # The caller receives a +1 reference; all locals die here.
-                    llvm_compile_owned(&c, expr);
-                    llvm_release_temps_from(&c, 0);
-                    llvm_emit_release_locals_from(&c, 0);
-                    if (c.current_ret_ty == "void") {
-                        ir_emit(&c.ir, "  ret void");
-                    } else {
-                        let v = c.last_value;
-                        let from = c.last_type;
-                        let to = c.current_ret_ty;
-                        if (from != to) {
-                            if (from == "ptr" && to == "i64") {
-                                let t = ir_tmp(&c.ir);
-                                ir_emit(&c.ir, "  " + t + " = ptrtoint ptr " + v + " to i64");
-                                v = t;
-                            } else if (from == "ptr" && to == "i32") {
-                                let t = ir_tmp(&c.ir);
-                                ir_emit(&c.ir, "  " + t + " = ptrtoint ptr " + v + " to i64");
-                                let t2 = ir_tmp(&c.ir);
-                                ir_emit(&c.ir, "  " + t2 + " = trunc i64 " + t + " to i32");
-                                v = t2;
-                            } else if (from == "i64" && to == "ptr") {
-                                let t = ir_tmp(&c.ir);
-                                ir_emit(&c.ir, "  " + t + " = inttoptr i64 " + v + " to ptr");
-                                v = t;
-                            } else if (from == "i64" && to == "i32") {
-                                let t = ir_tmp(&c.ir);
-                                ir_emit(&c.ir, "  " + t + " = trunc i64 " + v + " to i32");
-                                v = t;
-                            } else if (from == "i32" && to == "i64") {
-                                let t = ir_tmp(&c.ir);
-                                ir_emit(&c.ir, "  " + t + " = sext i32 " + v + " to i64");
-                                v = t;
-                            } else if (from == "i1" && to == "i64") {
-                                let t = ir_tmp(&c.ir);
-                                ir_emit(&c.ir, "  " + t + " = zext i1 " + v + " to i64");
-                                v = t;
-                            } else if (from == "i1" && to == "i32") {
-                                let t = ir_tmp(&c.ir);
-                                ir_emit(&c.ir, "  " + t + " = zext i1 " + v + " to i32");
-                                v = t;
-                            } else {
-                                # last resort: bitcast if same width-ish
-                                let t = ir_tmp(&c.ir);
-                                ir_emit(
-                                    &c.ir,
-                                    "  " + t + " = bitcast " + from + " " + v + " to " + to
-                                );
-                                v = t;
+        for (let i = 0; i < assign.accessors.size(); i += 1) {
+            let is_last = i == assign.accessors.size() - 1;
+            match (assign.accessors[i].value) {
+                Accessor::MethodCall {},
+                Accessor::Field(field) {
+                    let fidx = 0;
+                    for (let t = 0; t < self.program.declared_types.size(); t += 1) {
+                        if (self.program.declared_types[t].value matches DeclaredType::Struct(s)) {
+                            for (let m = 0; m < s.members.size(); m += 1) {
+                                if (s.members[m].value.identifier.value == field.value) {
+                                    fidx = m;
+                                }
                             }
                         }
-                        ir_emit(&c.ir, "  ret " + to + " " + v);
+                    }
+
+                    # Prefer the real layout of the struct we are walking through
+                    # when known (by-name lookup is ambiguous across structs).
+                    let next_rty = "";
+                    if (cur_rty != "") {
+                        if (self.lookup_struct(cur_rty) matches OptionStructDeclaration::Some(sd)) {
+                            for (let m = 0; m < sd.members.size(); m += 1) {
+                                if (sd.members[m].value.identifier.value == field.value) {
+                                    fidx = m;
+                                    next_rty = sd.members[m].value.member_type.value.llvm_type_rname();
+                                }
+                            }
+                        }
+                    }
+                    cur_rty = next_rty;
+                    let gep = self.ir.tmp();
+                    self.ir.emit(
+                        "  "
+                            + gep
+                            + " = getelementptr i8, ptr "
+                            + cur
+                            + ", i64 "
+                            + (fidx * 8) as str
+                    );
+                    if (is_last) {
+                        if (rty == "ptr") {
+                            if (self.arc) {
+                                let old_f = self.ir.tmp();
+                                self.ir.emit("  " + old_f + " = load ptr, ptr " + gep);
+                                self.ir.emit("  store ptr " + rval + ", ptr " + gep);
+                                self.emit_release(old_f);
+                            } else {
+                                self.ir.emit("  store ptr " + rval + ", ptr " + gep);
+                            }
+                        } else {
+                            let sv = self.to_slot_i64(rval, rty);
+                            self.ir.emit("  store i64 " + sv + ", ptr " + gep);
+                        }
+                    } else {
+                        let n = self.ir.tmp();
+                        self.ir.emit("  " + n + " = load ptr, ptr " + gep);
+                        cur = n;
                     }
                 },
-                OptionExpressionNode::None {
-                    llvm_release_temps_from(&c, 0);
-                    llvm_emit_release_locals_from(&c, 0);
-                    if (c.current_ret_ty == "void") {
-                        ir_emit(&c.ir, "  ret void");
-                    } else if (c.current_ret_ty == "ptr") {
-                        ir_emit(&c.ir, "  ret ptr null");
+                Accessor::Index(index_expr) {
+                    let container_rty = cur_rty;
+                    cur_rty = LLVMIRCodegen.llvm_rty_element(container_rty);
+                    self.compile_expression(index_expr);
+                    let i_val = self.as_i64(self.last_value, self.last_type);
+                    if (container_rty == "str" && is_last) {
+                        # s[i] = c: overwrite one byte of the (private) string in place.
+                        self.emit_bounds_check(cur, i_val, true, index_expr.span);
+                        let byte_p = self.ir.tmp();
+                        self.ir.emit(
+                            "  " + byte_p + " = getelementptr i8, ptr " + cur + ", i64 " + i_val
+                        );
+                        let byte_v = self.resize_int(rval, rty, "i8", false);
+                        self.ir.emit("  store i8 " + byte_v + ", ptr " + byte_p);
+                        return;
+                    }
+                    self.emit_bounds_check(cur, i_val, false, index_expr.span);
+                    let data_p = self.ir.tmp();
+                    self.ir.emit("  " + data_p + " = getelementptr i8, ptr " + cur + ", i64 8");
+                    let data = self.ir.tmp();
+                    self.ir.emit("  " + data + " = load ptr, ptr " + data_p);
+                    let slot = self.ir.tmp();
+                    self.ir.emit(
+                        "  " + slot + " = getelementptr ptr, ptr " + data + ", i64 " + i_val
+                    );
+                    if (is_last) {
+                        if (rty == "ptr") {
+                            if (self.arc) {
+                                let old_e = self.ir.tmp();
+                                self.ir.emit("  " + old_e + " = load ptr, ptr " + slot);
+                                self.ir.emit("  store ptr " + rval + ", ptr " + slot);
+                                self.ir.emit(
+                                    "  store i64 1, ptr " + cur
+                                );  # elements are managed pointers
+                                self.emit_release(old_e);
+                            } else {
+                                self.ir.emit("  store ptr " + rval + ", ptr " + slot);
+                            }
+                        } else {
+                            let sv = self.to_slot_i64(rval, rty);
+                            self.ir.emit("  store i64 " + sv + ", ptr " + slot);
+                        }
                     } else {
-                        ir_emit(&c.ir, "  ret " + c.current_ret_ty + " 0");
+                        let n = self.ir.tmp();
+                        self.ir.emit("  " + n + " = load ptr, ptr " + slot);
+                        cur = n;
                     }
                 }
             }
-            c.has_terminator = true;
-        },
-        Statement::Break {
-            if (vector_size(&c.break_stack) == 0) {
-                llvm_compiler_error(&c, "break outside loop");
-            } else {
-                let t = c.break_stack[vector_size(&c.break_stack) - 1];
-                llvm_release_temps_from(&c, c.loop_temp_marks[vector_size(&c.loop_temp_marks) - 1]);
-                llvm_emit_release_locals_from(&c, c.loop_marks[vector_size(&c.loop_marks) - 1]);
-                ir_emit(&c.ir, "  br label %" + t);
-                c.has_terminator = true;
-            }
-        },
-        Statement::Continue {
-            if (vector_size(&c.continue_stack) == 0) {
-                llvm_compiler_error(&c, "continue outside loop");
-            } else {
-                let t = c.continue_stack[vector_size(&c.continue_stack) - 1];
-                llvm_release_temps_from(&c, c.cont_temp_marks[vector_size(&c.cont_temp_marks) - 1]);
-                llvm_emit_release_locals_from(&c, c.cont_marks[vector_size(&c.cont_marks) - 1]);
-                ir_emit(&c.ir, "  br label %" + t);
-                c.has_terminator = true;
-            }
-        },
-        Statement::FunctionCall(call) {
-            # Statement form of call - wrap as expression
-            llvm_compile_function_call(&c, call);
-
-            # A discarded result still carries a +1 reference. User functions
-            # always return one; builtins only when they return a string/vector.
-            if (c.arc && c.last_type == "ptr") {
-                llvm_emit_release(&c, c.last_value);
-            }
-        },
-        Statement::Match(m) {
-            llvm_compile_match(&c, m, node.span);
-        },
-        Statement::Switch(sw) {
-            llvm_compile_switch(&c, sw);
-        },
-        Statement::Expression(expr) {
-            llvm_compile_expression(&c, expr);
-
-            if (c.arc && c.last_type == "ptr") {
-                llvm_emit_release(&c, c.last_value);
-            }
-        },
-        Statement::Import {}
+        }
     }
-}
+
+    fn compile_if(self, ConditionalStatement stmt): void {
+        let cond_temps = self.temps.size();
+        self.compile_expression(stmt.condition);
+        let cond = self.last_value;
+        if (self.last_type != "i1") {
+            let t = self.ir.tmp();
+            self.ir.emit("  " + t + " = icmp ne i64 " + cond + ", 0");
+            cond = t;
+        }
+        self.flush_temps_from(cond_temps);
+        let then_l = self.ir.label("if.then");
+        let else_l = self.ir.label("if.else");
+        let end_l = self.ir.label("if.end");
+        let has_else = false;
+        if (stmt.else_block matches OptionBlockNode::Some) {
+            has_else = true;
+        }
+        if (has_else) {
+            self.ir.emit("  br i1 " + cond + ", label %" + then_l + ", label %" + else_l);
+        } else {
+            self.ir.emit("  br i1 " + cond + ", label %" + then_l + ", label %" + end_l);
+        }
+
+        self.ir.emit(then_l + ":");
+        self.has_terminator = false;
+        self.compile_block(stmt.if_block);
+        if (!self.has_terminator) {
+            self.ir.emit("  br label %" + end_l);
+        }
+
+        if (stmt.else_block matches OptionBlockNode::Some(eb)) {
+            self.ir.emit(else_l + ":");
+            self.has_terminator = false;
+            self.compile_block(eb);
+            if (!self.has_terminator) {
+                self.ir.emit("  br label %" + end_l);
+            }
+        }
+
+        self.ir.emit(end_l + ":");
+        self.has_terminator = false;
+    }
+
+    fn compile_while(self, WhileLoopStatement stmt): void {
+        let cond_l = self.ir.label("while.cond");
+        let body_l = self.ir.label("while.body");
+        let end_l = self.ir.label("while.end");
+        self.ir.emit("  br label %" + cond_l);
+        self.ir.emit(cond_l + ":");
+        self.has_terminator = false;
+        let cond_temps = self.temps.size();
+        self.compile_expression(stmt.condition);
+        let cond = self.last_value;
+        if (self.last_type != "i1") {
+            let t = self.ir.tmp();
+            self.ir.emit("  " + t + " = icmp ne i64 " + cond + ", 0");
+            cond = t;
+        }
+        self.flush_temps_from(cond_temps);
+        self.ir.emit("  br i1 " + cond + ", label %" + body_l + ", label %" + end_l);
+        self.ir.emit(body_l + ":");
+        self.has_terminator = false;
+        self.break_stack.push(end_l);
+        self.continue_stack.push(cond_l);
+        self.loop_marks.push(self.locals.size());
+        self.loop_temp_marks.push(self.temps.size());
+        self.cont_marks.push(self.locals.size());
+        self.cont_temp_marks.push(self.temps.size());
+        self.compile_block(stmt.block);
+
+        # pop stacks
+        let nb: str[] = [];
+        for (let i = 0; i < self.break_stack.size() - 1; i += 1) {
+            nb.push(self.break_stack[i]);
+        }
+        self.break_stack = nb;
+        let nc: str[] = [];
+        for (let i = 0; i < self.continue_stack.size() - 1; i += 1) {
+            nc.push(self.continue_stack[i]);
+        }
+        self.continue_stack = nc;
+        let nm: i64[] = [];
+        for (let i = 0; i < self.loop_marks.size() - 1; i += 1) {
+            nm.push(self.loop_marks[i]);
+        }
+        self.loop_marks = nm;
+        let ntm: i64[] = [];
+        for (let i = 0; i < self.loop_temp_marks.size() - 1; i += 1) {
+            ntm.push(self.loop_temp_marks[i]);
+        }
+        self.loop_temp_marks = ntm;
+        let ncm: i64[] = [];
+        let nctm: i64[] = [];
+        for (let i = 0; i < self.cont_marks.size() - 1; i += 1) {
+            ncm.push(self.cont_marks[i]);
+            nctm.push(self.cont_temp_marks[i]);
+        }
+        self.cont_marks = ncm;
+        self.cont_temp_marks = nctm;
+        if (!self.has_terminator) {
+            self.ir.emit("  br label %" + cond_l);
+        }
+        self.ir.emit(end_l + ":");
+        self.has_terminator = false;
+    }
+
+    fn compile_for(self, ForLoopStatement stmt): void {
+        let marker = self.push_scope_marker();
+        if (stmt.declaration matches OptionStatementNode::Some(d)) {
+            self.compile_statement(d);
+        }
+        let cond_l = self.ir.label("for.cond");
+        let body_l = self.ir.label("for.body");
+        let step_l = self.ir.label("for.step");
+        let end_l = self.ir.label("for.end");
+        self.ir.emit("  br label %" + cond_l);
+        self.ir.emit(cond_l + ":");
+        self.has_terminator = false;
+        let cond_temps = self.temps.size();
+        self.compile_expression(stmt.condition);
+        let cond = self.last_value;
+        if (self.last_type != "i1") {
+            let t = self.ir.tmp();
+            self.ir.emit("  " + t + " = icmp ne i64 " + cond + ", 0");
+            cond = t;
+        }
+        self.flush_temps_from(cond_temps);
+        self.ir.emit("  br i1 " + cond + ", label %" + body_l + ", label %" + end_l);
+        self.ir.emit(body_l + ":");
+        self.has_terminator = false;
+        self.break_stack.push(end_l);
+        self.continue_stack.push(step_l);
+        self.loop_marks.push(self.locals.size());
+        self.loop_temp_marks.push(self.temps.size());
+        self.cont_marks.push(self.locals.size());
+        self.cont_temp_marks.push(self.temps.size());
+        self.compile_block(stmt.block);
+        let nb: str[] = [];
+        for (let i = 0; i < self.break_stack.size() - 1; i += 1) {
+            nb.push(self.break_stack[i]);
+        }
+        self.break_stack = nb;
+        let nc: str[] = [];
+        for (let i = 0; i < self.continue_stack.size() - 1; i += 1) {
+            nc.push(self.continue_stack[i]);
+        }
+        self.continue_stack = nc;
+        let nm: i64[] = [];
+        for (let i = 0; i < self.loop_marks.size() - 1; i += 1) {
+            nm.push(self.loop_marks[i]);
+        }
+        self.loop_marks = nm;
+        let ntm: i64[] = [];
+        for (let i = 0; i < self.loop_temp_marks.size() - 1; i += 1) {
+            ntm.push(self.loop_temp_marks[i]);
+        }
+        self.loop_temp_marks = ntm;
+        let ncm: i64[] = [];
+        let nctm: i64[] = [];
+        for (let i = 0; i < self.cont_marks.size() - 1; i += 1) {
+            ncm.push(self.cont_marks[i]);
+            nctm.push(self.cont_temp_marks[i]);
+        }
+        self.cont_marks = ncm;
+        self.cont_temp_marks = nctm;
+        if (!self.has_terminator) {
+            self.ir.emit("  br label %" + step_l);
+        }
+        self.ir.emit(step_l + ":");
+        self.has_terminator = false;
+        if (stmt.assignment matches OptionStatementNode::Some(a)) {
+            self.compile_statement(a);
+        }
+        self.ir.emit("  br label %" + cond_l);
+        self.ir.emit(end_l + ":");
+        self.has_terminator = false;
+        self.emit_release_locals_from(marker);
+        self.pop_scope(marker);
+    }
+
+    fn compile_match(self, MatchStatement m, Span span): void {
+        let outer_marker = self.push_scope_marker();
+        self.compile_expression(m.expression);
+        let scrut = self.last_value;
+
+        # A fresh subject (e.g. the result of a call) must outlive the arms, whose
+        # bindings point into it: park it in a hidden owned local, released when the
+        # match ends or on any return / break out of an arm.
+        if (self.arc && self.last_type == "ptr" && !LLVMIRCodegen.expr_is_borrowed(m.expression)) {
+            let hidden = self.declare_local("$match", "ptr");
+            self.ir.emit("  store ptr " + scrut + ", ptr " + hidden);
+            self.mark_last_owned();
+        }
+
+        # load tag at offset 8
+        let tag_p = self.ir.tmp();
+        self.ir.emit("  " + tag_p + " = getelementptr i8, ptr " + scrut + ", i64 8");
+        let tag = self.ir.tmp();
+        self.ir.emit("  " + tag + " = load i64, ptr " + tag_p);
+        let pay_p = self.ir.tmp();
+        self.ir.emit("  " + pay_p + " = getelementptr i8, ptr " + scrut + ", i64 16");
+
+        let end_l = self.ir.label("match.end");
+        let arm_labels: str[] = [];
+        for (let i = 0; i < m.match_arms.size(); i += 1) {
+            arm_labels.push(self.ir.label("match.arm"));
+        }
+        let rest_l = self.ir.label("match.rest");
+
+        # chain of icmp + br
+        for (let i = 0; i < m.match_arms.size(); i += 1) {
+            let arm = m.match_arms[i];
+            let expected = self.enum_variant_tag(
+                arm.value.enum_name.value,
+                arm.value.variant_name.value
+            );
+            let cmp = self.ir.tmp();
+            self.ir.emit("  " + cmp + " = icmp eq i64 " + tag + ", " + expected as str);
+            let next_check = self.ir.label("match.chk");
+            self.ir.emit("  br i1 " + cmp + ", label %" + arm_labels[i] + ", label %" + next_check);
+            self.ir.emit(next_check + ":");
+        }
+
+        # no arm matched -> rest or end
+        match (m.rest_arm) {
+            OptionBlockNode::Some {
+                self.ir.emit("  br label %" + rest_l);
+            },
+            OptionBlockNode::None {
+                self.emit_diag("true", "Non-exhaustive match: no arm matched.", span, true);
+                self.ir.emit("  br label %" + end_l);
+            }
+        }
+
+        for (let i = 0; i < m.match_arms.size(); i += 1) {
+            let arm = m.match_arms[i];
+            self.ir.emit(arm_labels[i] + ":");
+            self.has_terminator = false;
+            let marker = self.push_scope_marker();
+            if (arm.value.variant_value matches OptionIdentifierNode::Some(bind)) {
+                # Bind the payload with the variant's real type. Primitive payloads
+                # are stored in the enum as i64 slots (see self.compile_enum_literal),
+                # so they must be loaded as i64 and narrowed, not loaded as `ptr`.
+                let pay_ty = "ptr";
+                let pay_rty = "";
+                if (
+                    self.lookup_enum(
+                        arm.value.enum_name.value
+                    ) matches OptionEnumDeclaration::Some(ed)
+                ) {
+                    for (let mi = 0; mi < ed.members.size(); mi += 1) {
+                        if (ed.members[mi].value.identifier.value == arm.value.variant_name.value) {
+                            if (
+                                ed.members[mi].value.member_type matches OptionTypeNode::Some(ptn)
+                            ) {
+                                pay_ty = ptn.value.to_llvm();
+                                pay_rty = ptn.value.llvm_type_rname();
+                            }
+                        }
+                    }
+                }
+                let ptr = self.declare_local(bind.value, pay_ty);
+                self.set_last_local_rty(pay_rty);
+                if (pay_ty == "ptr") {
+                    let pay = self.ir.tmp();
+                    self.ir.emit("  " + pay + " = load ptr, ptr " + pay_p);
+
+                    # The binding owns a reference of its own: the arm may replace
+                    # or mutate the matched value (e.g. `x.f = None;`), which would
+                    # otherwise free the payload while the binding is still used.
+                    self.emit_retain(pay);
+                    self.mark_last_owned();
+                    self.ir.emit("  store ptr " + pay + ", ptr " + ptr);
+                } else {
+                    let raw = self.ir.tmp();
+                    self.ir.emit("  " + raw + " = load i64, ptr " + pay_p);
+                    if (pay_ty == "i64") {
+                        self.ir.emit("  store i64 " + raw + ", ptr " + ptr);
+                    } else if (pay_ty == "double") {
+                        let d = self.ir.tmp();
+                        self.ir.emit("  " + d + " = bitcast i64 " + raw + " to double");
+                        self.ir.emit("  store double " + d + ", ptr " + ptr);
+                    } else {
+                        let nr = self.ir.tmp();
+                        self.ir.emit("  " + nr + " = trunc i64 " + raw + " to " + pay_ty);
+                        self.ir.emit("  store " + pay_ty + " " + nr + ", ptr " + ptr);
+                    }
+                }
+            }
+            self.compile_block(arm.value.block);
+            if (!self.has_terminator) {
+                self.emit_release_locals_from(marker);
+            }
+            self.pop_scope(marker);
+            if (!self.has_terminator) {
+                self.ir.emit("  br label %" + end_l);
+            }
+        }
+
+        if (m.rest_arm matches OptionBlockNode::Some(b)) {
+            self.ir.emit(rest_l + ":");
+            self.has_terminator = false;
+            self.compile_block(b);
+            if (!self.has_terminator) {
+                self.ir.emit("  br label %" + end_l);
+            }
+        }
+
+        self.ir.emit(end_l + ":");
+        self.has_terminator = false;
+        self.emit_release_locals_from(outer_marker);
+        self.pop_scope(outer_marker);
+    }
+
+    fn compile_switch(self, SwitchStatement sw): void {
+        let marker = self.push_scope_marker();
+        for (let i = 0; i < sw.expressions.size(); i += 1) {
+            if (sw.expressions[i].value.alias matches OptionIdentifierNode::Some(alias)) {
+                let source = sw.expressions[i].value.expression;
+                self.compile_owned(source);
+                let alias_ty = self.last_type;
+                let alias_rty = self.expr_rtype(source);
+                let alias_val = self.last_value;
+                let slot = self.declare_local(alias.value, alias_ty);
+                self.set_last_local_rty(alias_rty);
+                self.store_typed(slot, alias_ty, alias_val, alias_ty);
+                if (alias_ty == "ptr") {
+                    self.mark_last_owned();
+                }
+            }
+        }
+
+        let after_l = self.ir.label("switch.after");
+        self.break_stack.push(after_l);
+        self.loop_marks.push(self.locals.size());
+        self.loop_temp_marks.push(self.temps.size());
+
+        let n = sw.cases.size();
+        for (let i = 0; i < n; i += 1) {
+            let case_l = self.ir.label("switch.case");
+            let next_l = after_l;
+            if (i + 1 < n) {
+                next_l = self.ir.label("switch.check");
+            }
+            let cond_temps = self.temps.size();
+            self.compile_expression(sw.cases[i].value.condition);
+            let cond = self.last_value;
+            if (self.last_type != "i1") {
+                let t = self.ir.tmp();
+                self.ir.emit("  " + t + " = icmp ne i64 " + cond + ", 0");
+                cond = t;
+            }
+            self.flush_temps_from(cond_temps);
+            self.ir.emit("  br i1 " + cond + ", label %" + case_l + ", label %" + next_l);
+            self.ir.emit(case_l + ":");
+            self.has_terminator = false;
+            self.compile_block(sw.cases[i].value.block);
+            if (!self.has_terminator) {
+                self.ir.emit("  br label %" + next_l);
+            }
+            if (i + 1 < n) {
+                self.ir.emit(next_l + ":");
+                self.has_terminator = false;
+            }
+        }
+        if (n == 0) {
+            self.ir.emit("  br label %" + after_l);
+        }
+
+        let nb: str[] = [];
+        let nm: i64[] = [];
+        let ntm: i64[] = [];
+        for (let i = 0; i < self.break_stack.size() - 1; i += 1) {
+            nb.push(self.break_stack[i]);
+            nm.push(self.loop_marks[i]);
+            ntm.push(self.loop_temp_marks[i]);
+        }
+        self.break_stack = nb;
+        self.loop_marks = nm;
+        self.loop_temp_marks = ntm;
+
+        self.ir.emit(after_l + ":");
+        self.has_terminator = false;
+        self.emit_release_locals_from(marker);
+        self.pop_scope(marker);
+    }
+
+    fn compile_statement(self, StatementNode node): void {
+        let temps_start = self.temps.size();
+        self.compile_statement_inner(node);
+        if (self.has_terminator) {
+            # return / break / continue already released what they needed to.
+            self.forget_temps_from(temps_start);
+        } else {
+            self.flush_temps_from(temps_start);
+        }
+    }
+
+    fn compile_statement_inner(self, StatementNode node): void {
+        match (node.value) {
+            Statement::Declaration(d) {
+                self.compile_declaration(d);
+            },
+            Statement::Assignment(a) {
+                self.compile_assignment(a);
+            },
+            Statement::Conditional(s) {
+                self.compile_if(s);
+            },
+            Statement::WhileLoop(s) {
+                self.compile_while(s);
+            },
+            Statement::ForLoop(s) {
+                self.compile_for(s);
+            },
+            Statement::Return(opt) {
+                match (opt) {
+                    OptionExpressionNode::Some(expr) {
+                        # The caller receives a +1 reference; all locals die here.
+                        self.compile_owned(expr);
+                        self.release_temps_from(0);
+                        self.emit_release_locals_from(0);
+                        if (self.current_ret_ty == "void") {
+                            self.ir.emit("  ret void");
+                        } else {
+                            let v = self.last_value;
+                            let from = self.last_type;
+                            let to = self.current_ret_ty;
+                            if (from != to) {
+                                if (from == "ptr" && to == "i64") {
+                                    let t = self.ir.tmp();
+                                    self.ir.emit("  " + t + " = ptrtoint ptr " + v + " to i64");
+                                    v = t;
+                                } else if (from == "ptr" && to == "i32") {
+                                    let t = self.ir.tmp();
+                                    self.ir.emit("  " + t + " = ptrtoint ptr " + v + " to i64");
+                                    let t2 = self.ir.tmp();
+                                    self.ir.emit("  " + t2 + " = trunc i64 " + t + " to i32");
+                                    v = t2;
+                                } else if (from == "i64" && to == "ptr") {
+                                    let t = self.ir.tmp();
+                                    self.ir.emit("  " + t + " = inttoptr i64 " + v + " to ptr");
+                                    v = t;
+                                } else if (from == "i64" && to == "i32") {
+                                    let t = self.ir.tmp();
+                                    self.ir.emit("  " + t + " = trunc i64 " + v + " to i32");
+                                    v = t;
+                                } else if (from == "i32" && to == "i64") {
+                                    let t = self.ir.tmp();
+                                    self.ir.emit("  " + t + " = sext i32 " + v + " to i64");
+                                    v = t;
+                                } else if (from == "i1" && to == "i64") {
+                                    let t = self.ir.tmp();
+                                    self.ir.emit("  " + t + " = zext i1 " + v + " to i64");
+                                    v = t;
+                                } else if (from == "i1" && to == "i32") {
+                                    let t = self.ir.tmp();
+                                    self.ir.emit("  " + t + " = zext i1 " + v + " to i32");
+                                    v = t;
+                                } else {
+                                    # last resort: bitcast if same width-ish
+                                    let t = self.ir.tmp();
+                                    self.ir.emit(
+                                        "  " + t + " = bitcast " + from + " " + v + " to " + to
+                                    );
+                                    v = t;
+                                }
+                            }
+                            self.ir.emit("  ret " + to + " " + v);
+                        }
+                    },
+                    OptionExpressionNode::None {
+                        self.release_temps_from(0);
+                        self.emit_release_locals_from(0);
+                        if (self.current_ret_ty == "void") {
+                            self.ir.emit("  ret void");
+                        } else if (self.current_ret_ty == "ptr") {
+                            self.ir.emit("  ret ptr null");
+                        } else {
+                            self.ir.emit("  ret " + self.current_ret_ty + " 0");
+                        }
+                    }
+                }
+                self.has_terminator = true;
+            },
+            Statement::Break {
+                if (self.break_stack.size() == 0) {
+                    self.error("break outside loop");
+                } else {
+                    let t = self.break_stack[self.break_stack.size() - 1];
+                    self.release_temps_from(self.loop_temp_marks[self.loop_temp_marks.size() - 1]);
+                    self.emit_release_locals_from(self.loop_marks[self.loop_marks.size() - 1]);
+                    self.ir.emit("  br label %" + t);
+                    self.has_terminator = true;
+                }
+            },
+            Statement::Continue {
+                if (self.continue_stack.size() == 0) {
+                    self.error("continue outside loop");
+                } else {
+                    let t = self.continue_stack[self.continue_stack.size() - 1];
+                    self.release_temps_from(self.cont_temp_marks[self.cont_temp_marks.size() - 1]);
+                    self.emit_release_locals_from(self.cont_marks[self.cont_marks.size() - 1]);
+                    self.ir.emit("  br label %" + t);
+                    self.has_terminator = true;
+                }
+            },
+            Statement::FunctionCall(call) {
+                # Statement form of call - wrap as expression
+                self.compile_function_call(call);
+
+                # A discarded result still carries a +1 reference. User functions
+                # always return one; builtins only when they return a string/vector.
+                if (self.arc && self.last_type == "ptr") {
+                    self.emit_release(self.last_value);
+                }
+            },
+            Statement::Match(m) {
+                self.compile_match(m, node.span);
+            },
+            Statement::Switch(sw) {
+                self.compile_switch(sw);
+            },
+            Statement::Expression(expr) {
+                self.compile_expression(expr);
+
+                if (self.arc && self.last_type == "ptr") {
+                    self.emit_release(self.last_value);
+                }
+            },
+            Statement::Import {}
+        }
+    }
+};
+
+# LLVM requires a '.' in decimal double literals ("1e+20" is rejected).
+# Store value of (rval, rty) into alloca/slot of dst_ty.
+# Every statement releases the temporaries it created once it is done.

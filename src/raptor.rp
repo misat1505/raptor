@@ -8,12 +8,6 @@ import "./backend/llvm/llvm-mod.rp";
 import "./name-mangler/name-mangler.rp";
 
 
-# ============================================================
-# Command line interface. Mirrors src/main.rs: same flags, same phases, same
-# messages. The self-hosted compiler has no interpreter, so it always compiles;
-# in addition it takes `--memory <arc|leak>` (see bootstrap/README.md).
-# ============================================================
-
 struct Timeval {
     i64 sec,
     i64 usec
@@ -48,7 +42,7 @@ extern fn gettimeofday(Timeval tv, i64 tz): i32;
 # ---------- output helpers ----------
 
 fn eprint(str s): void {
-    c_write(2 as i32, s, str_len(s));
+    c_write(2 as i32, s, s.size());
 }
 
 fn eprintln(str s): void {
@@ -78,7 +72,7 @@ fn now_ms(): f64 {
 
 fn pad_left(str s, i64 width): str {
     let out = s;
-    while (str_len(out) < width) {
+    while (out.size() < width) {
         out = " " + out;
     }
     return out;
@@ -86,13 +80,12 @@ fn pad_left(str s, i64 width): str {
 
 fn pad_right(str s, i64 width): str {
     let out = s;
-    while (str_len(out) < width) {
+    while (out.size() < width) {
         out = out + " ";
     }
     return out;
 }
 
-# 3 decimal places, like Rust's {:.3}.
 fn format_fixed3(f64 v): str {
     let n = (v * 1000.0 + 0.5) as i64;
     let whole = n / 1000;
@@ -198,7 +191,7 @@ fn parse_cli(): CliOptions {
         global_linking_mode: LinkingMode::Dynamic
     };
 
-    let n = vector_size(&args);
+    let n = args.size();
     let i = 1;
     while (i < n) {
         let a = args[i];
@@ -226,7 +219,7 @@ fn parse_cli(): CliOptions {
             continue;
         }
         if (a == "-O0" || a == "-O1" || a == "-O2" || a == "-O3") {
-            opts.opt_level = str_substring(a, 1, 3);
+            opts.opt_level = a.substring(1, 3);
             continue;
         }
         if (a == "--arc") {
@@ -241,8 +234,8 @@ fn parse_cli(): CliOptions {
             opts.global_linking_mode = LinkingMode::Static;
             continue;
         }
-        if (str_starts_with(a, "--memory=")) {
-            opts.memory = str_substring(a, 9, str_len(a));
+        if (a.starts_with("--memory=")) {
+            opts.memory = a.substring(9, a.size());
             continue;
         }
         if (a == "-o" || a == "--link" || a == "--overflow" || a == "--memory") {
@@ -253,14 +246,14 @@ fn parse_cli(): CliOptions {
             let value = args[i];
             i += 1;
             if (a == "-o") {
-                if (str_starts_with(value, "-")) {
+                if (value.starts_with("-")) {
                     fatal("-o requires a file, got '" + value + "'.");
                     return opts;
                 }
                 opts.output_path = OptionStr::Some(value);
             }
             if (a == "--link") {
-                vector_push(&opts.link_objects, value);
+                opts.link_objects.push(value);
             }
             if (a == "--overflow") {
                 opts.overflow = value;
@@ -270,13 +263,13 @@ fn parse_cli(): CliOptions {
             }
             continue;
         }
-        if (str_starts_with(a, "-")) {
+        if (a.starts_with("-")) {
             eprintln("Error: unknown option '" + a + "'.\n");
             usage();
             exit_with(1);
             return opts;
         }
-        if (str_len(opts.path) > 0) {
+        if (opts.path.size() > 0) {
             eprintln("Error: multiple input files given.\n");
             usage();
             exit_with(1);
@@ -293,7 +286,7 @@ fn parse_cli(): CliOptions {
         fatal("invalid memory mode '" + opts.memory + "'. Expected: arc, leak.");
         return opts;
     }
-    if (str_len(opts.path) == 0) {
+    if (opts.path.size() == 0) {
         eprintln("Error: path to file not given.\n");
         usage();
         exit_with(1);
@@ -305,32 +298,31 @@ fn parse_cli(): CliOptions {
 # ---------- build helpers ----------
 
 fn file_stem(str path): str {
-    let start = str_last_index_of_char(path, '/') + 1;
-    let back = str_last_index_of_char(path, '\\') + 1;
+    let start = path.last_index_of_char('/') + 1;
+    let back = path.last_index_of_char('\\') + 1;
     if (back > start) {
         start = back;
     }
-    let dot = str_last_index_of_char(path, '.');
-    let end = str_len(path);
+    let dot = path.last_index_of_char('.');
+    let end = path.size();
     if (dot > start) {
         end = dot;
     }
-    return str_substring(path, start, end);
+    return path.substring(start, end);
 }
 
 fn parent_dir(str path): str {
-    let slash = str_last_index_of_char(path, '/');
+    let slash = path.last_index_of_char('/');
     if (slash < 0) {
         return "";
     }
-    return str_substring(path, 0, slash);
+    return path.substring(0, slash);
 }
 
 fn quoted(str s): str {
     return "'" + s + "'";
 }
 
-# Runs a shell command. Returns "" on success, otherwise the message Rust prints.
 fn run_command(str command, str program, str step, &CliOptions opts): str {
     debug(&opts, command);
 
@@ -359,18 +351,13 @@ fn run_command(str command, str program, str step, &CliOptions opts): str {
 
 fn run_executable(&CliOptions opts, str exe_path): i64 {
     let path = exe_path;
-    if (
-        !(str_starts_with(exe_path, ".")
-            || str_contains(exe_path, "/")
-            || str_contains(exe_path, "\\"))
-    ) {
+    if (!(exe_path.starts_with(".") || exe_path.contains("/") || exe_path.contains("\\"))) {
         path = "./" + exe_path;
     }
     debug(&opts, "Running executable...");
     let status = system(path) as i64;
     debug(&opts, "Finished running executable.");
 
-    # Like Rust's ExitStatus::code(): a signal-terminated child counts as 1.
     if (status % 128 != 0) {
         return 1;
     }
@@ -380,7 +367,7 @@ fn run_executable(&CliOptions opts, str exe_path): i64 {
 # ---------- the pipeline ----------
 
 fn report_diagnostics(str[] messages): void {
-    for (let i = 0; i < vector_size(&messages); i += 1) {
+    for (let i = 0; i < messages.size(); i += 1) {
         eprintln(messages[i]);
     }
 }
@@ -402,21 +389,21 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
     let mkdir_build = "mkdir -p build";
     system(mkdir_build);
     let out_dir = parent_dir(exe_path);
-    if (str_len(out_dir) > 0) {
+    if (out_dir.size() > 0) {
         let mkdir_out = "mkdir -p " + quoted(out_dir);
         system(mkdir_out);
     }
 
     let t = now_ms();
     let cg_errors: str[] = [];
-    let ir = llvm_compiler_generate(&program, opts.memory == "arc", opts.overflow, &cg_errors);
-    if (vector_size(&cg_errors) > 0) {
+    let ir = LLVMIRCodegen.generate(&program, opts.memory == "arc", opts.overflow, &cg_errors);
+    if (cg_errors.size() > 0) {
         report_diagnostics(cg_errors);
         return 1;
     }
-    phase_done(&opts, "Compiler", t);
+    phase_done(&opts, "LLVM IR Codegen", t);
 
-    if (str_len(opts.opt_level) > 0) {
+    if (opts.opt_level.size() > 0) {
         t = now_ms();
         let raw_path = "build/" + stem + ".raw.ll";
         write_file(raw_path, ir);
@@ -432,7 +419,7 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
             "opt",
             &opts
         );
-        if (str_len(opt_error) > 0) {
+        if (opt_error.size() > 0) {
             eprintln(opt_error);
             return 1;
         }
@@ -453,19 +440,19 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
         "llc",
         &opts
     );
-    if (str_len(llc_error) > 0) {
+    if (llc_error.size() > 0) {
         eprintln(llc_error);
         return 1;
     }
     let link_cmd = "clang-18 " + quoted(obj_path) + " -o " + quoted(exe_path) + " -no-pie";
-    for (let i = 0; i < vector_size(&opts.link_objects); i += 1) {
+    for (let i = 0; i < opts.link_objects.size(); i += 1) {
         link_cmd += " " + quoted(opts.link_objects[i]);
     }
     if (opts.global_linking_mode matches LinkingMode::Static) {
         link_cmd += " -static";
     }
     let link_error = run_command(link_cmd, "clang-18", "clang", &opts);
-    if (str_len(link_error) > 0) {
+    if (link_error.size() > 0) {
         eprintln(link_error);
         return 1;
     }
@@ -486,14 +473,14 @@ fn compile_and_maybe_run(&CliOptions opts, &Program program, f64 total_started):
 }
 
 fn parse_source(str source, str path, LexerOptions lexer_options): ResultProgram {
-    let src = lazy_stream_reader_new(source, OptionStr::Some(path));
-    let lexer = lexer_new(src, lexer_options);
-    match (parser_new(lexer)) {
+    let src = LazyStreamReader.new(source, OptionStr::Some(path));
+    let lexer = Lexer.new(&src, &lexer_options);
+    match (Parser.new(&lexer)) {
         ResultParser::Err(err) {
             return ResultProgram::Err(err);
         },
         ResultParser::Ok(parser) {
-            return parser_parse(&parser);
+            return parser.parse();
         }
     }
 }
@@ -518,19 +505,19 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
         }
     } else {
         let t = now_ms();
-        let checker = semantic_checker_new();
-        semantic_checker_check(&checker, &program);
-        if (vector_size(&checker.errors) > 0) {
+        let checker = SemanticChecker.new();
+        checker.check(&program);
+        if (checker.errors.size() > 0) {
             let high = 0;
             let low = 0;
-            for (let i = 0; i < vector_size(&checker.errors); i += 1) {
+            for (let i = 0; i < checker.errors.size(); i += 1) {
                 let err = checker.errors[i];
                 if (err.level matches ErrorSeverity::HIGH) {
                     high += 1;
                 } else {
                     low += 1;
                 }
-                eprintln(semantic_ckecker_error_get_stderr_message(&err) + "\n");
+                eprintln(err.get_stderr_message() + "\n");
             }
             eprintln(
                 "Static analysis finished with "
@@ -543,20 +530,20 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
                 return 1;
             }
         }
-        phase_done(&opts, "Semantic checker", t);
+        phase_done(&opts, "Semantic Checker", t);
     }
 
     let name_mangler_time = now_ms();
-    let name_mangler = name_mangler_new(&program);
-    nm_mangle_program(&name_mangler);
+    let name_mangler = NameMangler.new(&program);
+    name_mangler.mangle_program();
     phase_done(&opts, "Name mangling", name_mangler_time);
 
     if (opts.dump) {
         let ast_dump_time = now_ms();
         let text = program_debug(&program);
-        text = str_replace_all(text, "\\", "\\\\");
-        text = str_replace_all(text, "\n", "\\n");
-        text = str_replace_all(text, "\r", "\\r");
+        text = text.replace_all("\\", "\\\\");
+        text = text.replace_all("\n", "\\n");
+        text = text.replace_all("\r", "\\r");
         write_file("./src/ast.rp", "let ast = \"" + text + "\";");
         phase_done(&opts, "AST dump", ast_dump_time);
     }
@@ -574,12 +561,12 @@ fn stage_semantic(&CliOptions opts, &Program program, f64 total_started): i64 {
 
 fn stage_macros(&CliOptions opts, &Program program, f64 total_started): i64 {
     let t = now_ms();
-    let expander = macro_expander_new();
-    macro_expander_run(&expander, &program);
-    if (vector_size(&expander.errors) > 0) {
+    let expander = MacroExpander.new();
+    expander.run(&program);
+    if (expander.errors.size() > 0) {
         let macro_errors = 0;
         let macro_warnings = 0;
-        for (let i = 0; i < vector_size(&expander.errors); i += 1) {
+        for (let i = 0; i < expander.errors.size(); i += 1) {
             let err = expander.errors[i];
             if (err.level matches ErrorSeverity::HIGH) {
                 macro_errors += 1;
@@ -608,10 +595,10 @@ fn stage_imports(
     f64 total_started
 ): i64 {
     let t = now_ms();
-    let resolver = import_resolver_new(lexer_options);
-    match (import_resolver_resolve(&resolver, opts.path, &program)) {
+    let resolver = ImportResolver.new(&lexer_options);
+    match (resolver.resolve(opts.path, &program)) {
         ResultProgram::Err(err) {
-            eprintln(parser_error_get_stderr_message(&err));
+            eprintln(err.get_stderr_message());
             return 1;
         },
         ResultProgram::Ok(merged) {
@@ -638,7 +625,7 @@ fn run(CliOptions opts): i64 {
     t = now_ms();
     match (parse_source(source, opts.path, lexer_options)) {
         ResultProgram::Err(err) {
-            eprintln(parser_error_get_stderr_message(&err));
+            eprintln(err.get_stderr_message());
             return 1;
         },
         ResultProgram::Ok(program) {

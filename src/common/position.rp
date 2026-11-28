@@ -8,6 +8,30 @@ struct Position derives Debug, Clone, Json {
     i64 column,
     i64 offset,
     OptionStr filename
+
+    fn display(self): str {
+        let prefix = "";
+        if (self.filename matches OptionStr::Some(path)) {
+            prefix = path + ":";
+        }
+        return prefix + self.line as str + ":" + self.column as str;
+    }
+
+    fn new(i64 line, i64 column, i64 offset, OptionStr filename): Position {
+        return Position { line, column, offset, filename };
+    }
+
+    fn location(self): str {
+        let location = "<input>";
+        if (self.filename matches OptionStr::Some(path)) {
+            location = path;
+        }
+        return location + ":" + self.line as str + ":" + self.column as str;
+    }
+
+    fn default(): Position {
+        return Position { line: 0, column: 0, offset: 0, filename: OptionStr::None };
+    }
 };
 
 
@@ -20,7 +44,7 @@ fn position_display(&Position position): str {
 }
 
 fn position_new(i64 line, i64 column, i64 offset, OptionStr filename): Position {
-    return Position { line: line, column: column, offset: offset, filename: filename };
+    return Position { line, column, offset, filename };
 }
 
 fn position_location(&Position position): str {

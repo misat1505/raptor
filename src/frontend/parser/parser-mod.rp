@@ -1,18 +1,3 @@
-# ============================================================
-# Mirrors `src/frontend/parser/mod.rs`: that file's only job is
-# `mod core; mod enums; mod expressions; mod functions; mod misc;
-# mod program; mod statements; mod structs;` - pulling every submodule
-# into the crate. This file is the same thing for the selfhost parser:
-# importing it (from `main.rp`) is enough to make every
-# `parser_parse_*` function in the whole parser reachable, without every
-# individual production file having to import all of its siblings (see
-# the note in misc/derive_declaration.rp for why that would be risky:
-# many of these productions call each other back and forth, e.g.
-# `parser_parse_statement` <-> `parser_parse_statement_block`, which
-# would form real import cycles if spelled out as direct file-to-file
-# imports).
-# ============================================================
-
 import "./ast.rp";
 import "./parser-results.rp";
 import "./core.rp";

@@ -8,178 +8,174 @@ import "../misc/derive-declaration.rp";
 import "../misc/types.rp";
 
 
-fn parser_parse_enum_declaration(&Parser parser): ResultOptionEnumDeclarationNode {
-    # enum_declaration = "enum", identifier, [ derives_declaration ], "{", [ enum_members ], "}", ";";
-    let enum_consumed = parser_consume_if_matches(&parser, TokenCategory::Enum);
+extend Parser {
+    fn parse_enum_declaration(self): ResultOptionEnumDeclarationNode {
+        # enum_declaration = "enum", identifier, [ derives_declaration ], "{", [ enum_members ], "}", ";";
+        let enum_consumed = self.consume_if_matches(&TokenCategory::Enum);
 
-    let enum_token = parser_current_token(&parser);
-    let has_enum = false;
-    match (enum_consumed) {
-        ResultOptionToken::Err(err) {
-            return ResultOptionEnumDeclarationNode::Err(parser_error_from_lexer_error(&err));
-        },
-        ResultOptionToken::Ok(option_enum) {
-            if (option_enum matches OptionToken::Some(token)) {
-                enum_token = token;
-                has_enum = true;
+        let enum_token = self.current_token();
+        let has_enum = false;
+        match (enum_consumed) {
+            ResultOptionToken::Err(err) {
+                return ResultOptionEnumDeclarationNode::Err(ParserError.from_lexer(&err));
+            },
+            ResultOptionToken::Ok(option_enum) {
+                if (option_enum matches OptionToken::Some(token)) {
+                    enum_token = token;
+                    has_enum = true;
+                }
             }
         }
-    }
 
-    if (!has_enum) {
-        return ResultOptionEnumDeclarationNode::Ok(OptionEnumDeclarationNode::None);
-    }
-
-    let identifier_call = parser_parse_identifier(&parser);
-    let identifier = IdentifierNode { value: "", span: parser_current_token(&parser).span };
-    let found_identifier = false;
-    match (identifier_call) {
-        ResultOptionIdentifierNode::Err(err) {
-            return ResultOptionEnumDeclarationNode::Err(err);
-        },
-        ResultOptionIdentifierNode::Ok(option_identifier) {
-            if (option_identifier matches OptionIdentifierNode::Some(i)) {
-                identifier = i;
-                found_identifier = true;
-            }
+        if (!has_enum) {
+            return ResultOptionEnumDeclarationNode::Ok(OptionEnumDeclarationNode::None);
         }
-    }
 
-    # Mirrors the Rust source exactly - this uses the same "couldn't
-    # create identifier while parsing struct declaration" message as
-    # struct_declaration.rs (looks like a copy/paste artifact upstream).
-    if (!found_identifier) {
-        return ResultOptionEnumDeclarationNode::Err(parser_create_parser_error(
-            &parser,
-            "Couldn't create identifier while parsing struct declaration."
-        ));
-    }
-
-    let derives_call = parser_parse_derive_declaration(&parser);
-    let enum_derives: IdentifierNode[] = [];
-    match (derives_call) {
-        ResultIdentifierNodeVec::Err(err) {
-            return ResultOptionEnumDeclarationNode::Err(err);
-        },
-        ResultIdentifierNodeVec::Ok(parsed) {
-            enum_derives = parsed;
-        }
-    }
-
-    let implementations_call = parser_parse_implements_declaration(&parser);
-    let implementations: IdentifierNode[] = [];
-    match (implementations_call) {
-        ResultIdentifierNodeVec::Err(err) {
-            return ResultOptionEnumDeclarationNode::Err(err);
-        },
-        ResultIdentifierNodeVec::Ok(parsed) {
-            implementations = parsed;
-        }
-    }
-
-    let brace_open = parser_consume_must_be(&parser, TokenCategory::BraceOpen);
-    if (brace_open matches ResultToken::Err(err)) {
-        return ResultOptionEnumDeclarationNode::Err(err);
-    }
-
-    let members_call = parser_parse_enum_members(&parser);
-    let members: EnumMemberNode[] = [];
-    match (members_call) {
-        ResultEnumMemberNodeVec::Err(err) {
-            return ResultOptionEnumDeclarationNode::Err(err);
-        },
-        ResultEnumMemberNodeVec::Ok(parsed) {
-            members = parsed;
-        }
-    }
-
-    let methods: TypeMethodNode[] = [];
-    while (true) {
-        match (parser_parse_type_method(&parser)) {
-            ResultOptionTypeMethodNode::Err(err) {
+        let identifier_call = self.parse_identifier();
+        let identifier = IdentifierNode { value: "", span: self.current_token().span };
+        let found_identifier = false;
+        match (identifier_call) {
+            ResultOptionIdentifierNode::Err(err) {
                 return ResultOptionEnumDeclarationNode::Err(err);
             },
-            ResultOptionTypeMethodNode::Ok(option_type_method) {
-                match (option_type_method) {
-                    OptionTypeMethodNode::Some(type_method_node) {
-                        for (let i = 0; i < vector_size(&methods); i += 1) {
-                            let method_name = methods[i].value.identifier.value;
-                            if (method_name == type_method_node.value.identifier.value) {
-                                return ResultOptionEnumDeclarationNode::Err(parser_error_at(
-                                    ErrorSeverity::HIGH,
-                                    "Redeclaration of method '"
-                                        + method_name
-                                        + "' on type '"
-                                        + identifier.value
-                                        + "'.",
-                                    methods[i].value.identifier.span
-                                ));
+            ResultOptionIdentifierNode::Ok(option_identifier) {
+                if (option_identifier matches OptionIdentifierNode::Some(i)) {
+                    identifier = i;
+                    found_identifier = true;
+                }
+            }
+        }
+
+        if (!found_identifier) {
+            return ResultOptionEnumDeclarationNode::Err(self.emit_error(
+                "Couldn't create identifier while parsing struct declaration."
+            ));
+        }
+
+        let derives_call = self.parse_derive_declaration();
+        let enum_derives: IdentifierNode[] = [];
+        match (derives_call) {
+            ResultIdentifierNodeVec::Err(err) {
+                return ResultOptionEnumDeclarationNode::Err(err);
+            },
+            ResultIdentifierNodeVec::Ok(parsed) {
+                enum_derives = parsed;
+            }
+        }
+
+        let implementations_call = self.parse_implements_declaration();
+        let implementations: IdentifierNode[] = [];
+        match (implementations_call) {
+            ResultIdentifierNodeVec::Err(err) {
+                return ResultOptionEnumDeclarationNode::Err(err);
+            },
+            ResultIdentifierNodeVec::Ok(parsed) {
+                implementations = parsed;
+            }
+        }
+
+        let brace_open = self.consume_must_be(&TokenCategory::BraceOpen);
+        if (brace_open matches ResultToken::Err(err)) {
+            return ResultOptionEnumDeclarationNode::Err(err);
+        }
+
+        let members_call = self.parse_enum_members();
+        let members: EnumMemberNode[] = [];
+        match (members_call) {
+            ResultEnumMemberNodeVec::Err(err) {
+                return ResultOptionEnumDeclarationNode::Err(err);
+            },
+            ResultEnumMemberNodeVec::Ok(parsed) {
+                members = parsed;
+            }
+        }
+
+        let methods: TypeMethodNode[] = [];
+        while (true) {
+            match (self.parse_type_method()) {
+                ResultOptionTypeMethodNode::Err(err) {
+                    return ResultOptionEnumDeclarationNode::Err(err);
+                },
+                ResultOptionTypeMethodNode::Ok(option_type_method) {
+                    match (option_type_method) {
+                        OptionTypeMethodNode::Some(type_method_node) {
+                            for (let i = 0; i < methods.size(); i += 1) {
+                                let method_name = methods[i].value.identifier.value;
+                                if (method_name == type_method_node.value.identifier.value) {
+                                    return ResultOptionEnumDeclarationNode::Err(ParserError.at(
+                                        ErrorSeverity::HIGH,
+                                        "Redeclaration of method '"
+                                            + method_name
+                                            + "' on type '"
+                                            + identifier.value
+                                            + "'.",
+                                        methods[i].value.identifier.span
+                                    ));
+                                }
                             }
+                            methods.push(type_method_node);
+                        },
+                        OptionTypeMethodNode::None {
+                            break;
                         }
-                        vector_push(&methods, type_method_node);
-                    },
-                    OptionTypeMethodNode::None {
-                        break;
                     }
                 }
             }
         }
-    }
 
-    let brace_close = parser_consume_must_be(&parser, TokenCategory::BraceClose);
-    if (brace_close matches ResultToken::Err(err)) {
-        return ResultOptionEnumDeclarationNode::Err(err);
-    }
-
-    let semicolon_consumed = parser_consume_must_be(&parser, TokenCategory::Semicolon);
-    match (semicolon_consumed) {
-        ResultToken::Err(err) {
+        let brace_close = self.consume_must_be(&TokenCategory::BraceClose);
+        if (brace_close matches ResultToken::Err(err)) {
             return ResultOptionEnumDeclarationNode::Err(err);
-        },
-        ResultToken::Ok(semicolon_token) {
-            return ResultOptionEnumDeclarationNode::Ok(OptionEnumDeclarationNode::Some(EnumDeclarationNode {
-                value: EnumDeclaration {
-                    identifier: identifier,
-                    members: members,
-                    enum_derives: enum_derives,
-                    implementations,
-                    methods: methods
-                },
-                span: span_new(enum_token.span.start, semicolon_token.span.end)
-            }));
         }
-    }
-}
 
-fn parser_parse_enum_members(&Parser parser): ResultEnumMemberNodeVec {
-    # enum_members = enum_member, { ",", enum_member };
-    let first_call = parser_parse_enum_member(&parser);
-    let members: EnumMemberNode[] = [];
-
-    match (first_call) {
-        ResultOptionEnumMemberNode::Err(err) {
-            return ResultEnumMemberNodeVec::Err(err);
-        },
-        ResultOptionEnumMemberNode::Ok(option_first) {
-            match (option_first) {
-                OptionEnumMemberNode::None {
-                    return ResultEnumMemberNodeVec::Ok(members);
-                },
-                OptionEnumMemberNode::Some(first) {
-                    vector_push(&members, first);
-                }
+        let semicolon_consumed = self.consume_must_be(&TokenCategory::Semicolon);
+        match (semicolon_consumed) {
+            ResultToken::Err(err) {
+                return ResultOptionEnumDeclarationNode::Err(err);
+            },
+            ResultToken::Ok(semicolon_token) {
+                return ResultOptionEnumDeclarationNode::Ok(OptionEnumDeclarationNode::Some(EnumDeclarationNode {
+                    value: EnumDeclaration {
+                        identifier,
+                        members,
+                        enum_derives,
+                        implementations,
+                        methods
+                    },
+                    span: Span.new(&enum_token.span.start, &semicolon_token.span.end)
+                }));
             }
         }
     }
 
-    while (true) {
-        if (parser_current_token(&parser).category matches TokenCategory::Comma) {
-            let comma_consumed = parser_consume_must_be(&parser, TokenCategory::Comma);
+    fn parse_enum_members(self): ResultEnumMemberNodeVec {
+        # enum_members = enum_member, { ",", enum_member };
+        let first_call = self.parse_enum_member();
+        let members: EnumMemberNode[] = [];
+
+        match (first_call) {
+            ResultOptionEnumMemberNode::Err(err) {
+                return ResultEnumMemberNodeVec::Err(err);
+            },
+            ResultOptionEnumMemberNode::Ok(option_first) {
+                match (option_first) {
+                    OptionEnumMemberNode::None {
+                        return ResultEnumMemberNodeVec::Ok(members);
+                    },
+                    OptionEnumMemberNode::Some(first) {
+                        members.push(first);
+                    }
+                }
+            }
+        }
+
+        while (self.current_token().category matches TokenCategory::Comma) {
+            let comma_consumed = self.consume_must_be(&TokenCategory::Comma);
             if (comma_consumed matches ResultToken::Err(err)) {
                 return ResultEnumMemberNodeVec::Err(err);
             }
 
-            let next_call = parser_parse_enum_member(&parser);
+            let next_call = self.parse_enum_member();
             match (next_call) {
                 ResultOptionEnumMemberNode::Err(err) {
                     return ResultEnumMemberNodeVec::Err(err);
@@ -187,15 +183,16 @@ fn parser_parse_enum_members(&Parser parser): ResultEnumMemberNodeVec {
                 ResultOptionEnumMemberNode::Ok(option_next) {
                     match (option_next) {
                         OptionEnumMemberNode::None {
-                            return ResultEnumMemberNodeVec::Err(parser_create_parser_error(
-                                &parser,
+                            return ResultEnumMemberNodeVec::Err(self.emit_error(
                                 "Expected enum member after comma."
                             ));
                         },
                         OptionEnumMemberNode::Some(next) {
-                            for (let i = 0; i < vector_size(&members); i += 1) {
-                                if (members[i].value.identifier.value == next.value.identifier.value) {
-                                    return ResultEnumMemberNodeVec::Err(parser_error_at(
+                            for (let i = 0; i < members.size(); i += 1) {
+                                if (
+                                    members[i].value.identifier.value == next.value.identifier.value
+                                ) {
+                                    return ResultEnumMemberNodeVec::Err(ParserError.at(
                                         ErrorSeverity::HIGH,
                                         "Redeclaration of member '"
                                             + next.value.identifier.value
@@ -204,90 +201,85 @@ fn parser_parse_enum_members(&Parser parser): ResultEnumMemberNodeVec {
                                     ));
                                 }
                             }
-                            vector_push(&members, next);
+                            members.push(next);
                         }
                     }
                 }
             }
-        } else {
-            break;
         }
+
+        return ResultEnumMemberNodeVec::Ok(members);
     }
 
-    return ResultEnumMemberNodeVec::Ok(members);
-}
+    fn parse_enum_member(self): ResultOptionEnumMemberNode {
+        # enum_member = identifier, [ "(", type, ")" ];
+        let identifier_call = self.parse_identifier();
 
-fn parser_parse_enum_member(&Parser parser): ResultOptionEnumMemberNode {
-    # enum_member = identifier, [ "(", type, ")" ];
-    let identifier_call = parser_parse_identifier(&parser);
+        match (identifier_call) {
+            ResultOptionIdentifierNode::Err(err) {
+                return ResultOptionEnumMemberNode::Err(err);
+            },
+            ResultOptionIdentifierNode::Ok(option_identifier) {
+                match (option_identifier) {
+                    OptionIdentifierNode::None {
+                        return ResultOptionEnumMemberNode::Ok(OptionEnumMemberNode::None);
+                    },
+                    OptionIdentifierNode::Some(identifier) {
+                        let member_type = OptionTypeNode::None;
+                        let end_position = identifier.span.end;
 
-    match (identifier_call) {
-        ResultOptionIdentifierNode::Err(err) {
-            return ResultOptionEnumMemberNode::Err(err);
-        },
-        ResultOptionIdentifierNode::Ok(option_identifier) {
-            match (option_identifier) {
-                OptionIdentifierNode::None {
-                    return ResultOptionEnumMemberNode::Ok(OptionEnumMemberNode::None);
-                },
-                OptionIdentifierNode::Some(identifier) {
-                    let member_type = OptionTypeNode::None;
-                    let end_position = identifier.span.end;
-
-                    let paren_open_consumed = parser_consume_if_matches(
-                        &parser,
-                        TokenCategory::ParenOpen
-                    );
-                    match (paren_open_consumed) {
-                        ResultOptionToken::Err(err) {
-                            return ResultOptionEnumMemberNode::Err(parser_error_from_lexer_error(
-                                &err
-                            ));
-                        },
-                        ResultOptionToken::Ok(option_paren) {
-                            if (option_paren matches OptionToken::Some) {
-                                let type_call = parser_parse_type(&parser);
-                                match (type_call) {
-                                    ResultOptionTypeNode::Err(err) {
-                                        return ResultOptionEnumMemberNode::Err(err);
-                                    },
-                                    ResultOptionTypeNode::Ok(option_type) {
-                                        match (option_type) {
-                                            OptionTypeNode::None {
-                                                return ResultOptionEnumMemberNode::Err(parser_create_parser_error(
-                                                    &parser,
-                                                    "Couldn't create type while parsing enum member declaration."
-                                                ));
-                                            },
-                                            OptionTypeNode::Some(t) {
-                                                member_type = OptionTypeNode::Some(t);
+                        let paren_open_consumed = self.consume_if_matches(
+                            &TokenCategory::ParenOpen
+                        );
+                        match (paren_open_consumed) {
+                            ResultOptionToken::Err(err) {
+                                return ResultOptionEnumMemberNode::Err(ParserError.from_lexer(
+                                    &err
+                                ));
+                            },
+                            ResultOptionToken::Ok(option_paren) {
+                                if (option_paren matches OptionToken::Some) {
+                                    let type_call = self.parse_type();
+                                    match (type_call) {
+                                        ResultOptionTypeNode::Err(err) {
+                                            return ResultOptionEnumMemberNode::Err(err);
+                                        },
+                                        ResultOptionTypeNode::Ok(option_type) {
+                                            match (option_type) {
+                                                OptionTypeNode::None {
+                                                    return ResultOptionEnumMemberNode::Err(self.emit_error(
+                                                        "Couldn't create type while parsing enum member declaration."
+                                                    ));
+                                                },
+                                                OptionTypeNode::Some(t) {
+                                                    member_type = OptionTypeNode::Some(t);
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                let close_paren_consumed = parser_consume_must_be(
-                                    &parser,
-                                    TokenCategory::ParenClose
-                                );
-                                match (close_paren_consumed) {
-                                    ResultToken::Err(err) {
-                                        return ResultOptionEnumMemberNode::Err(err);
-                                    },
-                                    ResultToken::Ok(close_token) {
-                                        end_position = close_token.span.end;
+                                    let close_paren_consumed = self.consume_must_be(
+                                        &TokenCategory::ParenClose
+                                    );
+                                    match (close_paren_consumed) {
+                                        ResultToken::Err(err) {
+                                            return ResultOptionEnumMemberNode::Err(err);
+                                        },
+                                        ResultToken::Ok(close_token) {
+                                            end_position = close_token.span.end;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    return ResultOptionEnumMemberNode::Ok(OptionEnumMemberNode::Some(EnumMemberNode {
-                        value: EnumMember { identifier: identifier, member_type: member_type },
-                        span: span_new(identifier.span.start, end_position)
-                    }));
+                        return ResultOptionEnumMemberNode::Ok(OptionEnumMemberNode::Some(EnumMemberNode {
+                            value: EnumMember { identifier, member_type },
+                            span: Span.new(&identifier.span.start, &end_position)
+                        }));
+                    }
                 }
             }
         }
     }
-}
+};

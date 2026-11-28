@@ -4,11 +4,23 @@ import "./position.rp";
 struct Span derives Debug, Clone, Json {
     Position start,
     Position end
+
+    fn new(&Position start, &Position end): Span {
+        return Span { start, end };
+    }
+
+    fn join(&Span start, &Span end): Span {
+        return Span.new(&start.start, &end.end);
+    }
+
+    fn default(): Span {
+        return Span.new(&Position.default(), &Position.default());
+    }
 };
 
 
 fn span_new(Position start, Position end): Span {
-    return Span { start: start, end: end };
+    return Span { start, end };
 }
 
 fn span_join(Span start, Span end): Span {

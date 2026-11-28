@@ -36,7 +36,7 @@ extern fn quick_exit(i32 code): void;
 
 
 fn eprint(str s): void {
-    c_write(2 as i32, s, str_len(s));
+    c_write(2 as i32, s, s.size());
 }
 
 fn eprintln(str s): void {
@@ -89,7 +89,7 @@ fn parse_cli(): LspCli {
     let ov_paths: str[] = [];
     let ov_files: str[] = [];
 
-    let n = vector_size(&args);
+    let n = args.size();
     let i = 1;
     while (i < n) {
         let a = args[i];
@@ -122,7 +122,7 @@ fn parse_cli(): LspCli {
                 fatal(a + " requires a path.");
                 return opts;
             }
-            opts.focus = import_resolver_normalize_path(args[i]);
+            opts.focus = ImportResolver.normalize_path(args[i]);
             i += 1;
             continue;
         }
@@ -131,8 +131,8 @@ fn parse_cli(): LspCli {
                 fatal(a + " requires a path and a file.");
                 return opts;
             }
-            vector_push(&ov_paths, args[i]);
-            vector_push(&ov_files, args[i + 1]);
+            ov_paths.push(args[i]);
+            ov_files.push(args[i + 1]);
             i += 2;
             continue;
         }
@@ -145,13 +145,13 @@ fn parse_cli(): LspCli {
             i += 1;
             continue;
         }
-        if (str_starts_with(a, "-")) {
+        if (a.starts_with("-")) {
             eprintln("lsp-backend: unknown option '" + a + "'.\n");
             usage();
             exit_with(1);
             return opts;
         }
-        if (str_len(opts.path) > 0) {
+        if (opts.path.size() > 0) {
             fatal("multiple input files given.");
             return opts;
         }
@@ -161,13 +161,13 @@ fn parse_cli(): LspCli {
     opts.overlay_paths = ov_paths;
     opts.overlay_files = ov_files;
 
-    if (str_len(opts.path) == 0) {
+    if (opts.path.size() == 0) {
         eprintln("lsp-backend: path to file not given.\n");
         usage();
         exit_with(1);
         return opts;
     }
-    if (!opts.to_stdout && str_len(opts.out_path) == 0) {
+    if (!opts.to_stdout && opts.out_path.size() == 0) {
         fatal("--no-stdout requires --out <FILE>.");
         return opts;
     }
@@ -176,7 +176,7 @@ fn parse_cli(): LspCli {
 
 fn json_escape(str s): str {
     let out = "";
-    for (let i = 0; i < str_len(s); i += 1) {
+    for (let i = 0; i < s.size(); i += 1) {
         let c = s[i];
         if (c == '\\') {
             out += "\\\\";
@@ -272,7 +272,7 @@ fn lsp_definition_info_json_encode(&DefinitionInfo d): StringBuilder {
 }
 
 fn push_diag(&LspDiagnostic[] out, ErrorSeverity level, str message, str phase, Span span): void {
-    vector_push(&out, LspDiagnostic { severity: severity_json(level), message, phase, span });
+    out.push(LspDiagnostic { severity: severity_json(level), message, phase, span });
 }
 
 fn build_payload(
@@ -290,7 +290,7 @@ fn build_payload(
     }
 
     json.push_str(&",\"diagnostics\":[");
-    for (let i = 0; i < vector_size(&diagnostics); i += 1) {
+    for (let i = 0; i < diagnostics.size(); i += 1) {
         if (i != 0) {
             json.push_char(',');
         }
@@ -298,7 +298,7 @@ fn build_payload(
     }
 
     json.push_str(&"],\"definitions\":[");
-    for (let i = 0; i < vector_size(&definitions); i += 1) {
+    for (let i = 0; i < definitions.size(); i += 1) {
         if (i != 0) {
             json.push_char(',');
         }
@@ -306,7 +306,7 @@ fn build_payload(
     }
 
     json.push_str(&"],\"hovers\":[");
-    for (let i = 0; i < vector_size(&hovers); i += 1) {
+    for (let i = 0; i < hovers.size(); i += 1) {
         if (i != 0) {
             json.push_char(',');
         }
@@ -320,7 +320,7 @@ fn emit_json(&LspCli opts, str json): void {
     if (opts.to_stdout) {
         println(json);
     }
-    if (str_len(opts.out_path) > 0) {
+    if (opts.out_path.size() > 0) {
         write_file(opts.out_path, json);
     }
 }
@@ -330,14 +330,14 @@ fn default_lexer_options(): LexerOptions {
 }
 
 fn parse_source(str source, str path, LexerOptions lexer_options): ResultProgram {
-    let src = lazy_stream_reader_new(source, OptionStr::Some(path));
-    let lexer = lexer_new(src, lexer_options);
-    match (parser_new(lexer)) {
+    let src = LazyStreamReader.new(source, OptionStr::Some(path));
+    let lexer = Lexer.new(&src, &lexer_options);
+    match (Parser.new(&lexer)) {
         ResultParser::Err(err) {
             return ResultProgram::Err(err);
         },
         ResultParser::Ok(parser) {
-            return parser_parse(&parser);
+            return parser.parse();
         }
     }
 }
@@ -350,7 +350,7 @@ fn empty_span_at_file(str path): Span {
 # The path the analyzed source claims to live at: `--as` if given, otherwise
 # the file that is actually read.
 fn logical_path(&LspCli opts): str {
-    if (str_len(opts.logical_path) > 0) {
+    if (opts.logical_path.size() > 0) {
         return opts.logical_path;
     }
     return opts.path;
@@ -358,9 +358,9 @@ fn logical_path(&LspCli opts): str {
 
 # Index of the `--overlay` entry for `path` (compared normalized), or -1.
 fn overlay_index(&LspCli opts, str path): i64 {
-    let target = import_resolver_normalize_path(path);
-    for (let i = 0; i < vector_size(&opts.overlay_paths); i += 1) {
-        if (import_resolver_normalize_path(opts.overlay_paths[i]) == target) {
+    let target = ImportResolver.normalize_path(path);
+    for (let i = 0; i < opts.overlay_paths.size(); i += 1) {
+        if (ImportResolver.normalize_path(opts.overlay_paths[i]) == target) {
             return i;
         }
     }
@@ -371,40 +371,40 @@ fn overlay_index(&LspCli opts, str path): i64 {
 # "the analyzed file", same convention as the Rust host). The file name is normalized
 # once per distinct value, not once per span: the checker emits tens of thousands of them.
 fn focus_hovers(&LspCli opts, &HoverInfo[] src): HoverInfo[] {
-    if (str_len(opts.focus) == 0) {
+    if (opts.focus.size() == 0) {
         return src;
     }
     let out: HoverInfo[] = [];
     let last_file = "";
     let last_match = false;
-    for (let i = 0; i < vector_size(&src); i += 1) {
+    for (let i = 0; i < src.size(); i += 1) {
         let f = span_file(src[i].span);
         if (f != last_file) {
             last_file = f;
-            last_match = str_len(f) == 0 || import_resolver_normalize_path(f) == opts.focus;
+            last_match = f.size() == 0 || ImportResolver.normalize_path(f) == opts.focus;
         }
         if (last_match) {
-            vector_push(&out, src[i]);
+            out.push(src[i]);
         }
     }
     return out;
 }
 
 fn focus_definitions(&LspCli opts, &DefinitionInfo[] src): DefinitionInfo[] {
-    if (str_len(opts.focus) == 0) {
+    if (opts.focus.size() == 0) {
         return src;
     }
     let out: DefinitionInfo[] = [];
     let last_file = "";
     let last_match = false;
-    for (let i = 0; i < vector_size(&src); i += 1) {
+    for (let i = 0; i < src.size(); i += 1) {
         let f = span_file(src[i].use_span);
         if (f != last_file) {
             last_file = f;
-            last_match = str_len(f) == 0 || import_resolver_normalize_path(f) == opts.focus;
+            last_match = f.size() == 0 || ImportResolver.normalize_path(f) == opts.focus;
         }
         if (last_match) {
-            vector_push(&out, src[i]);
+            out.push(src[i]);
         }
     }
     return out;
@@ -445,24 +445,20 @@ fn analyze_and_emit(&LspCli opts): void {
             return;
         },
         ResultProgram::Ok(parsed) {
-            let resolver = import_resolver_new(lexer_options);
-            for (let k = 0; k < vector_size(&opts.overlay_paths); k += 1) {
-                import_resolver_add_overlay(
-                    &resolver,
-                    opts.overlay_paths[k],
-                    read_file(opts.overlay_files[k])
-                );
+            let resolver = ImportResolver.new(&lexer_options);
+            for (let k = 0; k < opts.overlay_paths.size(); k += 1) {
+                resolver.add_overlay(opts.overlay_paths[k], read_file(opts.overlay_files[k]));
             }
-            match (import_resolver_resolve(&resolver, logical_path(&opts), &parsed)) {
+            match (resolver.resolve(logical_path(&opts), &parsed)) {
                 ResultProgram::Err(err) {
                     push_diag(&diagnostics, err.level, err.message, "import", err.span);
                     emit_json(&opts, build_payload(false, &diagnostics, &hovers, &definitions));
                     return;
                 },
                 ResultProgram::Ok(program) {
-                    let expander = macro_expander_new();
-                    macro_expander_run(&expander, &program);
-                    for (let i = 0; i < vector_size(&expander.errors); i += 1) {
+                    let expander = MacroExpander.new();
+                    expander.run(&program);
+                    for (let i = 0; i < expander.errors.size(); i += 1) {
                         let err = expander.errors[i];
                         push_diag(&diagnostics, err.level, err.message, "macro", err.span);
                         if (err.level matches ErrorSeverity::HIGH) {
@@ -475,10 +471,10 @@ fn analyze_and_emit(&LspCli opts): void {
                     }
 
                     if (!opts.is_unsafe) {
-                        let checker = semantic_checker_new();
-                        semantic_checker_check(&checker, &program);
+                        let checker = SemanticChecker.new();
+                        checker.check(&program);
 
-                        for (let i = 0; i < vector_size(&checker.errors); i += 1) {
+                        for (let i = 0; i < checker.errors.size(); i += 1) {
                             let err = checker.errors[i];
                             push_diag(&diagnostics, err.level, err.message, "semantic", err.span);
                             if (err.level matches ErrorSeverity::HIGH) {
